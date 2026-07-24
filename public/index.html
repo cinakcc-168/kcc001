@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <title>Tiny POS</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Tiny POS home">
+        <span class="brand-mark" aria-hidden="true">T</span>
+        <span>
+          <strong>Tiny POS</strong>
+          <small id="connectionLabel">Connecting…</small>
+        </span>
+      </a>
+
+      <div class="topbar-actions">
+        <button id="preLoginLanguageButton" class="button button-ghost" type="button">ខ្មែរ</button>
+        <button id="logoutButton" class="button button-danger hidden" type="button" data-i18n="logout">Log out</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section id="loadingView" class="card centered-card">
+        <div class="spinner" aria-hidden="true"></div>
+        <h1 data-i18n="checkingSession">Checking your session…</h1>
+        <p class="muted" data-i18n="checkingSessionHelp">Tiny POS is connecting securely to Supabase.</p>
+      </section>
+
+      <section id="loginView" class="card auth-card hidden" aria-labelledby="loginTitle">
+        <div class="eyebrow" data-i18n="secureLogin">Secure staff login</div>
+        <h1 id="loginTitle" data-i18n="welcome">Welcome to Tiny POS</h1>
+        <p class="muted" data-i18n="loginHelp">Sign in with the owner account you created in Supabase.</p>
+
+        <form id="loginForm" novalidate>
+          <label for="emailInput" data-i18n="email">Email</label>
+          <input id="emailInput" name="email" type="email" autocomplete="username" required placeholder="owner@example.com">
+
+          <label for="passwordInput" data-i18n="password">Password</label>
+          <div class="password-row">
+            <input id="passwordInput" name="password" type="password" autocomplete="current-password" required minlength="6" placeholder="••••••••">
+            <button id="togglePasswordButton" class="button button-ghost" type="button" data-i18n="show">Show</button>
+          </div>
+
+          <button id="loginButton" class="button button-primary button-wide" type="submit" data-i18n="login">Log in</button>
+        </form>
+
+        <div id="loginMessage" class="message hidden" role="alert"></div>
+      </section>
+
+      <section id="dashboardView" class="dashboard hidden">
+        <div class="welcome-panel card">
+          <div>
+            <div class="eyebrow" data-i18n="connectionSuccess">Supabase connection successful</div>
+            <h1><span data-i18n="hello">Hello</span>, <span id="profileName">POS User</span></h1>
+            <p class="muted" data-i18n="foundationReady">Authentication, user profile, branch access, and Row Level Security are working.</p>
+          </div>
+          <span id="roleBadge" class="role-badge">OWNER</span>
+        </div>
+
+        <div class="grid two-columns">
+          <article class="card">
+            <h2 data-i18n="account">Account</h2>
+            <dl class="details-list">
+              <div><dt data-i18n="name">Name</dt><dd id="accountName">—</dd></div>
+              <div><dt data-i18n="email">Email</dt><dd id="accountEmail">—</dd></div>
+              <div><dt data-i18n="role">Role</dt><dd id="accountRole">—</dd></div>
+              <div><dt data-i18n="status">Status</dt><dd id="accountStatus">—</dd></div>
+            </dl>
+          </article>
+
+          <article class="card">
+            <h2 data-i18n="shop">Shop</h2>
+            <dl class="details-list">
+              <div><dt data-i18n="organization">Organization</dt><dd id="organizationName">—</dd></div>
+              <div><dt data-i18n="branch">Branch</dt><dd id="branchName">—</dd></div>
+              <div><dt data-i18n="baseCurrency">Base currency</dt><dd id="baseCurrency">—</dd></div>
+              <div><dt data-i18n="exchangeRate">USD → KHR</dt><dd id="exchangeRate">—</dd></div>
+            </dl>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="section-heading">
+            <div>
+              <h2 data-i18n="personalPreferences">Personal preferences</h2>
+              <p class="muted" data-i18n="preferencesHelp">These settings belong only to your user account. Other staff can choose their own style.</p>
+            </div>
+            <span id="saveState" class="save-state" aria-live="polite"></span>
+          </div>
+
+          <form id="preferencesForm" class="preferences-grid">
+            <div>
+              <label for="languageSelect" data-i18n="language">Language</label>
+              <select id="languageSelect" name="language">
+                <option value="en">English</option>
+                <option value="km">ខ្មែរ</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="themeSelect" data-i18n="theme">Theme</label>
+              <select id="themeSelect" name="theme">
+                <option value="system" data-i18n="systemTheme">Use device setting</option>
+                <option value="light" data-i18n="lightTheme">Light</option>
+                <option value="dark" data-i18n="darkTheme">Dark</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="accentColorInput" data-i18n="accentColor">Accent color</label>
+              <div class="color-row">
+                <input id="accentColorInput" name="accent_color" type="color" value="#2563eb">
+                <output id="accentColorValue" for="accentColorInput">#2563eb</output>
+              </div>
+            </div>
+
+            <div class="preference-action">
+              <button id="savePreferencesButton" class="button button-primary" type="submit" data-i18n="savePreferences">Save preferences</button>
+            </div>
+          </form>
+        </article>
+
+        <article class="card status-card">
+          <h2 data-i18n="stepTwoTest">Step 2 connection test</h2>
+          <div class="status-list">
+            <div><span class="status-dot success"></span><span data-i18n="authWorking">Supabase email/password login works</span></div>
+            <div><span class="status-dot success"></span><span data-i18n="profileWorking">Owner profile and role loaded through RLS</span></div>
+            <div><span class="status-dot success"></span><span data-i18n="settingsWorking">Shop settings loaded from PostgreSQL</span></div>
+            <div><span class="status-dot success"></span><span data-i18n="preferencesWorking">Personal theme and language can be saved</span></div>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>Tiny POS</span>
+      <span aria-hidden="true">•</span>
+      <span data-i18n="stepTwo">Supabase connection — Step 2</span>
+    </footer>
+  </div>
+
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>
