@@ -4,7 +4,7 @@ const BACKUP_FORMAT = "tiny-pos-business-backup";
 const BACKUP_VERSION = 1;
 const PAGE_SIZE = 750;
 const INSERT_SIZE = 300;
-const OPTIONAL_TABLES = new Set(["coupons", "coupon_redemptions"]);
+const OPTIONAL_TABLES = new Set(["coupons", "coupon_redemptions", "cash_register_sessions"]);
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
@@ -34,6 +34,7 @@ const DIRECT_ORG_TABLES = [
   "stock_movements",
   "cash_categories",
   "cash_entries",
+  "cash_register_sessions",
   "stock_transfers",
   "stock_transfer_items",
   "purchase_returns",
@@ -62,6 +63,7 @@ const DELETE_ORDER = [
   "parked_sales",
   "stock_movements",
   "cash_entries",
+  "cash_register_sessions",
   "cash_categories",
   "customer_loyalty_movements",
   "customer_counters",
@@ -90,6 +92,7 @@ const INSERT_ORDER = [
   "inventory_balances",
   "document_counters",
   "cash_categories",
+  "cash_register_sessions",
   "cash_entries",
   "purchases",
   "purchase_items",
@@ -125,7 +128,9 @@ const USER_REFERENCE_COLUMNS = [
   "ordered_by",
   "paid_by",
   "requested_by",
-  "redeemed_by"
+  "redeemed_by",
+  "opened_by",
+  "closed_by"
 ];
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -310,7 +315,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 16
+      schema_step: 17
     },
     staff: profiles,
     user_preferences: preferences,
@@ -454,6 +459,30 @@ function transformRows(
           fallbackUserId
         );
       }
+    }
+
+    if (table === "cash_register_sessions" && row.status === "open") {
+      const closedAt = new Date().toISOString();
+      const expectedUsd = Number(
+        row.expected_cash_usd ?? row.opening_cash_usd ?? 0
+      );
+      const expectedKhr = Number(
+        row.expected_cash_khr ?? row.opening_cash_khr ?? 0
+      );
+
+      row.status = "closed";
+      row.expected_cash_usd = expectedUsd;
+      row.expected_cash_khr = expectedKhr;
+      row.counted_cash_usd = expectedUsd;
+      row.counted_cash_khr = expectedKhr;
+      row.variance_usd = 0;
+      row.variance_khr = 0;
+      row.closed_by = fallbackUserId;
+      row.closed_at = closedAt;
+      row.closing_note = [
+        row.closing_note,
+        "Automatically closed during backup restore."
+      ].filter(Boolean).join(" ");
     }
 
     if (table === "audit_logs") {
