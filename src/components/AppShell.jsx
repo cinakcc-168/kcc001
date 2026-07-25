@@ -7,6 +7,7 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -59,6 +60,12 @@ const links = [
     to: "/transfers",
     label: "Stock Transfers",
     icon: ArrowLeftRight,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/purchase-orders",
+    label: "Purchase Orders",
+    icon: ClipboardList,
     roles: ["owner", "admin", "manager"]
   },
   {
