@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  ShoppingCart,
   Store,
   Warehouse
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 
 const links = [
   ["/dashboard", "Dashboard", LayoutDashboard],
+  ["/sales", "New Sale", ShoppingCart],
   ["/products", "Products", Boxes],
   ["/inventory", "Inventory", Warehouse],
   ["/settings", "Settings", Settings]
@@ -24,6 +26,14 @@ export default function AppShell() {
   const { profile, shop, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  async function handleSignOut() {
+    try {
+      await signOut();
+    } catch (error) {
+      window.alert(error.message);
+    }
+  }
 
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""}`}>
@@ -35,7 +45,12 @@ export default function AppShell() {
 
         <nav>
           {links.map(([to, label, Icon]) => (
-            <NavLink key={to} to={to} onClick={() => setOpen(false)} title={collapsed ? label : undefined}>
+            <NavLink
+              key={to}
+              to={to}
+              onClick={() => setOpen(false)}
+              title={collapsed ? label : undefined}
+            >
               <Icon size={21} />
               <span className="side-label">{label}</span>
             </NavLink>
@@ -43,26 +58,55 @@ export default function AppShell() {
         </nav>
 
         <div className="side-footer">
-          <button className="collapse-button desktop-only" onClick={() => setCollapsed((value) => !value)}>
+          <button
+            type="button"
+            className="collapse-button desktop-only"
+            onClick={() => setCollapsed((value) => !value)}
+          >
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             <span className="side-label">Collapse</span>
           </button>
-          <button className="logout" onClick={signOut} title={collapsed ? "Log out" : undefined}>
+          <button
+            type="button"
+            className="logout"
+            onClick={handleSignOut}
+            title={collapsed ? "Log out" : undefined}
+          >
             <LogOut size={20} />
             <span className="side-label">Log out</span>
           </button>
         </div>
       </aside>
 
-      {open && <button className="backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}
+      {open && (
+        <button
+          type="button"
+          className="backdrop"
+          aria-label="Close menu"
+          onClick={() => setOpen(false)}
+        />
+      )}
 
       <main>
         <header>
-          <button className="menu" onClick={() => setOpen(true)} aria-label="Open menu"><Menu /></button>
-          <div><Store size={18} /> {profile?.branches?.name || "Main Branch"}</div>
-          <strong>{profile?.full_name || "Owner"} · {profile?.role}</strong>
+          <button
+            type="button"
+            className="menu"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu />
+          </button>
+          <div>
+            <Store size={18} /> {profile?.branches?.name || "Main Branch"}
+          </div>
+          <strong>
+            {profile?.full_name || "Owner"} · {profile?.role}
+          </strong>
         </header>
-        <section className="content"><Outlet /></section>
+        <section className="content">
+          <Outlet />
+        </section>
       </main>
     </div>
   );
