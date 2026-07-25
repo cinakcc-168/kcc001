@@ -4,7 +4,12 @@ const BACKUP_FORMAT = "tiny-pos-business-backup";
 const BACKUP_VERSION = 1;
 const PAGE_SIZE = 750;
 const INSERT_SIZE = 300;
-const OPTIONAL_TABLES = new Set(["coupons", "coupon_redemptions", "cash_register_sessions"]);
+const OPTIONAL_TABLES = new Set([
+  "coupons",
+  "coupon_redemptions",
+  "cash_register_sessions",
+  "product_units"
+]);
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
@@ -18,6 +23,7 @@ const DIRECT_ORG_TABLES = [
   "coupon_redemptions",
   "products",
   "product_images",
+  "product_units",
   "inventory_balances",
   "document_counters",
   "sales",
@@ -68,6 +74,7 @@ const DELETE_ORDER = [
   "customer_loyalty_movements",
   "customer_counters",
   "inventory_balances",
+  "product_units",
   "product_images",
   "products",
   "categories",
@@ -88,6 +95,7 @@ const INSERT_ORDER = [
   "supplier_code_counters",
   "coupons",
   "products",
+  "product_units",
   "product_images",
   "inventory_balances",
   "document_counters",
@@ -315,7 +323,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 17
+      schema_step: 18
     },
     staff: profiles,
     user_preferences: preferences,
