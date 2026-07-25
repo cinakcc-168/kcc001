@@ -17,7 +17,9 @@ import {
   UserRoundCheck,
   UsersRound,
   WalletCards,
-  Warehouse
+  Warehouse,
+  Landmark,
+  TrendingDown
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { money, stockNumber } from "../lib/catalog";
@@ -33,7 +35,7 @@ import ReportBarChart from "../components/ReportBarChart";
 
 const tabs = [
   ["sales", "Sales Summary", ReceiptText],
-  ["profit", "Profit & Purchases", TrendingUp],
+  ["profit", "Profit & Loss", TrendingUp],
   ["stock", "Stock Analysis", Warehouse],
   ["customers", "Customer Analysis", UsersRound]
 ];
@@ -70,6 +72,12 @@ export default function ReportsPage() {
   const summary = data?.summary || {};
   const stockSummary = data?.stock_summary || {};
   const customerSummary = data?.customer_summary || {};
+  const cashReport = data?.cash_report || {};
+  const cashSummary = cashReport?.summary || {};
+  const netProfit =
+    Number(summary.gross_profit || 0)
+    + Number(cashSummary.other_income || 0)
+    - Number(cashSummary.operating_expenses || 0);
 
   useEffect(() => {
     setFilters((current) => ({
@@ -172,19 +180,22 @@ export default function ReportsPage() {
 
     if (activeTab === "profit") {
       exportCsv(
-        `tiny-pos-purchases-${scope}-${period}.csv`,
+        `tiny-pos-expenses-${scope}-${period}.csv`,
         [
-          { label: "Purchase", value: "purchase_number" },
-          { label: "Date", value: (row) => formatReportDate(row.received_at, { time: true }) },
+          { label: "Code", value: "entry_number" },
+          { label: "Date", value: (row) => formatReportDate(row.entry_at, { time: true }) },
           { label: "Branch", value: "branch_name" },
-          { label: "Supplier", value: "supplier_name" },
-          { label: "Supplier Invoice", value: "supplier_invoice_number" },
-          { label: `Total (${currency})`, value: "total" },
-          { label: `Paid (${currency})`, value: "amount_paid" },
-          { label: `Balance (${currency})`, value: "balance" },
-          { label: "Status", value: "status" }
+          { label: "Category", value: "category_name" },
+          { label: "Payment", value: "method" },
+          { label: "Currency", value: "currency" },
+          { label: "Original Amount", value: "amount" },
+          { label: `Base Amount (${currency})`, value: "base_amount" },
+          { label: "Affects Profit", value: (row) => row.affects_profit ? "Yes" : "No" },
+          { label: "User", value: "created_by_name" },
+          { label: "Reference", value: "reference_number" },
+          { label: "Remark", value: "remark" }
         ],
-        data?.purchase_rows || []
+        (cashReport?.entries || []).filter((row) => row.direction === "expense")
       );
       return;
     }
@@ -277,30 +288,39 @@ export default function ReportsPage() {
   }
 
   function ProfitReport() {
+    const expenses = (cashReport?.entries || []).filter(
+      (row) => row.direction === "expense"
+    );
+
     return (
       <div className="report-section-stack">
         <div className="report-metric-grid">
           <ReportMetricCard icon={CircleDollarSign} label="Net sales" value={reportMoney(summary.net_sales, currency)} detail={`Gross ${reportMoney(summary.gross_sales, currency)}`} />
           <ReportMetricCard icon={WalletCards} label="Net COGS" value={reportMoney(summary.net_cogs, currency)} detail={`Returned cost ${reportMoney(summary.returned_cogs, currency)}`} />
           <ReportMetricCard icon={TrendingUp} label="Gross profit" value={reportMoney(summary.gross_profit, currency)} detail={`${formatPercent(summary.gross_margin_percent)} margin`} tone="success" />
+          <ReportMetricCard icon={BadgeDollarSign} label="Other income" value={reportMoney(cashSummary.other_income, currency)} detail="Profit-affecting cash-in entries" />
+          <ReportMetricCard icon={TrendingDown} label="Operating expenses" value={reportMoney(cashSummary.operating_expenses, currency)} detail={`${number(cashSummary.expense_count, 0)} expense entries`} tone="danger" />
+          <ReportMetricCard icon={Landmark} label="Net profit" value={reportMoney(netProfit, currency)} detail="Gross profit + other income − expenses" tone={netProfit < 0 ? "danger" : "success"} />
           <ReportMetricCard icon={PackageSearch} label="Purchases received" value={reportMoney(summary.purchase_total, currency)} detail={`${number(summary.purchase_count, 0)} purchases`} />
           <ReportMetricCard icon={BadgeDollarSign} label="Purchase paid" value={reportMoney(summary.purchase_paid, currency)} detail={`Balance ${reportMoney(Number(summary.purchase_total || 0) - Number(summary.purchase_paid || 0), currency)}`} />
           <ReportMetricCard icon={RotateCcw} label="Profit reversed" value={reportMoney(summary.profit_reversal, currency)} detail="Gross profit removed by refunds" tone="danger" />
         </div>
 
         <div className="report-accounting-note">
-          <strong>Gross-profit report:</strong> purchases increase inventory and are not subtracted again as an operating expense. An Expenses module will be added separately before a true net-profit report.
+          <strong>Profit & Loss:</strong> purchases increase inventory and become cost of goods when products are sold. Therefore purchases are not subtracted again from net profit. Only categories marked “Affects Profit & Loss” are included as other income or operating expenses.
         </div>
 
         <div className="report-two-column">
           <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Gross profit trend</h2><p>Sales profit after refund reversals</p></div></div><ReportBarChart data={trendForChart} labelKey="label" valueKey="gross_profit" valueFormatter={(value) => reportMoney(value, currency)} /></section>
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Cashier performance</h2><p>Net sales by original cashier</p></div></div><ReportBarChart data={data?.cashiers || []} labelKey="cashier_name" valueKey="net_sales" valueFormatter={(value) => reportMoney(value, currency)} /></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Expense categories</h2><p>All cash-out categories in this period</p></div></div><ReportBarChart data={cashReport?.expense_categories || []} labelKey="category_name" valueKey="total" valueFormatter={(value) => reportMoney(value, currency)} /></section>
         </div>
 
         <div className="report-two-column">
           <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Top suppliers</h2><p>Purchases received in this period</p></div></div><div className="report-table-wrap"><table className="report-table"><thead><tr><th>Supplier</th><th>Purchases</th><th>Total</th><th>Balance</th></tr></thead><tbody>{(data?.top_suppliers || []).map((row) => <tr key={row.supplier_name}><td>{row.supplier_name}</td><td>{number(row.purchase_count, 0)}</td><td>{reportMoney(row.purchase_total, currency)}</td><td>{reportMoney(row.balance, currency)}</td></tr>)}</tbody></table></div></section>
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Profit bridge</h2><p>How gross profit is calculated</p></div></div><div className="report-bridge"><div><span>Gross sales</span><strong>{reportMoney(summary.gross_sales, currency)}</strong></div><div className="minus"><span>Customer refunds</span><strong>-{reportMoney(summary.refunds, currency)}</strong></div><div><span>Net sales</span><strong>{reportMoney(summary.net_sales, currency)}</strong></div><div className="minus"><span>Net cost of goods</span><strong>-{reportMoney(summary.net_cogs, currency)}</strong></div><div className="total"><span>Gross profit</span><strong>{reportMoney(summary.gross_profit, currency)}</strong></div></div></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Profit bridge</h2><p>How net profit is calculated</p></div></div><div className="report-bridge"><div><span>Gross sales</span><strong>{reportMoney(summary.gross_sales, currency)}</strong></div><div className="minus"><span>Customer refunds</span><strong>-{reportMoney(summary.refunds, currency)}</strong></div><div><span>Net sales</span><strong>{reportMoney(summary.net_sales, currency)}</strong></div><div className="minus"><span>Net cost of goods</span><strong>-{reportMoney(summary.net_cogs, currency)}</strong></div><div><span>Gross profit</span><strong>{reportMoney(summary.gross_profit, currency)}</strong></div><div><span>Other income</span><strong>+{reportMoney(cashSummary.other_income, currency)}</strong></div><div className="minus"><span>Operating expenses</span><strong>-{reportMoney(cashSummary.operating_expenses, currency)}</strong></div><div className="total"><span>Net profit</span><strong>{reportMoney(netProfit, currency)}</strong></div></div></section>
         </div>
+
+        <section className="panel report-panel report-detail-panel"><div className="report-panel-heading"><div><h2>Expense detail</h2><p>Active cash-out records in this period</p></div><span>{number(expenses.length, 0)} rows</span></div><div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Code</th><th>Date</th><th>Branch</th><th>Category</th><th>Payment</th><th>Amount</th><th>Profit & Loss</th><th>User</th><th>Remark</th></tr></thead><tbody>{expenses.map((row) => <tr key={row.id}><td><strong>{row.entry_number}</strong><small>{row.reference_number || "No reference"}</small></td><td>{formatReportDate(row.entry_at, { time: true })}</td><td>{row.branch_name}</td><td>{row.category_name}</td><td>{String(row.method).toUpperCase()}</td><td><strong>{reportMoney(row.base_amount, currency)}</strong><small>{row.currency !== currency ? reportMoney(row.amount, row.currency) : ""}</small></td><td>{row.affects_profit ? "Included" : "Cash only"}</td><td>{row.created_by_name}</td><td>{row.remark || "—"}</td></tr>)}</tbody></table></div></section>
 
         <section className="panel report-panel report-detail-panel"><div className="report-panel-heading"><div><h2>Purchase detail</h2><p>Latest 500 received purchases</p></div><span>{number(data?.purchase_rows?.length, 0)} rows</span></div><div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Purchase</th><th>Date</th><th>Supplier</th><th>Supplier invoice</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>{(data?.purchase_rows || []).map((row) => <tr key={row.purchase_number}><td><strong>{row.purchase_number}</strong><small>{row.branch_name}</small></td><td>{formatReportDate(row.received_at, { time: true })}</td><td>{row.supplier_name}</td><td>{row.supplier_invoice_number || "—"}</td><td>{reportMoney(row.total, currency)}</td><td>{reportMoney(row.amount_paid, currency)}</td><td>{reportMoney(row.balance, currency)}</td><td>{row.status}</td></tr>)}</tbody></table></div></section>
       </div>
@@ -357,7 +377,7 @@ export default function ReportsPage() {
   return (
     <div className="page-stack reports-page">
       <div className="page-heading reports-heading">
-        <div><p className="eyebrow">BUSINESS INTELLIGENCE</p><h1>Reports</h1><p className="muted">Sales, gross profit, purchases, stock, and customer performance.</p></div>
+        <div><p className="eyebrow">BUSINESS INTELLIGENCE</p><h1>Reports</h1><p className="muted">Sales, net profit, expenses, purchases, stock, and customer performance.</p></div>
         <div className="heading-actions report-heading-actions"><button type="button" className="secondary-button" onClick={() => window.print()} disabled={!data}><Printer size={18} />Print</button><button type="button" className="secondary-button" onClick={exportCurrentTab} disabled={!data}><Download size={18} />Export CSV</button><button type="button" className="primary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button></div>
       </div>
 
