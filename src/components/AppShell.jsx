@@ -18,7 +18,8 @@ import {
   UserCog,
   UsersRound,
   WalletCards,
-  Warehouse
+  Warehouse,
+  ShieldCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -84,6 +85,12 @@ const links = [
     to: "/users",
     label: "Staff & Branches",
     icon: UserCog,
+    roles: ["owner", "admin"]
+  },
+  {
+    to: "/admin-tools",
+    label: "Audit & Backup",
+    icon: ShieldCheck,
     roles: ["owner", "admin"]
   },
   { to: "/settings", label: "Settings", icon: Settings }
