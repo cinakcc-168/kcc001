@@ -89,7 +89,7 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
         .order("name"),
       supabase
         .from("parked_sales")
-        .select("id,label,customer_id,currency,cart,discount_type,discount_value,notes,parked_by,created_at")
+        .select("id,label,customer_id,currency,cart,discount_type,discount_value,coupon_code,notes,parked_by,created_at")
         .eq("organization_id", organizationId)
         .eq("branch_id", branchId)
         .order("created_at", { ascending: false }),
@@ -104,6 +104,8 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           currency,
           total_amount,
           gross_profit,
+          coupon_code,
+          coupon_discount_amount,
           created_at,
           completed_at,
           customers (id,name,phone),
@@ -199,6 +201,7 @@ export async function saveParkedSale(supabase, profile, values) {
     })),
     discount_type: values.discount_type,
     discount_value: Number(values.discount_value || 0),
+    coupon_code: values.coupon_code?.trim().toUpperCase() || null,
     notes: values.notes.trim() || null
   };
 
@@ -244,8 +247,23 @@ export function hydrateParkedCart(products, parkedCart) {
   return { cart, missing };
 }
 
+export async function previewCoupon(supabase, values) {
+  const { data, error } = await supabase.rpc("preview_coupon", {
+    p_code: values.code.trim().toUpperCase(),
+    p_items: values.cart.map((item) => ({
+      product_id: item.id,
+      quantity: Number(item.quantity)
+    })),
+    p_customer_id: values.customer_id || null,
+    p_currency: values.currency
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale", {
+  const { data, error } = await supabase.rpc("complete_sale_v2", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       quantity: Number(item.quantity)
@@ -253,9 +271,9 @@ export async function completeSale(supabase, values) {
     p_payment_method: values.payment_method,
     p_amount_received: Number(values.amount_received),
     p_customer_id: values.customer_id || null,
-    p_discount_type: values.discount_type,
-    p_discount_value: Number(values.discount_value || 0),
-    p_tax_amount: Number(values.tax_amount || 0),
+    p_manual_discount_type: values.discount_type,
+    p_manual_discount_value: Number(values.discount_value || 0),
+    p_coupon_code: values.coupon_code?.trim().toUpperCase() || null,
     p_currency: values.currency,
     p_notes: values.notes.trim() || null,
     p_payment_reference: values.payment_reference.trim() || null,
