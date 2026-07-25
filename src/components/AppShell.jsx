@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   Boxes,
@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  RotateCcw,
   Settings,
   ShoppingCart,
   Store,
@@ -15,17 +16,54 @@ import {
 import { useAuth } from "../context/AuthContext";
 
 const links = [
-  ["/dashboard", "Dashboard", LayoutDashboard],
-  ["/sales", "New Sale", ShoppingCart],
-  ["/products", "Products", Boxes],
-  ["/inventory", "Inventory", Warehouse],
-  ["/settings", "Settings", Settings]
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard
+  },
+  {
+    to: "/sales",
+    label: "New Sale",
+    icon: ShoppingCart,
+    roles: ["owner", "admin", "manager", "cashier"]
+  },
+  {
+    to: "/returns",
+    label: "Returns & Refunds",
+    icon: RotateCcw,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/products",
+    label: "Products",
+    icon: Boxes
+  },
+  {
+    to: "/inventory",
+    label: "Inventory",
+    icon: Warehouse,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/settings",
+    label: "Settings",
+    icon: Settings
+  }
 ];
 
 export default function AppShell() {
   const { profile, shop, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  const visibleLinks = useMemo(
+    () =>
+      links.filter(
+        (link) =>
+          !link.roles || link.roles.includes(profile?.role)
+      ),
+    [profile?.role]
+  );
 
   async function handleSignOut() {
     try {
@@ -40,11 +78,13 @@ export default function AppShell() {
       <aside className={open ? "side open" : "side"}>
         <div className="brand">
           <b>T</b>
-          <span className="side-label">{shop?.shop_name || "Tiny POS"}</span>
+          <span className="side-label">
+            {shop?.shop_name || "Tiny POS"}
+          </span>
         </div>
 
         <nav>
-          {links.map(([to, label, Icon]) => (
+          {visibleLinks.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -63,9 +103,14 @@ export default function AppShell() {
             className="collapse-button desktop-only"
             onClick={() => setCollapsed((value) => !value)}
           >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            {collapsed ? (
+              <ChevronRight size={20} />
+            ) : (
+              <ChevronLeft size={20} />
+            )}
             <span className="side-label">Collapse</span>
           </button>
+
           <button
             type="button"
             className="logout"
@@ -97,13 +142,17 @@ export default function AppShell() {
           >
             <Menu />
           </button>
+
           <div>
-            <Store size={18} /> {profile?.branches?.name || "Main Branch"}
+            <Store size={18} />
+            {profile?.branches?.name || "Main Branch"}
           </div>
+
           <strong>
             {profile?.full_name || "Owner"} · {profile?.role}
           </strong>
         </header>
+
         <section className="content">
           <Outlet />
         </section>
