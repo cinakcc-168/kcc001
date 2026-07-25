@@ -19,7 +19,8 @@ import {
   UsersRound,
   WalletCards,
   Warehouse,
-  ShieldCheck
+  ShieldCheck,
+  TicketPercent
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -42,6 +43,12 @@ const links = [
     to: "/customers",
     label: "Customers",
     icon: UsersRound,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/coupons",
+    label: "Coupons",
+    icon: TicketPercent,
     roles: ["owner", "admin", "manager"]
   },
   { to: "/products", label: "Products", icon: Boxes },

@@ -1,10 +1,13 @@
 import {
-  Minus,
+  Check,
   CirclePause,
+  Minus,
   Plus,
+  TicketPercent,
   Trash2,
   UserPlus,
-  Wallet
+  Wallet,
+  X
 } from "lucide-react";
 import { money, stockNumber } from "../lib/catalog";
 
@@ -18,6 +21,12 @@ export default function SaleCart({
   discountValue,
   onDiscountTypeChange,
   onDiscountValueChange,
+  couponCode,
+  appliedCoupon,
+  couponBusy,
+  onCouponCodeChange,
+  onApplyCoupon,
+  onRemoveCoupon,
   notes,
   onNotesChange,
   totals,
@@ -39,7 +48,11 @@ export default function SaleCart({
           <h2>{activeParkLabel || "New sale"}</h2>
         </div>
         {cart.length > 0 && (
-          <button type="button" className="text-button danger-text" onClick={onClear}>
+          <button
+            type="button"
+            className="text-button danger-text"
+            onClick={onClear}
+          >
             Clear
           </button>
         )}
@@ -48,11 +61,15 @@ export default function SaleCart({
       <div className="customer-select-row">
         <label>
           <span>Customer</span>
-          <select value={customerId} onChange={(event) => onCustomerChange(event.target.value)}>
+          <select
+            value={customerId}
+            onChange={(event) => onCustomerChange(event.target.value)}
+          >
             <option value="">Walk-in customer</option>
             {customers.map((customer) => (
               <option key={customer.id} value={customer.id}>
-                {customer.name}{customer.phone ? ` · ${customer.phone}` : ""}
+                {customer.name}
+                {customer.phone ? ` · ${customer.phone}` : ""}
               </option>
             ))}
           </select>
@@ -82,18 +99,29 @@ export default function SaleCart({
               <div className="cart-line-info">
                 <strong>{item.name}</strong>
                 <span>
-                  {money(item.selling_price, item.currency)} × {stockNumber(item.quantity)} ={" "}
-                  <b>{money(Number(item.selling_price) * Number(item.quantity), item.currency)}</b>
+                  {money(item.selling_price, item.currency)} ×{" "}
+                  {stockNumber(item.quantity)} ={" "}
+                  <b>
+                    {money(
+                      Number(item.selling_price) * Number(item.quantity),
+                      item.currency
+                    )}
+                  </b>
                 </span>
                 <small>
-                  Stock: {item.track_stock ? `${stockNumber(item.stock_quantity)} ${item.unit_name}` : "Not tracked"}
+                  Stock:{" "}
+                  {item.track_stock
+                    ? `${stockNumber(item.stock_quantity)} ${item.unit_name}`
+                    : "Not tracked"}
                 </small>
               </div>
               <div className="cart-quantity-controls">
                 <button
                   type="button"
                   className="icon-button"
-                  onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)}
+                  onClick={() =>
+                    onQuantityChange(item.id, Number(item.quantity) - 1)
+                  }
                   aria-label={`Reduce ${item.name}`}
                 >
                   <Minus size={17} />
@@ -103,13 +131,17 @@ export default function SaleCart({
                   min="0.001"
                   step="0.001"
                   value={item.quantity}
-                  onChange={(event) => onQuantityChange(item.id, event.target.value)}
+                  onChange={(event) =>
+                    onQuantityChange(item.id, event.target.value)
+                  }
                   aria-label={`${item.name} quantity`}
                 />
                 <button
                   type="button"
                   className="icon-button"
-                  onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)}
+                  onClick={() =>
+                    onQuantityChange(item.id, Number(item.quantity) + 1)
+                  }
                   aria-label={`Add ${item.name}`}
                 >
                   <Plus size={17} />
@@ -131,25 +163,83 @@ export default function SaleCart({
       <div className="sale-cart-options">
         <div className="discount-row">
           <label>
-            <span>Discount</span>
-            <select value={discountType} onChange={(event) => onDiscountTypeChange(event.target.value)}>
+            <span>Manual discount</span>
+            <select
+              value={discountType}
+              onChange={(event) =>
+                onDiscountTypeChange(event.target.value)
+              }
+              disabled={Boolean(appliedCoupon)}
+            >
               <option value="none">No discount</option>
               <option value="percent">Percentage</option>
               <option value="fixed">Fixed amount</option>
             </select>
           </label>
           <label>
-            <span>{discountType === "percent" ? "Percent" : "Amount"}</span>
+            <span>
+              {discountType === "percent" ? "Percent" : "Amount"}
+            </span>
             <input
               type="number"
               min="0"
               max={discountType === "percent" ? "100" : undefined}
               step="0.01"
               value={discountValue}
-              onChange={(event) => onDiscountValueChange(event.target.value)}
-              disabled={discountType === "none"}
+              onChange={(event) =>
+                onDiscountValueChange(event.target.value)
+              }
+              disabled={discountType === "none" || Boolean(appliedCoupon)}
             />
           </label>
+        </div>
+
+        <div className="sale-coupon-block">
+          <label>
+            <span>Coupon code</span>
+            <div className="sale-coupon-input-row">
+              <TicketPercent size={18} />
+              <input
+                value={couponCode}
+                onChange={(event) =>
+                  onCouponCodeChange(event.target.value.toUpperCase())
+                }
+                placeholder="Enter coupon"
+                disabled={couponBusy || Boolean(appliedCoupon)}
+              />
+              {appliedCoupon ? (
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={onRemoveCoupon}
+                  title="Remove coupon"
+                >
+                  <X size={18} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="secondary-button coupon-apply-button"
+                  onClick={onApplyCoupon}
+                  disabled={couponBusy || cart.length === 0 || !couponCode.trim()}
+                >
+                  {couponBusy ? "Checking..." : "Apply"}
+                </button>
+              )}
+            </div>
+          </label>
+
+          {appliedCoupon && (
+            <div className="applied-coupon">
+              <Check size={18} />
+              <div>
+                <strong>{appliedCoupon.code} · {appliedCoupon.name}</strong>
+                <span>
+                  Coupon discount {money(appliedCoupon.discount_amount, currency)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <label>
@@ -163,12 +253,24 @@ export default function SaleCart({
       </div>
 
       <div className="sale-total-block">
-        <div><span>Subtotal</span><strong>{money(totals.subtotal, currency)}</strong></div>
-        <div><span>Discount</span><strong>-{money(totals.discountAmount, currency)}</strong></div>
+        <div>
+          <span>Subtotal</span>
+          <strong>{money(totals.subtotal, currency)}</strong>
+        </div>
+        <div>
+          <span>{appliedCoupon ? "Coupon discount" : "Discount"}</span>
+          <strong>-{money(totals.discountAmount, currency)}</strong>
+        </div>
         {Number(taxPercent) > 0 && (
-          <div><span>Tax ({Number(taxPercent)}%)</span><strong>{money(totals.taxAmount, currency)}</strong></div>
+          <div>
+            <span>Tax ({Number(taxPercent)}%)</span>
+            <strong>{money(totals.taxAmount, currency)}</strong>
+          </div>
         )}
-        <div className="grand-total"><span>Total</span><strong>{money(totals.total, currency)}</strong></div>
+        <div className="grand-total">
+          <span>Total</span>
+          <strong>{money(totals.total, currency)}</strong>
+        </div>
       </div>
 
       <div className="sale-cart-actions">

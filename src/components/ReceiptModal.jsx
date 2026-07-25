@@ -101,7 +101,19 @@ export default function ReceiptModal({ receipt, onClose }) {
 
           <div className="receipt-totals">
             <div><span>Subtotal</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
-            <div><span>Discount</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
+            <div>
+              <span>{receipt.couponCode ? "Coupon discount" : "Discount"}</span>
+              <strong>-{money(receipt.discountAmount, receipt.currency)}</strong>
+            </div>
+            {receipt.couponCode && (
+              <div>
+                <span>Coupon</span>
+                <strong>
+                  {receipt.couponCode}
+                  {receipt.couponName ? ` · ${receipt.couponName}` : ""}
+                </strong>
+              </div>
+            )}
             {Number(receipt.taxAmount) > 0 && (
               <div><span>Tax</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
             )}
