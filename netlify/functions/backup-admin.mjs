@@ -4,6 +4,7 @@ const BACKUP_FORMAT = "tiny-pos-business-backup";
 const BACKUP_VERSION = 1;
 const PAGE_SIZE = 750;
 const INSERT_SIZE = 300;
+const OPTIONAL_TABLES = new Set(["coupons", "coupon_redemptions"]);
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
@@ -13,6 +14,8 @@ const DIRECT_ORG_TABLES = [
   "customers",
   "customer_counters",
   "customer_loyalty_movements",
+  "coupons",
+  "coupon_redemptions",
   "products",
   "product_images",
   "inventory_balances",
@@ -40,11 +43,13 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "coupon_redemptions",
   "return_items",
   "returns",
   "payments",
   "sale_items",
   "sales",
+  "coupons",
   "purchase_payments",
   "purchase_return_items",
   "purchase_returns",
@@ -79,6 +84,7 @@ const INSERT_ORDER = [
   "customers",
   "customer_counters",
   "supplier_code_counters",
+  "coupons",
   "products",
   "product_images",
   "inventory_balances",
@@ -91,6 +97,7 @@ const INSERT_ORDER = [
   "sales",
   "sale_items",
   "payments",
+  "coupon_redemptions",
   "returns",
   "return_items",
   "inventory_adjustments",
@@ -117,7 +124,8 @@ const USER_REFERENCE_COLUMNS = [
   "cancelled_by",
   "ordered_by",
   "paid_by",
-  "requested_by"
+  "requested_by",
+  "redeemed_by"
 ];
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -302,7 +310,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 15
+      schema_step: 16
     },
     staff: profiles,
     user_preferences: preferences,
@@ -336,7 +344,10 @@ function validateBackupDocument(backup) {
     }
 
     for (const table of DIRECT_ORG_TABLES) {
-      if (!Array.isArray(backup.tables?.[table])) {
+      if (
+        !Array.isArray(backup.tables?.[table]) &&
+        !OPTIONAL_TABLES.has(table)
+      ) {
         problems.push(`Table ${table} is missing or invalid.`);
       }
     }
