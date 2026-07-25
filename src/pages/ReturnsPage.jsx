@@ -141,6 +141,8 @@ export default function ReturnsPage() {
         name: item.product_name,
         quantity: Number(item.quantity),
         selling_price: Number(item.unit_price),
+        selected_unit_price: Number(item.unit_price),
+        selected_unit_name: item.sale_unit_name || "pcs",
         currency: sale.currency
       })),
       subtotal: Number(sale.subtotal || 0),
@@ -181,6 +183,7 @@ export default function ReturnsPage() {
         quantity: Number(item.quantity || 0),
         unit_refund: Number(item.unit_refund || 0),
         line_refund: Number(item.line_refund || 0),
+        unit_name: item.return_unit_name || item.sale_items?.sale_unit_name || "pcs",
         restock: Boolean(item.restock)
       }))
     };
@@ -231,6 +234,7 @@ export default function ReturnsPage() {
               ? lineRefund / Number(selected.quantity)
               : 0,
           line_refund: lineRefund,
+          unit_name: saleItem?.sale_unit_name || "pcs",
           restock: selected.restock
         };
       });
@@ -444,13 +448,16 @@ export default function ReturnsPage() {
                           <span>
                             <strong>{item.product_name}</strong>
                             <small>
-                              Sold {stockNumber(item.quantity)}
+                              Sold {stockNumber(item.quantity)}{" "}
+                              {item.sale_unit_name || "pcs"}
                               {" · "}
-                              Returned {stockNumber(item.returned_quantity)}
+                              Returned {stockNumber(item.returned_quantity)}{" "}
+                              {item.sale_unit_name || "pcs"}
                             </small>
                           </span>
                           <strong>
-                            {stockNumber(item.returnable_quantity)} left
+                            {stockNumber(item.returnable_quantity)}{" "}
+                            {item.sale_unit_name || "pcs"} left
                           </strong>
                         </div>
                       ))}

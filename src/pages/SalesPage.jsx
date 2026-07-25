@@ -19,6 +19,7 @@ import ReceiptModal from "../components/ReceiptModal";
 import SaleCart from "../components/SaleCart";
 import { cloudinaryThumb, money, stockNumber } from "../lib/catalog";
 import {
+  buildSaleCartItem,
   calculateSaleTotals,
   completeSale,
   createCustomer,
@@ -28,6 +29,7 @@ import {
   loadSalesWorkspace,
   previewCoupon,
   removeParkedSale,
+  saleUnitForProduct,
   saveParkedSale
 } from "../lib/sales";
 import { getOpenCashRegisterSummary } from "../lib/cashRegister";
@@ -112,9 +114,21 @@ export default function SalesPage() {
     return products.filter((product) => {
       const matchesSearch =
         !needle ||
-        [product.name, product.name_km, product.sku, product.barcode]
+        [
+          product.name,
+          product.name_km,
+          product.sku,
+          product.barcode,
+          ...(product.product_units || []).flatMap((unit) => [
+            unit.name,
+            unit.short_name,
+            unit.barcode
+          ])
+        ]
           .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(needle));
+          .some((value) =>
+            String(value).toLowerCase().includes(needle)
+          );
       const matchesCategory =
         categoryFilter === "all" || product.category_id === categoryFilter;
       return matchesSearch && matchesCategory;
@@ -191,54 +205,73 @@ export default function SalesPage() {
     setDiscountValue("0");
   }
 
-  function validateQuantity(product, quantity) {
+  function validateQuantity(product, unit, quantity) {
     const next = Number(quantity);
     if (!Number.isFinite(next) || next <= 0) {
       throw new Error("Quantity must be greater than zero.");
     }
 
+    const factor = Number(unit?.conversion_factor || 1);
+    const requestedBase = next * factor;
+
     if (
-      product.track_stock &&
-      !product.allow_negative_stock &&
-      !shop?.allow_negative_stock &&
-      next > Number(product.stock_quantity || 0)
+      product.track_stock
+      && !product.allow_negative_stock
+      && !shop?.allow_negative_stock
+      && requestedBase > Number(product.stock_quantity || 0)
     ) {
       throw new Error(
-        `${product.name} has only ${stockNumber(product.stock_quantity)} ${product.unit_name} in stock.`
+        `${product.name} has only ${stockNumber(
+          Number(product.stock_quantity || 0) / factor
+        )} ${unit?.name || product.unit_name} available.`
       );
     }
 
     return next;
   }
 
-  function addProduct(product) {
+  function addProduct(product, preferredUnitId = null) {
     try {
       if (!canSell) throw new Error("Your role cannot create sales.");
       if (cart.length > 0 && cart[0].currency !== product.currency) {
-        throw new Error(`This bill already uses ${cart[0].currency}. Mixed currencies are not allowed.`);
+        throw new Error(
+          `This bill already uses ${cart[0].currency}. Mixed currencies are not allowed.`
+        );
       }
 
+      const unit = saleUnitForProduct(product, preferredUnitId);
       const existing = cart.find((item) => item.id === product.id);
-      const nextQuantity = validateQuantity(
-        product,
-        Number(existing?.quantity || 0) + 1
-      );
-
       invalidateCoupon();
 
-      if (existing) {
-        setCart((current) =>
-          current.map((item) =>
-            item.id === product.id ? { ...item, quantity: nextQuantity } : item
-          )
+      if (existing && existing.selected_unit_id === unit.id) {
+        const nextQuantity = validateQuantity(
+          product,
+          unit,
+          Number(existing.quantity || 0) + 1
         );
+        setCart((current) => current.map((item) =>
+          item.id === product.id
+            ? { ...item, quantity: nextQuantity }
+            : item
+        ));
+      } else if (existing) {
+        validateQuantity(product, unit, 1);
+        setCart((current) => current.map((item) =>
+          item.id === product.id
+            ? { ...buildSaleCartItem(product, unit.id), quantity: 1 }
+            : item
+        ));
       } else {
-        setCart((current) => [...current, { ...product, quantity: 1 }]);
+        validateQuantity(product, unit, 1);
+        setCart((current) => [
+          ...current,
+          buildSaleCartItem(product, unit.id)
+        ]);
       }
 
       if (preferences?.scanner_vibration) navigator.vibrate?.(55);
       setSearch("");
-      announce("success", `${product.name} added to the bill.`);
+      announce("success", `${product.name} · ${unit.name} added to the bill.`);
     } catch (error) {
       announce("error", error.message);
     }
@@ -256,11 +289,31 @@ export default function SalesPage() {
     }
 
     try {
-      const quantity = validateQuantity(product, number);
+      const unit = saleUnitForProduct(product, product.selected_unit_id);
+      const quantity = validateQuantity(product, unit, number);
       invalidateCoupon();
-      setCart((current) =>
-        current.map((item) => item.id === productId ? { ...item, quantity } : item)
-      );
+      setCart((current) => current.map((item) =>
+        item.id === productId ? { ...item, quantity } : item
+      ));
+    } catch (error) {
+      announce("error", error.message);
+    }
+  }
+
+  function changeUnit(productId, unitId) {
+    const product = cart.find((item) => item.id === productId);
+    if (!product) return;
+
+    try {
+      const unit = saleUnitForProduct(product, unitId);
+      validateQuantity(product, unit, 1);
+      invalidateCoupon();
+      setCart((current) => current.map((item) =>
+        item.id === productId
+          ? { ...buildSaleCartItem(product, unit.id), quantity: 1 }
+          : item
+      ));
+      announce("success", `${product.name} unit changed to ${unit.name}.`);
     } catch (error) {
       announce("error", error.message);
     }
@@ -281,18 +334,18 @@ export default function SalesPage() {
 
   function handleScan(code) {
     setScannerOpen(false);
-    const product = exactSaleProductMatch(products, code);
-    if (!product) {
-      announce("error", `No active product matches ${code}.`);
+    const match = exactSaleProductMatch(products, code);
+    if (!match) {
+      announce("error", `No active product or package matches ${code}.`);
       return;
     }
-    addProduct(product);
+    addProduct(match.product, match.unit?.id || null);
   }
 
   function submitSearch(event) {
     event.preventDefault();
-    const product = exactSaleProductMatch(products, search);
-    if (product) addProduct(product);
+    const match = exactSaleProductMatch(products, search);
+    if (match) addProduct(match.product, match.unit?.id || null);
   }
 
   async function handlePark() {
@@ -559,7 +612,7 @@ export default function SalesPage() {
                       {product.name_km && <span>{product.name_km}</span>}
                       <small>{product.sku || product.barcode || "No code"}</small>
                       <div>
-                        <b>{money(product.selling_price, product.currency)}</b>
+                        <b>{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
                         <em className={outOfStock ? "out" : ""}>
                           Stock: {product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "∞"}
                         </em>
@@ -603,6 +656,7 @@ export default function SalesPage() {
           currency={currency}
           taxPercent={shop?.tax_percent || 0}
           onQuantityChange={changeQuantity}
+          onUnitChange={changeUnit}
           onRemove={(productId) => {
             invalidateCoupon();
             setCart((current) =>

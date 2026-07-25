@@ -4,6 +4,7 @@ import {
   ImageOff,
   Pencil,
   Plus,
+  PackageOpen,
   RefreshCw,
   Search,
   Tags
@@ -12,6 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import Modal from "../components/Modal";
 import ProductForm from "../components/ProductForm";
 import CategoryForm from "../components/CategoryForm";
+import ProductUnitsModal from "../components/ProductUnitsModal";
 import {
   cloudinaryThumb,
   createCategory,
@@ -39,6 +41,7 @@ export default function ProductsPage() {
   const [productModal, setProductModal] = useState(null);
   const [categoryModal, setCategoryModal] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
+  const [unitsProduct, setUnitsProduct] = useState(null);
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;
@@ -59,9 +62,21 @@ export default function ProductsPage() {
   const filteredProducts = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return products.filter((product) => {
-      const matchesSearch = !needle || [product.name, product.name_km, product.sku, product.barcode]
+      const matchesSearch = !needle || [
+        product.name,
+        product.name_km,
+        product.sku,
+        product.barcode,
+        ...(product.product_units || []).flatMap((unit) => [
+          unit.name,
+          unit.short_name,
+          unit.barcode
+        ])
+      ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(needle));
+        .some((value) =>
+          String(value).toLowerCase().includes(needle)
+        );
       const matchesCategory = categoryFilter === "all" || product.category_id === categoryFilter;
       const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? product.is_active : !product.is_active);
       return matchesSearch && matchesCategory && matchesStatus;
@@ -162,7 +177,7 @@ export default function ProductsPage() {
         ) : (
           <div className="product-table-wrap">
             <table className="product-table">
-              <thead><tr><th>Product</th><th>Barcode</th><th>Category</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Product</th><th>Barcode</th><th>Category</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th>Units</th><th></th></tr></thead>
               <tbody>
                 {filteredProducts.map((product) => {
                   const low = product.track_stock && product.stock_quantity <= Number(product.low_stock_threshold || 0);
@@ -177,6 +192,18 @@ export default function ProductsPage() {
                     <td data-label="Cost">{money(product.average_cost || product.default_cost, product.currency)}</td>
                     <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</span></td>
                     <td data-label="Status"><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></td>
+                    <td data-label="Units">
+                      <button
+                        type="button"
+                        className="secondary-button product-units-button"
+                        onClick={() => setUnitsProduct(product)}
+                        disabled={!canManage}
+                        title="Manage selling units"
+                      >
+                        <PackageOpen size={17} />
+                        {(product.product_units || []).filter((unit) => unit.is_active).length}
+                      </button>
+                    </td>
                     <td><button className="icon-button table-action" onClick={() => setProductModal(product)} disabled={!canManage} title="Edit product"><Pencil size={18} /></button></td>
                   </tr>;
                 })}
@@ -193,6 +220,30 @@ export default function ProductsPage() {
       {categoryModal && <Modal title={categoryModal.id ? "Edit category" : "Add category"} onClose={() => !busy && setCategoryModal(null)}>
         <CategoryForm category={categoryModal.id ? categoryModal : null} busy={busy} onCancel={() => setCategoryModal(null)} onSave={saveCategory} />
       </Modal>}
+
+      {unitsProduct && (
+        <ProductUnitsModal
+          product={unitsProduct}
+          supabase={supabase}
+          profile={profile}
+          busy={busy}
+          onBusyChange={setBusy}
+          onClose={() => setUnitsProduct(null)}
+          onSaved={async () => {
+            const refreshed = await loadCatalog(
+              supabase,
+              profile.organization_id,
+              profile.branch_id
+            );
+            setCategories(refreshed.categories);
+            setProducts(refreshed.products);
+            const updatedProduct = refreshed.products.find(
+              (item) => item.id === unitsProduct.id
+            );
+            setUnitsProduct(updatedProduct || null);
+          }}
+        />
+      )}
 
       {showCategories && <Modal title="Categories" onClose={() => setShowCategories(false)}>
         <div className="category-manager">
