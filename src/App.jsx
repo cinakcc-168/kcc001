@@ -16,6 +16,7 @@ import LabelsPage from "./pages/LabelsPage";
 import ProductsPage from "./pages/ProductsPage";
 import InventoryPage from "./pages/InventoryPage";
 import SettingsPage from "./pages/SettingsPage";
+import AdminToolsPage from "./pages/AdminToolsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/admin-tools" element={<AdminToolsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
