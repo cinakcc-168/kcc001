@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   Boxes,
@@ -11,10 +11,12 @@ import {
   Settings,
   ShoppingCart,
   Store,
+  UserCog,
   UsersRound,
   Warehouse
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { switchMyBranch } from "../lib/staff";
 
 const links = [
   {
@@ -52,6 +54,12 @@ const links = [
     roles: ["owner", "admin", "manager"]
   },
   {
+    to: "/users",
+    label: "Staff & Branches",
+    icon: UserCog,
+    roles: ["owner", "admin"]
+  },
+  {
     to: "/settings",
     label: "Settings",
     icon: Settings
@@ -59,24 +67,66 @@ const links = [
 ];
 
 export default function AppShell() {
-  const { profile, shop, signOut } = useAuth();
+  const { supabase, session, profile, shop, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [branches, setBranches] = useState([]);
+  const [switchingBranch, setSwitchingBranch] = useState(false);
 
   const visibleLinks = useMemo(
     () =>
       links.filter(
-        (link) =>
-          !link.roles || link.roles.includes(profile?.role)
+        (link) => !link.roles || link.roles.includes(profile?.role)
       ),
     [profile?.role]
   );
+
+  const canSwitchBranch = ["owner", "admin"].includes(profile?.role);
+
+  useEffect(() => {
+    if (!supabase || !profile?.organization_id || !canSwitchBranch) {
+      setBranches([]);
+      return;
+    }
+
+    let active = true;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id,name,code,is_active")
+        .eq("organization_id", profile.organization_id)
+        .eq("is_active", true)
+        .order("name");
+
+      if (!active || error) return;
+      setBranches(data || []);
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [supabase, profile?.organization_id, canSwitchBranch]);
 
   async function handleSignOut() {
     try {
       await signOut();
     } catch (error) {
       window.alert(error.message);
+    }
+  }
+
+  async function handleBranchChange(event) {
+    const branchId = event.target.value;
+    if (!branchId || branchId === profile.branch_id) return;
+
+    try {
+      setSwitchingBranch(true);
+      await switchMyBranch(session, branchId);
+      window.location.reload();
+    } catch (error) {
+      window.alert(error.message);
+      setSwitchingBranch(false);
     }
   }
 
@@ -110,11 +160,7 @@ export default function AppShell() {
             className="collapse-button desktop-only"
             onClick={() => setCollapsed((value) => !value)}
           >
-            {collapsed ? (
-              <ChevronRight size={20} />
-            ) : (
-              <ChevronLeft size={20} />
-            )}
+            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             <span className="side-label">Collapse</span>
           </button>
 
@@ -150,10 +196,28 @@ export default function AppShell() {
             <Menu />
           </button>
 
-          <div>
-            <Store size={18} />
-            {profile?.branches?.name || "Main Branch"}
-          </div>
+          {canSwitchBranch && branches.length > 1 ? (
+            <label className="header-branch-switcher">
+              <Store size={18} />
+              <select
+                value={profile?.branch_id || ""}
+                onChange={handleBranchChange}
+                disabled={switchingBranch}
+                aria-label="Switch active branch"
+              >
+                {branches.map((branch) => (
+                  <option value={branch.id} key={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <div>
+              <Store size={18} />
+              {profile?.branches?.name || "Main Branch"}
+            </div>
+          )}
 
           <strong>
             {profile?.full_name || "Owner"} · {profile?.role}
