@@ -36,7 +36,7 @@ export default function RefundModal({
         restock: Boolean(item.product_id),
         available: Number(item.returnable_quantity || 0),
         product_name: item.product_name,
-        unit_name: "pcs"
+        unit_name: item.sale_unit_name || "pcs"
       }))
     );
     setRefundMethod(sale.payments?.[0]?.method || "cash");
@@ -199,11 +199,14 @@ export default function RefundModal({
                 <div className="refund-item-name">
                   <strong>{saleItem.product_name}</strong>
                   <span>
-                    Sold {stockNumber(saleItem.quantity)}
+                    Sold {stockNumber(saleItem.quantity)}{" "}
+                    {saleItem.sale_unit_name || "pcs"}
                     {" · "}
-                    Returned {stockNumber(saleItem.returned_quantity)}
+                    Returned {stockNumber(saleItem.returned_quantity)}{" "}
+                    {saleItem.sale_unit_name || "pcs"}
                     {" · "}
-                    Available {stockNumber(available)}
+                    Available {stockNumber(available)}{" "}
+                    {saleItem.sale_unit_name || "pcs"}
                   </span>
                 </div>
 

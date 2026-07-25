@@ -66,7 +66,9 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
                 <span>
                   <strong>{item.product_name}</strong>
                   <small>
-                    {stockNumber(item.quantity)} × {money(item.unit_refund, receipt.currency)}
+                    {stockNumber(item.quantity)}{" "}
+                    {item.unit_name || item.return_unit_name || "pcs"}
+                    {" × "}{money(item.unit_refund, receipt.currency)}
                     {item.restock ? " · Restocked" : " · Not restocked"}
                   </small>
                 </span>

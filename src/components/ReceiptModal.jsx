@@ -89,11 +89,17 @@ export default function ReceiptModal({ receipt, onClose }) {
                 <span>
                   <strong>{item.name}</strong>
                   <small>
-                    {stockNumber(item.quantity)} × {money(item.selling_price, item.currency)}
+                    {stockNumber(item.quantity)}{" "}
+                    {item.selected_unit_name || item.sale_unit_name || item.unit_name}
+                    {" × "}
+                    {money(item.selected_unit_price ?? item.selling_price, item.currency)}
                   </small>
                 </span>
                 <strong>
-                  {money(Number(item.quantity) * Number(item.selling_price), item.currency)}
+                  {money(
+                    Number(item.quantity) * Number(item.selected_unit_price ?? item.selling_price),
+                    item.currency
+                  )}
                 </strong>
               </div>
             ))}
@@ -101,19 +107,7 @@ export default function ReceiptModal({ receipt, onClose }) {
 
           <div className="receipt-totals">
             <div><span>Subtotal</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
-            <div>
-              <span>{receipt.couponCode ? "Coupon discount" : "Discount"}</span>
-              <strong>-{money(receipt.discountAmount, receipt.currency)}</strong>
-            </div>
-            {receipt.couponCode && (
-              <div>
-                <span>Coupon</span>
-                <strong>
-                  {receipt.couponCode}
-                  {receipt.couponName ? ` · ${receipt.couponName}` : ""}
-                </strong>
-              </div>
-            )}
+            <div><span>Discount</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
             {Number(receipt.taxAmount) > 0 && (
               <div><span>Tax</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
             )}
