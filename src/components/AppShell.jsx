@@ -8,13 +8,15 @@ import {
   LogOut,
   Menu,
   Settings,
-  Store
+  Store,
+  Warehouse
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const links = [
   ["/dashboard", "Dashboard", LayoutDashboard],
   ["/products", "Products", Boxes],
+  ["/inventory", "Inventory", Warehouse],
   ["/settings", "Settings", Settings]
 ];
 
