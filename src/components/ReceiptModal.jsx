@@ -26,7 +26,20 @@ export default function ReceiptModal({ receipt, onClose }) {
             <div><span>Invoice</span><strong>{receipt.invoiceNumber}</strong></div>
             <div><span>Date</span><strong>{dateTime(receipt.completedAt)}</strong></div>
             <div><span>Cashier</span><strong>{receipt.cashierName}</strong></div>
-            <div><span>Customer</span><strong>{receipt.customerName || "Walk-in"}</strong></div>
+            <div>
+              <span>Customer</span>
+              <strong>{receipt.customerName || "Walk-in"}</strong>
+            </div>
+            {receipt.customerName && (
+              <div>
+                <span>Customer profile</span>
+                <strong>
+                  {[receipt.customerCode, receipt.customerType]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </strong>
+              </div>
+            )}
           </div>
 
           <div className="receipt-lines">

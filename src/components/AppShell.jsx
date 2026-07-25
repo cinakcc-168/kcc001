@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingCart,
   Store,
+  UsersRound,
   Warehouse
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -31,6 +32,12 @@ const links = [
     to: "/returns",
     label: "Returns & Refunds",
     icon: RotateCcw,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/customers",
+    label: "Customers",
+    icon: UsersRound,
     roles: ["owner", "admin", "manager"]
   },
   {
