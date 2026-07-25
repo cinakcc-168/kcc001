@@ -8,6 +8,7 @@ import SalesPage from "./pages/SalesPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import CustomersPage from "./pages/CustomersPage";
 import UsersPage from "./pages/UsersPage";
+import ReportsPage from "./pages/ReportsPage";
 import ProductsPage from "./pages/ProductsPage";
 import InventoryPage from "./pages/InventoryPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/returns" element={<ReturnsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
