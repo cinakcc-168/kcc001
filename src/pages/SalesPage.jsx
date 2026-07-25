@@ -25,6 +25,7 @@ import {
   exactSaleProductMatch,
   hydrateParkedCart,
   loadSalesWorkspace,
+  previewCoupon,
   removeParkedSale,
   saveParkedSale
 } from "../lib/sales";
@@ -57,6 +58,9 @@ export default function SalesPage() {
   const [customerId, setCustomerId] = useState("");
   const [discountType, setDiscountType] = useState("none");
   const [discountValue, setDiscountValue] = useState("0");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponBusy, setCouponBusy] = useState(false);
   const [notes, setNotes] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -127,6 +131,58 @@ export default function SalesPage() {
     setMessage(text);
   }
 
+  function invalidateCoupon() {
+    if (!appliedCoupon) return;
+    setAppliedCoupon(null);
+    setDiscountType("none");
+    setDiscountValue("0");
+  }
+
+  async function applyCoupon() {
+    if (cart.length === 0) {
+      announce("error", "Add a product before applying a coupon.");
+      return;
+    }
+
+    if (!couponCode.trim()) {
+      announce("error", "Enter a coupon code.");
+      return;
+    }
+
+    try {
+      setCouponBusy(true);
+      const result = await previewCoupon(supabase, {
+        code: couponCode,
+        cart,
+        customer_id: customerId,
+        currency
+      });
+
+      setAppliedCoupon(result);
+      setCouponCode(result.code);
+      setDiscountType("fixed");
+      setDiscountValue(String(result.discount_amount));
+      announce(
+        "success",
+        `${result.code} applied: ${money(result.discount_amount, currency)} discount.`
+      );
+    } catch (error) {
+      setAppliedCoupon(null);
+      setDiscountType("none");
+      setDiscountValue("0");
+      announce("error", error.message);
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  function removeCoupon() {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setDiscountType("none");
+    setDiscountValue("0");
+  }
+
   function validateQuantity(product, quantity) {
     const next = Number(quantity);
     if (!Number.isFinite(next) || next <= 0) {
@@ -160,6 +216,8 @@ export default function SalesPage() {
         Number(existing?.quantity || 0) + 1
       );
 
+      invalidateCoupon();
+
       if (existing) {
         setCart((current) =>
           current.map((item) =>
@@ -184,12 +242,14 @@ export default function SalesPage() {
 
     const number = Number(value);
     if (!Number.isFinite(number) || number <= 0) {
+      invalidateCoupon();
       setCart((current) => current.filter((item) => item.id !== productId));
       return;
     }
 
     try {
       const quantity = validateQuantity(product, number);
+      invalidateCoupon();
       setCart((current) =>
         current.map((item) => item.id === productId ? { ...item, quantity } : item)
       );
@@ -203,6 +263,8 @@ export default function SalesPage() {
     setCustomerId("");
     setDiscountType("none");
     setDiscountValue("0");
+    setCouponCode("");
+    setAppliedCoupon(null);
     setNotes("");
     setActiveParkedId(null);
     setActiveParkLabel("");
@@ -241,8 +303,9 @@ export default function SalesPage() {
         customer_id: customerId,
         currency,
         cart,
-        discount_type: discountType,
-        discount_value: discountValue,
+        discount_type: appliedCoupon ? "none" : discountType,
+        discount_value: appliedCoupon ? 0 : discountValue,
+        coupon_code: appliedCoupon?.code || null,
         notes
       });
 
@@ -265,8 +328,15 @@ export default function SalesPage() {
 
     setCart(hydrated.cart);
     setCustomerId(parked.customer_id || "");
-    setDiscountType(parked.discount_type || "none");
-    setDiscountValue(String(parked.discount_value || 0));
+    setCouponCode(parked.coupon_code || "");
+    setAppliedCoupon(null);
+    if (parked.coupon_code) {
+      setDiscountType("none");
+      setDiscountValue("0");
+    } else {
+      setDiscountType(parked.discount_type || "none");
+      setDiscountValue(String(parked.discount_value || 0));
+    }
     setNotes(parked.notes || "");
     setActiveParkedId(parked.id);
     setActiveParkLabel(parked.label || "Parked sale");
@@ -276,7 +346,12 @@ export default function SalesPage() {
     if (hydrated.missing.length > 0) {
       announce("error", `${hydrated.missing.length} unavailable product(s) were removed from this parked sale.`);
     } else {
-      announce("success", `${parked.label || "Parked sale"} resumed.`);
+      announce(
+        parked.coupon_code ? "error" : "success",
+        parked.coupon_code
+          ? `${parked.label || "Parked sale"} resumed. Reapply coupon ${parked.coupon_code}.`
+          : `${parked.label || "Parked sale"} resumed.`
+      );
     }
   }
 
@@ -307,6 +382,7 @@ export default function SalesPage() {
       setCustomers((current) =>
         [...current, customer].sort((a, b) => a.name.localeCompare(b.name))
       );
+      invalidateCoupon();
       setCustomerId(customer.id);
       setCustomerOpen(false);
       setCustomerForm(emptyCustomer);
@@ -325,7 +401,8 @@ export default function SalesPage() {
         cart,
         customer_id: customerId,
         discount_type: discountType,
-        discount_value: discountValue,
+        discount_value: appliedCoupon ? 0 : discountValue,
+        coupon_code: appliedCoupon?.code || null,
         tax_amount: totals.taxAmount,
         currency,
         notes,
@@ -349,6 +426,8 @@ export default function SalesPage() {
         customerName: selectedCustomer?.name,
         customerCode: selectedCustomer?.customer_code,
         customerType: selectedCustomer?.customer_type,
+        couponCode: result.coupon_code || appliedCoupon?.code || null,
+        couponName: result.coupon_name || appliedCoupon?.name || null,
         cart: cart.map((item) => ({ ...item })),
         subtotal: Number(result.subtotal ?? totals.subtotal),
         discountAmount: Number(result.discount_amount ?? totals.discountAmount),
@@ -479,7 +558,10 @@ export default function SalesPage() {
           cart={cart}
           customers={customers}
           customerId={customerId}
-          onCustomerChange={setCustomerId}
+          onCustomerChange={(value) => {
+            invalidateCoupon();
+            setCustomerId(value);
+          }}
           onAddCustomer={() => setCustomerOpen(true)}
           discountType={discountType}
           discountValue={discountValue}
@@ -488,13 +570,27 @@ export default function SalesPage() {
             if (value === "none") setDiscountValue("0");
           }}
           onDiscountValueChange={setDiscountValue}
+          couponCode={couponCode}
+          appliedCoupon={appliedCoupon}
+          couponBusy={couponBusy}
+          onCouponCodeChange={(value) => {
+            setCouponCode(value);
+            if (appliedCoupon) invalidateCoupon();
+          }}
+          onApplyCoupon={applyCoupon}
+          onRemoveCoupon={removeCoupon}
           notes={notes}
           onNotesChange={setNotes}
           totals={totals}
           currency={currency}
           taxPercent={shop?.tax_percent || 0}
           onQuantityChange={changeQuantity}
-          onRemove={(productId) => setCart((current) => current.filter((item) => item.id !== productId))}
+          onRemove={(productId) => {
+            invalidateCoupon();
+            setCart((current) =>
+              current.filter((item) => item.id !== productId)
+            );
+          }}
           onClear={clearSale}
           onPark={handlePark}
           onPay={() => setPaymentOpen(true)}
