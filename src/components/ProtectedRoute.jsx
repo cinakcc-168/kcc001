@@ -1,0 +1,1 @@
+import {Navigate,useLocation} from 'react-router-dom';import {useAuth} from '../context/AuthContext';export default function ProtectedRoute({children}){const {session}=useAuth(),l=useLocation();return session?children:<Navigate to="/login" replace state={{from:l.pathname}}/>}
