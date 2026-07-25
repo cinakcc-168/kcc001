@@ -1,1 +1,0 @@
-export default function ProductsPage(){return <div><p className="eyebrow">CATALOG</p><h1>Products</h1><section className="panel empty"><h2>Products module comes next</h2><p>Categories, barcodes, prices, stock, units, search, and Cloudinary photos will be added in Step 4.</p></section></div>}
