@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
+  BarChart3,
   Boxes,
   ChevronLeft,
   ChevronRight,
@@ -52,6 +53,12 @@ const links = [
     label: "Inventory",
     icon: Warehouse,
     roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/reports",
+    label: "Reports",
+    icon: BarChart3,
+    roles: ["owner", "admin", "manager", "viewer"]
   },
   {
     to: "/users",
