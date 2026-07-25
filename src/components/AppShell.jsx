@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   ArrowLeftRight,
+  Barcode,
   BarChart3,
   Boxes,
   ChevronLeft,
@@ -22,11 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
 
 const links = [
-  {
-    to: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard
-  },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
     to: "/sales",
     label: "New Sale",
@@ -45,10 +42,12 @@ const links = [
     icon: UsersRound,
     roles: ["owner", "admin", "manager"]
   },
+  { to: "/products", label: "Products", icon: Boxes },
   {
-    to: "/products",
-    label: "Products",
-    icon: Boxes
+    to: "/labels",
+    label: "Barcode Labels",
+    icon: Barcode,
+    roles: ["owner", "admin", "manager"]
   },
   {
     to: "/inventory",
@@ -80,11 +79,7 @@ const links = [
     icon: UserCog,
     roles: ["owner", "admin"]
   },
-  {
-    to: "/settings",
-    label: "Settings",
-    icon: Settings
-  }
+  { to: "/settings", label: "Settings", icon: Settings }
 ];
 
 export default function AppShell() {
@@ -95,10 +90,7 @@ export default function AppShell() {
   const [switchingBranch, setSwitchingBranch] = useState(false);
 
   const visibleLinks = useMemo(
-    () =>
-      links.filter(
-        (link) => !link.roles || link.roles.includes(profile?.role)
-      ),
+    () => links.filter((link) => !link.roles || link.roles.includes(profile?.role)),
     [profile?.role]
   );
 
@@ -155,10 +147,12 @@ export default function AppShell() {
     <div className={`shell ${collapsed ? "collapsed" : ""}`}>
       <aside className={open ? "side open" : "side"}>
         <div className="brand">
-          <b>T</b>
-          <span className="side-label">
-            {shop?.shop_name || "Tiny POS"}
-          </span>
+          {shop?.shop_logo_url ? (
+            <img className="side-shop-logo" src={shop.shop_logo_url} alt="" />
+          ) : (
+            <b>T</b>
+          )}
+          <span className="side-label">{shop?.shop_name || "Tiny POS"}</span>
         </div>
 
         <nav>
@@ -227,9 +221,7 @@ export default function AppShell() {
                 aria-label="Switch active branch"
               >
                 {branches.map((branch) => (
-                  <option value={branch.id} key={branch.id}>
-                    {branch.name}
-                  </option>
+                  <option value={branch.id} key={branch.id}>{branch.name}</option>
                 ))}
               </select>
             </label>
@@ -240,14 +232,10 @@ export default function AppShell() {
             </div>
           )}
 
-          <strong>
-            {profile?.full_name || "Owner"} · {profile?.role}
-          </strong>
+          <strong>{profile?.full_name || "Owner"} · {profile?.role}</strong>
         </header>
 
-        <section className="content">
-          <Outlet />
-        </section>
+        <section className="content"><Outlet /></section>
       </main>
     </div>
   );

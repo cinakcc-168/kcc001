@@ -1,5 +1,7 @@
 import { Printer } from "lucide-react";
 import Modal from "./Modal";
+import ProductBarcode from "./ProductBarcode";
+import { useAuth } from "../context/AuthContext";
 import { money, stockNumber } from "../lib/catalog";
 
 function dateTime(value) {
@@ -10,27 +12,54 @@ function dateTime(value) {
 }
 
 export default function ReceiptModal({ receipt, onClose }) {
+  const { shop } = useAuth();
+
   if (!receipt) return null;
+
+  const receiptWidth = Number(shop?.receipt_width_mm || 80);
+  const showLogo = shop?.receipt_show_logo !== false;
+  const showAddress = shop?.receipt_show_address !== false;
+  const showPhone = shop?.receipt_show_phone !== false;
+  const showCustomer = shop?.receipt_show_customer !== false;
+  const showCashier = shop?.receipt_show_cashier !== false;
+  const showBarcode = shop?.receipt_show_barcode !== false;
 
   return (
     <Modal title="Sale completed" onClose={onClose}>
       <div className="receipt-wrapper">
-        <article className="receipt-document">
+        <article
+          className="receipt-document"
+          style={{ "--receipt-width": `${receiptWidth}mm` }}
+        >
           <div className="receipt-shop">
-            <h2>{receipt.shopName}</h2>
-            {receipt.shopAddress && <p>{receipt.shopAddress}</p>}
-            {receipt.shopPhone && <p>{receipt.shopPhone}</p>}
+            {showLogo && shop?.shop_logo_url && (
+              <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
+            )}
+            <h2>{shop?.shop_name || receipt.shopName}</h2>
+            {shop?.receipt_header && <p>{shop.receipt_header}</p>}
+            {showAddress && (shop?.shop_address || receipt.shopAddress) && (
+              <p>{shop?.shop_address || receipt.shopAddress}</p>
+            )}
+            {showPhone && (shop?.shop_phone || receipt.shopPhone) && (
+              <p>{shop?.shop_phone || receipt.shopPhone}</p>
+            )}
+            {showPhone && shop?.shop_email && <p>{shop.shop_email}</p>}
+            {shop?.tax_id && <p>Tax ID: {shop.tax_id}</p>}
           </div>
 
           <div className="receipt-meta">
             <div><span>Invoice</span><strong>{receipt.invoiceNumber}</strong></div>
             <div><span>Date</span><strong>{dateTime(receipt.completedAt)}</strong></div>
-            <div><span>Cashier</span><strong>{receipt.cashierName}</strong></div>
-            <div>
-              <span>Customer</span>
-              <strong>{receipt.customerName || "Walk-in"}</strong>
-            </div>
-            {receipt.customerName && (
+            {showCashier && (
+              <div><span>Cashier</span><strong>{receipt.cashierName}</strong></div>
+            )}
+            {showCustomer && (
+              <div>
+                <span>Customer</span>
+                <strong>{receipt.customerName || "Walk-in"}</strong>
+              </div>
+            )}
+            {showCustomer && receipt.customerName && (
               <div>
                 <span>Customer profile</span>
                 <strong>
@@ -42,14 +71,30 @@ export default function ReceiptModal({ receipt, onClose }) {
             )}
           </div>
 
+          {showBarcode && (
+            <div className="receipt-invoice-barcode">
+              <ProductBarcode
+                value={receipt.invoiceNumber}
+                format="CODE128"
+                height={28}
+                width={1.15}
+              />
+              <small>{receipt.invoiceNumber}</small>
+            </div>
+          )}
+
           <div className="receipt-lines">
             {receipt.cart.map((item) => (
               <div key={item.id}>
                 <span>
                   <strong>{item.name}</strong>
-                  <small>{stockNumber(item.quantity)} × {money(item.selling_price, item.currency)}</small>
+                  <small>
+                    {stockNumber(item.quantity)} × {money(item.selling_price, item.currency)}
+                  </small>
                 </span>
-                <strong>{money(Number(item.quantity) * Number(item.selling_price), item.currency)}</strong>
+                <strong>
+                  {money(Number(item.quantity) * Number(item.selling_price), item.currency)}
+                </strong>
               </div>
             ))}
           </div>
@@ -60,13 +105,17 @@ export default function ReceiptModal({ receipt, onClose }) {
             {Number(receipt.taxAmount) > 0 && (
               <div><span>Tax</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
             )}
-            <div className="receipt-grand-total"><span>Total</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong></div>
+            <div className="receipt-grand-total">
+              <span>Total</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong>
+            </div>
             <div><span>Payment</span><strong>{receipt.paymentMethod.toUpperCase()}</strong></div>
             <div><span>Received</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
             <div><span>Change</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
           </div>
 
-          <div className="receipt-footer">{receipt.footer || "Thank you for your purchase."}</div>
+          <div className="receipt-footer">
+            {shop?.receipt_footer || receipt.footer || "Thank you for your purchase."}
+          </div>
         </article>
 
         <div className="receipt-actions">
