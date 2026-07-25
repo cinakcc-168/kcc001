@@ -1,0 +1,194 @@
+import {
+  Minus,
+  CirclePause,
+  Plus,
+  Trash2,
+  UserPlus,
+  Wallet
+} from "lucide-react";
+import { money, stockNumber } from "../lib/catalog";
+
+export default function SaleCart({
+  cart,
+  customers,
+  customerId,
+  onCustomerChange,
+  onAddCustomer,
+  discountType,
+  discountValue,
+  onDiscountTypeChange,
+  onDiscountValueChange,
+  notes,
+  onNotesChange,
+  totals,
+  currency,
+  taxPercent,
+  onQuantityChange,
+  onRemove,
+  onClear,
+  onPark,
+  onPay,
+  canSell,
+  activeParkLabel
+}) {
+  return (
+    <aside className="sale-cart panel">
+      <div className="sale-cart-heading">
+        <div>
+          <p className="eyebrow">CURRENT BILL</p>
+          <h2>{activeParkLabel || "New sale"}</h2>
+        </div>
+        {cart.length > 0 && (
+          <button type="button" className="text-button danger-text" onClick={onClear}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className="customer-select-row">
+        <label>
+          <span>Customer</span>
+          <select value={customerId} onChange={(event) => onCustomerChange(event.target.value)}>
+            <option value="">Walk-in customer</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name}{customer.phone ? ` · ${customer.phone}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="icon-button customer-add-button"
+          onClick={onAddCustomer}
+          aria-label="Add customer"
+          title="Add customer"
+        >
+          <UserPlus size={20} />
+        </button>
+      </div>
+
+      <div className="sale-cart-lines">
+        {cart.length === 0 ? (
+          <div className="cart-empty">
+            <Wallet size={42} />
+            <strong>No products in this bill</strong>
+            <span>Tap a product or scan a barcode.</span>
+          </div>
+        ) : (
+          cart.map((item, index) => (
+            <article className="sale-cart-line" key={item.id}>
+              <div className="cart-line-number">{index + 1}</div>
+              <div className="cart-line-info">
+                <strong>{item.name}</strong>
+                <span>
+                  {money(item.selling_price, item.currency)} × {stockNumber(item.quantity)} ={" "}
+                  <b>{money(Number(item.selling_price) * Number(item.quantity), item.currency)}</b>
+                </span>
+                <small>
+                  Stock: {item.track_stock ? `${stockNumber(item.stock_quantity)} ${item.unit_name}` : "Not tracked"}
+                </small>
+              </div>
+              <div className="cart-quantity-controls">
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)}
+                  aria-label={`Reduce ${item.name}`}
+                >
+                  <Minus size={17} />
+                </button>
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={item.quantity}
+                  onChange={(event) => onQuantityChange(item.id, event.target.value)}
+                  aria-label={`${item.name} quantity`}
+                />
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)}
+                  aria-label={`Add ${item.name}`}
+                >
+                  <Plus size={17} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button danger-icon"
+                  onClick={() => onRemove(item.id)}
+                  aria-label={`Remove ${item.name}`}
+                >
+                  <Trash2 size={17} />
+                </button>
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className="sale-cart-options">
+        <div className="discount-row">
+          <label>
+            <span>Discount</span>
+            <select value={discountType} onChange={(event) => onDiscountTypeChange(event.target.value)}>
+              <option value="none">No discount</option>
+              <option value="percent">Percentage</option>
+              <option value="fixed">Fixed amount</option>
+            </select>
+          </label>
+          <label>
+            <span>{discountType === "percent" ? "Percent" : "Amount"}</span>
+            <input
+              type="number"
+              min="0"
+              max={discountType === "percent" ? "100" : undefined}
+              step="0.01"
+              value={discountValue}
+              onChange={(event) => onDiscountValueChange(event.target.value)}
+              disabled={discountType === "none"}
+            />
+          </label>
+        </div>
+
+        <label>
+          <span>Remark</span>
+          <input
+            value={notes}
+            onChange={(event) => onNotesChange(event.target.value)}
+            placeholder="Optional sale note"
+          />
+        </label>
+      </div>
+
+      <div className="sale-total-block">
+        <div><span>Subtotal</span><strong>{money(totals.subtotal, currency)}</strong></div>
+        <div><span>Discount</span><strong>-{money(totals.discountAmount, currency)}</strong></div>
+        {Number(taxPercent) > 0 && (
+          <div><span>Tax ({Number(taxPercent)}%)</span><strong>{money(totals.taxAmount, currency)}</strong></div>
+        )}
+        <div className="grand-total"><span>Total</span><strong>{money(totals.total, currency)}</strong></div>
+      </div>
+
+      <div className="sale-cart-actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onPark}
+          disabled={!canSell || cart.length === 0}
+        >
+          <CirclePause size={19} /> Park sale
+        </button>
+        <button
+          type="button"
+          className="primary-button pay-button"
+          onClick={onPay}
+          disabled={!canSell || cart.length === 0}
+        >
+          <Wallet size={20} /> Pay {money(totals.total, currency)}
+        </button>
+      </div>
+    </aside>
+  );
+}
