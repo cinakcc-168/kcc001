@@ -83,7 +83,7 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
         .order("name"),
       supabase
         .from("customers")
-        .select("id,name,phone,email,is_active,created_at")
+        .select("id,customer_code,customer_type,name,company_name,phone,email,loyalty_points,is_active,created_at")
         .eq("organization_id", organizationId)
         .eq("is_active", true)
         .order("name"),
@@ -170,6 +170,7 @@ export async function createCustomer(supabase, profile, values) {
     .from("customers")
     .insert({
       organization_id: profile.organization_id,
+      customer_type: values.customer_type || "regular",
       name: values.name.trim(),
       phone: values.phone.trim() || null,
       email: values.email.trim() || null,
