@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Camera,
   Clock3,
@@ -29,6 +30,7 @@ import {
   removeParkedSale,
   saveParkedSale
 } from "../lib/sales";
+import { getOpenCashRegisterSummary } from "../lib/cashRegister";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -48,6 +50,7 @@ export default function SalesPage() {
   const [customers, setCustomers] = useState([]);
   const [parkedSales, setParkedSales] = useState([]);
   const [recentSales, setRecentSales] = useState([]);
+  const [cashRegisterOpen, setCashRegisterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -77,16 +80,21 @@ export default function SalesPage() {
 
     try {
       setLoading(true);
-      const data = await loadSalesWorkspace(
-        supabase,
-        profile.organization_id,
-        profile.branch_id
-      );
+      const [data, registerSummary] = await Promise.all([
+        loadSalesWorkspace(
+          supabase,
+          profile.organization_id,
+          profile.branch_id
+        ),
+        getOpenCashRegisterSummary(supabase)
+      ]);
+
       setProducts(data.products);
       setCategories(data.categories);
       setCustomers(data.customers);
       setParkedSales(data.parkedSales);
       setRecentSales(data.recentSales);
+      setCashRegisterOpen(Boolean(registerSummary?.session));
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -486,6 +494,16 @@ export default function SalesPage() {
         </div>
       )}
 
+      {!cashRegisterOpen && (
+        <div className="notice warning cash-register-sale-warning">
+          <span>
+            Cash payments are disabled because this branch has no open
+            register.
+          </span>
+          <Link to="/cash-register">Open cash register</Link>
+        </div>
+      )}
+
       <div className="sale-layout">
         <section className="sale-products-panel panel">
           <form className="sale-toolbar" onSubmit={submitSearch}>
@@ -640,6 +658,7 @@ export default function SalesPage() {
         totals={totals}
         currency={currency}
         customerName={selectedCustomer?.name}
+        cashRegisterOpen={cashRegisterOpen}
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}
       />
