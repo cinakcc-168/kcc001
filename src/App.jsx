@@ -11,6 +11,7 @@ import UsersPage from "./pages/UsersPage";
 import ReportsPage from "./pages/ReportsPage";
 import CashExpensesPage from "./pages/CashExpensesPage";
 import TransfersPage from "./pages/TransfersPage";
+import PurchaseOrdersPage from "./pages/PurchaseOrdersPage";
 import LabelsPage from "./pages/LabelsPage";
 import ProductsPage from "./pages/ProductsPage";
 import InventoryPage from "./pages/InventoryPage";
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/cash-expenses" element={<CashExpensesPage />} />
         <Route path="/transfers" element={<TransfersPage />} />
+        <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
         <Route path="/labels" element={<LabelsPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
