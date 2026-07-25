@@ -22,6 +22,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/staff-admin"
+  to = "/.netlify/functions/staff-admin"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
