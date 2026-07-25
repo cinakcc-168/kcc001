@@ -20,7 +20,8 @@ import {
   WalletCards,
   Warehouse,
   ShieldCheck,
-  TicketPercent
+  TicketPercent,
+  Banknote
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -81,6 +82,12 @@ const links = [
     label: "Cash & Expenses",
     icon: WalletCards,
     roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/cash-register",
+    label: "Cash Register",
+    icon: Banknote,
+    roles: ["owner", "admin", "manager", "cashier"]
   },
   {
     to: "/reports",

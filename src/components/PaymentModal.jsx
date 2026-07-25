@@ -17,6 +17,7 @@ export default function PaymentModal({
   totals,
   currency,
   customerName,
+  cashRegisterOpen = true,
   onClose,
   onSubmit
 }) {
@@ -27,11 +28,11 @@ export default function PaymentModal({
 
   useEffect(() => {
     if (!open) return;
-    setMethod("cash");
+    setMethod(cashRegisterOpen ? "cash" : "bank");
     setAmountReceived(String(totals.total));
     setReference("");
     setError("");
-  }, [open, totals.total]);
+  }, [open, totals.total, cashRegisterOpen]);
 
   useEffect(() => {
     if (method !== "cash") setAmountReceived(String(totals.total));
@@ -50,6 +51,11 @@ export default function PaymentModal({
     event.preventDefault();
     setError("");
     const received = Number(amountReceived || 0);
+
+    if (method === "cash" && !cashRegisterOpen) {
+      setError("Open the cash register before accepting cash.");
+      return;
+    }
 
     if (!Number.isFinite(received) || received < Number(totals.total)) {
       setError(`Amount received must be at least ${money(totals.total, currency)}.`);
@@ -75,6 +81,13 @@ export default function PaymentModal({
           <small>{customerName || "Walk-in customer"}</small>
         </div>
 
+        {!cashRegisterOpen && (
+          <div className="notice warning payment-register-warning">
+            Cash is disabled because this branch has no open register.
+            Bank, KHQR, card and other payments remain available.
+          </div>
+        )}
+
         <div className="payment-method-grid">
           {methods.map(([value, label, Icon]) => (
             <button
@@ -82,6 +95,12 @@ export default function PaymentModal({
               key={value}
               className={method === value ? "active" : ""}
               onClick={() => setMethod(value)}
+              disabled={value === "cash" && !cashRegisterOpen}
+              title={
+                value === "cash" && !cashRegisterOpen
+                  ? "Open the cash register first"
+                  : undefined
+              }
             >
               <Icon size={22} />
               <span>{label}</span>
