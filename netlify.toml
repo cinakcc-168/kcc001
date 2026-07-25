@@ -32,6 +32,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/backup-admin"
+  to = "/.netlify/functions/backup-admin"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
