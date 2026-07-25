@@ -17,6 +17,7 @@ import ProductsPage from "./pages/ProductsPage";
 import InventoryPage from "./pages/InventoryPage";
 import SettingsPage from "./pages/SettingsPage";
 import AdminToolsPage from "./pages/AdminToolsPage";
+import CouponsPage from "./pages/CouponsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/sales" element={<SalesPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/coupons" element={<CouponsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/cash-expenses" element={<CashExpensesPage />} />
