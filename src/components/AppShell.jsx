@@ -14,6 +14,7 @@ import {
   Store,
   UserCog,
   UsersRound,
+  WalletCards,
   Warehouse
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -52,6 +53,12 @@ const links = [
     to: "/inventory",
     label: "Inventory",
     icon: Warehouse,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/cash-expenses",
+    label: "Cash & Expenses",
+    icon: WalletCards,
     roles: ["owner", "admin", "manager"]
   },
   {
