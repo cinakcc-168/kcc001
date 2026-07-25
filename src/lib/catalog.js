@@ -60,6 +60,19 @@ export async function loadCatalog(supabase, organizationId, branchId) {
           is_primary,
           sort_order
         ),
+        product_units (
+          id,
+          name,
+          short_name,
+          conversion_factor,
+          selling_price,
+          barcode,
+          is_base,
+          is_active,
+          sort_order,
+          created_at,
+          updated_at
+        ),
         inventory_balances (
           branch_id,
           quantity,
@@ -81,8 +94,17 @@ export async function loadCatalog(supabase, organizationId, branchId) {
       (a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order
     )[0];
 
+    const units = [...(product.product_units || [])].sort(
+      (a, b) =>
+        Number(b.is_base) - Number(a.is_base)
+        || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+        || String(a.name).localeCompare(String(b.name))
+    );
+
     return {
       ...product,
+      product_units: units,
+      units,
       stock_quantity: Number(balance?.quantity || 0),
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
       image: image || null

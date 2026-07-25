@@ -111,6 +111,9 @@ export async function loadReturnsWorkspace(
         product_name,
         barcode,
         quantity,
+        base_quantity,
+        sale_unit_name,
+        unit_factor,
         unit_price,
         unit_cost,
         discount_amount,
@@ -162,6 +165,9 @@ export async function loadReturnsWorkspace(
         sale_item_id,
         product_id,
         quantity,
+        base_quantity,
+        return_unit_name,
+        unit_factor,
         unit_refund,
         line_refund,
         restock,
@@ -172,6 +178,8 @@ export async function loadReturnsWorkspace(
         sale_items!return_items_sale_item_id_fkey (
           product_name,
           barcode,
+          sale_unit_name,
+          unit_factor,
           unit_price
         )
       )

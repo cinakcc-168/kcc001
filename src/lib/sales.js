@@ -15,7 +15,7 @@ export function calculateSaleTotals(
 ) {
   const subtotal = roundMoney(
     cart.reduce(
-      (sum, item) => sum + Number(item.selling_price || 0) * Number(item.quantity || 0),
+      (sum, item) => sum + Number(item.selected_unit_price ?? item.selling_price ?? 0) * Number(item.quantity || 0),
       0
     )
   );
@@ -63,6 +63,17 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
             secure_url,
             cloudinary_public_id,
             is_primary,
+            sort_order
+          ),
+          product_units (
+            id,
+            name,
+            short_name,
+            conversion_factor,
+            selling_price,
+            barcode,
+            is_base,
+            is_active,
             sort_order
           ),
           inventory_balances (
@@ -137,8 +148,19 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
         Number(a.sort_order || 0) - Number(b.sort_order || 0)
     )[0];
 
+    const units = [...(product.product_units || [])]
+      .filter((unit) => unit.is_active || unit.is_base)
+      .sort(
+        (a, b) =>
+          Number(b.is_base) - Number(a.is_base)
+          || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+          || String(a.name).localeCompare(String(b.name))
+      );
+
     return {
       ...product,
+      product_units: units,
+      units,
       stock_quantity: Number(balance?.quantity || 0),
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
       image: image || null
@@ -154,17 +176,74 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
   };
 }
 
+export function saleUnitForProduct(product, unitId = null) {
+  const units = [...(product?.product_units || product?.units || [])]
+    .filter((unit) => unit.is_active || unit.is_base)
+    .sort(
+      (a, b) =>
+        Number(b.is_base) - Number(a.is_base)
+        || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+        || String(a.name).localeCompare(String(b.name))
+    );
+
+  return (
+    units.find((unit) => unit.id === unitId)
+    || units.find((unit) => unit.is_base)
+    || units[0]
+    || {
+      id: null,
+      name: product?.unit_name || "pcs",
+      short_name: product?.unit_name || "pcs",
+      conversion_factor: 1,
+      selling_price: Number(product?.selling_price || 0),
+      barcode: product?.barcode || null,
+      is_base: true,
+      is_active: true,
+      sort_order: 0
+    }
+  );
+}
+
+export function buildSaleCartItem(product, unitId = null) {
+  const unit = saleUnitForProduct(product, unitId);
+
+  return {
+    ...product,
+    quantity: 1,
+    selected_unit_id: unit.id,
+    selected_unit_name: unit.name,
+    selected_unit_short_name: unit.short_name || unit.name,
+    selected_unit_factor: Number(unit.conversion_factor || 1),
+    selected_unit_price: Number(unit.selling_price || 0),
+    selling_price: Number(unit.selling_price || 0)
+  };
+}
+
 export function exactSaleProductMatch(products, code) {
   const needle = String(code || "").trim().toLowerCase();
   if (!needle) return null;
 
-  return (
-    products.find(
-      (product) =>
-        String(product.barcode || "").trim().toLowerCase() === needle ||
-        String(product.sku || "").trim().toLowerCase() === needle
-    ) || null
-  );
+  for (const product of products) {
+    const matchingUnit = (product.product_units || product.units || [])
+      .find(
+        (unit) =>
+          unit.is_active
+          && String(unit.barcode || "").trim().toLowerCase() === needle
+      );
+
+    if (matchingUnit) {
+      return { product, unit: matchingUnit };
+    }
+
+    if (
+      String(product.sku || "").trim().toLowerCase() === needle
+      || String(product.barcode || "").trim().toLowerCase() === needle
+    ) {
+      return { product, unit: saleUnitForProduct(product) };
+    }
+  }
+
+  return null;
 }
 
 export async function createCustomer(supabase, profile, values) {
@@ -197,6 +276,7 @@ export async function saveParkedSale(supabase, profile, values) {
     currency: values.currency,
     cart: values.cart.map((item) => ({
       product_id: item.id,
+      product_unit_id: item.selected_unit_id || null,
       quantity: Number(item.quantity)
     })),
     discount_type: values.discount_type,
@@ -241,7 +321,17 @@ export function hydrateParkedCart(products, parkedCart) {
       missing.push(row.product_id);
       continue;
     }
-    cart.push({ ...product, quantity: Math.max(0.001, Number(row.quantity || 1)) });
+
+    const unit = saleUnitForProduct(product, row.product_unit_id || null);
+    if (!unit || !unit.is_active) {
+      missing.push(row.product_id);
+      continue;
+    }
+
+    cart.push({
+      ...buildSaleCartItem(product, unit.id),
+      quantity: Math.max(0.001, Number(row.quantity || 1))
+    });
   }
 
   return { cart, missing };
@@ -252,6 +342,7 @@ export async function previewCoupon(supabase, values) {
     p_code: values.code.trim().toUpperCase(),
     p_items: values.cart.map((item) => ({
       product_id: item.id,
+      product_unit_id: item.selected_unit_id || null,
       quantity: Number(item.quantity)
     })),
     p_customer_id: values.customer_id || null,
@@ -263,9 +354,10 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v2", {
+  const { data, error } = await supabase.rpc("complete_sale_v3", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
+      product_unit_id: item.selected_unit_id || null,
       quantity: Number(item.quantity)
     })),
     p_payment_method: values.payment_method,
