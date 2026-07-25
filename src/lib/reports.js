@@ -11,15 +11,25 @@ export function defaultReportRange() {
 }
 
 export async function loadReports(supabase, filters) {
-  const { data, error } = await supabase.rpc("get_reports_data", {
+  const parameters = {
     p_from: filters.from,
     p_to: filters.to,
     p_branch_id: filters.allBranches ? null : filters.branchId || null,
     p_all_branches: Boolean(filters.allBranches)
-  });
+  };
 
-  if (error) throw error;
-  return data;
+  const [reportResult, cashResult] = await Promise.all([
+    supabase.rpc("get_reports_data", parameters),
+    supabase.rpc("get_cash_expense_workspace", parameters)
+  ]);
+
+  if (reportResult.error) throw reportResult.error;
+  if (cashResult.error) throw cashResult.error;
+
+  return {
+    ...reportResult.data,
+    cash_report: cashResult.data
+  };
 }
 
 export function formatReportDate(value, options = {}) {
