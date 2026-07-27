@@ -23,7 +23,8 @@ import {
   TicketPercent,
   Banknote,
   ListChecks,
-  ClipboardCheck
+  ClipboardCheck,
+  FileUp
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -119,6 +120,12 @@ const links = [
     to: "/admin-tools",
     label: "Audit & Backup",
     icon: ShieldCheck,
+    roles: ["owner", "admin"]
+  },
+  {
+    to: "/import-center",
+    label: "Import Center",
+    icon: FileUp,
     roles: ["owner", "admin"]
   },
   { to: "/settings", label: "Settings", icon: Settings }
