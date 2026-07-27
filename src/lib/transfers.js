@@ -103,8 +103,13 @@ export async function loadTransferWorkspace(supabase, profile) {
           purchase_items (
             id,
             product_id,
+            product_unit_id,
+            purchase_unit_name,
+            unit_factor,
             quantity,
+            base_quantity,
             unit_cost,
+            base_unit_cost,
             line_total,
             products (
               id,
@@ -147,7 +152,11 @@ export async function loadTransferWorkspace(supabase, profile) {
             purchase_item_id,
             product_id,
             quantity,
+            base_quantity,
+            return_unit_name,
+            unit_factor,
             unit_cost,
+            base_unit_cost,
             line_total,
             products (
               id,
@@ -206,9 +215,22 @@ export async function loadTransferWorkspace(supabase, profile) {
       const returnedQuantity = Number(
         returnedByPurchaseItem.get(item.id) || 0
       );
+      const unitFactor = Number(item.unit_factor || 1);
 
       return {
         ...item,
+        unit_factor: unitFactor,
+        quantity: Number(item.quantity || 0),
+        base_quantity: Number(
+          item.base_quantity
+          ?? Number(item.quantity || 0) * unitFactor
+        ),
+        unit_cost: Number(item.unit_cost || 0),
+        base_unit_cost: Number(
+          item.base_unit_cost
+          ?? Number(item.unit_cost || 0)
+            / Math.max(unitFactor, 0.001)
+        ),
         returned_quantity: returnedQuantity,
         returnable_quantity: Math.max(
           0,
@@ -262,7 +284,7 @@ export async function cancelStockTransfer(supabase, transferId, reason) {
 }
 
 export async function processSupplierReturn(supabase, values) {
-  const { data, error } = await supabase.rpc("process_supplier_return", {
+  const { data, error } = await supabase.rpc("process_supplier_return_v2", {
     p_purchase_id: values.purchase_id,
     p_items: values.items.map((item) => ({
       purchase_item_id: item.purchase_item_id,
