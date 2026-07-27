@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
+import PwaManager from "./PwaManager";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -283,6 +284,8 @@ export default function AppShell() {
 
           <strong>{profile?.full_name || "Owner"} · {profile?.role}</strong>
         </header>
+
+        <PwaManager />
 
         <section className="content"><Outlet /></section>
       </main>

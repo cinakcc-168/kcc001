@@ -39,6 +39,7 @@ export default function SaleCart({
   onPark,
   onPay,
   canSell,
+  online = true,
   activeParkLabel
 }) {
   return (
@@ -79,6 +80,7 @@ export default function SaleCart({
           type="button"
           className="icon-button customer-add-button"
           onClick={onAddCustomer}
+          disabled={!online}
           aria-label="Add customer"
           title="Add customer"
         >
@@ -228,7 +230,12 @@ export default function SaleCart({
                   type="button"
                   className="secondary-button coupon-apply-button"
                   onClick={onApplyCoupon}
-                  disabled={couponBusy || cart.length === 0 || !couponCode.trim()}
+                  disabled={
+                    couponBusy
+                    || cart.length === 0
+                    || !couponCode.trim()
+                    || !online
+                  }
                 >
                   {couponBusy ? "Checking..." : "Apply"}
                 </button>
@@ -280,12 +287,18 @@ export default function SaleCart({
         </div>
       </div>
 
+      {!online && (
+        <div className="sale-cart-offline-note">
+          This bill is saved locally. Reconnect to park or pay.
+        </div>
+      )}
+
       <div className="sale-cart-actions">
         <button
           type="button"
           className="secondary-button"
           onClick={onPark}
-          disabled={!canSell || cart.length === 0}
+          disabled={!canSell || !online || cart.length === 0}
         >
           <CirclePause size={19} /> Park sale
         </button>
@@ -293,7 +306,7 @@ export default function SaleCart({
           type="button"
           className="primary-button pay-button"
           onClick={onPay}
-          disabled={!canSell || cart.length === 0}
+          disabled={!canSell || !online || cart.length === 0}
         >
           <Wallet size={20} /> Pay {money(totals.total, currency)}
         </button>
