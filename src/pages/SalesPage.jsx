@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Camera,
@@ -9,7 +9,8 @@ import {
   RefreshCw,
   Search,
   ShoppingCart,
-  Trash2
+  Trash2,
+  WifiOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import BarcodeScanner from "../components/BarcodeScanner";
@@ -33,6 +34,11 @@ import {
   saveParkedSale
 } from "../lib/sales";
 import { getOpenCashRegisterSummary } from "../lib/cashRegister";
+import {
+  clearLocalSaleDraft,
+  loadLocalSaleDraft,
+  saveLocalSaleDraft
+} from "../lib/pwa";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -76,6 +82,11 @@ export default function SalesPage() {
   const [activeParkLabel, setActiveParkLabel] = useState("");
   const [receipt, setReceipt] = useState(null);
   const [idempotencyKey, setIdempotencyKey] = useState(createIdempotencyKey());
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine
+  );
+  const draftReadyRef = useRef(false);
+  const skipDraftSaveRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;
@@ -108,6 +119,141 @@ export default function SalesPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    function handleOnline() {
+      setIsOnline(true);
+      refresh();
+    }
+
+    function handleOffline() {
+      setIsOnline(false);
+      setPaymentOpen(false);
+    }
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    draftReadyRef.current = false;
+  }, [profile?.id, profile?.branch_id]);
+
+  useEffect(() => {
+    if (
+      loading ||
+      draftReadyRef.current ||
+      products.length === 0 ||
+      !profile?.id
+    ) {
+      return;
+    }
+
+    draftReadyRef.current = true;
+
+    const draft = loadLocalSaleDraft(profile);
+    if (!draft || cart.length > 0) return;
+
+    const hydrated = hydrateParkedCart(
+      products,
+      draft.cart || []
+    );
+
+    if (hydrated.cart.length === 0) {
+      clearLocalSaleDraft(profile);
+      return;
+    }
+
+    skipDraftSaveRef.current = true;
+    setCart(hydrated.cart);
+    setCustomerId(draft.customer_id || "");
+    setCouponCode(draft.coupon_code || "");
+    setAppliedCoupon(null);
+
+    if (draft.coupon_code) {
+      setDiscountType("none");
+      setDiscountValue("0");
+    } else {
+      setDiscountType(draft.discount_type || "none");
+      setDiscountValue(String(draft.discount_value || 0));
+    }
+
+    setNotes(draft.notes || "");
+    setActiveParkedId(draft.active_parked_id || null);
+    setActiveParkLabel(draft.active_parked_label || "");
+    setIdempotencyKey(createIdempotencyKey());
+
+    announce(
+      draft.coupon_code ? "error" : "success",
+      draft.coupon_code
+        ? `Local sale draft restored. Reapply coupon ${draft.coupon_code} while online.`
+        : "Local sale draft restored from this device."
+    );
+  }, [
+    loading,
+    products,
+    profile,
+    cart.length
+  ]);
+
+  useEffect(() => {
+    if (!draftReadyRef.current || !profile?.id) {
+      return;
+    }
+
+    if (skipDraftSaveRef.current) {
+      skipDraftSaveRef.current = false;
+      return;
+    }
+
+    const hasDraft =
+      cart.length > 0 ||
+      Boolean(customerId) ||
+      Boolean(notes.trim()) ||
+      discountType !== "none" ||
+      Boolean(couponCode.trim()) ||
+      Boolean(activeParkedId);
+
+    if (!hasDraft) {
+      clearLocalSaleDraft(profile);
+      return;
+    }
+
+    saveLocalSaleDraft(profile, {
+      cart: cart.map((item) => ({
+        product_id: item.id,
+        product_unit_id:
+          item.selected_unit_id || null,
+        quantity: Number(item.quantity || 0)
+      })),
+      customer_id: customerId || null,
+      discount_type:
+        appliedCoupon ? "none" : discountType,
+      discount_value:
+        appliedCoupon ? 0 : Number(discountValue || 0),
+      coupon_code:
+        appliedCoupon?.code || couponCode.trim() || null,
+      notes,
+      active_parked_id: activeParkedId,
+      active_parked_label: activeParkLabel
+    });
+  }, [
+    profile,
+    cart,
+    customerId,
+    discountType,
+    discountValue,
+    couponCode,
+    appliedCoupon,
+    notes,
+    activeParkedId,
+    activeParkLabel
+  ]);
 
   const visibleProducts = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -161,6 +307,14 @@ export default function SalesPage() {
   }
 
   async function applyCoupon() {
+    if (!isOnline) {
+      announce(
+        "error",
+        "Reconnect before validating a coupon."
+      );
+      return;
+    }
+
     if (cart.length === 0) {
       announce("error", "Add a product before applying a coupon.");
       return;
@@ -330,6 +484,7 @@ export default function SalesPage() {
     setActiveParkedId(null);
     setActiveParkLabel("");
     setIdempotencyKey(createIdempotencyKey());
+    clearLocalSaleDraft(profile);
   }
 
   function handleScan(code) {
@@ -349,6 +504,14 @@ export default function SalesPage() {
   }
 
   async function handlePark() {
+    if (!isOnline) {
+      announce(
+        "error",
+        "The sale draft is saved on this device. Reconnect before parking it on the server."
+      );
+      return;
+    }
+
     if (cart.length === 0) return;
 
     try {
@@ -432,6 +595,14 @@ export default function SalesPage() {
 
   async function saveCustomer(event) {
     event.preventDefault();
+
+    if (!isOnline) {
+      announce(
+        "error",
+        "Reconnect before creating a customer."
+      );
+      return;
+    }
     if (!customerForm.name.trim()) {
       announce("error", "Customer name is required.");
       return;
@@ -456,6 +627,15 @@ export default function SalesPage() {
   }
 
   async function handlePayment(payment) {
+    if (!isOnline) {
+      setPaymentOpen(false);
+      announce(
+        "error",
+        "Reconnect before completing the payment. The sale draft remains saved on this device."
+      );
+      return;
+    }
+
     try {
       setBusy(true);
       const result = await completeSale(supabase, {
@@ -554,6 +734,16 @@ export default function SalesPage() {
             register.
           </span>
           <Link to="/cash-register">Open cash register</Link>
+        </div>
+      )}
+
+      {!isOnline && (
+        <div className="notice warning offline-sale-warning">
+          <WifiOff size={20} />
+          <span>
+            Offline mode: the current bill is saved locally on this device.
+            Reconnect before applying coupons, parking, creating customers or paying.
+          </span>
         </div>
       )}
 
@@ -665,8 +855,18 @@ export default function SalesPage() {
           }}
           onClear={clearSale}
           onPark={handlePark}
-          onPay={() => setPaymentOpen(true)}
+          onPay={() => {
+            if (!isOnline) {
+              announce(
+                "error",
+                "Reconnect before completing payment."
+              );
+              return;
+            }
+            setPaymentOpen(true);
+          }}
           canSell={canSell && !busy}
+          online={isOnline}
           activeParkLabel={activeParkLabel}
         />
       </div>
