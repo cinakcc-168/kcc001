@@ -8,7 +8,9 @@ const OPTIONAL_TABLES = new Set([
   "coupons",
   "coupon_redemptions",
   "cash_register_sessions",
-  "product_units"
+  "product_units",
+  "stock_count_sessions",
+  "stock_count_items"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -37,6 +39,8 @@ const DIRECT_ORG_TABLES = [
   "return_items",
   "inventory_adjustments",
   "inventory_adjustment_items",
+  "stock_count_sessions",
+  "stock_count_items",
   "parked_sales",
   "stock_movements",
   "cash_categories",
@@ -65,6 +69,8 @@ const DELETE_ORDER = [
   "purchases",
   "stock_transfer_items",
   "stock_transfers",
+  "stock_count_items",
+  "stock_count_sessions",
   "inventory_adjustment_items",
   "inventory_adjustments",
   "parked_sales",
@@ -116,6 +122,8 @@ const INSERT_ORDER = [
   "return_items",
   "inventory_adjustments",
   "inventory_adjustment_items",
+  "stock_count_sessions",
+  "stock_count_items",
   "parked_sales",
   "stock_movements",
   "stock_transfers",
@@ -141,7 +149,10 @@ const USER_REFERENCE_COLUMNS = [
   "requested_by",
   "redeemed_by",
   "opened_by",
-  "closed_by"
+  "closed_by",
+  "started_by",
+  "completed_by",
+  "counted_by"
 ];
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -326,7 +337,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 20
+      schema_step: 22
     },
     staff: profiles,
     user_preferences: preferences,
@@ -470,6 +481,20 @@ function transformRows(
           fallbackUserId
         );
       }
+    }
+
+    if (table === "stock_count_sessions" && row.status === "counting") {
+      const cancelledAt = new Date().toISOString();
+
+      row.status = "cancelled";
+      row.cancelled_by = fallbackUserId;
+      row.cancelled_at = cancelledAt;
+      row.completed_by = null;
+      row.completed_at = null;
+      row.cancellation_reason = [
+        row.cancellation_reason,
+        "Automatically cancelled during backup restore."
+      ].filter(Boolean).join(" ");
     }
 
     if (table === "cash_register_sessions" && row.status === "open") {
