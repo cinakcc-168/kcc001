@@ -20,6 +20,7 @@ import AdminToolsPage from "./pages/AdminToolsPage";
 import CouponsPage from "./pages/CouponsPage";
 import CashRegisterPage from "./pages/CashRegisterPage";
 import ReorderPage from "./pages/ReorderPage";
+import StockCountsPage from "./pages/StockCountsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/labels" element={<LabelsPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/stock-counts" element={<StockCountsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin-tools" element={<AdminToolsPage />} />
       </Route>
