@@ -21,6 +21,7 @@ import CouponsPage from "./pages/CouponsPage";
 import CashRegisterPage from "./pages/CashRegisterPage";
 import ReorderPage from "./pages/ReorderPage";
 import StockCountsPage from "./pages/StockCountsPage";
+import ImportCenterPage from "./pages/ImportCenterPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="/stock-counts" element={<StockCountsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin-tools" element={<AdminToolsPage />} />
+        <Route path="/import-center" element={<ImportCenterPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
