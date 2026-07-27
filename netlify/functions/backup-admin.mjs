@@ -25,6 +25,7 @@ const DIRECT_ORG_TABLES = [
   "product_images",
   "product_units",
   "inventory_balances",
+  "reorder_rules",
   "document_counters",
   "sales",
   "sale_items",
@@ -73,6 +74,7 @@ const DELETE_ORDER = [
   "cash_categories",
   "customer_loyalty_movements",
   "customer_counters",
+  "reorder_rules",
   "inventory_balances",
   "product_units",
   "product_images",
@@ -98,6 +100,7 @@ const INSERT_ORDER = [
   "product_units",
   "product_images",
   "inventory_balances",
+  "reorder_rules",
   "document_counters",
   "cash_categories",
   "cash_register_sessions",
@@ -323,7 +326,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 18
+      schema_step: 20
     },
     staff: profiles,
     user_preferences: preferences,
