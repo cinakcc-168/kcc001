@@ -21,7 +21,8 @@ import {
   Warehouse,
   ShieldCheck,
   TicketPercent,
-  Banknote
+  Banknote,
+  ListChecks
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -75,6 +76,12 @@ const links = [
     to: "/purchase-orders",
     label: "Purchase Orders",
     icon: ClipboardList,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/reorder",
+    label: "Reorder Planner",
+    icon: ListChecks,
     roles: ["owner", "admin", "manager"]
   },
   {
