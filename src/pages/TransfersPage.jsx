@@ -84,7 +84,8 @@ export default function TransfersPage() {
         ...(transfer.stock_transfer_items || []).flatMap((item) => [
           item.products?.name,
           item.products?.sku,
-          item.products?.barcode
+          item.products?.barcode,
+          item.return_unit_name
         ])
       ]
         .filter(Boolean)
@@ -111,7 +112,8 @@ export default function TransfersPage() {
         ...(supplierReturn.purchase_return_items || []).flatMap((item) => [
           item.products?.name,
           item.products?.sku,
-          item.products?.barcode
+          item.products?.barcode,
+          item.return_unit_name
         ])
       ]
         .filter(Boolean)
@@ -524,7 +526,11 @@ export default function TransfersPage() {
                         {(supplierReturn.purchase_return_items || []).map((item) => (
                           <div className="supplier-return-line" key={item.id}>
                             <span>{item.products?.name || "Product"}</span>
-                            <strong>{stockNumber(item.quantity)}</strong>
+                            <strong>
+                              {stockNumber(item.quantity)}
+                              {" "}
+                              {item.return_unit_name || "units"}
+                            </strong>
                           </div>
                         ))}
                       </td>

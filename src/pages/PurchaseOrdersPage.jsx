@@ -476,7 +476,11 @@ export default function PurchaseOrdersPage() {
                     <div className="po-card-items">
                       {(purchase.purchase_items || []).slice(0, 4).map((item) => (
                         <span key={item.id}>
-                          {item.products?.name || "Product"} × {Number(item.quantity || 0).toLocaleString("en-US")}
+                          {item.products?.name || "Product"}
+                          {" × "}
+                          {Number(item.quantity || 0).toLocaleString("en-US")}
+                          {" "}
+                          {item.purchase_unit_name || item.products?.unit_name || "pcs"}
                         </span>
                       ))}
                       {(purchase.purchase_items || []).length > 4 && (
