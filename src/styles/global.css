@@ -212,3 +212,62 @@ html[data-language="km"] body{font-family:"Noto Sans Khmer","Khmer OS System","K
   .staff-plan-row { flex-direction: column; }
   .staff-plan-row span:last-child { text-align: left; }
 }
+
+
+/* Step 39: Accounting Center */
+.accounting-page .page-heading-actions { flex-wrap: wrap; }
+.accounting-filter-panel { padding: 16px; }
+.accounting-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.accounting-filters label, .accounting-page .form-stack label { display: grid; gap: 6px; }
+.accounting-filters label > span, .accounting-page .form-stack label > span { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.accounting-tabs { display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.accounting-tabs button { border: 0; background: transparent; color: var(--muted); padding: 11px 13px; border-bottom: 2px solid transparent; cursor: pointer; font: inherit; font-weight: 750; }
+.accounting-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.accounting-currency-grid, .accounting-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.accounting-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.accounting-summary-grid > div { border: 1px solid var(--border); border-radius: 14px; padding: 12px; display: grid; gap: 5px; background: var(--surface-soft); }
+.accounting-summary-grid span { color: var(--muted); font-size: .8rem; font-weight: 700; }
+.accounting-summary-grid strong { font-size: 1.05rem; }
+.accounting-summary-grid .highlight { border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.account-list, .mapping-list { display: grid; gap: 8px; max-height: 660px; overflow: auto; }
+.account-row, .mapping-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 15px; text-align: left; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); padding: 12px; cursor: pointer; color: inherit; }
+.account-row:hover, .mapping-row:hover { border-color: var(--accent); }
+.account-row span, .mapping-row span { display: grid; gap: 3px; }
+.account-row small, .mapping-row small { color: var(--muted); }
+.mapping-row > span:last-child { text-align: right; }
+.mapping-key-card { border: 1px solid var(--border); border-radius: 14px; background: var(--surface-soft); padding: 14px; display: grid; gap: 4px; text-transform: capitalize; }
+.mapping-key-card small { color: var(--muted); text-transform: none; }
+.journal-lines-editor { display: grid; gap: 8px; }
+.journal-line-head, .journal-line-row { display: grid; grid-template-columns: minmax(190px, 1.45fr) minmax(170px, 1fr) minmax(100px, .55fr) minmax(100px, .55fr) 42px; gap: 8px; align-items: center; }
+.journal-line-head { color: var(--muted); font-size: .78rem; font-weight: 800; padding: 0 3px; }
+.journal-line-row select, .journal-line-row input { min-width: 0; }
+.journal-balance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border: 1px solid var(--border); border-radius: 14px; padding: 12px; }
+.journal-balance span { display: grid; gap: 4px; color: var(--muted); }
+.journal-balance strong { color: var(--text); }
+.journal-balance.balanced { border-color: color-mix(in srgb, #1d9b5f 55%, var(--border)); }
+.journal-balance.unbalanced { border-color: color-mix(in srgb, #d97706 55%, var(--border)); }
+.status-pill.asset, .status-pill.income { background: color-mix(in srgb, #1d9b5f 13%, var(--surface)); }
+.status-pill.liability, .status-pill.expense { background: color-mix(in srgb, #d97706 13%, var(--surface)); }
+.status-pill.equity { background: color-mix(in srgb, var(--accent) 13%, var(--surface)); }
+.table-actions { display: flex; gap: 5px; justify-content: flex-end; }
+.icon-button.danger { color: #b42318; }
+.secondary-button.compact { justify-self: start; padding: 8px 11px; }
+@media (max-width: 980px) {
+  .accounting-currency-grid, .accounting-admin-grid { grid-template-columns: 1fr; }
+  .accounting-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .journal-line-head { display: none; }
+  .journal-line-row { grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 14px; padding: 10px; }
+  .journal-line-row > :nth-child(1), .journal-line-row > :nth-child(2) { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .accounting-filters, .accounting-summary-grid, .journal-balance { grid-template-columns: 1fr; }
+  .journal-line-row { grid-template-columns: 1fr; }
+  .journal-line-row > * { grid-column: 1 !important; }
+}
+
+
+/* Step 40: Payroll Center */
+.payroll-metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.payroll-metric-grid article{border:1px solid var(--border);border-radius:18px;background:var(--surface);padding:17px;display:grid;gap:6px}.payroll-metric-grid span,.payroll-metric-grid small{color:var(--muted)}.payroll-metric-grid strong{font-size:1.35rem}.payroll-filters{grid-template-columns:repeat(4,minmax(0,1fr))}.payroll-run-list{display:grid;gap:10px}.payroll-run-list article{border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:15px;cursor:pointer}.payroll-run-list article.selected{border-color:var(--accent);background:var(--accent-soft)}.payroll-run-list article>div{display:grid;gap:4px}.payroll-run-list article>div:last-child{justify-items:end}.payroll-run-list span,.payroll-run-list small{color:var(--muted)}.payroll-adjust-summary{display:grid;grid-template-columns:1fr 1fr;gap:12px}.payroll-adjust-summary span{border:1px solid var(--border);border-radius:14px;padding:13px;display:grid;gap:4px}.payslip-sheet{display:grid;gap:20px}.payslip-header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:2px solid var(--text);padding-bottom:16px}.payslip-header img{width:58px;height:58px;object-fit:contain}.payslip-header>div{display:grid;gap:3px}.payslip-header>div:last-child{text-align:right}.payslip-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.payslip-meta span{border:1px solid var(--border);border-radius:12px;padding:10px;display:grid;gap:4px}.payslip-meta small{color:var(--muted)}.payslip-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.payslip-columns section{border:1px solid var(--border);border-radius:16px;padding:16px}.payslip-columns p,.payslip-payments p{display:flex;justify-content:space-between;gap:15px;border-bottom:1px dashed var(--border);padding:9px 0;margin:0}.payslip-columns p.total{border-top:2px solid var(--text);border-bottom:0;margin-top:8px}.payslip-work{display:flex;flex-wrap:wrap;gap:12px}.payslip-work span{background:var(--surface-muted);border-radius:999px;padding:8px 12px}.payslip-signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;margin-top:35px}.payslip-signatures span{border-top:1px solid var(--text);padding-top:8px;text-align:center}.compact-select{max-width:420px}
+@media(max-width:900px){.payroll-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.payroll-filters,.payslip-meta{grid-template-columns:repeat(2,minmax(0,1fr))}.payslip-columns{grid-template-columns:1fr}}
+@media(max-width:560px){.payroll-metric-grid,.payroll-filters,.payroll-adjust-summary,.payslip-meta{grid-template-columns:1fr}.payslip-header{grid-template-columns:1fr}.payslip-header>div:last-child{text-align:left}.payslip-signatures{grid-template-columns:1fr;gap:36px}}
+@media print{.payslip-sheet{color:#000;background:#fff}.payslip-sheet .no-print{display:none!important}}
