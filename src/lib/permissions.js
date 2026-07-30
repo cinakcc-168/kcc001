@@ -4,6 +4,8 @@ export const ROLE_PERMISSION_FALLBACKS = {
   admin: [
     "dashboard.view",
     "sales.create",
+    "offline_checkout.use",
+    "offline_checkout.manage",
     "sales.discount.apply",
     "sales.discount.unlimited",
     "quotations.manage",
@@ -71,6 +73,8 @@ export const ROLE_PERMISSION_FALLBACKS = {
   manager: [
     "dashboard.view",
     "sales.create",
+    "offline_checkout.use",
+    "offline_checkout.manage",
     "sales.discount.apply",
     "quotations.manage",
     "sales_orders.manage",
@@ -121,6 +125,7 @@ export const ROLE_PERMISSION_FALLBACKS = {
   cashier: [
     "dashboard.view",
     "sales.create",
+    "offline_checkout.use",
     "sales.discount.apply",
     "quotations.manage",
     "sales_orders.deliver",
