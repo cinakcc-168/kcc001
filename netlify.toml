@@ -47,6 +47,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/system-health"
+  to = "/.netlify/functions/system-health"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
