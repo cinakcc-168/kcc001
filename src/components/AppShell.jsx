@@ -33,7 +33,8 @@ import {
   Send,
   KeyRound,
   CalendarClock,
-  PackageCheck
+  PackageCheck,
+  Activity
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -224,6 +225,12 @@ const links = [
     label: "Audit & Backup",
     icon: ShieldCheck,
     permission: "audit_backup.manage"
+  },
+  {
+    to: "/system-health",
+    label: "System Health",
+    icon: Activity,
+    permission: "system_health.manage"
   },
   {
     to: "/import-center",
