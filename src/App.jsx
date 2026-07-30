@@ -33,6 +33,7 @@ import TelegramPage from "./pages/TelegramPage";
 import PermissionsPage from "./pages/PermissionsPage";
 import BatchesPage from "./pages/BatchesPage";
 import SalesOrdersPage from "./pages/SalesOrdersPage";
+import SystemHealthPage from "./pages/SystemHealthPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/telegram" element={<PermissionRoute permission="telegram.use"><TelegramPage /></PermissionRoute>} />
         <Route path="/access-control" element={<PermissionRoute any={["access.manage","approvals.review"]}><PermissionsPage /></PermissionRoute>} />
         <Route path="/admin-tools" element={<PermissionRoute permission="audit_backup.manage"><AdminToolsPage /></PermissionRoute>} />
+        <Route path="/system-health" element={<PermissionRoute permission="system_health.manage"><SystemHealthPage /></PermissionRoute>} />
         <Route path="/import-center" element={<PermissionRoute permission="import.manage"><ImportCenterPage /></PermissionRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

@@ -7,9 +7,13 @@ import { LanguageProvider } from "./context/LanguageContext";
 import { initializePwa } from "./lib/pwa";
 import TelegramMiniAppBridge from "./components/TelegramMiniAppBridge";
 import LanguageAutoTranslate from "./components/LanguageAutoTranslate";
+import AppErrorBoundary from "./components/AppErrorBoundary";
+import ErrorReportingBridge from "./components/ErrorReportingBridge";
+import { installGlobalErrorHandlers } from "./lib/errorReporting";
 import "./styles/global.css";
 
 initializePwa();
+installGlobalErrorHandlers();
 
 ReactDOM.createRoot(
   document.getElementById("root")
@@ -20,7 +24,10 @@ ReactDOM.createRoot(
         <LanguageProvider>
           <LanguageAutoTranslate />
           <TelegramMiniAppBridge />
-          <App />
+          <ErrorReportingBridge />
+          <AppErrorBoundary>
+            <App />
+          </AppErrorBoundary>
         </LanguageProvider>
       </AuthProvider>
     </BrowserRouter>
