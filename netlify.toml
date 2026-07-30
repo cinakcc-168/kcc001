@@ -37,6 +37,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/telegram-admin"
+  to = "/.netlify/functions/telegram-admin"
+  status = 200
+
+[[redirects]]
+  from = "/api/telegram-webhook"
+  to = "/.netlify/functions/telegram-webhook"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
