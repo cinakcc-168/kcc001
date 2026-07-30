@@ -5,14 +5,17 @@ import {
   dateOnly,
   dateTime,
   purchaseBalance,
-  purchasePaymentStatus
+  purchasePaymentStatus,
+  purchaseReceivingStatusLabel,
+  purchaseItemRemainingQuantity
 } from "../lib/purchaseOrders";
 
 export default function PurchaseOrderPrintModal({
   purchase,
   shop,
   branch,
-  onClose
+  onClose,
+  onPrintReceipt
 }) {
   if (!purchase) return null;
 
@@ -97,7 +100,7 @@ export default function PurchaseOrderPrintModal({
               <div>
                 <span>Status</span>
                 <strong>
-                  {String(purchase.status).toUpperCase()}
+                  {purchaseReceivingStatusLabel(purchase).toUpperCase()}
                 </strong>
               </div>
               <div>
@@ -117,8 +120,10 @@ export default function PurchaseOrderPrintModal({
                 <th>#</th>
                 <th>Product</th>
                 <th>Code</th>
-                <th>Purchase quantity</th>
-                <th>Base quantity</th>
+                <th>Ordered</th>
+                <th>Received</th>
+                <th>Remaining</th>
+                <th>Base received</th>
                 <th>Cost per purchase unit</th>
                 <th>Total</th>
               </tr>
@@ -143,7 +148,19 @@ export default function PurchaseOrderPrintModal({
                       {item.purchase_unit_name || "pcs"}
                     </td>
                     <td>
-                      {stockNumber(item.base_quantity)}
+                      {stockNumber(item.received_quantity)}
+                      {" "}
+                      {item.purchase_unit_name || "pcs"}
+                    </td>
+                    <td>
+                      {stockNumber(
+                        purchaseItemRemainingQuantity(item)
+                      )}
+                      {" "}
+                      {item.purchase_unit_name || "pcs"}
+                    </td>
+                    <td>
+                      {stockNumber(item.base_received_quantity)}
                       {" "}
                       {item.products?.unit_name || "pcs"}
                     </td>
@@ -254,6 +271,66 @@ export default function PurchaseOrderPrintModal({
               </div>
             </div>
           </section>
+
+          {(purchase.purchase_receipts || []).length > 0 && (
+            <section className="po-receipt-history-print">
+              <div className="panel-title-row">
+                <div>
+                  <strong>Goods-received notes</strong>
+                  <span>
+                    {(purchase.purchase_receipts || []).length}
+                    {" receipt event"}
+                    {(purchase.purchase_receipts || []).length === 1
+                      ? ""
+                      : "s"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="po-receipt-history-list">
+                {(purchase.purchase_receipts || []).map((receipt) => {
+                  const value = (
+                    receipt.purchase_receipt_items || []
+                  ).reduce(
+                    (sum, item) =>
+                      sum + Number(item.line_total || 0),
+                    0
+                  );
+
+                  return (
+                    <article key={receipt.id}>
+                      <div>
+                        <strong>{receipt.receipt_number}</strong>
+                        <span>{dateTime(receipt.received_at)}</span>
+                      </div>
+
+                      <div>
+                        <span>Items</span>
+                        <strong>
+                          {(receipt.purchase_receipt_items || []).length}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Value</span>
+                        <strong>
+                          {money(value, purchase.currency)}
+                        </strong>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        onClick={() => onPrintReceipt?.(receipt)}
+                      >
+                        View GRN
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           <footer className="po-print-signatures">
             <div><span>Prepared by</span></div>

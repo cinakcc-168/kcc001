@@ -62,7 +62,7 @@ export default function SupplierReturnModal({
     setError("");
 
     if (!purchase) {
-      setError("Choose a received purchase.");
+      setError("Choose a purchase with received stock.");
       return;
     }
 
@@ -135,7 +135,7 @@ export default function SupplierReturnModal({
         onSubmit={submit}
       >
         <label>
-          <span>Received purchase</span>
+          <span>Purchase with received stock</span>
           <select
             value={purchaseId}
             onChange={(event) =>
@@ -183,10 +183,12 @@ export default function SupplierReturnModal({
                       {item.products?.name || "Product"}
                     </strong>
                     <span>
-                      Purchased{" "}
+                      Ordered{" "}
                       {stockNumber(item.quantity)}
                       {" "}
                       {item.purchase_unit_name || "units"}
+                      {" · Received "}
+                      {stockNumber(item.received_quantity)}
                       {" · Returned "}
                       {stockNumber(item.returned_quantity)}
                       {" · Current stock "}
