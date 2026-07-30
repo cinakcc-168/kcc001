@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { useLanguage } from "./context/LanguageContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PermissionRoute from "./components/PermissionRoute";
 import AppShell from "./components/AppShell";
@@ -33,9 +34,10 @@ import PermissionsPage from "./pages/PermissionsPage";
 
 export default function App() {
   const { loading } = useAuth();
+  const { t } = useLanguage();
 
   if (loading) {
-    return <div className="loading">Loading Tiny POS…</div>;
+    return <div className="loading">{t("Loading Tiny POS…")}</div>;
   }
 
   return (
