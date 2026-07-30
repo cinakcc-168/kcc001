@@ -37,6 +37,8 @@ import SystemHealthPage from "./pages/SystemHealthPage";
 import StaffOperationsPage from "./pages/StaffOperationsPage";
 import AccountingPage from "./pages/AccountingPage";
 import PayrollPage from "./pages/PayrollPage";
+import OnlineStorePage from "./pages/OnlineStorePage";
+import PublicStorefrontPage from "./pages/PublicStorefrontPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -49,6 +51,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/shop/:slug" element={<PublicStorefrontPage />} />
       <Route
         element={
           <ProtectedRoute>
@@ -61,6 +64,7 @@ export default function App() {
         <Route path="/sales" element={<PermissionRoute permission="sales.create"><SalesPage /></PermissionRoute>} />
         <Route path="/quotes" element={<PermissionRoute permission="quotations.manage"><QuotesPage /></PermissionRoute>} />
         <Route path="/sales-orders" element={<PermissionRoute any={["sales_orders.manage","sales_orders.deliver"]}><SalesOrdersPage /></PermissionRoute>} />
+        <Route path="/online-store" element={<PermissionRoute any={["online_store.manage","online_orders.manage","online_orders.fulfill"]}><OnlineStorePage /></PermissionRoute>} />
         <Route path="/invoices" element={<PermissionRoute permission="invoices.view"><InvoicesPage /></PermissionRoute>} />
         <Route path="/returns" element={<PermissionRoute permission="returns.process"><ReturnsPage /></PermissionRoute>} />
         <Route path="/customers" element={<PermissionRoute permission="customers.manage"><CustomersPage /></PermissionRoute>} />
