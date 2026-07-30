@@ -85,6 +85,12 @@ export default function ReceiptModal({ receipt, onClose }) {
                 </strong>
               </div>
             )}
+            {receipt.priceListName && (
+              <div>
+                <span>Price list</span>
+                <strong>{receipt.priceListName}</strong>
+              </div>
+            )}
           </div>
 
           {showBarcode && (
@@ -122,7 +128,45 @@ export default function ReceiptModal({ receipt, onClose }) {
           </div>
 
           <div className="receipt-totals">
-            <div><span>Subtotal</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
+            {Number(receipt.priceAdjustmentAmount || 0) !== 0 ? (
+              <>
+                <div>
+                  <span>Standard value</span>
+                  <strong>
+                    {money(
+                      Number(receipt.subtotal)
+                        + Number(receipt.priceAdjustmentAmount),
+                      receipt.currency
+                    )}
+                  </strong>
+                </div>
+                <div>
+                  <span>
+                    {Number(receipt.priceAdjustmentAmount) > 0
+                      ? "Price-list savings"
+                      : "Price-list markup"}
+                  </span>
+                  <strong>
+                    {Number(receipt.priceAdjustmentAmount) > 0 ? "-" : "+"}
+                    {money(
+                      Math.abs(Number(receipt.priceAdjustmentAmount)),
+                      receipt.currency
+                    )}
+                  </strong>
+                </div>
+                <div>
+                  <span>Price-list subtotal</span>
+                  <strong>
+                    {money(receipt.subtotal, receipt.currency)}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <div>
+                <span>Subtotal</span>
+                <strong>{money(receipt.subtotal, receipt.currency)}</strong>
+              </div>
+            )}
             <div><span>Discount</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
             {Number(receipt.taxAmount) > 0 && (
               <div><span>Tax</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>

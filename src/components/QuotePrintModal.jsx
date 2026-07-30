@@ -139,6 +139,15 @@ export default function QuotePrintModal({
                 <span>Currency</span>
                 <strong>{quote.currency}</strong>
               </div>
+
+              {quote.price_list_name && (
+                <div>
+                  <span>Price list</span>
+                  <strong>
+                    {quote.price_list_name}
+                  </strong>
+                </div>
+              )}
             </div>
           </section>
 

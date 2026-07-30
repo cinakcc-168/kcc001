@@ -1,4 +1,5 @@
 import {
+  BadgeDollarSign,
   Check,
   CirclePause,
   Minus,
@@ -45,7 +46,8 @@ export default function SaleCart({
   online = true,
   activeParkLabel,
   activeQuoteNumber,
-  quoteEditable = true
+  quoteEditable = true,
+  priceListName = ""
 }) {
   return (
     <aside className="sale-cart panel">
@@ -119,6 +121,14 @@ export default function SaleCart({
         </div>
       )}
 
+      {priceListName && (
+        <div className="sale-price-list-strip">
+          <BadgeDollarSign size={17} />
+          <span>Price list</span>
+          <strong>{priceListName}</strong>
+        </div>
+      )}
+
       <div className="sale-cart-lines">
         {cart.length === 0 ? (
           <div className="cart-empty">
@@ -139,6 +149,10 @@ export default function SaleCart({
             const selectedPrice = Number(
               item.selected_unit_price ?? item.selling_price ?? 0
             );
+            const standardPrice = Number(
+              item.standard_unit_price
+              ?? selectedPrice
+            );
             const availableSelectedUnits = factor > 0
               ? Number(item.stock_quantity || 0) / factor
               : Number(item.stock_quantity || 0);
@@ -149,6 +163,11 @@ export default function SaleCart({
                 <div className="cart-line-info">
                   <strong>{item.name}</strong>
                   <span>
+                    {standardPrice !== selectedPrice && (
+                      <del>
+                        {money(standardPrice, item.currency)}
+                      </del>
+                    )}
                     {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} ={" "}
                     <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
                   </span>
