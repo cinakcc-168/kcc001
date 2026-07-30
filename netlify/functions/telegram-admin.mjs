@@ -235,6 +235,10 @@ async function setupBot(service, profile) {
       { command: "start", description: "Open Tiny POS / បើក Tiny POS" },
       { command: "pos", description: "Open Mini App / បើក Mini App" },
       { command: "status", description: "Linked account / គណនីបានភ្ជាប់" },
+      { command: "checkin", description: "Check in / ចុះវត្តមានចូល" },
+      { command: "checkout", description: "Check out / ចុះវត្តមានចេញ" },
+      { command: "attendance", description: "Attendance status / ស្ថានភាពវត្តមាន" },
+      { command: "commission", description: "My commission / កម្រៃជើងសារ" },
       { command: "link", description: "Link code / កូដភ្ជាប់" },
       { command: "unlink", description: "Disconnect / ផ្តាច់" },
       { command: "help", description: "Help / ជំនួយ" }

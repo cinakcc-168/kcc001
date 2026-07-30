@@ -63,7 +63,11 @@ const OPTIONAL_TABLES = new Set([
   "sales_order_items",
   "stock_reservations",
   "sales_order_deliveries",
-  "sales_order_delivery_items"
+  "sales_order_delivery_items",
+  "attendance_sessions",
+  "commission_plans",
+  "sales_commissions",
+  "commission_payouts"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -130,12 +134,20 @@ const DIRECT_ORG_TABLES = [
   "supplier_code_counters",
   "data_import_jobs",
   "data_import_errors",
+  "attendance_sessions",
+  "commission_plans",
+  "sales_commissions",
+  "commission_payouts",
   "audit_logs"
 ];
 
 const DELETE_ORDER = [
   "user_permission_overrides",
   "user_approval_limits",
+  "commission_payouts",
+  "sales_commissions",
+  "commission_plans",
+  "attendance_sessions",
   "data_import_errors",
   "data_import_jobs",
   "coupon_redemptions",
@@ -203,6 +215,9 @@ const INSERT_ORDER = [
   "app_settings",
   "user_approval_limits",
   "user_permission_overrides",
+  "attendance_sessions",
+  "commission_plans",
+  "commission_payouts",
   "categories",
   "suppliers",
   "price_lists",
@@ -242,6 +257,7 @@ const INSERT_ORDER = [
   "coupon_redemptions",
   "returns",
   "return_items",
+  "sales_commissions",
   "customer_credit_entries",
   "inventory_adjustments",
   "inventory_adjustment_items",
@@ -479,7 +495,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 37
+      schema_step: 38
     },
     staff: profiles,
     user_preferences: preferences,

@@ -145,7 +145,8 @@ function canReceive(role, eventType) {
     quotation: ["owner", "admin", "manager", "cashier"],
     sales_order: ["owner", "admin", "manager", "cashier"],
     register: ["owner", "admin", "manager", "cashier"],
-    approval: ["owner", "admin", "manager"]
+    approval: ["owner", "admin", "manager"],
+    attendance: ["owner", "admin", "manager", "cashier", "viewer"]
   };
 
   return (roles[eventType] || []).includes(role);
@@ -692,6 +693,37 @@ async function buildRegister(service, link, branchIds, context, scopeName, langu
   };
 }
 
+async function buildAttendance(service, link, branchIds, context, scopeName, profile, language) {
+  const ids = branchIds.map((branch) => branch.id);
+  let query = service
+    .from("attendance_sessions")
+    .select("id,user_id,branch_id,check_in_at,status")
+    .eq("organization_id", link.organization_id)
+    .in("branch_id", ids)
+    .eq("status", "open")
+    .lt("check_in_at", new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString());
+  if (!["owner", "admin", "manager"].includes(profile.role)) {
+    query = query.eq("user_id", link.user_id);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  if (!(data || []).length) return null;
+  return {
+    type: "attendance",
+    key: `attendance:${context.date}:${link.user_id}:${scopeName}`,
+    path: "/staff-operations",
+    language,
+    buttonText: tg(language, "open_staff_operations"),
+    text: [
+      `🕒 <b>${tg(language, "attendance_reminder_title", { scope: escapeHtml(scopeName) })}</b>`,
+      "",
+      tg(language, "attendance_long_open", { count: data.length }),
+      tg(language, "attendance_reminder_help")
+    ].join("\n"),
+    payload: { long_open: data.length }
+  };
+}
+
 async function buildApprovals(
   service,
   link,
@@ -994,6 +1026,12 @@ export default async () => {
       if (preferences.register_alerts && canReceive(profile.role, "register")) {
         builders.push(() => buildRegister(
           service, link, branches, context, scopeName, language
+        ));
+      }
+
+      if (preferences.attendance_alerts && canReceive(profile.role, "attendance")) {
+        builders.push(() => buildAttendance(
+          service, link, branches, context, scopeName, profile, language
         ));
       }
 

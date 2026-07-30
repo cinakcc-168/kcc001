@@ -565,6 +565,102 @@ export default async (request) => {
       return json({ ok: true });
     }
 
+
+    if (["/checkin", "/checkout", "/attendance", "/commission"].includes(command)) {
+      if (!linked) {
+        await sendTelegramMessage({
+          chatId: message.chat.id,
+          text: tg(language, "connect_help"),
+          path: "/login",
+          buttonText: tg(language, "open_pos")
+        });
+        return json({ ok: true });
+      }
+
+      try {
+        if (command === "/checkin" || command === "/checkout") {
+          const action = command === "/checkin" ? "check_in" : "check_out";
+          const { data, error } = await service.rpc(
+            "telegram_attendance_action",
+            { p_user_id: linked.user_id, p_action: action }
+          );
+          if (error) throw error;
+          const sessionRow = data?.session || {};
+          const duration = Math.max(0, Number(sessionRow.total_minutes || 0));
+          const durationText = `${Math.floor(duration / 60)}h ${Math.round(duration % 60)}m`;
+          const formatted = new Intl.DateTimeFormat(
+            language === "km" ? "km-KH" : "en-US",
+            { dateStyle: "medium", timeStyle: "short" }
+          ).format(new Date(action === "check_in" ? sessionRow.check_in_at : sessionRow.check_out_at));
+          await sendTelegramMessage({
+            chatId: message.chat.id,
+            text: `✅ ${tg(language, action === "check_in" ? "attendance_checked_in" : "attendance_checked_out", action === "check_in" ? { time: formatted } : { duration: durationText })}`,
+            path: "/staff-operations",
+            buttonText: tg(language, "open_staff_operations")
+          });
+          return json({ ok: true });
+        }
+
+        if (command === "/attendance") {
+          const { data, error } = await service.rpc(
+            "telegram_attendance_status",
+            { p_user_id: linked.user_id }
+          );
+          if (error) throw error;
+          let textValue = tg(language, "attendance_not_checked_in");
+          if (data?.checked_in) {
+            const formatted = new Intl.DateTimeFormat(
+              language === "km" ? "km-KH" : "en-US",
+              { dateStyle: "medium", timeStyle: "short" }
+            ).format(new Date(data.session.check_in_at));
+            const minutes = Math.max(0, Number(data.elapsed_minutes || 0));
+            textValue = tg(language, "attendance_current", {
+              time: formatted,
+              duration: `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`
+            });
+          }
+          await sendTelegramMessage({
+            chatId: message.chat.id,
+            text: `🕒 <b>${escapeHtml(textValue)}</b>`,
+            path: "/staff-operations",
+            buttonText: tg(language, "open_staff_operations")
+          });
+          return json({ ok: true });
+        }
+
+        const { data, error } = await service.rpc(
+          "telegram_my_commission_summary",
+          { p_user_id: linked.user_id }
+        );
+        if (error) throw error;
+        const money = (value, currency) => new Intl.NumberFormat("en-US", {
+          style: "currency", currency,
+          maximumFractionDigits: currency === "KHR" ? 0 : 2
+        }).format(Number(value || 0));
+        await sendTelegramMessage({
+          chatId: message.chat.id,
+          text: [
+            `💰 <b>${tg(language, "commission_title")}</b>`,
+            "",
+            tg(language, "commission_earned_usd", { amount: money(data.earned_usd, "USD") }),
+            tg(language, "commission_earned_khr", { amount: money(data.earned_khr, "KHR") }),
+            tg(language, "commission_outstanding_usd", { amount: money(data.outstanding_usd, "USD") }),
+            tg(language, "commission_outstanding_khr", { amount: money(data.outstanding_khr, "KHR") })
+          ].join("\n"),
+          path: "/staff-operations",
+          buttonText: tg(language, "open_staff_operations")
+        });
+      } catch (error) {
+        await sendTelegramMessage({
+          chatId: message.chat.id,
+          text: `❌ ${escapeHtml(error.message)}`,
+          path: "/staff-operations",
+          buttonText: tg(language, "open_staff_operations")
+        });
+      }
+      return json({ ok: true });
+    }
+
     if (
       ["/pos", "/menu", "/help"]
         .includes(command)

@@ -20,6 +20,7 @@ const messages = {
     open_sales_orders: "Open Sales Orders",
     open_register: "Open Cash Register",
     open_system_health: "Open System Health",
+    open_staff_operations: "Open Attendance & Commission",
     review_approval: "Review Approval",
     notification_settings: "Notification settings",
     create_link_code: "Create a new link code",
@@ -85,7 +86,19 @@ const messages = {
     unlinked_help: "Open Tiny POS and connect your Telegram account, or send /link YOUR_CODE.",
     invalid_code_format: "The link code must contain 8 letters or numbers.",
     invalid_code: "This link code is invalid or expired.",
-    inactive_user: "The POS user is inactive or missing."
+    inactive_user: "The POS user is inactive or missing.",
+    attendance_checked_in: "Checked in at {{time}}",
+    attendance_checked_out: "Checked out. Shift duration: {{duration}}",
+    attendance_not_checked_in: "You are not currently checked in.",
+    attendance_current: "Currently checked in since {{time}} · {{duration}}",
+    attendance_reminder_title: "Attendance reminder · {{scope}}",
+    attendance_long_open: "Sessions open longer than 12 hours: {{count}}",
+    attendance_reminder_help: "Ask affected staff to check out or correct the timesheet.",
+    commission_title: "Commission this month",
+    commission_earned_usd: "Earned USD: {{amount}}",
+    commission_earned_khr: "Earned KHR: {{amount}}",
+    commission_outstanding_usd: "Outstanding USD: {{amount}}",
+    commission_outstanding_khr: "Outstanding KHR: {{amount}}"
   },
   km: {
     open_pos: "បើក Tiny POS",
@@ -100,6 +113,7 @@ const messages = {
     open_sales_orders: "បើកការបញ្ជាទិញរបស់អតិថិជន",
     open_register: "បើកបញ្ជរសាច់ប្រាក់",
     open_system_health: "បើកសុខភាពប្រព័ន្ធ",
+    open_staff_operations: "បើកវត្តមាន និងកម្រៃជើងសារ",
     review_approval: "ពិនិត្យការអនុម័ត",
     notification_settings: "ការកំណត់ការជូនដំណឹង",
     create_link_code: "បង្កើតកូដភ្ជាប់ថ្មី",
@@ -165,7 +179,19 @@ const messages = {
     unlinked_help: "បើក Tiny POS ហើយភ្ជាប់គណនី Telegram ឬផ្ញើ /link YOUR_CODE។",
     invalid_code_format: "កូដភ្ជាប់ត្រូវមានអក្សរ ឬលេខ 8 តួ។",
     invalid_code: "កូដភ្ជាប់នេះមិនត្រឹមត្រូវ ឬផុតកំណត់។",
-    inactive_user: "អ្នកប្រើ POS អសកម្ម ឬមិនមាន។"
+    inactive_user: "អ្នកប្រើ POS អសកម្ម ឬមិនមាន។",
+    attendance_checked_in: "បានចុះវត្តមានចូលនៅ {{time}}",
+    attendance_checked_out: "បានចុះវត្តមានចេញ។ រយៈពេលធ្វើការ៖ {{duration}}",
+    attendance_not_checked_in: "អ្នកមិនទាន់ចុះវត្តមានចូលទេ។",
+    attendance_current: "កំពុងចុះវត្តមានចាប់ពី {{time}} · {{duration}}",
+    attendance_reminder_title: "រំលឹកវត្តមាន · {{scope}}",
+    attendance_long_open: "វេនបើកលើស 12 ម៉ោង៖ {{count}}",
+    attendance_reminder_help: "សូមឱ្យបុគ្គលិកចុះវត្តមានចេញ ឬកែសម្រួលតារាងម៉ោង។",
+    commission_title: "កម្រៃជើងសារខែនេះ",
+    commission_earned_usd: "បានរក USD៖ {{amount}}",
+    commission_earned_khr: "បានរក KHR៖ {{amount}}",
+    commission_outstanding_usd: "នៅមិនទាន់បង់ USD៖ {{amount}}",
+    commission_outstanding_khr: "នៅមិនទាន់បង់ KHR៖ {{amount}}"
   }
 };
 
