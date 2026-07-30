@@ -22,6 +22,7 @@ import {
 } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import QuotePrintModal from "../components/QuotePrintModal";
+import SalesOrderCreateModal from "../components/SalesOrderCreateModal";
 import { money } from "../lib/catalog";
 import {
   effectiveQuoteStatus,
@@ -34,6 +35,9 @@ import {
   quoteStatusLabel,
   updateSalesQuoteStatus
 } from "../lib/quotes";
+import {
+  createSalesOrderFromQuote
+} from "../lib/salesOrders";
 
 function monthRange() {
   const now = new Date();
@@ -61,6 +65,7 @@ export default function QuotesPage() {
   const navigate = useNavigate();
 
   const canManage = can("quotations.manage");
+  const canManageOrders = can("sales_orders.manage");
 
   const defaults = monthRange();
 
@@ -75,6 +80,8 @@ export default function QuotesPage() {
   const [status, setStatus] =
     useState("");
   const [selected, setSelected] =
+    useState(null);
+  const [orderQuote, setOrderQuote] =
     useState(null);
   const [loading, setLoading] =
     useState(true);
@@ -227,6 +234,28 @@ export default function QuotesPage() {
       navigate("/sales");
     } catch (error) {
       announce("error", error.message);
+    }
+  }
+
+  async function handleCreateOrder(values) {
+    try {
+      setBusy("create-order");
+      const result = await createSalesOrderFromQuote(
+        supabase,
+        values
+      );
+      setOrderQuote(null);
+      setSelected(null);
+      announce(
+        "success",
+        `${result.order_number} created as a Draft sales order.`
+      );
+      await refresh();
+      navigate("/sales-orders");
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setBusy("");
     }
   }
 
@@ -691,6 +720,19 @@ export default function QuotesPage() {
           setSelected(null);
           openInSale(quote);
         }}
+        canCreateOrder={canManageOrders}
+        orderBusy={busy === "create-order"}
+        onCreateOrder={(quote) => {
+          setSelected(null);
+          setOrderQuote(quote);
+        }}
+      />
+
+      <SalesOrderCreateModal
+        quote={orderQuote}
+        busy={busy === "create-order"}
+        onClose={() => setOrderQuote(null)}
+        onSubmit={handleCreateOrder}
       />
     </div>
   );

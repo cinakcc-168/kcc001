@@ -40,6 +40,7 @@ const preferenceFields = [
   ["purchase_alerts", "Purchase deliveries", "Orders that are past the expected delivery date"],
   ["transfer_alerts", "Stock transfers", "Pending inbound and outbound transfers"],
   ["quotation_alerts", "Quotations", "Customer quotations expiring soon"],
+  ["sales_order_alerts", "Sales orders", "Due and overdue reserved customer deliveries"],
   ["cash_register_alerts", "Cash register", "Long-open registers and closing variances"],
   ["system_alerts", "System alerts", "Reserved for backup and service errors"]
 ];

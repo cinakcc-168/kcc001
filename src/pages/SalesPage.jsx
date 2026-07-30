@@ -12,6 +12,7 @@ import {
   Search,
   ShoppingCart,
   Trash2,
+  Truck,
   WifiOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -57,6 +58,10 @@ import {
   saleApprovalPayload,
   saleDiscountApprovalRequirement
 } from "../lib/permissions";
+import {
+  consumeDeliveryForSale,
+  hydrateSalesOrderDeliveryCart
+} from "../lib/salesOrders";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -115,6 +120,7 @@ export default function SalesPage() {
   const [activeParkLabel, setActiveParkLabel] = useState("");
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [activeQuote, setActiveQuote] = useState(null);
+  const [activeOrderDelivery, setActiveOrderDelivery] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [approvalRequest, setApprovalRequest] = useState(null);
   const [pendingPayment, setPendingPayment] = useState(null);
@@ -246,7 +252,7 @@ export default function SalesPage() {
   }, [baseProducts, priceCatalogs]);
 
   useEffect(() => {
-    if (cart.length === 0) return;
+    if (cart.length === 0 || activeOrderDelivery) return;
 
     setCart((current) =>
       current.map((item) => {
@@ -267,7 +273,7 @@ export default function SalesPage() {
         };
       })
     );
-  }, [priceCatalogs, baseProducts]);
+  }, [priceCatalogs, baseProducts, activeOrderDelivery]);
 
   useEffect(() => {
     draftReadyRef.current = false;
@@ -284,6 +290,56 @@ export default function SalesPage() {
     }
 
     draftReadyRef.current = true;
+
+    const pendingDelivery =
+      consumeDeliveryForSale(profile);
+
+    if (pendingDelivery && cart.length === 0) {
+      const hydrated =
+        hydrateSalesOrderDeliveryCart(
+          products,
+          pendingDelivery.order,
+          pendingDelivery.delivery
+        );
+
+      if (hydrated.cart.length > 0) {
+        skipDraftSaveRef.current = true;
+        setCart(hydrated.cart);
+        setCustomerId(
+          pendingDelivery.order.customer_id || ""
+        );
+        setCouponCode("");
+        setAppliedCoupon(null);
+        setDiscountType("none");
+        setDiscountValue("0");
+        setNotes(
+          pendingDelivery.delivery.notes
+          || pendingDelivery.order.notes
+          || ""
+        );
+        setActiveParkedId(null);
+        setActiveParkLabel("");
+        setActiveQuote(null);
+        setActiveOrderDelivery(pendingDelivery);
+        setIdempotencyKey(
+          createIdempotencyKey()
+        );
+
+        announce(
+          "success",
+          `${pendingDelivery.delivery.delivery_number} loaded from ${pendingDelivery.order.order_number}. Products, customer and quantities are locked.`
+        );
+
+        if (hydrated.missing.length > 0) {
+          announce(
+            "error",
+            `${hydrated.missing.length} delivery item(s) are unavailable. Cancel this draft delivery and prepare it again.`
+          );
+        }
+
+        return;
+      }
+    }
 
     const pendingQuote =
       consumeQuoteForSale(profile);
@@ -353,10 +409,16 @@ export default function SalesPage() {
     const draft = loadLocalSaleDraft(profile);
     if (!draft || cart.length > 0) return;
 
-    const hydrated = hydrateParkedCart(
-      products,
-      draft.cart || []
-    );
+    const hydrated = draft.active_order_delivery
+      ? hydrateSalesOrderDeliveryCart(
+          products,
+          draft.active_order_delivery.order,
+          draft.active_order_delivery.delivery
+        )
+      : hydrateParkedCart(
+          products,
+          draft.cart || []
+        );
 
     if (hydrated.cart.length === 0) {
       clearLocalSaleDraft(profile);
@@ -395,6 +457,9 @@ export default function SalesPage() {
           }
         : null
     );
+    setActiveOrderDelivery(
+      draft.active_order_delivery || null
+    );
     setIdempotencyKey(createIdempotencyKey());
 
     announce(
@@ -427,7 +492,8 @@ export default function SalesPage() {
       discountType !== "none" ||
       Boolean(couponCode.trim()) ||
       Boolean(activeParkedId) ||
-      Boolean(activeQuote?.id);
+      Boolean(activeQuote?.id) ||
+      Boolean(activeOrderDelivery?.delivery?.id);
 
     if (!hasDraft) {
       clearLocalSaleDraft(profile);
@@ -460,7 +526,9 @@ export default function SalesPage() {
       active_quote_valid_until:
         activeQuote?.valid_until || null,
       active_quote_terms:
-        activeQuote?.terms || null
+        activeQuote?.terms || null,
+      active_order_delivery:
+        activeOrderDelivery || null
     });
   }, [
     profile,
@@ -473,7 +541,8 @@ export default function SalesPage() {
     notes,
     activeParkedId,
     activeParkLabel,
-    activeQuote
+    activeQuote,
+    activeOrderDelivery
   ]);
 
   const visibleProducts = useMemo(() => {
@@ -539,6 +608,12 @@ export default function SalesPage() {
         "error",
         "Reconnect before validating a coupon."
       );
+      return;
+    }
+
+    if (activeOrderDelivery) {
+      setQuoteOpen(false);
+      announce("error", "A prepared delivery cannot be saved as a quotation.");
       return;
     }
 
@@ -614,6 +689,9 @@ export default function SalesPage() {
   function addProduct(product, preferredUnitId = null) {
     try {
       if (!canSell) throw new Error("Your role cannot create sales.");
+      if (activeOrderDelivery) {
+        throw new Error("Products are locked for this prepared sales-order delivery.");
+      }
       if (cart.length > 0 && cart[0].currency !== product.currency) {
         throw new Error(
           `This bill already uses ${cart[0].currency}. Mixed currencies are not allowed.`
@@ -659,6 +737,7 @@ export default function SalesPage() {
   }
 
   function changeQuantity(productId, value) {
+    if (activeOrderDelivery) return;
     const product = cart.find((item) => item.id === productId);
     if (!product) return;
 
@@ -682,6 +761,7 @@ export default function SalesPage() {
   }
 
   function changeUnit(productId, unitId) {
+    if (activeOrderDelivery) return;
     const product = cart.find((item) => item.id === productId);
     if (!product) return;
 
@@ -711,12 +791,17 @@ export default function SalesPage() {
     setActiveParkedId(null);
     setActiveParkLabel("");
     setActiveQuote(null);
+    setActiveOrderDelivery(null);
     setIdempotencyKey(createIdempotencyKey());
     clearLocalSaleDraft(profile);
   }
 
   function handleScan(code) {
     setScannerOpen(false);
+    if (activeOrderDelivery) {
+      announce("error", "Scanning is disabled for a prepared delivery.");
+      return;
+    }
     const match = exactSaleProductMatch(products, code);
     if (!match) {
       announce("error", `No active product or package matches ${code}.`);
@@ -741,6 +826,10 @@ export default function SalesPage() {
     }
 
     if (cart.length === 0) return;
+    if (activeOrderDelivery) {
+      announce("error", "A prepared sales-order delivery cannot be parked.");
+      return;
+    }
 
     try {
       setBusy(true);
@@ -793,6 +882,7 @@ export default function SalesPage() {
     setActiveParkedId(parked.id);
     setActiveParkLabel(parked.label || "Parked sale");
     setActiveQuote(null);
+    setActiveOrderDelivery(null);
     setIdempotencyKey(createIdempotencyKey());
     setParkedOpen(false);
 
@@ -944,17 +1034,26 @@ export default function SalesPage() {
     const saleValues = {
       cart,
       customer_id: customerId,
-      discount_type: discountType,
+      discount_type:
+        activeOrderDelivery ? "none" : discountType,
       discount_value:
-        appliedCoupon ? 0 : discountValue,
+        activeOrderDelivery
+          ? 0
+          : appliedCoupon ? 0 : discountValue,
       coupon_code:
-        appliedCoupon?.code || null,
+        activeOrderDelivery
+          ? null
+          : appliedCoupon?.code || null,
       tax_amount: totals.taxAmount,
       currency,
       notes,
       idempotency_key: idempotencyKey,
       source_quote_id:
-        activeQuote?.id || null,
+        activeOrderDelivery
+          ? null
+          : activeQuote?.id || null,
+      source_sales_order_delivery_id:
+        activeOrderDelivery?.delivery?.id || null,
       ...payment
     };
 
@@ -972,8 +1071,9 @@ export default function SalesPage() {
       return;
     }
 
-    const approvalNeed =
-      saleDiscountApprovalRequirement(
+    const approvalNeed = activeOrderDelivery
+      ? { required: false, discountAmount: 0 }
+      : saleDiscountApprovalRequirement(
         access,
         {
           discount_type: discountType,
@@ -1087,6 +1187,14 @@ export default function SalesPage() {
           result.source_quote_number
           || activeQuote?.quote_number
           || null,
+        sourceSalesOrderNumber:
+          result.source_sales_order_number
+          || activeOrderDelivery?.order?.order_number
+          || null,
+        sourceDeliveryNumber:
+          result.source_delivery_number
+          || activeOrderDelivery?.delivery?.delivery_number
+          || null,
         creditDueDate: result.credit_due_date || null,
         creditAmount: Number(result.credit_amount || 0),
         creditBalanceAfter: Number(
@@ -1131,7 +1239,7 @@ export default function SalesPage() {
             type="button"
             className="primary-button"
             onClick={() => setScannerOpen(true)}
-            disabled={!canSell}
+            disabled={!canSell || Boolean(activeOrderDelivery)}
           >
             <Camera size={18} /> Scan
           </button>
@@ -1161,6 +1269,21 @@ export default function SalesPage() {
             Offline mode: the current bill is saved locally on this device.
             Reconnect before applying coupons, parking, creating customers or paying.
           </span>
+        </div>
+      )}
+
+      {activeOrderDelivery && (
+        <div className="notice info active-order-delivery-banner">
+          <Truck size={20} />
+          <span>
+            Delivering <strong>{activeOrderDelivery.delivery.delivery_number}</strong>
+            {" · "}
+            Sales Order <strong>{activeOrderDelivery.order.order_number}</strong>
+            {" · Products and customer are locked"}
+          </span>
+          <Link to="/sales-orders">
+            Open Sales Orders
+          </Link>
         </div>
       )}
 
@@ -1243,7 +1366,7 @@ export default function SalesPage() {
                     className="sale-product-card"
                     key={product.id}
                     onClick={() => addProduct(product)}
-                    disabled={outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock}
+                    disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
                   >
                     <div className="sale-product-image">
                       {product.image?.secure_url ? (
@@ -1312,6 +1435,10 @@ export default function SalesPage() {
           onClear={clearSale}
           onPark={handlePark}
           onSaveQuote={() => {
+            if (activeOrderDelivery) {
+              announce("error", "A prepared delivery cannot be saved as a quotation.");
+              return;
+            }
             if (!isOnline) {
               announce(
                 "error",
@@ -1345,8 +1472,15 @@ export default function SalesPage() {
             )
           }
           priceListName={
-            priceCatalogs[currency]?.price_list_name
+            activeOrderDelivery?.order?.price_list_name
+            || priceCatalogs[currency]?.price_list_name
             || ""
+          }
+          fulfillmentLocked={Boolean(activeOrderDelivery)}
+          fulfillmentLabel={
+            activeOrderDelivery
+              ? `${activeOrderDelivery.delivery.delivery_number} · ${activeOrderDelivery.order.order_number}`
+              : ""
           }
         />
       </div>
