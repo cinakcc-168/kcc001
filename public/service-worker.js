@@ -1,4 +1,4 @@
-const CACHE_VERSION = "tiny-pos-v25-shell-1";
+const CACHE_VERSION = "tiny-pos-v26-shell-1";
 const SHELL_CACHE = `${CACHE_VERSION}-app`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
