@@ -67,12 +67,22 @@ const OPTIONAL_TABLES = new Set([
   "attendance_sessions",
   "commission_plans",
   "sales_commissions",
-  "commission_payouts"
+  "commission_payouts",
+  "accounting_accounts",
+  "accounting_mappings",
+  "accounting_periods",
+  "accounting_journal_entries",
+  "accounting_journal_lines"
 ]);
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
   "branches",
+  "accounting_accounts",
+  "accounting_mappings",
+  "accounting_periods",
+  "accounting_journal_entries",
+  "accounting_journal_lines",
   "user_permission_overrides",
   "user_approval_limits",
   "categories",
@@ -142,6 +152,11 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "accounting_journal_lines",
+  "accounting_journal_entries",
+  "accounting_periods",
+  "accounting_mappings",
+  "accounting_accounts",
   "user_permission_overrides",
   "user_approval_limits",
   "commission_payouts",
@@ -213,6 +228,11 @@ const DELETE_ORDER = [
 
 const INSERT_ORDER = [
   "app_settings",
+  "accounting_accounts",
+  "accounting_mappings",
+  "accounting_periods",
+  "accounting_journal_entries",
+  "accounting_journal_lines",
   "user_approval_limits",
   "user_permission_overrides",
   "attendance_sessions",
@@ -495,7 +515,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 38
+      schema_step: 39
     },
     staff: profiles,
     user_preferences: preferences,
