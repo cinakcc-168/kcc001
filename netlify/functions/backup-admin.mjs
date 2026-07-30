@@ -12,7 +12,11 @@ const OPTIONAL_TABLES = new Set([
   "stock_count_sessions",
   "stock_count_items",
   "data_import_jobs",
-  "data_import_errors"
+  "data_import_errors",
+  "customer_credit_accounts",
+  "customer_credit_payments",
+  "customer_credit_payment_allocations",
+  "customer_credit_entries"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -23,6 +27,10 @@ const DIRECT_ORG_TABLES = [
   "customers",
   "customer_counters",
   "customer_loyalty_movements",
+  "customer_credit_accounts",
+  "customer_credit_payments",
+  "customer_credit_payment_allocations",
+  "customer_credit_entries",
   "coupons",
   "coupon_redemptions",
   "products",
@@ -62,11 +70,15 @@ const DELETE_ORDER = [
   "data_import_errors",
   "data_import_jobs",
   "coupon_redemptions",
+  "customer_credit_entries",
+  "customer_credit_payment_allocations",
   "return_items",
   "returns",
   "payments",
+  "customer_credit_payments",
   "sale_items",
   "sales",
+  "customer_credit_accounts",
   "coupons",
   "purchase_payments",
   "purchase_return_items",
@@ -105,6 +117,7 @@ const INSERT_ORDER = [
   "categories",
   "suppliers",
   "customers",
+  "customer_credit_accounts",
   "customer_counters",
   "supplier_code_counters",
   "coupons",
@@ -122,10 +135,13 @@ const INSERT_ORDER = [
   "purchase_payments",
   "sales",
   "sale_items",
+  "customer_credit_payments",
   "payments",
+  "customer_credit_payment_allocations",
   "coupon_redemptions",
   "returns",
   "return_items",
+  "customer_credit_entries",
   "inventory_adjustments",
   "inventory_adjustment_items",
   "stock_count_sessions",
@@ -345,7 +361,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 23
+      schema_step: 25
     },
     staff: profiles,
     user_preferences: preferences,
