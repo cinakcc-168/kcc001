@@ -36,7 +36,8 @@ import {
   PackageCheck,
   Activity,
   Clock3,
-  BookOpenCheck
+  BookOpenCheck,
+  Landmark
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -212,6 +213,15 @@ const links = [
     label: "Accounting Center",
     icon: BookOpenCheck,
     permission: "accounting.view"
+  },
+  {
+    to: "/payroll",
+    label: "Payroll Center",
+    icon: Landmark,
+    any: [
+      "payroll.view_self",
+      "payroll.manage"
+    ]
   },
   {
     to: "/users",
