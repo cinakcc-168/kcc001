@@ -405,7 +405,7 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v7", {
+  const { data, error } = await supabase.rpc("complete_sale_v8", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       product_unit_id: item.selected_unit_id || null,

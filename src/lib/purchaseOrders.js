@@ -179,6 +179,10 @@ export async function loadPurchaseOrderWorkspace(
           unit_name,
           currency,
           default_cost,
+          batch_tracking,
+          expiry_tracking,
+          picking_policy,
+          default_shelf_life_days,
           is_active,
           product_images (
             secure_url,
@@ -262,6 +266,10 @@ export async function loadPurchaseOrderWorkspace(
               unit_name,
               currency,
               default_cost,
+              batch_tracking,
+              expiry_tracking,
+              picking_policy,
+              default_shelf_life_days,
               product_units (
                 id,
                 name,
@@ -293,6 +301,18 @@ export async function loadPurchaseOrderWorkspace(
               unit_cost,
               base_unit_cost,
               line_total,
+              purchase_receipt_item_batches (
+                id,
+                purchase_unit_quantity,
+                base_quantity,
+                unit_cost,
+                inventory_batches (
+                  id,
+                  batch_number,
+                  expiry_date,
+                  status
+                )
+              ),
               products (
                 id,
                 name,
@@ -454,13 +474,22 @@ export async function savePurchaseOrder(supabase, values) {
 
 export async function receivePurchaseOrder(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "receive_purchase_order_v4",
+    "receive_purchase_order_v5",
     {
       p_purchase_id: values.purchase_id,
       p_items: values.items.map((item) => ({
         purchase_item_id: item.purchase_item_id,
         quantity: Number(item.quantity)
       })),
+      p_batch_allocations: (values.items || []).flatMap((item) =>
+        (item.batches || []).map((batch) => ({
+          purchase_item_id: item.purchase_item_id,
+          batch_number: batch.batch_number.trim(),
+          expiry_date: batch.expiry_date || null,
+          quantity: Number(batch.quantity),
+          notes: batch.notes?.trim() || null
+        }))
+      ),
       p_amount_paid: Number(values.amount_paid || 0),
       p_payment_method: values.payment_method,
       p_payment_reference:

@@ -265,7 +265,7 @@ export async function loadTransferWorkspace(supabase, profile) {
 }
 
 export async function createStockTransfer(supabase, values) {
-  const { data, error } = await supabase.rpc("create_stock_transfer_v2", {
+  const { data, error } = await supabase.rpc("create_stock_transfer_v3", {
     p_destination_branch_id: values.destination_branch_id,
     p_items: values.items.map((item) => ({
       product_id: item.product_id,
@@ -279,7 +279,7 @@ export async function createStockTransfer(supabase, values) {
 }
 
 export async function receiveStockTransfer(supabase, transferId, notes) {
-  const { data, error } = await supabase.rpc("receive_stock_transfer_v2", {
+  const { data, error } = await supabase.rpc("receive_stock_transfer_v3", {
     p_transfer_id: transferId,
     p_notes: notes?.trim() || null
   });
@@ -289,7 +289,7 @@ export async function receiveStockTransfer(supabase, transferId, notes) {
 }
 
 export async function cancelStockTransfer(supabase, transferId, reason) {
-  const { data, error } = await supabase.rpc("cancel_stock_transfer_v2", {
+  const { data, error } = await supabase.rpc("cancel_stock_transfer_v3", {
     p_transfer_id: transferId,
     p_reason: reason.trim()
   });
@@ -299,7 +299,7 @@ export async function cancelStockTransfer(supabase, transferId, reason) {
 }
 
 export async function processSupplierReturn(supabase, values) {
-  const { data, error } = await supabase.rpc("process_supplier_return_v4", {
+  const { data, error } = await supabase.rpc("process_supplier_return_v5", {
     p_purchase_id: values.purchase_id,
     p_items: values.items.map((item) => ({
       purchase_item_id: item.purchase_item_id,
