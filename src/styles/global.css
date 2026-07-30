@@ -161,3 +161,54 @@ html[data-language="km"] body{font-family:"Noto Sans Khmer","Khmer OS System","K
 .fatal-error-screen{min-height:100vh;padding:24px;display:grid;place-items:center;background:var(--bg);color:var(--text)}.fatal-error-screen>section{width:min(620px,100%);padding:28px;border:1px solid var(--border);border-radius:18px;background:var(--surface);display:grid;gap:14px;text-align:center}.fatal-error-mark{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;margin:auto;background:color-mix(in srgb,var(--danger) 12%,transparent);color:var(--danger);font-size:31px;font-weight:900}.fatal-error-screen p{margin:0;color:var(--muted);line-height:1.65}.fatal-error-screen code{padding:10px;border-radius:10px;background:var(--surface2);overflow-wrap:anywhere}.fatal-error-screen section>div:nth-last-of-type(1){display:flex;justify-content:center;gap:9px}.system-health-scope{min-width:180px}.system-release-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.system-release-strip>div{padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 9px;align-items:center}.system-release-strip svg{grid-row:1/3;color:var(--accent)}.system-release-strip span{color:var(--muted);font-size:12px}.system-release-strip strong{overflow-wrap:anywhere}.system-health-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.system-health-metrics article{padding:15px;border:1px solid var(--border);border-radius:14px;background:var(--surface);display:grid;gap:5px}.system-health-metrics article.healthy{border-color:color-mix(in srgb,var(--success) 35%,var(--border))}.system-health-metrics article.warning{border-color:color-mix(in srgb,#d97706 35%,var(--border))}.system-health-metrics article.critical{border-color:color-mix(in srgb,var(--danger) 35%,var(--border))}.system-health-metrics svg{color:var(--accent)}.system-health-metrics span{color:var(--muted)}.system-health-metrics strong{font-size:21px}.system-health-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:17px}.system-check-list,.environment-check-list{display:grid;gap:9px}.system-check-card{padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface2);display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:10px}.system-check-card>div{display:grid;gap:3px}.system-check-card span,.environment-check-list span{color:var(--muted);font-size:12px;line-height:1.45}.system-check-card.pass{border-color:color-mix(in srgb,var(--success) 25%,var(--border))}.system-check-card.pass>svg{color:var(--success)}.system-check-card.warning{border-color:color-mix(in srgb,#d97706 30%,var(--border))}.system-check-card.warning>svg{color:#b45309}.system-check-card.critical{border-color:color-mix(in srgb,var(--danger) 30%,var(--border))}.system-check-card.critical>svg{color:var(--danger)}.system-check-card>a{color:var(--accent)}.environment-check-list article{padding:12px;border:1px solid var(--border);border-radius:12px;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:10px}.environment-check-list article>div{display:grid;gap:3px}.environment-check-list article.pass svg{color:var(--success)}.environment-check-list article.fail svg{color:#b45309}.system-health-actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}.system-error-list{display:grid;gap:10px}.system-error-list>article{padding:13px;border:1px solid var(--border);border-radius:13px;background:var(--surface2);display:grid;gap:7px}.system-error-list>article.error,.system-error-list>article.critical{border-color:color-mix(in srgb,var(--danger) 30%,var(--border))}.system-error-list>article.resolved{opacity:.7}.system-error-list>article>div:first-child{display:flex;gap:7px}.system-error-list>article>span,.system-error-list>article>small{color:var(--muted)}.system-error-list details pre{max-height:240px;overflow:auto;padding:10px;border-radius:10px;background:var(--surface);white-space:pre-wrap;overflow-wrap:anywhere}.system-error-list button{justify-self:start}.system-error-severity{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;background:var(--surface)}.system-error-severity.critical,.system-error-severity.error{color:var(--danger)}.system-error-severity.warning{color:#b45309}.system-run-list{display:grid}.system-run-list button{width:100%;padding:11px 3px;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--text);display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left}.system-run-list button:hover{background:var(--surface2)}.system-run-list button>div{display:grid;gap:3px}.system-run-list small{color:var(--muted)}.system-run-status{width:11px;height:11px;border-radius:50%;background:var(--muted)}.system-run-status.healthy{background:var(--success)}.system-run-status.warning{background:#d97706}.system-run-status.critical{background:var(--danger)}
 @media(max-width:1100px){.system-release-strip,.system-health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.system-health-grid{grid-template-columns:1fr}}
 @media(max-width:650px){.system-release-strip,.system-health-metrics{grid-template-columns:1fr}.system-check-card{grid-template-columns:auto minmax(0,1fr) auto}.system-check-card>a{grid-column:2}.fatal-error-screen section>div:nth-last-of-type(1){flex-direction:column}.system-health-actions{flex-direction:column}.system-health-actions button{width:100%}}
+
+
+/* Step 38: staff attendance and commission */
+.staff-operations-page { padding-bottom: 3rem; }
+.attendance-clock-card {
+  display: grid;
+  grid-template-columns: auto minmax(190px, 1fr) minmax(220px, .8fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--surface);
+}
+.attendance-clock-card.active { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.attendance-clock-icon { width: 3.5rem; height: 3.5rem; display: grid; place-items: center; border-radius: 1rem; background: var(--surface-muted); color: var(--accent); }
+.attendance-clock-copy { display: grid; gap: .2rem; }
+.attendance-clock-copy span, .attendance-clock-copy small { color: var(--muted); }
+.attendance-clock-copy strong { font-size: 1.25rem; }
+.attendance-note { display: grid; gap: .35rem; }
+.attendance-note span { color: var(--muted); font-size: .82rem; }
+.staff-tabs { display: flex; gap: .5rem; flex-wrap: wrap; }
+.staff-tabs button { display: inline-flex; align-items: center; gap: .45rem; border: 1px solid var(--border); border-radius: .85rem; background: var(--surface); color: var(--text); padding: .7rem .9rem; }
+.staff-tabs button.active { background: var(--accent); color: white; border-color: var(--accent); }
+.staff-filters { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .8rem; }
+.staff-filters label { display: grid; gap: .35rem; }
+.staff-filters span { color: var(--muted); font-size: .82rem; }
+.staff-metric-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .8rem; }
+.staff-metric-grid article { display: grid; gap: .35rem; padding: 1rem; border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); }
+.staff-metric-grid span { color: var(--muted); }
+.staff-metric-grid strong { font-size: 1.25rem; }
+.staff-plan-grid { display: grid; grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr); gap: 1rem; align-items: start; }
+.staff-plan-list { display: grid; gap: .6rem; }
+.staff-plan-row { display: flex; justify-content: space-between; gap: 1rem; text-align: left; padding: .85rem; border: 1px solid var(--border); border-radius: .9rem; background: var(--surface-muted); color: var(--text); }
+.staff-plan-row span { display: grid; gap: .2rem; }
+.staff-plan-row span:last-child { text-align: right; }
+.staff-plan-row small, .responsive-table td small { display: block; color: var(--muted); margin-top: .18rem; }
+.staff-modal { max-width: 760px; }
+@media (max-width: 980px) {
+  .attendance-clock-card { grid-template-columns: auto 1fr; }
+  .attendance-note, .attendance-clock-card > button { grid-column: 1 / -1; }
+  .staff-filters, .staff-metric-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .staff-plan-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 580px) {
+  .staff-filters, .staff-metric-grid { grid-template-columns: 1fr; }
+  .attendance-clock-card { grid-template-columns: 1fr; }
+  .attendance-clock-icon { width: 3rem; height: 3rem; }
+  .staff-plan-row { flex-direction: column; }
+  .staff-plan-row span:last-child { text-align: left; }
+}
