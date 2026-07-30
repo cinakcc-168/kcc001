@@ -18,7 +18,9 @@ const OPTIONAL_TABLES = new Set([
   "customer_credit_payment_allocations",
   "customer_credit_entries",
   "sales_quotes",
-  "sales_quote_items"
+  "sales_quote_items",
+  "price_lists",
+  "price_list_items"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -26,6 +28,7 @@ const DIRECT_ORG_TABLES = [
   "branches",
   "categories",
   "suppliers",
+  "price_lists",
   "customers",
   "customer_counters",
   "customer_loyalty_movements",
@@ -41,6 +44,7 @@ const DIRECT_ORG_TABLES = [
   "inventory_balances",
   "reorder_rules",
   "document_counters",
+  "price_list_items",
   "sales_quotes",
   "sales_quote_items",
   "sales",
@@ -84,6 +88,8 @@ const DELETE_ORDER = [
   "sales",
   "sales_quote_items",
   "sales_quotes",
+  "price_list_items",
+  "price_lists",
   "customer_credit_accounts",
   "coupons",
   "purchase_payments",
@@ -122,6 +128,7 @@ const INSERT_ORDER = [
   "app_settings",
   "categories",
   "suppliers",
+  "price_lists",
   "customers",
   "customer_credit_accounts",
   "customer_counters",
@@ -129,6 +136,7 @@ const INSERT_ORDER = [
   "coupons",
   "products",
   "product_units",
+  "price_list_items",
   "product_images",
   "inventory_balances",
   "reorder_rules",
@@ -372,7 +380,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 26
+      schema_step: 27
     },
     staff: profiles,
     user_preferences: preferences,
