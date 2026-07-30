@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Search
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ReceiptModal from "../components/ReceiptModal";
 import RefundModal from "../components/RefundModal";
@@ -62,10 +63,17 @@ function searchableReturn(refund) {
 
 export default function ReturnsPage() {
   const { supabase, profile, shop } = useAuth();
+  const [searchParams] = useSearchParams();
+  const invoiceFromUrl = searchParams.get("invoice") || "";
+  const dateFromUrl = searchParams.get("date") || "";
   const canRefund = ["owner", "admin", "manager"].includes(profile?.role);
 
-  const [filters, setFilters] = useState(defaultReturnDateRange);
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(() =>
+    dateFromUrl
+      ? { from: dateFromUrl, to: dateFromUrl }
+      : defaultReturnDateRange()
+  );
+  const [search, setSearch] = useState(invoiceFromUrl);
   const [tab, setTab] = useState("sales");
   const [sales, setSales] = useState([]);
   const [returns, setReturns] = useState([]);
@@ -103,6 +111,20 @@ export default function ReturnsPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!invoiceFromUrl) return;
+
+    setSearch(invoiceFromUrl);
+    setTab("sales");
+
+    if (dateFromUrl) {
+      setFilters({
+        from: dateFromUrl,
+        to: dateFromUrl
+      });
+    }
+  }, [invoiceFromUrl, dateFromUrl]);
 
   const filteredSales = useMemo(() => {
     const needle = search.trim().toLowerCase();
