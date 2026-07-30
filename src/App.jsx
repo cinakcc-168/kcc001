@@ -36,6 +36,7 @@ import SalesOrdersPage from "./pages/SalesOrdersPage";
 import SystemHealthPage from "./pages/SystemHealthPage";
 import StaffOperationsPage from "./pages/StaffOperationsPage";
 import AccountingPage from "./pages/AccountingPage";
+import PayrollPage from "./pages/PayrollPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="/staff-operations" element={<PermissionRoute any={["staff_operations.self","attendance.manage","commissions.manage"]}><StaffOperationsPage /></PermissionRoute>} />
         <Route path="/reports" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
         <Route path="/accounting" element={<PermissionRoute permission="accounting.view"><AccountingPage /></PermissionRoute>} />
+        <Route path="/payroll" element={<PermissionRoute any={["payroll.view_self","payroll.manage"]}><PayrollPage /></PermissionRoute>} />
         <Route path="/cash-expenses" element={<PermissionRoute any={["cash_expenses.manage","cash_expenses.void"]}><CashExpensesPage /></PermissionRoute>} />
         <Route path="/cash-register" element={<PermissionRoute any={["cash_register.use","cash_register.close"]}><CashRegisterPage /></PermissionRoute>} />
         <Route path="/transfers" element={<PermissionRoute any={["transfers.create","transfers.receive","transfers.cancel"]}><TransfersPage /></PermissionRoute>} />
