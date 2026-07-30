@@ -28,7 +28,8 @@ import {
   BadgeDollarSign,
   FileText,
   Tags,
-  ReceiptText
+  ReceiptText,
+  HandCoins
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -113,6 +114,12 @@ const links = [
     to: "/purchase-orders",
     label: "Purchase Orders",
     icon: ClipboardList,
+    roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/supplier-payables",
+    label: "Supplier Payables",
+    icon: HandCoins,
     roles: ["owner", "admin", "manager"]
   },
   {
