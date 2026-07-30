@@ -48,7 +48,8 @@ export default function TelegramPage() {
   const {
     supabase,
     session,
-    profile
+    profile,
+    can
   } = useAuth();
 
   const [status, setStatus] = useState(null);
@@ -63,7 +64,7 @@ export default function TelegramPage() {
 
   const insideTelegram = isTelegramMiniApp();
   const unsafeTelegramUser = telegramUnsafeUser();
-  const canAdmin = ["owner", "admin"].includes(profile?.role);
+  const canAdmin = can("telegram.admin");
 
   const refresh = useCallback(async () => {
     if (!supabase || !session || !profile?.id) return;

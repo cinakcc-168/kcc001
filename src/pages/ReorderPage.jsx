@@ -39,13 +39,9 @@ const statuses = [
 ];
 
 export default function ReorderPage() {
-  const { supabase, profile } = useAuth();
+  const { supabase, profile, can } = useAuth();
 
-  const canManage = [
-    "owner",
-    "admin",
-    "manager"
-  ].includes(profile?.role);
+  const canManage = can("reorder.manage");
 
   const [suggestions, setSuggestions] = useState([]);
   const [suppliers, setSuppliers] = useState([]);

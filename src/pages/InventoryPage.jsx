@@ -35,8 +35,8 @@ function dateTime(value) {
 }
 
 export default function InventoryPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canManage = ["owner", "admin", "manager"].includes(profile?.role);
+  const { supabase, profile, shop, can } = useAuth();
+  const canManage = can("inventory.adjust");
   const currency = shop?.base_currency || "USD";
 
   const [products, setProducts] = useState([]);

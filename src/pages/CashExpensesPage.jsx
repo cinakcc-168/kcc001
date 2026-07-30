@@ -34,9 +34,12 @@ function number(value) {
 }
 
 export default function CashExpensesPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canManage = ["owner", "admin", "manager"].includes(profile?.role);
-  const canAllBranches = ["owner", "admin"].includes(profile?.role);
+  const { supabase, profile, shop, can, canAny } = useAuth();
+  const canManage = canAny([
+    "cash_expenses.manage",
+    "cash_expenses.void"
+  ]);
+  const canAllBranches = can("branches.all");
 
   const [filters, setFilters] = useState(() => ({
     ...defaultCashRange(),

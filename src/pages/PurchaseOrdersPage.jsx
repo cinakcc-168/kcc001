@@ -101,8 +101,13 @@ function searchableSupplier(supplier) {
 }
 
 export default function PurchaseOrdersPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canManage = ["owner", "admin", "manager"].includes(profile?.role);
+  const { supabase, profile, shop, canAny } = useAuth();
+  const canManage = canAny([
+    "purchases.manage",
+    "purchases.receive",
+    "purchases.cancel",
+    "purchases.supplier_return"
+  ]);
 
   const [tab, setTab] = useState("orders");
   const [filters, setFilters] = useState(defaultFilters);

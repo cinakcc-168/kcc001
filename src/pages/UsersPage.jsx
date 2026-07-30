@@ -59,8 +59,8 @@ const roleGuide = [
 ];
 
 export default function UsersPage() {
-  const { session, profile } = useAuth();
-  const allowed = ["owner", "admin"].includes(profile?.role);
+  const { session, profile, can } = useAuth();
+  const allowed = can("staff.manage");
 
   const [staff, setStaff] = useState([]);
   const [branches, setBranches] = useState([]);

@@ -49,14 +49,11 @@ function dateTime(value) {
 export default function StockCountsPage() {
   const {
     supabase,
-    profile
+    profile,
+    can
   } = useAuth();
 
-  const canManage = [
-    "owner",
-    "admin",
-    "manager"
-  ].includes(profile?.role);
+  const canManage = can("stock_counts.manage");
 
   const [sessions, setSessions] =
     useState([]);

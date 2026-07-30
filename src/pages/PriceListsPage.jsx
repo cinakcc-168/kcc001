@@ -57,13 +57,10 @@ function listState(list) {
 }
 
 export default function PriceListsPage() {
-  const { supabase, profile } = useAuth();
+  const { supabase, profile, can } = useAuth();
 
-  const canManage = [
-    "owner",
-    "admin",
-    "manager"
-  ].includes(profile?.role);
+  const canManage = can("price_lists.manage");
+  const canAllBranches = can("branches.all");
 
   const [lists, setLists] = useState([]);
   const [products, setProducts] = useState([]);
@@ -162,7 +159,7 @@ export default function PriceListsPage() {
     });
   }, [lists, search, currency, status]);
 
-  const formBranches = profile?.role === "manager"
+  const formBranches = !canAllBranches
     ? branches.filter(
         (branch) => branch.id === profile.branch_id
       )
@@ -529,12 +526,12 @@ export default function PriceListsPage() {
         priceList={editing}
         branches={formBranches}
         defaultBranchId={
-          profile?.role === "manager"
+          !canAllBranches
             ? profile.branch_id
             : ""
         }
         allowAllBranches={
-          profile?.role !== "manager"
+          canAllBranches
         }
         busy={busy === "list"}
         onClose={() => {

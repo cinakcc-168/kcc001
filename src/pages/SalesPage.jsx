@@ -20,6 +20,7 @@ import Modal from "../components/Modal";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import QuoteSaveModal from "../components/QuoteSaveModal";
+import ApprovalRequestModal from "../components/ApprovalRequestModal";
 import SaleCart from "../components/SaleCart";
 import { cloudinaryThumb, money, stockNumber } from "../lib/catalog";
 import {
@@ -52,6 +53,10 @@ import {
   applyPriceCatalog,
   loadCustomerPriceCatalog
 } from "../lib/priceLists";
+import {
+  saleApprovalPayload,
+  saleDiscountApprovalRequirement
+} from "../lib/permissions";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -64,8 +69,19 @@ function dateTime(value) {
 const emptyCustomer = { customer_type: "regular", name: "", phone: "", email: "", notes: "" };
 
 export default function SalesPage() {
-  const { supabase, profile, shop, preferences } = useAuth();
-  const canSell = ["owner", "admin", "manager", "cashier"].includes(profile?.role);
+  const {
+    supabase,
+    profile,
+    shop,
+    preferences,
+    access,
+    can
+  } = useAuth();
+
+  const canSell = can("sales.create");
+  const canDiscount = can(
+    "sales.discount.apply"
+  );
   const [baseProducts, setBaseProducts] = useState([]);
   const [priceCatalogs, setPriceCatalogs] = useState({
     USD: null,
@@ -100,6 +116,8 @@ export default function SalesPage() {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [activeQuote, setActiveQuote] = useState(null);
   const [receipt, setReceipt] = useState(null);
+  const [approvalRequest, setApprovalRequest] = useState(null);
+  const [pendingPayment, setPendingPayment] = useState(null);
   const [idempotencyKey, setIdempotencyKey] = useState(createIdempotencyKey());
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine
@@ -910,7 +928,10 @@ export default function SalesPage() {
     }
   }
 
-  async function handlePayment(payment) {
+  async function handlePayment(
+    payment,
+    approvalRequestId = null
+  ) {
     if (!isOnline) {
       setPaymentOpen(false);
       announce(
@@ -920,22 +941,110 @@ export default function SalesPage() {
       return;
     }
 
+    const saleValues = {
+      cart,
+      customer_id: customerId,
+      discount_type: discountType,
+      discount_value:
+        appliedCoupon ? 0 : discountValue,
+      coupon_code:
+        appliedCoupon?.code || null,
+      tax_amount: totals.taxAmount,
+      currency,
+      notes,
+      idempotency_key: idempotencyKey,
+      source_quote_id:
+        activeQuote?.id || null,
+      ...payment
+    };
+
+    if (
+      !appliedCoupon
+      && discountType !== "none"
+      && Number(discountValue || 0) > 0
+      && !canDiscount
+    ) {
+      setPaymentOpen(false);
+      announce(
+        "error",
+        "Your account cannot apply a manual discount."
+      );
+      return;
+    }
+
+    const approvalNeed =
+      saleDiscountApprovalRequirement(
+        access,
+        {
+          discount_type: discountType,
+          discount_value:
+            appliedCoupon
+              ? 0
+              : discountValue,
+          discount_amount:
+            appliedCoupon
+              ? 0
+              : totals.discountAmount,
+          applied_coupon:
+            appliedCoupon,
+          currency
+        }
+      );
+
+    if (
+      approvalNeed.required
+      && !approvalRequestId
+    ) {
+      setPaymentOpen(false);
+      setPendingPayment(payment);
+
+      const payload =
+        saleApprovalPayload(
+          saleValues
+        );
+
+      setApprovalRequest({
+        permission_key:
+          "sales.discount.exceed_limit",
+        action_type:
+          "sale_discount",
+        action_label:
+          "Sale discount above limit",
+        payload,
+        summary: [
+          `Approve ${money(
+            approvalNeed.discountAmount,
+            currency
+          )} discount`,
+          selectedCustomer?.name
+            || "Walk-in customer",
+          `${cart.length} product line${
+            cart.length === 1 ? "" : "s"
+          }`
+        ].join(" · "),
+        amount:
+          approvalNeed.discountAmount,
+        currency
+      });
+
+      announce(
+        "error",
+        "This discount exceeds your individual limit. Manager approval is required."
+      );
+      return;
+    }
+
     try {
       setBusy(true);
-      const result = await completeSale(supabase, {
-        cart,
-        customer_id: customerId,
-        discount_type: discountType,
-        discount_value: appliedCoupon ? 0 : discountValue,
-        coupon_code: appliedCoupon?.code || null,
-        tax_amount: totals.taxAmount,
-        currency,
-        notes,
-        idempotency_key: idempotencyKey,
-        source_quote_id:
-          activeQuote?.id || null,
-        ...payment
-      });
+
+      const result = await completeSale(
+        supabase,
+        {
+          ...saleValues,
+          approval_request_id:
+            approvalRequestId
+        }
+      );
 
       if (activeParkedId) {
         await removeParkedSale(supabase, activeParkedId);
@@ -987,6 +1096,8 @@ export default function SalesPage() {
       });
 
       setPaymentOpen(false);
+      setApprovalRequest(null);
+      setPendingPayment(null);
       clearSale();
       announce(
         "success",
@@ -1083,9 +1194,7 @@ export default function SalesPage() {
               ? ` · ${selectedCustomer.name}`
               : " · Walk-in customer"}
           </span>
-          {["owner", "admin", "manager"].includes(
-            profile?.role
-          ) && (
+          {can("price_lists.manage") && (
             <Link to="/price-lists">
               Manage prices
             </Link>
@@ -1223,6 +1332,7 @@ export default function SalesPage() {
             setPaymentOpen(true);
           }}
           canSell={canSell && !busy}
+          canDiscount={canDiscount}
           online={isOnline}
           activeParkLabel={activeParkLabel}
           activeQuoteNumber={
@@ -1290,6 +1400,26 @@ export default function SalesPage() {
         cashRegisterOpen={cashRegisterOpen}
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}
+      />
+
+      <ApprovalRequestModal
+        request={approvalRequest}
+        onClose={() => {
+          setApprovalRequest(null);
+          setPendingPayment(null);
+        }}
+        onApproved={(requestId) => {
+          const payment = pendingPayment;
+          setApprovalRequest(null);
+          setPendingPayment(null);
+
+          if (payment) {
+            handlePayment(
+              payment,
+              requestId
+            );
+          }
+        }}
       />
 
       <QuoteSaveModal

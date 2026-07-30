@@ -72,13 +72,11 @@ function DrawerBreakdown({ summary, currency }) {
 }
 
 export default function CashRegisterPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canOperate = [
-    "owner",
-    "admin",
-    "manager",
-    "cashier"
-  ].includes(profile?.role);
+  const { supabase, profile, shop, canAny } = useAuth();
+  const canOperate = canAny([
+    "cash_register.use",
+    "cash_register.close"
+  ]);
 
   const [filters, setFilters] = useState(defaultRegisterDates);
   const [openSummary, setOpenSummary] = useState(null);

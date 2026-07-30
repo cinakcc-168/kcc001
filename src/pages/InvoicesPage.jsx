@@ -43,24 +43,17 @@ export default function InvoicesPage() {
   const {
     supabase,
     profile,
-    shop
+    shop,
+    can
   } = useAuth();
 
   const navigate = useNavigate();
 
-  const canView = [
-    "owner",
-    "admin",
-    "manager",
-    "cashier",
-    "viewer"
-  ].includes(profile?.role);
+  const canView = can("invoices.view");
 
-  const canRefund = [
-    "owner",
-    "admin",
-    "manager"
-  ].includes(profile?.role);
+  const canRefund = can(
+    "returns.process"
+  );
 
   const defaults = defaultInvoiceDateRange();
 

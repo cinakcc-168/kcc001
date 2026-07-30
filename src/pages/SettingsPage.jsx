@@ -24,10 +24,11 @@ export default function SettingsPage() {
     profile,
     preferences,
     shop,
+    can,
     savePreferences
   } = useAuth();
 
-  const canEditShop = ["owner", "admin"].includes(profile?.role);
+  const canEditShop = can("settings.manage");
   const [tab, setTab] = useState("personal");
   const [personal, setPersonal] = useState({
     language: "en",

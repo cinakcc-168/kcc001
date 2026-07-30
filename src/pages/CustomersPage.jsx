@@ -63,8 +63,8 @@ function friendlyError(error) {
 }
 
 export default function CustomersPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canManage = ["owner", "admin", "manager"].includes(profile?.role);
+  const { supabase, profile, shop, can } = useAuth();
+  const canManage = can("customers.manage");
 
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);

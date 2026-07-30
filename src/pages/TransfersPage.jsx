@@ -30,8 +30,12 @@ function statusClass(status) {
 }
 
 export default function TransfersPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canManage = ["owner", "admin", "manager"].includes(profile?.role);
+  const { supabase, profile, shop, canAny } = useAuth();
+  const canManage = canAny([
+    "transfers.create",
+    "transfers.receive",
+    "transfers.cancel"
+  ]);
 
   const [tab, setTab] = useState("transfers");
   const [branches, setBranches] = useState([]);

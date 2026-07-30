@@ -54,17 +54,13 @@ export default function QuotesPage() {
   const {
     supabase,
     profile,
-    shop
+    shop,
+    can
   } = useAuth();
 
   const navigate = useNavigate();
 
-  const canManage = [
-    "owner",
-    "admin",
-    "manager",
-    "cashier"
-  ].includes(profile?.role);
+  const canManage = can("quotations.manage");
 
   const defaults = monthRange();
 

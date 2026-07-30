@@ -12,6 +12,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ReceiptModal from "../components/ReceiptModal";
 import RefundModal from "../components/RefundModal";
+import ApprovalRequestModal from "../components/ApprovalRequestModal";
 import ReturnReceiptModal from "../components/ReturnReceiptModal";
 import { money, stockNumber } from "../lib/catalog";
 import {
@@ -19,6 +20,11 @@ import {
   loadReturnsWorkspace,
   processSaleReturn
 } from "../lib/returns";
+import {
+  estimateReturnAmount,
+  refundApprovalRequirement,
+  returnApprovalPayload
+} from "../lib/permissions";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -62,11 +68,21 @@ function searchableReturn(refund) {
 }
 
 export default function ReturnsPage() {
-  const { supabase, profile, shop } = useAuth();
+  const {
+    supabase,
+    profile,
+    shop,
+    access,
+    can
+  } = useAuth();
+
   const [searchParams] = useSearchParams();
-  const invoiceFromUrl = searchParams.get("invoice") || "";
-  const dateFromUrl = searchParams.get("date") || "";
-  const canRefund = ["owner", "admin", "manager"].includes(profile?.role);
+  const invoiceFromUrl =
+    searchParams.get("invoice") || "";
+  const dateFromUrl =
+    searchParams.get("date") || "";
+  const canRefund =
+    can("returns.process");
 
   const [filters, setFilters] = useState(() =>
     dateFromUrl
@@ -81,6 +97,8 @@ export default function ReturnsPage() {
   const [refundReceipt, setRefundReceipt] = useState(null);
   const [saleReceipt, setSaleReceipt] = useState(null);
   const [historyReceipt, setHistoryReceipt] = useState(null);
+  const [approvalRequest, setApprovalRequest] = useState(null);
+  const [pendingRefund, setPendingRefund] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -224,14 +242,74 @@ export default function ReturnsPage() {
     };
   }
 
-  async function submitRefund(values) {
+  async function submitRefund(
+    values,
+    approvalRequestId = null
+  ) {
     if (!selectedSale) return;
+
+    const refundAmount =
+      estimateReturnAmount(
+        selectedSale,
+        values.items
+      );
+
+    const approvalNeed =
+      refundApprovalRequirement(
+        access,
+        refundAmount,
+        selectedSale.currency
+      );
+
+    if (
+      approvalNeed.required
+      && !approvalRequestId
+    ) {
+      setPendingRefund(values);
+
+      setApprovalRequest({
+        permission_key:
+          "returns.refund.exceed_limit",
+        action_type:
+          "sale_refund",
+        action_label:
+          "Refund above limit",
+        payload:
+          returnApprovalPayload(values),
+        summary: [
+          `Approve ${money(
+            refundAmount,
+            selectedSale.currency
+          )} refund`,
+          selectedSale.invoice_number,
+          selectedSale.customers?.name
+            || "Walk-in customer"
+        ].join(" · "),
+        amount: refundAmount,
+        currency:
+          selectedSale.currency
+      });
+
+      setMessageType("error");
+      setMessage(
+        "This refund exceeds your individual limit. Manager approval is required."
+      );
+      return;
+    }
 
     try {
       setBusy(true);
       setMessage("");
 
-      const result = await processSaleReturn(supabase, values);
+      const result =
+        await processSaleReturn(
+          supabase,
+          {
+            ...values,
+            approval_request_id:
+              approvalRequestId
+          }
+        );
 
       const receiptItems = values.items.map((selected) => {
         const saleItem = selectedSale.sale_items.find(
@@ -293,6 +371,8 @@ export default function ReturnsPage() {
       });
 
       setSelectedSale(null);
+      setApprovalRequest(null);
+      setPendingRefund(null);
       setMessageType("success");
       setMessage(
         `${result.return_number} completed. Refunded ${money(
@@ -315,7 +395,9 @@ export default function ReturnsPage() {
         <RotateCcw size={46} />
         <h2>Refund access is restricted</h2>
         <p>
-          Only an owner, admin, or manager can open Returns & Refunds.
+          This function is hidden for your account.
+          Contact a manager when return access is
+          required.
         </p>
       </section>
     );
@@ -595,6 +677,26 @@ export default function ReturnsPage() {
           )}
         </section>
       )}
+
+      <ApprovalRequestModal
+        request={approvalRequest}
+        onClose={() => {
+          setApprovalRequest(null);
+          setPendingRefund(null);
+        }}
+        onApproved={(requestId) => {
+          const values = pendingRefund;
+          setApprovalRequest(null);
+          setPendingRefund(null);
+
+          if (values) {
+            submitRefund(
+              values,
+              requestId
+            );
+          }
+        }}
+      />
 
       <RefundModal
         sale={selectedSale}

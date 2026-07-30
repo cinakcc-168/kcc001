@@ -125,7 +125,9 @@ export default function DashboardPage() {
   const {
     supabase,
     profile,
-    shop
+    shop,
+    can,
+    canAny
   } = useAuth();
 
   const [allBranches, setAllBranches] =
@@ -185,10 +187,12 @@ export default function DashboardPage() {
     || "USD";
 
   const canViewProfit =
-    Boolean(dashboard.meta?.can_view_profit);
+    Boolean(dashboard.meta?.can_view_profit)
+    && can("profit.view");
 
   const canAllBranches =
-    Boolean(dashboard.meta?.can_all_branches);
+    Boolean(dashboard.meta?.can_all_branches)
+    && can("branches.all");
 
   useEffect(() => {
     if (!canAllBranches && allBranches) {
@@ -202,16 +206,20 @@ export default function DashboardPage() {
   const quickActions = useMemo(() => {
     const actions = [];
 
-    if (
-      ["owner", "admin", "manager", "cashier"]
-        .includes(profile?.role)
-    ) {
+    if (can("sales.create")) {
       actions.push({
         to: "/sales",
         label: "New Sale",
         icon: ShoppingCart
       });
+    }
 
+    if (
+      canAny([
+        "cash_register.use",
+        "cash_register.close"
+      ])
+    ) {
       actions.push({
         to: "/cash-register",
         label: "Cash Register",
@@ -219,38 +227,49 @@ export default function DashboardPage() {
       });
     }
 
-    if (
-      ["owner", "admin", "manager"]
-        .includes(profile?.role)
-    ) {
-      actions.push(
-        {
-          to: "/returns",
-          label: "Return / Refund",
-          icon: RotateCcw
-        },
-        {
-          to: "/purchase-orders",
-          label: "Purchase Order",
-          icon: ClipboardList
-        },
-        {
-          to: "/reorder",
-          label: "Reorder Planner",
-          icon: PackageSearch
-        },
-        {
-          to: "/cash-expenses",
-          label: "Cash & Expense",
-          icon: WalletCards
-        }
-      );
+    if (can("returns.process")) {
+      actions.push({
+        to: "/returns",
+        label: "Return / Refund",
+        icon: RotateCcw
+      });
     }
 
     if (
-      ["owner", "admin", "manager", "viewer"]
-        .includes(profile?.role)
+      canAny([
+        "purchases.manage",
+        "purchases.receive"
+      ])
     ) {
+      actions.push({
+        to: "/purchase-orders",
+        label: "Purchase Order",
+        icon: ClipboardList
+      });
+    }
+
+    if (can("reorder.manage")) {
+      actions.push({
+        to: "/reorder",
+        label: "Reorder Planner",
+        icon: PackageSearch
+      });
+    }
+
+    if (
+      canAny([
+        "cash_expenses.manage",
+        "cash_expenses.void"
+      ])
+    ) {
+      actions.push({
+        to: "/cash-expenses",
+        label: "Cash & Expense",
+        icon: WalletCards
+      });
+    }
+
+    if (can("reports.view")) {
       actions.push({
         to: "/reports",
         label: "Reports",
@@ -259,7 +278,7 @@ export default function DashboardPage() {
     }
 
     return actions;
-  }, [profile?.role]);
+  }, [can, canAny]);
 
   const paymentMaximum = Math.max(
     1,

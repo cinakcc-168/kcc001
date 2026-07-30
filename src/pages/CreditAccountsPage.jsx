@@ -34,20 +34,16 @@ import {
 } from "../lib/creditAccounts";
 
 export default function CreditAccountsPage() {
-  const { supabase, profile } = useAuth();
+  const { supabase, profile, can, canAny } = useAuth();
 
-  const canAccess = [
-    "owner",
-    "admin",
-    "manager",
-    "cashier"
-  ].includes(profile?.role);
+  const canAccess = canAny([
+    "credit_accounts.manage",
+    "credit_accounts.collect"
+  ]);
 
-  const canManage = [
-    "owner",
-    "admin",
-    "manager"
-  ].includes(profile?.role);
+  const canManage = can(
+    "credit_accounts.manage"
+  );
 
   const [accounts, setAccounts] = useState([]);
   const [customers, setCustomers] = useState([]);

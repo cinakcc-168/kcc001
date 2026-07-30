@@ -56,7 +56,7 @@ function titlePeriod(data) {
 }
 
 export default function ReportsPage() {
-  const { supabase, profile, shop } = useAuth();
+  const { supabase, profile, shop, can } = useAuth();
   const [filters, setFilters] = useState(() => ({
     ...defaultReportRange(),
     branchId: profile?.branch_id || ""
@@ -67,7 +67,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  const canAllBranches = ["owner", "admin"].includes(profile?.role);
+  const canAllBranches = can("branches.all");
   const currency = data?.base_currency || shop?.base_currency || "USD";
   const summary = data?.summary || {};
   const stockSummary = data?.stock_summary || {};
@@ -370,7 +370,7 @@ export default function ReportsPage() {
     );
   }
 
-  if (!["owner", "admin", "manager", "viewer"].includes(profile?.role)) {
+  if (!can("reports.view")) {
     return <section className="panel empty-state"><BarChart3 size={46} /><h2>Reports access is restricted</h2><p>Your role cannot open management reports.</p></section>;
   }
 

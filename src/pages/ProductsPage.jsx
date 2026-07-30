@@ -28,8 +28,8 @@ import {
 } from "../lib/catalog";
 
 export default function ProductsPage() {
-  const { supabase, session, profile } = useAuth();
-  const canManage = ["owner", "admin", "manager"].includes(profile?.role);
+  const { supabase, session, profile, can } = useAuth();
+  const canManage = can("products.manage");
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);

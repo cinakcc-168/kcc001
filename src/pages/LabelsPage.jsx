@@ -23,8 +23,8 @@ function barcodeValue(product) {
 }
 
 export default function LabelsPage() {
-  const { supabase, profile, shop } = useAuth();
-  const canUse = ["owner", "admin", "manager"].includes(profile?.role);
+  const { supabase, profile, shop, can } = useAuth();
+  const canUse = can("labels.print");
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);

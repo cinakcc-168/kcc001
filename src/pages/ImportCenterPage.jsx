@@ -40,8 +40,8 @@ const duplicateModes = [
 ];
 
 export default function ImportCenterPage() {
-  const { supabase, profile } = useAuth();
-  const canImport = ["owner", "admin"].includes(profile?.role);
+  const { supabase, profile, can } = useAuth();
+  const canImport = can("import.manage");
 
   const [type, setType] = useState("products");
   const [duplicateMode, setDuplicateMode] = useState("skip");

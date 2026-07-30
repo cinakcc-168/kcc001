@@ -45,9 +45,9 @@ function readable(value) {
 }
 
 export default function AdminToolsPage() {
-  const { supabase, session, profile } = useAuth();
+  const { supabase, session, profile, can } = useAuth();
   const isOwner = profile?.role === "owner";
-  const canUse = ["owner", "admin"].includes(profile?.role);
+  const canUse = can("audit_backup.manage");
 
   const [tab, setTab] = useState("audit");
   const [filters, setFilters] = useState(() => ({

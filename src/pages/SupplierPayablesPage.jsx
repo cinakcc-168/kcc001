@@ -49,19 +49,17 @@ export default function SupplierPayablesPage() {
   const {
     supabase,
     profile,
-    shop
+    shop,
+    can
   } = useAuth();
 
-  const canManage = [
-    "owner",
-    "admin",
-    "manager"
-  ].includes(profile?.role);
+  const canManage = can(
+    "supplier_payables.view"
+  ) || can("supplier_payables.pay");
 
-  const canAllBranches = [
-    "owner",
-    "admin"
-  ].includes(profile?.role);
+  const canAllBranches = can(
+    "branches.all"
+  );
 
   const [allBranches, setAllBranches] =
     useState(false);
