@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PermissionRoute from "./components/PermissionRoute";
 import AppShell from "./components/AppShell";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -28,6 +29,7 @@ import PriceListsPage from "./pages/PriceListsPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import SupplierPayablesPage from "./pages/SupplierPayablesPage";
 import TelegramPage from "./pages/TelegramPage";
+import PermissionsPage from "./pages/PermissionsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -47,31 +49,32 @@ export default function App() {
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/sales" element={<SalesPage />} />
-        <Route path="/quotes" element={<QuotesPage />} />
-        <Route path="/invoices" element={<InvoicesPage />} />
-        <Route path="/returns" element={<ReturnsPage />} />
-        <Route path="/customers" element={<CustomersPage />} />
-        <Route path="/credit-accounts" element={<CreditAccountsPage />} />
-        <Route path="/coupons" element={<CouponsPage />} />
-        <Route path="/price-lists" element={<PriceListsPage />} />
-        <Route path="/users" element={<UsersPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/cash-expenses" element={<CashExpensesPage />} />
-        <Route path="/cash-register" element={<CashRegisterPage />} />
-        <Route path="/transfers" element={<TransfersPage />} />
-        <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
-        <Route path="/supplier-payables" element={<SupplierPayablesPage />} />
-        <Route path="/reorder" element={<ReorderPage />} />
-        <Route path="/labels" element={<LabelsPage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/inventory" element={<InventoryPage />} />
-        <Route path="/stock-counts" element={<StockCountsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/telegram" element={<TelegramPage />} />
-        <Route path="/admin-tools" element={<AdminToolsPage />} />
-        <Route path="/import-center" element={<ImportCenterPage />} />
+        <Route path="/dashboard" element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
+        <Route path="/sales" element={<PermissionRoute permission="sales.create"><SalesPage /></PermissionRoute>} />
+        <Route path="/quotes" element={<PermissionRoute permission="quotations.manage"><QuotesPage /></PermissionRoute>} />
+        <Route path="/invoices" element={<PermissionRoute permission="invoices.view"><InvoicesPage /></PermissionRoute>} />
+        <Route path="/returns" element={<PermissionRoute permission="returns.process"><ReturnsPage /></PermissionRoute>} />
+        <Route path="/customers" element={<PermissionRoute permission="customers.manage"><CustomersPage /></PermissionRoute>} />
+        <Route path="/credit-accounts" element={<PermissionRoute any={["credit_accounts.manage","credit_accounts.collect"]}><CreditAccountsPage /></PermissionRoute>} />
+        <Route path="/coupons" element={<PermissionRoute permission="coupons.manage"><CouponsPage /></PermissionRoute>} />
+        <Route path="/price-lists" element={<PermissionRoute permission="price_lists.manage"><PriceListsPage /></PermissionRoute>} />
+        <Route path="/users" element={<PermissionRoute permission="staff.manage"><UsersPage /></PermissionRoute>} />
+        <Route path="/reports" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
+        <Route path="/cash-expenses" element={<PermissionRoute any={["cash_expenses.manage","cash_expenses.void"]}><CashExpensesPage /></PermissionRoute>} />
+        <Route path="/cash-register" element={<PermissionRoute any={["cash_register.use","cash_register.close"]}><CashRegisterPage /></PermissionRoute>} />
+        <Route path="/transfers" element={<PermissionRoute any={["transfers.create","transfers.receive","transfers.cancel"]}><TransfersPage /></PermissionRoute>} />
+        <Route path="/purchase-orders" element={<PermissionRoute any={["purchases.manage","purchases.receive","purchases.cancel","purchases.supplier_return"]}><PurchaseOrdersPage /></PermissionRoute>} />
+        <Route path="/supplier-payables" element={<PermissionRoute any={["supplier_payables.view","supplier_payables.pay"]}><SupplierPayablesPage /></PermissionRoute>} />
+        <Route path="/reorder" element={<PermissionRoute permission="reorder.manage"><ReorderPage /></PermissionRoute>} />
+        <Route path="/labels" element={<PermissionRoute permission="labels.print"><LabelsPage /></PermissionRoute>} />
+        <Route path="/products" element={<PermissionRoute permission="products.manage"><ProductsPage /></PermissionRoute>} />
+        <Route path="/inventory" element={<PermissionRoute any={["inventory.view","inventory.adjust"]}><InventoryPage /></PermissionRoute>} />
+        <Route path="/stock-counts" element={<PermissionRoute permission="stock_counts.manage"><StockCountsPage /></PermissionRoute>} />
+        <Route path="/settings" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
+        <Route path="/telegram" element={<PermissionRoute permission="telegram.use"><TelegramPage /></PermissionRoute>} />
+        <Route path="/access-control" element={<PermissionRoute any={["access.manage","approvals.review"]}><PermissionsPage /></PermissionRoute>} />
+        <Route path="/admin-tools" element={<PermissionRoute permission="audit_backup.manage"><AdminToolsPage /></PermissionRoute>} />
+        <Route path="/import-center" element={<PermissionRoute permission="import.manage"><ImportCenterPage /></PermissionRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
