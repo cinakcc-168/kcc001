@@ -36,6 +36,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
 import PwaManager from "./PwaManager";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useLanguage } from "../context/LanguageContext";
 
 const links = [
   {
@@ -224,6 +226,8 @@ const links = [
 ];
 
 export default function AppShell() {
+  const { t } = useLanguage();
+
   const {
     supabase,
     session,
@@ -313,7 +317,7 @@ export default function AppShell() {
           ) : (
             <b>T</b>
           )}
-          <span className="side-label">{shop?.shop_name || "Tiny POS"}</span>
+          <span className="side-label" data-i18n-skip>{shop?.shop_name || "Tiny POS"}</span>
         </div>
 
         <nav>
@@ -322,10 +326,10 @@ export default function AppShell() {
               key={to}
               to={to}
               onClick={() => setOpen(false)}
-              title={collapsed ? label : undefined}
+              title={collapsed ? t(label) : undefined}
             >
               <Icon size={21} />
-              <span className="side-label">{label}</span>
+              <span className="side-label">{t(label)}</span>
             </NavLink>
           ))}
         </nav>
@@ -337,17 +341,17 @@ export default function AppShell() {
             onClick={() => setCollapsed((value) => !value)}
           >
             {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            <span className="side-label">Collapse</span>
+            <span className="side-label">{t("Collapse")}</span>
           </button>
 
           <button
             type="button"
             className="logout"
             onClick={handleSignOut}
-            title={collapsed ? "Log out" : undefined}
+            title={collapsed ? t("Log out") : undefined}
           >
             <LogOut size={20} />
-            <span className="side-label">Log out</span>
+            <span className="side-label">{t("Log out")}</span>
           </button>
         </div>
       </aside>
@@ -356,7 +360,7 @@ export default function AppShell() {
         <button
           type="button"
           className="backdrop"
-          aria-label="Close menu"
+          aria-label={t("Close menu")}
           onClick={() => setOpen(false)}
         />
       )}
@@ -367,7 +371,7 @@ export default function AppShell() {
             type="button"
             className="menu"
             onClick={() => setOpen(true)}
-            aria-label="Open menu"
+            aria-label={t("Open menu")}
           >
             <Menu />
           </button>
@@ -379,7 +383,7 @@ export default function AppShell() {
                 value={profile?.branch_id || ""}
                 onChange={handleBranchChange}
                 disabled={switchingBranch}
-                aria-label="Switch active branch"
+                aria-label={t("Switch active branch")}
               >
                 {branches.map((branch) => (
                   <option value={branch.id} key={branch.id}>{branch.name}</option>
@@ -393,7 +397,11 @@ export default function AppShell() {
             </div>
           )}
 
-          <strong>{profile?.full_name || "Owner"} · {profile?.role}</strong>
+          <LanguageSwitcher compact />
+
+          <strong data-i18n-skip>
+            {profile?.full_name || t("Owner")} · {t(profile?.role || "Owner")}
+          </strong>
         </header>
 
         <PwaManager />
