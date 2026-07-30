@@ -5,6 +5,7 @@ import {
   Clock3,
   ImageOff,
   CirclePause,
+  FileText,
   Plus,
   RefreshCw,
   Search,
@@ -17,6 +18,7 @@ import BarcodeScanner from "../components/BarcodeScanner";
 import Modal from "../components/Modal";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
+import QuoteSaveModal from "../components/QuoteSaveModal";
 import SaleCart from "../components/SaleCart";
 import { cloudinaryThumb, money, stockNumber } from "../lib/catalog";
 import {
@@ -40,6 +42,11 @@ import {
   loadLocalSaleDraft,
   saveLocalSaleDraft
 } from "../lib/pwa";
+import {
+  consumeQuoteForSale,
+  hydrateQuoteCart,
+  saveSalesQuote
+} from "../lib/quotes";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -81,6 +88,8 @@ export default function SalesPage() {
   const [parkedOpen, setParkedOpen] = useState(false);
   const [activeParkedId, setActiveParkedId] = useState(null);
   const [activeParkLabel, setActiveParkLabel] = useState("");
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [activeQuote, setActiveQuote] = useState(null);
   const [receipt, setReceipt] = useState(null);
   const [idempotencyKey, setIdempotencyKey] = useState(createIdempotencyKey());
   const [isOnline, setIsOnline] = useState(() =>
@@ -157,6 +166,71 @@ export default function SalesPage() {
 
     draftReadyRef.current = true;
 
+    const pendingQuote =
+      consumeQuoteForSale(profile);
+
+    if (pendingQuote && cart.length === 0) {
+      const hydrated =
+        hydrateQuoteCart(
+          products,
+          pendingQuote
+        );
+
+      if (hydrated.cart.length > 0) {
+        skipDraftSaveRef.current = true;
+        setCart(hydrated.cart);
+        setCustomerId(
+          pendingQuote.customer_id || ""
+        );
+        setCouponCode(
+          pendingQuote.coupon_code || ""
+        );
+        setAppliedCoupon(null);
+
+        if (pendingQuote.coupon_code) {
+          setDiscountType("none");
+          setDiscountValue("0");
+        } else {
+          setDiscountType(
+            pendingQuote.discount_type
+            || "none"
+          );
+          setDiscountValue(
+            String(
+              pendingQuote.discount_value
+              || 0
+            )
+          );
+        }
+
+        setNotes(pendingQuote.notes || "");
+        setActiveParkedId(null);
+        setActiveParkLabel("");
+        setActiveQuote(pendingQuote);
+        setIdempotencyKey(
+          createIdempotencyKey()
+        );
+
+        announce(
+          pendingQuote.coupon_code
+            ? "error"
+            : "success",
+          pendingQuote.coupon_code
+            ? `${pendingQuote.quote_number} loaded. Reapply coupon ${pendingQuote.coupon_code} before saving or payment.`
+            : `${pendingQuote.quote_number} loaded into New Sale.`
+        );
+
+        if (hydrated.missing.length > 0) {
+          announce(
+            "error",
+            `${hydrated.missing.length} unavailable quotation item(s) were removed.`
+          );
+        }
+
+        return;
+      }
+    }
+
     const draft = loadLocalSaleDraft(profile);
     if (!draft || cart.length > 0) return;
 
@@ -187,6 +261,21 @@ export default function SalesPage() {
     setNotes(draft.notes || "");
     setActiveParkedId(draft.active_parked_id || null);
     setActiveParkLabel(draft.active_parked_label || "");
+    setActiveQuote(
+      draft.active_quote_id
+        ? {
+            id: draft.active_quote_id,
+            quote_number:
+              draft.active_quote_number,
+            status:
+              draft.active_quote_status,
+            valid_until:
+              draft.active_quote_valid_until,
+            terms:
+              draft.active_quote_terms || ""
+          }
+        : null
+    );
     setIdempotencyKey(createIdempotencyKey());
 
     announce(
@@ -218,7 +307,8 @@ export default function SalesPage() {
       Boolean(notes.trim()) ||
       discountType !== "none" ||
       Boolean(couponCode.trim()) ||
-      Boolean(activeParkedId);
+      Boolean(activeParkedId) ||
+      Boolean(activeQuote?.id);
 
     if (!hasDraft) {
       clearLocalSaleDraft(profile);
@@ -241,7 +331,17 @@ export default function SalesPage() {
         appliedCoupon?.code || couponCode.trim() || null,
       notes,
       active_parked_id: activeParkedId,
-      active_parked_label: activeParkLabel
+      active_parked_label: activeParkLabel,
+      active_quote_id:
+        activeQuote?.id || null,
+      active_quote_number:
+        activeQuote?.quote_number || null,
+      active_quote_status:
+        activeQuote?.status || null,
+      active_quote_valid_until:
+        activeQuote?.valid_until || null,
+      active_quote_terms:
+        activeQuote?.terms || null
     });
   }, [
     profile,
@@ -253,7 +353,8 @@ export default function SalesPage() {
     appliedCoupon,
     notes,
     activeParkedId,
-    activeParkLabel
+    activeParkLabel,
+    activeQuote
   ]);
 
   const visibleProducts = useMemo(() => {
@@ -490,6 +591,7 @@ export default function SalesPage() {
     setNotes("");
     setActiveParkedId(null);
     setActiveParkLabel("");
+    setActiveQuote(null);
     setIdempotencyKey(createIdempotencyKey());
     clearLocalSaleDraft(profile);
   }
@@ -571,6 +673,7 @@ export default function SalesPage() {
     setNotes(parked.notes || "");
     setActiveParkedId(parked.id);
     setActiveParkLabel(parked.label || "Parked sale");
+    setActiveQuote(null);
     setIdempotencyKey(createIdempotencyKey());
     setParkedOpen(false);
 
@@ -633,6 +736,79 @@ export default function SalesPage() {
     }
   }
 
+  async function handleQuoteSave(values) {
+    if (!isOnline) {
+      setQuoteOpen(false);
+      announce(
+        "error",
+        "Reconnect before saving a quotation."
+      );
+      return;
+    }
+
+    if (cart.length === 0) {
+      announce(
+        "error",
+        "Add at least one product before saving a quotation."
+      );
+      return;
+    }
+
+    try {
+      setBusy(true);
+
+      const result = await saveSalesQuote(
+        supabase,
+        {
+          quote_id:
+            activeQuote?.id || null,
+          cart,
+          customer_id: customerId,
+          discount_type: discountType,
+          discount_value: discountValue,
+          coupon_code: couponCode,
+          applied_coupon: appliedCoupon,
+          currency,
+          valid_until:
+            values.valid_until,
+          notes,
+          terms: values.terms,
+          status: values.status
+        }
+      );
+
+      setActiveParkedId(null);
+      setActiveParkLabel("");
+
+      setActiveQuote({
+        ...(activeQuote || {}),
+        id: result.quote_id,
+        quote_number:
+          result.quote_number,
+        status: result.status,
+        valid_until:
+          result.valid_until,
+        terms: values.terms,
+        customer_id:
+          customerId || null
+      });
+
+      setQuoteOpen(false);
+
+      announce(
+        "success",
+        `${result.quote_number} saved for ${money(
+          result.total_amount,
+          result.currency
+        )}.`
+      );
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handlePayment(payment) {
     if (!isOnline) {
       setPaymentOpen(false);
@@ -655,6 +831,8 @@ export default function SalesPage() {
         currency,
         notes,
         idempotency_key: idempotencyKey,
+        source_quote_id:
+          activeQuote?.id || null,
         ...payment
       });
 
@@ -688,6 +866,10 @@ export default function SalesPage() {
         ),
         changeAmount: Number(result.change_amount || 0),
         paymentMethod: payment.payment_method,
+        sourceQuoteNumber:
+          result.source_quote_number
+          || activeQuote?.quote_number
+          || null,
         creditDueDate: result.credit_due_date || null,
         creditAmount: Number(result.credit_amount || 0),
         creditBalanceAfter: Number(
@@ -760,6 +942,24 @@ export default function SalesPage() {
             Offline mode: the current bill is saved locally on this device.
             Reconnect before applying coupons, parking, creating customers or paying.
           </span>
+        </div>
+      )}
+
+      {activeQuote && (
+        <div className="notice info active-quote-sale-banner">
+          <FileText size={20} />
+          <span>
+            Working from quotation{" "}
+            <strong>
+              {activeQuote.quote_number}
+            </strong>
+            {activeQuote.valid_until
+              ? ` · Valid until ${activeQuote.valid_until}`
+              : ""}
+          </span>
+          <Link to="/quotes">
+            Open quotations
+          </Link>
         </div>
       )}
 
@@ -872,6 +1072,16 @@ export default function SalesPage() {
           }}
           onClear={clearSale}
           onPark={handlePark}
+          onSaveQuote={() => {
+            if (!isOnline) {
+              announce(
+                "error",
+                "Reconnect before saving a quotation."
+              );
+              return;
+            }
+            setQuoteOpen(true);
+          }}
           onPay={() => {
             if (!isOnline) {
               announce(
@@ -885,6 +1095,15 @@ export default function SalesPage() {
           canSell={canSell && !busy}
           online={isOnline}
           activeParkLabel={activeParkLabel}
+          activeQuoteNumber={
+            activeQuote?.quote_number || ""
+          }
+          quoteEditable={
+            !activeQuote
+            || ["draft", "sent"].includes(
+              activeQuote.status
+            )
+          }
         />
       </div>
 
@@ -937,6 +1156,20 @@ export default function SalesPage() {
         cashRegisterOpen={cashRegisterOpen}
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}
+      />
+
+      <QuoteSaveModal
+        open={quoteOpen}
+        busy={busy}
+        activeQuote={activeQuote}
+        customerName={selectedCustomer?.name}
+        cart={cart}
+        totals={totals}
+        currency={currency}
+        appliedCoupon={appliedCoupon}
+        notes={notes}
+        onClose={() => setQuoteOpen(false)}
+        onSubmit={handleQuoteSave}
       />
 
       <ReceiptModal receipt={receipt} onClose={() => setReceipt(null)} />
