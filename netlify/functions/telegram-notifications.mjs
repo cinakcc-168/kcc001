@@ -143,6 +143,7 @@ function canReceive(role, eventType) {
     purchase: ["owner", "admin", "manager"],
     transfer: ["owner", "admin", "manager"],
     quotation: ["owner", "admin", "manager", "cashier"],
+    sales_order: ["owner", "admin", "manager", "cashier"],
     register: ["owner", "admin", "manager", "cashier"],
     approval: ["owner", "admin", "manager"]
   };
@@ -605,6 +606,47 @@ async function buildQuotation(service, link, branchIds, context, scopeName, lang
   };
 }
 
+async function buildSalesOrders(service, link, branchIds, context, scopeName, language) {
+  const ids = branchIds.map((branch) => branch.id);
+
+  const { data, error } = await service
+    .from("sales_orders")
+    .select("id,status,requested_delivery_date")
+    .eq("organization_id", link.organization_id)
+    .in("branch_id", ids)
+    .in("status", ["confirmed", "partially_delivered"])
+    .not("requested_delivery_date", "is", null)
+    .lte("requested_delivery_date", context.date);
+
+  if (error) throw error;
+  if (!(data || []).length) return null;
+
+  const partial = (data || []).filter(
+    (row) => row.status === "partially_delivered"
+  ).length;
+
+  return {
+    type: "sales_order",
+    key: `sales-order:${context.date}:${scopeName}`,
+    path: "/sales-orders",
+    language,
+    buttonText: tg(language, "open_sales_orders"),
+    text: [
+      `🚚 <b>${tg(language, "sales_order_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
+      "",
+      tg(language, "sales_order_due", { count: data.length }),
+      tg(language, "sales_order_partial", { count: partial }),
+      tg(language, "sales_order_help")
+    ].join("\n"),
+    payload: {
+      due: data.length,
+      partially_delivered: partial
+    }
+  };
+}
+
 async function buildRegister(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
@@ -939,6 +981,12 @@ export default async () => {
 
       if (preferences.quotation_alerts && canReceive(profile.role, "quotation")) {
         builders.push(() => buildQuotation(
+          service, link, branches, context, scopeName, language
+        ));
+      }
+
+      if (preferences.sales_order_alerts && canReceive(profile.role, "sales_order")) {
+        builders.push(() => buildSalesOrders(
           service, link, branches, context, scopeName, language
         ));
       }

@@ -58,7 +58,12 @@ const OPTIONAL_TABLES = new Set([
   "sale_item_batches",
   "return_item_batches",
   "purchase_return_item_batches",
-  "stock_transfer_item_batches"
+  "stock_transfer_item_batches",
+  "sales_orders",
+  "sales_order_items",
+  "stock_reservations",
+  "sales_order_deliveries",
+  "sales_order_delivery_items"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -87,6 +92,11 @@ const DIRECT_ORG_TABLES = [
   "price_list_items",
   "sales_quotes",
   "sales_quote_items",
+  "sales_orders",
+  "sales_order_items",
+  "stock_reservations",
+  "sales_order_deliveries",
+  "sales_order_delivery_items",
   "sales",
   "sale_items",
   "payments",
@@ -143,6 +153,11 @@ const DELETE_ORDER = [
   "customer_credit_payments",
   "sale_items",
   "sales",
+  "sales_order_delivery_items",
+  "sales_order_deliveries",
+  "stock_reservations",
+  "sales_order_items",
+  "sales_orders",
   "sales_quote_items",
   "sales_quotes",
   "price_list_items",
@@ -205,6 +220,11 @@ const INSERT_ORDER = [
   "document_counters",
   "sales_quotes",
   "sales_quote_items",
+  "sales_orders",
+  "sales_order_items",
+  "stock_reservations",
+  "sales_order_deliveries",
+  "sales_order_delivery_items",
   "cash_categories",
   "cash_register_sessions",
   "cash_entries",
@@ -266,7 +286,10 @@ const USER_REFERENCE_COLUMNS = [
   "counted_by",
   "sent_by",
   "accepted_by",
-  "converted_by"
+  "converted_by",
+  "confirmed_by",
+  "reserved_by",
+  "released_by"
 ];
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -456,7 +479,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 35
+      schema_step: 36
     },
     staff: profiles,
     user_preferences: preferences,
