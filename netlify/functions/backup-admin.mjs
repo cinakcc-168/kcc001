@@ -52,7 +52,13 @@ const OPTIONAL_TABLES = new Set([
   "purchase_receipts",
   "purchase_receipt_items",
   "user_permission_overrides",
-  "user_approval_limits"
+  "user_approval_limits",
+  "inventory_batches",
+  "purchase_receipt_item_batches",
+  "sale_item_batches",
+  "return_item_batches",
+  "purchase_return_item_batches",
+  "stock_transfer_item_batches"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -105,6 +111,12 @@ const DIRECT_ORG_TABLES = [
   "stock_transfer_items",
   "purchase_returns",
   "purchase_return_items",
+  "inventory_batches",
+  "purchase_receipt_item_batches",
+  "sale_item_batches",
+  "return_item_batches",
+  "purchase_return_item_batches",
+  "stock_transfer_item_batches",
   "supplier_code_counters",
   "data_import_jobs",
   "data_import_errors",
@@ -119,6 +131,12 @@ const DELETE_ORDER = [
   "coupon_redemptions",
   "customer_credit_entries",
   "customer_credit_payment_allocations",
+  "return_item_batches",
+  "purchase_return_item_batches",
+  "sale_item_batches",
+  "stock_transfer_item_batches",
+  "purchase_receipt_item_batches",
+  "inventory_batches",
   "return_items",
   "returns",
   "payments",
@@ -215,6 +233,12 @@ const INSERT_ORDER = [
   "stock_transfer_items",
   "purchase_returns",
   "purchase_return_items",
+  "inventory_batches",
+  "purchase_receipt_item_batches",
+  "sale_item_batches",
+  "return_item_batches",
+  "purchase_return_item_batches",
+  "stock_transfer_item_batches",
   "customer_loyalty_movements",
   "data_import_jobs",
   "data_import_errors",
@@ -432,7 +456,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 32
+      schema_step: 35
     },
     staff: profiles,
     user_preferences: preferences,

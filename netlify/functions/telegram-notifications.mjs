@@ -378,6 +378,46 @@ async function buildStock(service, link, branchIds, context, scopeName, settings
   };
 }
 
+async function buildExpiry(service, link, branchIds, context, scopeName, language) {
+  const ids = branchIds.map((branch) => branch.id);
+  const limit = new Date(`${context.date}T00:00:00Z`);
+  limit.setUTCDate(limit.getUTCDate() + 30);
+  const limitDate = limit.toISOString().slice(0, 10);
+  const { data, error } = await service
+    .from("inventory_batches")
+    .select("id,expiry_date,quantity,status")
+    .eq("organization_id", link.organization_id)
+    .in("branch_id", ids)
+    .gt("quantity", 0)
+    .not("expiry_date", "is", null)
+    .lte("expiry_date", limitDate);
+  if (error) throw error;
+  let expired = 0;
+  let expiring = 0;
+  for (const row of data || []) {
+    if (row.status === "depleted") continue;
+    if (row.expiry_date < context.date) expired += 1;
+    else expiring += 1;
+  }
+  if (!expired && !expiring) return null;
+  return {
+    type: "stock",
+    key: `expiry:${context.date}:${scopeName}`,
+    path: "/batches",
+    language,
+    buttonText: tg(language, "open_batches"),
+    text: [
+      `⏳ <b>${tg(language, "expiry_title", { scope: escapeHtml(scopeName) })}</b>`,
+      "",
+      tg(language, "expired_batches", { count: expired }),
+      tg(language, "expiring_batches", { count: expiring }),
+      "",
+      tg(language, "expiry_help")
+    ].join("\n"),
+    payload: { expired, expiring }
+  };
+}
+
 async function buildCredit(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
@@ -867,6 +907,9 @@ export default async () => {
       if (preferences.stock_alerts && canReceive(profile.role, "stock")) {
         builders.push(() => buildStock(
           service, link, branches, context, scopeName, settings, language
+        ));
+        builders.push(() => buildExpiry(
+          service, link, branches, context, scopeName, language
         ));
       }
 
