@@ -112,6 +112,7 @@ export default function PurchaseReceiptPrintModal({
                 <th>Code</th>
                 <th>Received quantity</th>
                 <th>Base quantity</th>
+                <th>Batch / expiry</th>
                 <th>Cost</th>
                 <th>Total</th>
               </tr>
@@ -138,6 +139,21 @@ export default function PurchaseReceiptPrintModal({
                   <td>
                     {stockNumber(item.base_quantity)}{" "}
                     {item.products?.unit_name || "pcs"}
+                  </td>
+                  <td>
+                    {(item.purchase_receipt_item_batches || []).length === 0
+                      ? "—"
+                      : (item.purchase_receipt_item_batches || []).map((row) => (
+                          <div key={row.id} className="grn-batch-line">
+                            <strong>{row.inventory_batches?.batch_number || "—"}</strong>
+                            <span>
+                              {stockNumber(row.purchase_unit_quantity)} {item.purchase_unit_name}
+                              {row.inventory_batches?.expiry_date
+                                ? ` · Exp ${row.inventory_batches.expiry_date}`
+                                : ""}
+                            </span>
+                          </div>
+                        ))}
                   </td>
                   <td>
                     {money(

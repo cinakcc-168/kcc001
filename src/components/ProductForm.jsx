@@ -17,6 +17,10 @@ const emptyForm = {
   low_stock_threshold: "5",
   track_stock: true,
   allow_negative_stock: false,
+  batch_tracking: false,
+  expiry_tracking: false,
+  picking_policy: "fifo",
+  default_shelf_life_days: "",
   is_active: true
 };
 
@@ -54,6 +58,10 @@ export default function ProductForm({
       low_stock_threshold: String(product.low_stock_threshold ?? 5),
       track_stock: product.track_stock,
       allow_negative_stock: product.allow_negative_stock,
+      batch_tracking: Boolean(product.batch_tracking),
+      expiry_tracking: Boolean(product.expiry_tracking),
+      picking_policy: product.picking_policy || "fifo",
+      default_shelf_life_days: String(product.default_shelf_life_days ?? ""),
       is_active: product.is_active
     });
   }, [product]);
@@ -81,6 +89,12 @@ export default function ProductForm({
     }
     if (!editing && Number(form.opening_quantity || 0) < 0) {
       return setError("Opening stock cannot be negative.");
+    }
+    if (form.expiry_tracking && !form.batch_tracking) {
+      return setError("Expiry tracking requires batch tracking.");
+    }
+    if (form.default_shelf_life_days && Number(form.default_shelf_life_days) <= 0) {
+      return setError("Default shelf life must be greater than zero.");
     }
 
     try {
@@ -173,9 +187,22 @@ export default function ProductForm({
 
           <div className="check-grid">
             <label className="check-row"><input type="checkbox" checked={form.track_stock} onChange={(e) => setField("track_stock", e.target.checked)} /><span>Track stock</span></label>
-            <label className="check-row"><input type="checkbox" checked={form.allow_negative_stock} onChange={(e) => setField("allow_negative_stock", e.target.checked)} disabled={!form.track_stock} /><span>Allow negative stock</span></label>
+            <label className="check-row"><input type="checkbox" checked={form.allow_negative_stock} onChange={(e) => setField("allow_negative_stock", e.target.checked)} disabled={!form.track_stock || form.batch_tracking} /><span>Allow negative stock</span></label>
+            <label className="check-row"><input type="checkbox" checked={form.batch_tracking} onChange={(e) => { setField("batch_tracking", e.target.checked); if (e.target.checked) setField("allow_negative_stock", false); if (!e.target.checked) setField("expiry_tracking", false); }} disabled={!form.track_stock} /><span>Track batch / lot numbers</span></label>
+            <label className="check-row"><input type="checkbox" checked={form.expiry_tracking} onChange={(e) => setField("expiry_tracking", e.target.checked)} disabled={!form.batch_tracking} /><span>Track expiry dates</span></label>
             <label className="check-row"><input type="checkbox" checked={form.is_active} onChange={(e) => setField("is_active", e.target.checked)} /><span>Active product</span></label>
           </div>
+
+          {form.batch_tracking && (
+            <section className="product-batch-settings">
+              <div>
+                <strong>Batch picking</strong>
+                <span>FIFO uses the oldest received lot. FEFO uses the nearest valid expiry date.</span>
+              </div>
+              <label><span>Picking policy</span><select value={form.picking_policy} onChange={(e) => setField("picking_policy", e.target.value)}><option value="fifo">FIFO · First received, first sold</option><option value="fefo">FEFO · First expiry, first sold</option></select></label>
+              <label><span>Default shelf life (days)</span><input type="number" min="1" step="1" value={form.default_shelf_life_days} onChange={(e) => setField("default_shelf_life_days", e.target.value)} disabled={!form.expiry_tracking} placeholder="Optional" /></label>
+            </section>
+          )}
         </div>
 
         <aside className="image-editor">

@@ -31,7 +31,8 @@ import {
   ReceiptText,
   HandCoins,
   Send,
-  KeyRound
+  KeyRound,
+  CalendarClock
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -113,6 +114,15 @@ const links = [
     to: "/inventory",
     label: "Inventory",
     icon: Warehouse,
+    any: [
+      "inventory.view",
+      "inventory.adjust"
+    ]
+  },
+  {
+    to: "/batches",
+    label: "Batch & Expiry",
+    icon: CalendarClock,
     any: [
       "inventory.view",
       "inventory.adjust"

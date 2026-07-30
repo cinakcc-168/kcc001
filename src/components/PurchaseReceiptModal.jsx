@@ -9,6 +9,7 @@ import {
   useState
 } from "react";
 import Modal from "./Modal";
+import BatchAllocationEditor, { createBatchAllocation } from "./BatchAllocationEditor";
 import {
   money,
   stockNumber
@@ -55,6 +56,8 @@ export default function PurchaseReceiptModal({
     useState(localDateTimeValue());
   const [notes, setNotes] =
     useState("");
+  const [batchAllocations, setBatchAllocations] =
+    useState({});
   const [error, setError] =
     useState("");
 
@@ -70,6 +73,7 @@ export default function PurchaseReceiptModal({
     );
     setReceivedAt(localDateTimeValue());
     setNotes("");
+    setBatchAllocations({});
     setError("");
   }, [purchase]);
 
@@ -118,10 +122,11 @@ export default function PurchaseReceiptModal({
     );
 
   function updateQuantity(itemId, value) {
-    setQuantities((current) => ({
-      ...current,
-      [itemId]: value
-    }));
+    setQuantities((current) => ({ ...current, [itemId]: value }));
+    const item = purchase.purchase_items.find((row) => row.id === itemId);
+    if (item?.products?.batch_tracking && Number(value || 0) > 0 && !(batchAllocations[itemId] || []).length) {
+      setBatchAllocations((current) => ({ ...current, [itemId]: [createBatchAllocation(item.products, receivedAt, value)] }));
+    }
     setError("");
   }
 
@@ -133,11 +138,19 @@ export default function PurchaseReceiptModal({
     }
 
     setQuantities(next);
+    const nextBatches = {};
+    for (const row of rows) {
+      if (row.item.products?.batch_tracking) {
+        nextBatches[row.item.id] = [createBatchAllocation(row.item.products, receivedAt, row.remaining)];
+      }
+    }
+    setBatchAllocations(nextBatches);
     setError("");
   }
 
   function clearQuantities() {
     setQuantities({});
+    setBatchAllocations({});
     setError("");
   }
 
@@ -170,6 +183,20 @@ export default function PurchaseReceiptModal({
           )} ${row.item.purchase_unit_name || "units"} remaining.`
         );
         return;
+      }
+    }
+
+    for (const row of selectedRows) {
+      if (!row.item.products?.batch_tracking) continue;
+      const batchRows = batchAllocations[row.item.id] || [];
+      const batchTotal = batchRows.reduce((sum, batch) => sum + Number(batch.quantity || 0), 0);
+      if (batchRows.length === 0 || Math.abs(batchTotal - row.quantity) > 0.0005) {
+        setError(`Batch quantities for ${row.item.products?.name || "Product"} must total ${stockNumber(row.quantity)} ${row.item.purchase_unit_name}.`);
+        return;
+      }
+      for (const batch of batchRows) {
+        if (!batch.batch_number.trim() || !(Number(batch.quantity) > 0)) { setError(`Every batch for ${row.item.products?.name || "Product"} needs a lot number and quantity.`); return; }
+        if (row.item.products.expiry_tracking && !batch.expiry_date) { setError(`Expiry date is required for ${row.item.products?.name || "Product"}.`); return; }
       }
     }
 
@@ -213,7 +240,8 @@ export default function PurchaseReceiptModal({
       purchase_id: purchase.id,
       items: selectedRows.map((row) => ({
         purchase_item_id: row.item.id,
-        quantity: row.quantity
+        quantity: row.quantity,
+        batches: batchAllocations[row.item.id] || []
       })),
       amount_paid: payment,
       payment_method: method,
@@ -380,6 +408,14 @@ export default function PurchaseReceiptModal({
                       {item.products?.unit_name || "base units"}
                     </small>
                   </label>
+
+                  <BatchAllocationEditor
+                    item={item}
+                    receiptQuantity={quantity}
+                    receivedAt={receivedAt}
+                    allocations={batchAllocations[item.id] || []}
+                    onChange={(next) => setBatchAllocations((current) => ({ ...current, [item.id]: next }))}
+                  />
                 </article>
               );
             })
