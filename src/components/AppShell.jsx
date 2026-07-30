@@ -35,7 +35,8 @@ import {
   CalendarClock,
   PackageCheck,
   Activity,
-  Clock3
+  Clock3,
+  BookOpenCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -205,6 +206,12 @@ const links = [
     label: "Reports",
     icon: BarChart3,
     permission: "reports.view"
+  },
+  {
+    to: "/accounting",
+    label: "Accounting Center",
+    icon: BookOpenCheck,
+    permission: "accounting.view"
   },
   {
     to: "/users",
