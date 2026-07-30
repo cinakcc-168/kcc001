@@ -34,7 +34,8 @@ import {
   KeyRound,
   CalendarClock,
   PackageCheck,
-  Activity
+  Activity,
+  Clock3
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -210,6 +211,16 @@ const links = [
     label: "Staff & Branches",
     icon: UserCog,
     permission: "staff.manage"
+  },
+  {
+    to: "/staff-operations",
+    label: "Attendance & Commission",
+    icon: Clock3,
+    any: [
+      "staff_operations.self",
+      "attendance.manage",
+      "commissions.manage"
+    ]
   },
   {
     to: "/access-control",
