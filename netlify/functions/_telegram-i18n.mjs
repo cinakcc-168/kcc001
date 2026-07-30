@@ -21,6 +21,7 @@ const messages = {
     open_register: "Open Cash Register",
     open_system_health: "Open System Health",
     open_staff_operations: "Open Attendance & Commission",
+    open_payroll: "Open Payroll Center",
     review_approval: "Review Approval",
     notification_settings: "Notification settings",
     create_link_code: "Create a new link code",
@@ -98,7 +99,18 @@ const messages = {
     commission_earned_usd: "Earned USD: {{amount}}",
     commission_earned_khr: "Earned KHR: {{amount}}",
     commission_outstanding_usd: "Outstanding USD: {{amount}}",
-    commission_outstanding_khr: "Outstanding KHR: {{amount}}"
+    commission_outstanding_khr: "Outstanding KHR: {{amount}}",
+    payroll_title: "Latest payroll payslip",
+    payroll_period: "Period: {{from}} to {{to}}",
+    payroll_net: "Net pay: {{amount}}",
+    payroll_paid: "Paid: {{amount}}",
+    payroll_outstanding: "Outstanding: {{amount}}",
+    payroll_status: "Status: {{status}}",
+    payroll_none: "No approved payroll payslip is available yet.",
+    payroll_alert_title: "Payroll attention · {{scope}}",
+    payroll_due_runs: "Payroll runs due or overdue: {{count}}",
+    payroll_unpaid_staff: "Staff with outstanding approved payroll: {{count}}",
+    payroll_alert_help: "Review, approve or settle payroll in the Payroll Center."
   },
   km: {
     open_pos: "បើក Tiny POS",
@@ -114,6 +126,7 @@ const messages = {
     open_register: "បើកបញ្ជរសាច់ប្រាក់",
     open_system_health: "បើកសុខភាពប្រព័ន្ធ",
     open_staff_operations: "បើកវត្តមាន និងកម្រៃជើងសារ",
+    open_payroll: "បើកមជ្ឈមណ្ឌលបើកប្រាក់ខែ",
     review_approval: "ពិនិត្យការអនុម័ត",
     notification_settings: "ការកំណត់ការជូនដំណឹង",
     create_link_code: "បង្កើតកូដភ្ជាប់ថ្មី",
@@ -191,7 +204,18 @@ const messages = {
     commission_earned_usd: "បានរក USD៖ {{amount}}",
     commission_earned_khr: "បានរក KHR៖ {{amount}}",
     commission_outstanding_usd: "នៅមិនទាន់បង់ USD៖ {{amount}}",
-    commission_outstanding_khr: "នៅមិនទាន់បង់ KHR៖ {{amount}}"
+    commission_outstanding_khr: "នៅមិនទាន់បង់ KHR៖ {{amount}}",
+    payroll_title: "បង្កាន់ដៃប្រាក់ខែចុងក្រោយ",
+    payroll_period: "រយៈពេល៖ {{from}} ដល់ {{to}}",
+    payroll_net: "ប្រាក់សុទ្ធ៖ {{amount}}",
+    payroll_paid: "បានបង់៖ {{amount}}",
+    payroll_outstanding: "នៅមិនទាន់បង់៖ {{amount}}",
+    payroll_status: "ស្ថានភាព៖ {{status}}",
+    payroll_none: "មិនទាន់មានបង្កាន់ដៃប្រាក់ខែដែលបានអនុម័តទេ។",
+    payroll_alert_title: "ការយកចិត្តទុកដាក់ប្រាក់ខែ · {{scope}}",
+    payroll_due_runs: "ការគណនាប្រាក់ខែដល់ ឬហួសកំណត់៖ {{count}}",
+    payroll_unpaid_staff: "បុគ្គលិកមានប្រាក់ខែមិនទាន់បង់៖ {{count}}",
+    payroll_alert_help: "សូមពិនិត្យ អនុម័ត ឬទូទាត់ប្រាក់ខែក្នុងមជ្ឈមណ្ឌលបើកប្រាក់ខែ។"
   }
 };
 

@@ -661,6 +661,42 @@ export default async (request) => {
       return json({ ok: true });
     }
 
+
+    if (command === "/payslip" || command === "/payroll") {
+      if (!linked) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: tg(language, "connect_help"), path: "/login", buttonText: tg(language, "open_pos") });
+        return json({ ok: true });
+      }
+      try {
+        const { data, error } = await service.rpc("telegram_my_payroll_summary", { p_user_id: linked.user_id });
+        if (error) throw error;
+        const row = data?.latest;
+        if (!row || row === "null") {
+          await sendTelegramMessage({ chatId: message.chat.id, text: tg(language, "payroll_none"), path: "/payroll", buttonText: tg(language, "open_payroll") });
+          return json({ ok: true });
+        }
+        const money = (value, currency) => new Intl.NumberFormat("en-US", { style: "currency", currency, maximumFractionDigits: currency === "KHR" ? 0 : 2 }).format(Number(value || 0));
+        await sendTelegramMessage({
+          chatId: message.chat.id,
+          text: [
+            `💵 <b>${tg(language, "payroll_title")}</b>`,
+            "",
+            `<b>${escapeHtml(row.run_number)}</b>`,
+            tg(language, "payroll_period", { from: row.period_start, to: row.period_end }),
+            tg(language, "payroll_net", { amount: money(row.net_pay, row.currency) }),
+            tg(language, "payroll_paid", { amount: money(row.paid_amount, row.currency) }),
+            tg(language, "payroll_outstanding", { amount: money(row.outstanding, row.currency) }),
+            tg(language, "payroll_status", { status: row.status })
+          ].join("\n"),
+          path: "/payroll",
+          buttonText: tg(language, "open_payroll")
+        });
+      } catch (error) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: `❌ ${escapeHtml(error.message)}`, path: "/payroll", buttonText: tg(language, "open_payroll") });
+      }
+      return json({ ok: true });
+    }
+
     if (
       ["/pos", "/menu", "/help"]
         .includes(command)

@@ -146,7 +146,8 @@ function canReceive(role, eventType) {
     sales_order: ["owner", "admin", "manager", "cashier"],
     register: ["owner", "admin", "manager", "cashier"],
     approval: ["owner", "admin", "manager"],
-    attendance: ["owner", "admin", "manager", "cashier", "viewer"]
+    attendance: ["owner", "admin", "manager", "cashier", "viewer"],
+    payroll: ["owner", "admin"]
   };
 
   return (roles[eventType] || []).includes(role);
@@ -819,6 +820,42 @@ async function buildApprovals(
   }));
 }
 
+
+async function buildPayrollEvent(service, link, branches, context, scopeName, language) {
+  const branchIds = branches.map((branch) => branch.id);
+  const { data: runs, error: runError } = await service
+    .from("payroll_runs")
+    .select("id,status,pay_date,branch_id")
+    .eq("organization_id", link.organization_id)
+    .in("status", ["draft", "approved", "partially_paid"])
+    .lte("pay_date", context.date)
+    .limit(100);
+  if (runError) throw runError;
+  const scopedRuns = (runs || []).filter((row) => row.branch_id === null || branchIds.includes(row.branch_id));
+  if (!scopedRuns.length) return null;
+  const runIds = scopedRuns.map((row) => row.id);
+  const { data: lines, error: lineError } = await service
+    .from("payroll_run_lines")
+    .select("id,payroll_run_id,net_pay,paid_amount")
+    .in("payroll_run_id", runIds)
+    .limit(1000);
+  if (lineError) throw lineError;
+  const unpaid = (lines || []).filter((row) => Number(row.net_pay || 0) - Number(row.paid_amount || 0) > 0.005).length;
+  return {
+    type: "payroll",
+    key: `payroll:${context.date}:${link.user_id}:${scopeName}:${scopedRuns.length}:${unpaid}`,
+    path: "/payroll",
+    buttonText: tg(language, "open_payroll"),
+    text: [
+      `💵 <b>${tg(language, "payroll_alert_title", { scope: escapeHtml(scopeName) })}</b>`,
+      "",
+      tg(language, "payroll_due_runs", { count: scopedRuns.length }),
+      tg(language, "payroll_unpaid_staff", { count: unpaid }),
+      tg(language, "payroll_alert_help")
+    ].join("\n")
+  };
+}
+
 export default async () => {
   const service = serviceClient();
   let sent = 0;
@@ -1032,6 +1069,12 @@ export default async () => {
       if (preferences.attendance_alerts && canReceive(profile.role, "attendance")) {
         builders.push(() => buildAttendance(
           service, link, branches, context, scopeName, profile, language
+        ));
+      }
+
+      if (preferences.payroll_alerts && canReceive(profile.role, "payroll")) {
+        builders.push(() => buildPayrollEvent(
+          service, link, branches, context, scopeName, language
         ));
       }
 

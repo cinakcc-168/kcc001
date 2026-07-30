@@ -239,6 +239,7 @@ async function setupBot(service, profile) {
       { command: "checkout", description: "Check out / ចុះវត្តមានចេញ" },
       { command: "attendance", description: "Attendance status / ស្ថានភាពវត្តមាន" },
       { command: "commission", description: "My commission / កម្រៃជើងសារ" },
+      { command: "payslip", description: "My payslip / បង្កាន់ដៃប្រាក់ខែ" },
       { command: "link", description: "Link code / កូដភ្ជាប់" },
       { command: "unlink", description: "Disconnect / ផ្តាច់" },
       { command: "help", description: "Help / ជំនួយ" }

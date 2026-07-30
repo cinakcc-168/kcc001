@@ -72,7 +72,11 @@ const OPTIONAL_TABLES = new Set([
   "accounting_mappings",
   "accounting_periods",
   "accounting_journal_entries",
-  "accounting_journal_lines"
+  "accounting_journal_lines",
+  "payroll_compensation_profiles",
+  "payroll_runs",
+  "payroll_run_lines",
+  "payroll_payments"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -83,6 +87,10 @@ const DIRECT_ORG_TABLES = [
   "accounting_periods",
   "accounting_journal_entries",
   "accounting_journal_lines",
+  "payroll_compensation_profiles",
+  "payroll_runs",
+  "payroll_run_lines",
+  "payroll_payments",
   "user_permission_overrides",
   "user_approval_limits",
   "categories",
@@ -152,6 +160,10 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "payroll_payments",
+  "payroll_run_lines",
+  "payroll_runs",
+  "payroll_compensation_profiles",
   "accounting_journal_lines",
   "accounting_journal_entries",
   "accounting_periods",
@@ -233,6 +245,10 @@ const INSERT_ORDER = [
   "accounting_periods",
   "accounting_journal_entries",
   "accounting_journal_lines",
+  "payroll_compensation_profiles",
+  "payroll_runs",
+  "payroll_run_lines",
+  "payroll_payments",
   "user_approval_limits",
   "user_permission_overrides",
   "attendance_sessions",
@@ -515,7 +531,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 39
+      schema_step: 40
     },
     staff: profiles,
     user_preferences: preferences,
