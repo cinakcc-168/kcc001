@@ -25,7 +25,8 @@ import {
   ListChecks,
   ClipboardCheck,
   FileUp,
-  BadgeDollarSign
+  BadgeDollarSign,
+  FileText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -37,6 +38,12 @@ const links = [
     to: "/sales",
     label: "New Sale",
     icon: ShoppingCart,
+    roles: ["owner", "admin", "manager", "cashier"]
+  },
+  {
+    to: "/quotes",
+    label: "Quotations",
+    icon: FileText,
     roles: ["owner", "admin", "manager", "cashier"]
   },
   {

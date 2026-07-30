@@ -4,6 +4,7 @@ import {
   Minus,
   Plus,
   TicketPercent,
+  FileText,
   Trash2,
   UserPlus,
   Wallet,
@@ -38,17 +39,24 @@ export default function SaleCart({
   onRemove,
   onClear,
   onPark,
+  onSaveQuote,
   onPay,
   canSell,
   online = true,
-  activeParkLabel
+  activeParkLabel,
+  activeQuoteNumber,
+  quoteEditable = true
 }) {
   return (
     <aside className="sale-cart panel">
       <div className="sale-cart-heading">
         <div>
           <p className="eyebrow">CURRENT BILL</p>
-          <h2>{activeParkLabel || "New sale"}</h2>
+          <h2>
+            {activeParkLabel
+              || activeQuoteNumber
+              || "New sale"}
+          </h2>
         </div>
         {cart.length > 0 && (
           <button
@@ -316,22 +324,59 @@ export default function SaleCart({
         </div>
       )}
 
-      <div className="sale-cart-actions">
+      <div className="sale-cart-actions quote-enabled">
         <button
           type="button"
           className="secondary-button"
           onClick={onPark}
-          disabled={!canSell || !online || cart.length === 0}
+          disabled={
+            !canSell
+            || !online
+            || cart.length === 0
+            || Boolean(activeQuoteNumber)
+          }
+          title={
+            activeQuoteNumber
+              ? "A quotation cannot also be parked"
+              : "Park sale"
+          }
         >
-          <CirclePause size={19} /> Park sale
+          <CirclePause size={19} />
+          Park sale
         </button>
+
+        <button
+          type="button"
+          className="secondary-button quote-save-button"
+          onClick={onSaveQuote}
+          disabled={
+            !canSell
+            || !online
+            || cart.length === 0
+            || !quoteEditable
+          }
+          title={
+            !quoteEditable
+              ? "Accepted quotations cannot be edited"
+              : activeQuoteNumber
+                ? "Update quotation"
+                : "Save quotation"
+          }
+        >
+          <FileText size={19} />
+          {activeQuoteNumber
+            ? "Update Quote"
+            : "Save Quote"}
+        </button>
+
         <button
           type="button"
           className="primary-button pay-button"
           onClick={onPay}
           disabled={!canSell || !online || cart.length === 0}
         >
-          <Wallet size={20} /> Pay {money(totals.total, currency)}
+          <Wallet size={20} />
+          Pay {money(totals.total, currency)}
         </button>
       </div>
     </aside>

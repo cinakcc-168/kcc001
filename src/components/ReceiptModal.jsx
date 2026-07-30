@@ -59,6 +59,12 @@ export default function ReceiptModal({ receipt, onClose }) {
 
           <div className="receipt-meta">
             <div><span>Invoice</span><strong>{receipt.invoiceNumber}</strong></div>
+          {receipt.sourceQuoteNumber && (
+            <div>
+              <span>Quotation</span>
+              <strong>{receipt.sourceQuoteNumber}</strong>
+            </div>
+          )}
             <div><span>Date</span><strong>{dateTime(receipt.completedAt)}</strong></div>
             {showCashier && (
               <div><span>Cashier</span><strong>{receipt.cashierName}</strong></div>
