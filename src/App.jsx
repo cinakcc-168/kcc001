@@ -32,6 +32,7 @@ import SupplierPayablesPage from "./pages/SupplierPayablesPage";
 import TelegramPage from "./pages/TelegramPage";
 import PermissionsPage from "./pages/PermissionsPage";
 import BatchesPage from "./pages/BatchesPage";
+import SalesOrdersPage from "./pages/SalesOrdersPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
         <Route path="/sales" element={<PermissionRoute permission="sales.create"><SalesPage /></PermissionRoute>} />
         <Route path="/quotes" element={<PermissionRoute permission="quotations.manage"><QuotesPage /></PermissionRoute>} />
+        <Route path="/sales-orders" element={<PermissionRoute any={["sales_orders.manage","sales_orders.deliver"]}><SalesOrdersPage /></PermissionRoute>} />
         <Route path="/invoices" element={<PermissionRoute permission="invoices.view"><InvoicesPage /></PermissionRoute>} />
         <Route path="/returns" element={<PermissionRoute permission="returns.process"><ReturnsPage /></PermissionRoute>} />
         <Route path="/customers" element={<PermissionRoute permission="customers.manage"><CustomersPage /></PermissionRoute>} />
