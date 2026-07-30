@@ -8,6 +8,10 @@ import {
   telegramApi,
   validateTelegramInitData
 } from "./_telegram-shared.mjs";
+import {
+  tg,
+  telegramLanguage
+} from "./_telegram-i18n.mjs";
 
 async function hasIndividualPermission(
   admin,
@@ -40,6 +44,22 @@ function errorResponse(error) {
   return json(
     { ok: false, error: error.message },
     error.status || 500
+  );
+}
+
+async function preferredLanguage(
+  service,
+  userId,
+  fallback = "en"
+) {
+  const { data } = await service
+    .from("user_preferences")
+    .select("language")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return telegramLanguage(
+    data?.language || fallback
   );
 }
 
@@ -139,18 +159,34 @@ async function linkMiniApp({ service, profile }, initData) {
     }
   });
 
+  const language = await preferredLanguage(
+    service,
+    profile.id,
+    telegramUser.language_code
+  );
+
   await sendTelegramMessage({
     chatId: telegramUser.id,
     text: [
-      "✅ <b>Tiny POS connected</b>",
+      `✅ <b>${tg(language, "connected_pos_title")}</b>`,
       "",
-      `User: ${profile.full_name}`,
-      `Role: ${profile.role}`,
-      `Branch: ${profile.branches?.name || "Assigned branch"}`,
+      tg(language, "user", {
+        value: profile.full_name
+      }),
+      tg(language, "role", {
+        value: profile.role
+      }),
+      tg(language, "branch", {
+        value: profile.branches?.name
+          || tg(language, "assigned_branch")
+      }),
       "",
-      "Relevant Telegram alerts will follow your personal notification settings."
+      language === "km"
+        ? "ការជូនដំណឹង Telegram ដែលពាក់ព័ន្ធ នឹងអនុវត្តតាមការកំណត់ផ្ទាល់ខ្លួនរបស់អ្នក។"
+        : "Relevant Telegram alerts will follow your personal notification settings."
     ].join("\n"),
-    path: "/dashboard"
+    path: "/dashboard",
+    buttonText: tg(language, "open_pos")
   });
 
   return link;
@@ -189,19 +225,19 @@ async function setupBot(service, profile) {
   const menu = await telegramApi("setChatMenuButton", {
     menu_button: {
       type: "web_app",
-      text: "Open Tiny POS",
+      text: "Open Tiny POS · បើក Tiny POS",
       web_app: { url: appUrl }
     }
   });
 
   const commands = await telegramApi("setMyCommands", {
     commands: [
-      { command: "start", description: "Open Tiny POS" },
-      { command: "pos", description: "Open the Mini App" },
-      { command: "status", description: "Show linked POS account" },
-      { command: "link", description: "Link with a one-time code" },
-      { command: "unlink", description: "Disconnect Telegram" },
-      { command: "help", description: "Show bot help" }
+      { command: "start", description: "Open Tiny POS / បើក Tiny POS" },
+      { command: "pos", description: "Open Mini App / បើក Mini App" },
+      { command: "status", description: "Linked account / គណនីបានភ្ជាប់" },
+      { command: "link", description: "Link code / កូដភ្ជាប់" },
+      { command: "unlink", description: "Disconnect / ផ្តាច់" },
+      { command: "help", description: "Help / ជំនួយ" }
     ]
   });
 
@@ -268,16 +304,32 @@ export default async (request) => {
         );
       }
 
+      const language = await preferredLanguage(
+        context.service,
+        context.profile.id,
+        link.language_code
+      );
+
       const sent = await sendTelegramMessage({
         chatId: link.chat_id,
-        text: [
-          "🧪 <b>Tiny POS test message</b>",
-          "",
-          `Hello ${context.profile.full_name}.`,
-          "Your Telegram connection is working."
-        ].join("\n"),
+        text: language === "km"
+          ? [
+              "🧪 <b>សារសាកល្បង Tiny POS</b>",
+              "",
+              `សួស្តី ${context.profile.full_name}។`,
+              "ការភ្ជាប់ Telegram របស់អ្នកដំណើរការល្អ។"
+            ].join("\n")
+          : [
+              "🧪 <b>Tiny POS test message</b>",
+              "",
+              `Hello ${context.profile.full_name}.`,
+              "Your Telegram connection is working."
+            ].join("\n"),
         path: "/telegram",
-        buttonText: "Notification settings"
+        buttonText: tg(
+          language,
+          "notification_settings"
+        )
       });
 
       return json({ ok: true, message_id: sent.message_id });

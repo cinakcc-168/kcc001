@@ -4,6 +4,10 @@ import {
   sendTelegramMessage,
   serviceClient
 } from "./_telegram-shared.mjs";
+import {
+  tg,
+  telegramLanguage
+} from "./_telegram-i18n.mjs";
 
 export const config = {
   schedule: "*/15 * * * *"
@@ -191,7 +195,7 @@ async function deliver(service, link, event) {
       chatId: link.chat_id,
       text: event.text,
       path: event.path,
-      buttonText: event.buttonText || "Open Tiny POS"
+      buttonText: event.buttonText || tg(event.language, "open_pos")
     });
 
     await service
@@ -247,7 +251,7 @@ async function activeBranchIds(service, link, profile, preferences) {
       : [];
 }
 
-async function buildSummary(service, link, branchIds, context, scopeName) {
+async function buildSummary(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
 
   const [salesResult, returnsResult] = await Promise.all([
@@ -287,22 +291,35 @@ async function buildSummary(service, link, branchIds, context, scopeName) {
     type: "summary",
     key: `summary:${context.date}:${scopeName}`,
     path: "/dashboard",
-    buttonText: "Open Dashboard",
+    language,
+    buttonText: tg(language, "open_dashboard"),
     text: [
-      `📊 <b>Daily sales summary · ${escapeHtml(scopeName)}</b>`,
+      `📊 <b>${tg(language, "summary_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Transactions: ${(salesResult.data || []).length}`,
-      `Net USD: ${money(totals.USD - refunds.USD, "USD")}`,
-      `Net KHR: ${money(totals.KHR - refunds.KHR, "KHR")}`,
-      `Refunds: ${(returnsResult.data || []).length}`,
+      tg(language, "transactions", {
+        count: (salesResult.data || []).length
+      }),
+      tg(language, "net_usd", {
+        amount: money(totals.USD - refunds.USD, "USD")
+      }),
+      tg(language, "net_khr", {
+        amount: money(totals.KHR - refunds.KHR, "KHR")
+      }),
+      tg(language, "refunds", {
+        count: (returnsResult.data || []).length
+      }),
       "",
-      `Business date: ${context.date}`
+      tg(language, "business_date", {
+        date: context.date
+      })
     ].join("\n"),
     payload: { totals, refunds }
   };
 }
 
-async function buildStock(service, link, branchIds, context, scopeName, settings) {
+async function buildStock(service, link, branchIds, context, scopeName, settings, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
     .from("inventory_balances")
@@ -345,20 +362,23 @@ async function buildStock(service, link, branchIds, context, scopeName, settings
     type: "stock",
     key: `stock:${context.date}:${scopeName}`,
     path: "/reorder",
-    buttonText: "Open Reorder Planner",
+    language,
+    buttonText: tg(language, "open_reorder"),
     text: [
-      `⚠️ <b>Stock alert · ${escapeHtml(scopeName)}</b>`,
+      `⚠️ <b>${tg(language, "stock_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Out of stock: ${out}`,
-      `Low stock: ${low}`,
+      tg(language, "out_stock", { count: out }),
+      tg(language, "low_stock", { count: low }),
       "",
-      "Review the Reorder Planner before the next purchase."
+      tg(language, "stock_help")
     ].join("\n"),
     payload: { out_of_stock: out, low_stock: low }
   };
 }
 
-async function buildCredit(service, link, branchIds, context, scopeName) {
+async function buildCredit(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
     .from("sales")
@@ -384,19 +404,26 @@ async function buildCredit(service, link, branchIds, context, scopeName) {
     type: "credit",
     key: `credit:${context.date}:${scopeName}`,
     path: "/credit-accounts",
-    buttonText: "Open Credit Accounts",
+    language,
+    buttonText: tg(language, "open_credit"),
     text: [
-      `⏰ <b>Overdue customer credit · ${escapeHtml(scopeName)}</b>`,
+      `⏰ <b>${tg(language, "credit_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Overdue invoices: ${data.length}`,
-      `Outstanding USD: ${money(due.USD, "USD")}`,
-      `Outstanding KHR: ${money(due.KHR, "KHR")}`
+      tg(language, "overdue_invoices", { count: data.length }),
+      tg(language, "outstanding_usd", {
+        amount: money(due.USD, "USD")
+      }),
+      tg(language, "outstanding_khr", {
+        amount: money(due.KHR, "KHR")
+      })
     ].join("\n"),
     payload: { count: data.length, due }
   };
 }
 
-async function buildSupplier(service, link, branchIds, context, scopeName) {
+async function buildSupplier(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
     .from("purchases")
@@ -418,18 +445,21 @@ async function buildSupplier(service, link, branchIds, context, scopeName) {
     type: "supplier",
     key: `supplier:${context.date}:${scopeName}`,
     path: "/supplier-payables",
-    buttonText: "Open Supplier Payables",
+    language,
+    buttonText: tg(language, "open_payables"),
     text: [
-      `🧾 <b>Supplier balances due · ${escapeHtml(scopeName)}</b>`,
+      `🧾 <b>${tg(language, "supplier_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Due or overdue purchase orders: ${rows.length}`,
-      "Open Supplier Payables for return-credit-adjusted balances and aging."
+      tg(language, "due_purchase_orders", { count: rows.length }),
+      tg(language, "supplier_help")
     ].join("\n"),
     payload: { count: rows.length }
   };
 }
 
-async function buildPurchase(service, link, branchIds, context, scopeName) {
+async function buildPurchase(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
     .from("purchases")
@@ -446,18 +476,21 @@ async function buildPurchase(service, link, branchIds, context, scopeName) {
     type: "purchase",
     key: `purchase:${context.date}:${scopeName}`,
     path: "/purchase-orders",
-    buttonText: "Open Purchase Orders",
+    language,
+    buttonText: tg(language, "open_purchases"),
     text: [
-      `📦 <b>Overdue purchase deliveries · ${escapeHtml(scopeName)}</b>`,
+      `📦 <b>${tg(language, "purchase_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Orders past expected date: ${data.length}`,
-      "Review ordered and partially received purchase orders."
+      tg(language, "orders_past_date", { count: data.length }),
+      tg(language, "purchase_help")
     ].join("\n"),
     payload: { count: data.length }
   };
 }
 
-async function buildTransfer(service, link, branchIds, context, scopeName) {
+async function buildTransfer(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
     .from("stock_transfers")
@@ -482,18 +515,21 @@ async function buildTransfer(service, link, branchIds, context, scopeName) {
     type: "transfer",
     key: `transfer:${context.date}:${scopeName}`,
     path: "/transfers",
-    buttonText: "Open Stock Transfers",
+    language,
+    buttonText: tg(language, "open_transfers"),
     text: [
-      `🚚 <b>Pending stock transfers · ${escapeHtml(scopeName)}</b>`,
+      `🚚 <b>${tg(language, "transfer_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Inbound waiting: ${inbound}`,
-      `Outbound in transit: ${outbound}`
+      tg(language, "inbound_waiting", { count: inbound }),
+      tg(language, "outbound_transit", { count: outbound })
     ].join("\n"),
     payload: { inbound, outbound }
   };
 }
 
-async function buildQuotation(service, link, branchIds, context, scopeName) {
+async function buildQuotation(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const soon = new Date(`${context.date}T00:00:00.000Z`);
   soon.setUTCDate(soon.getUTCDate() + 2);
@@ -515,18 +551,21 @@ async function buildQuotation(service, link, branchIds, context, scopeName) {
     type: "quotation",
     key: `quotation:${context.date}:${scopeName}`,
     path: "/quotes",
-    buttonText: "Open Quotations",
+    language,
+    buttonText: tg(language, "open_quotes"),
     text: [
-      `📄 <b>Quotations expiring soon · ${escapeHtml(scopeName)}</b>`,
+      `📄 <b>${tg(language, "quote_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Expiring within 2 days: ${data.length}`,
-      "Contact customers or create updated quotations before expiry."
+      tg(language, "quote_expiring", { count: data.length }),
+      tg(language, "quote_help")
     ].join("\n"),
     payload: { count: data.length }
   };
 }
 
-async function buildRegister(service, link, branchIds, context, scopeName) {
+async function buildRegister(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
     .from("cash_register_sessions")
@@ -554,12 +593,15 @@ async function buildRegister(service, link, branchIds, context, scopeName) {
     type: "register",
     key: `register:${context.date}:${scopeName}`,
     path: "/cash-register",
-    buttonText: "Open Cash Register",
+    language,
+    buttonText: tg(language, "open_register"),
     text: [
-      `💵 <b>Cash register attention · ${escapeHtml(scopeName)}</b>`,
+      `💵 <b>${tg(language, "register_title", {
+        scope: escapeHtml(scopeName)
+      })}</b>`,
       "",
-      `Open longer than 14 hours: ${longOpen.length}`,
-      `Closed with a variance today: ${variances.length}`
+      tg(language, "register_long", { count: longOpen.length }),
+      tg(language, "register_variance", { count: variances.length })
     ].join("\n"),
     payload: {
       long_open: longOpen.length,
@@ -571,7 +613,8 @@ async function buildRegister(service, link, branchIds, context, scopeName) {
 async function buildApprovals(
   service,
   link,
-  branchIds
+  branchIds,
+  language
 ) {
   const ids = branchIds.map(
     (branch) => branch.id
@@ -617,31 +660,38 @@ async function buildApprovals(
     type: "approval",
     key: `approval:${request.id}`,
     path: "/access-control?tab=approvals",
-    buttonText: "Review Approval",
+    language,
+    buttonText: tg(language, "review_approval"),
     text: [
-      "🛡️ <b>POS approval required</b>",
+      `🛡️ <b>${tg(language, "approval_title")}</b>`,
       "",
       escapeHtml(request.action_summary),
       request.amount !== null
         && request.currency
-        ? `Amount: ${money(
-            request.amount,
-            request.currency
-          )}`
+        ? tg(language, "amount", {
+            amount: money(
+              request.amount,
+              request.currency
+            )
+          })
         : null,
-      `Requested by: ${escapeHtml(
-        request.profiles?.full_name
-        || "POS user"
-      )}`,
-      `Expires: ${new Intl.DateTimeFormat(
-        "en-US",
-        {
-          dateStyle: "medium",
-          timeStyle: "short"
-        }
-      ).format(
-        new Date(request.expires_at)
-      )}`
+      tg(language, "requested_by", {
+        name: escapeHtml(
+          request.profiles?.full_name
+          || "POS user"
+        )
+      }),
+      tg(language, "expires", {
+        date: new Intl.DateTimeFormat(
+          language === "km" ? "km-KH" : "en-US",
+          {
+            dateStyle: "medium",
+            timeStyle: "short"
+          }
+        ).format(
+          new Date(request.expires_at)
+        )
+      })
     ]
       .filter(Boolean)
       .join("\n"),
@@ -696,6 +746,29 @@ export default async () => {
     );
 
     const {
+      data: userPreferenceRows,
+      error: userPreferenceError
+    } = userIds.length
+      ? await service
+          .from("user_preferences")
+          .select("user_id,language")
+          .in("user_id", userIds)
+      : { data: [], error: null };
+
+    if (userPreferenceError) {
+      throw userPreferenceError;
+    }
+
+    const userLanguageMap = new Map(
+      (userPreferenceRows || []).map(
+        (row) => [
+          row.user_id,
+          telegramLanguage(row.language)
+        ]
+      )
+    );
+
+    const {
       data: approvalOverrideRows,
       error: approvalOverrideError
     } = userIds.length
@@ -732,17 +805,32 @@ export default async () => {
 
       if (!profile || !preferences) continue;
 
+      let language = telegramLanguage(
+        userLanguageMap.get(link.user_id)
+        || link.language_code
+        || "en"
+      );
+
       let settings = settingsCache.get(link.organization_id);
       if (!settings) {
         const { data, error } = await service
           .from("app_settings")
-          .select("timezone,low_stock_threshold")
+          .select("timezone,low_stock_threshold,default_language")
           .eq("organization_id", link.organization_id)
           .single();
 
         if (error) throw error;
         settings = data;
         settingsCache.set(link.organization_id, settings);
+      }
+
+      if (
+        !userLanguageMap.has(link.user_id)
+        && !link.language_code
+      ) {
+        language = telegramLanguage(
+          settings.default_language
+        );
       }
 
       const timeZone = settings.timezone || "Asia/Phnom_Penh";
@@ -760,8 +848,9 @@ export default async () => {
       if (!branches.length) continue;
 
       const scopeName = branches.length > 1
-        ? "All branches"
-        : branches[0].name || "Current branch";
+        ? tg(language, "all_branches")
+        : branches[0].name
+          || tg(language, "current_branch");
 
       const builders = [];
 
@@ -771,43 +860,49 @@ export default async () => {
         && context.hour === Number(preferences.daily_summary_hour)
       ) {
         builders.push(() => buildSummary(
-          service, link, branches, context, scopeName
+          service, link, branches, context, scopeName, language
         ));
       }
 
       if (preferences.stock_alerts && canReceive(profile.role, "stock")) {
         builders.push(() => buildStock(
-          service, link, branches, context, scopeName, settings
+          service, link, branches, context, scopeName, settings, language
         ));
       }
 
       if (preferences.credit_alerts && canReceive(profile.role, "credit")) {
         builders.push(() => buildCredit(
-          service, link, branches, context, scopeName
+          service, link, branches, context, scopeName, language
         ));
       }
 
       if (preferences.supplier_alerts && canReceive(profile.role, "supplier")) {
         builders.push(() => buildSupplier(
-          service, link, branches, context, scopeName
+          service, link, branches, context, scopeName, language
         ));
       }
 
       if (preferences.purchase_alerts && canReceive(profile.role, "purchase")) {
         builders.push(() => buildPurchase(
-          service, link, branches, context, scopeName
+          service, link, branches, context, scopeName, language
         ));
       }
 
       if (preferences.transfer_alerts && canReceive(profile.role, "transfer")) {
         builders.push(() => buildTransfer(
-          service, link, branches, context, scopeName
+          service, link, branches, context, scopeName, language
         ));
       }
 
       if (preferences.quotation_alerts && canReceive(profile.role, "quotation")) {
         builders.push(() => buildQuotation(
-          service, link, branches, context, scopeName
+          service, link, branches, context, scopeName, language
+        ));
+      }
+
+      if (preferences.register_alerts && canReceive(profile.role, "register")) {
+        builders.push(() => buildRegister(
+          service, link, branches, context, scopeName, language
         ));
       }
 
@@ -829,7 +924,8 @@ export default async () => {
           buildApprovals(
             service,
             link,
-            branches
+            branches,
+            language
           )
         );
       }

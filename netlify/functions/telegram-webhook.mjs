@@ -1,21 +1,48 @@
 import {
-  appKeyboard,
   escapeHtml,
   hashLinkCode,
   json,
-  miniAppUrl,
   sendTelegramMessage,
   serviceClient
 } from "./_telegram-shared.mjs";
+import {
+  tg,
+  telegramLanguage
+} from "./_telegram-i18n.mjs";
 
 function commandParts(text) {
   const trimmed = String(text || "").trim();
   const [first = "", ...rest] = trimmed.split(/\s+/);
   const command = first.split("@")[0].toLowerCase();
-  return { command, argument: rest.join(" ").trim() };
+  return {
+    command,
+    argument: rest.join(" ").trim()
+  };
 }
 
-async function linkedProfile(service, telegramUserId) {
+async function userLanguage(
+  service,
+  userId,
+  fallback = "en"
+) {
+  if (!userId) return telegramLanguage(fallback);
+
+  const { data } = await service
+    .from("user_preferences")
+    .select("language")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return telegramLanguage(
+    data?.language || fallback
+  );
+}
+
+async function linkedProfile(
+  service,
+  telegramUserId,
+  fallbackLanguage = "en"
+) {
   const { data, error } = await service
     .from("telegram_user_links")
     .select(`
@@ -34,152 +61,298 @@ async function linkedProfile(service, telegramUserId) {
     .maybeSingle();
 
   if (error) throw error;
-  return data || null;
+  if (!data) return null;
+
+  return {
+    ...data,
+    language: await userLanguage(
+      service,
+      data.user_id,
+      data.language_code || fallbackLanguage
+    )
+  };
 }
 
-async function claimCode(service, code, message) {
+async function claimCode(
+  service,
+  code,
+  message,
+  fallbackLanguage
+) {
+  const language = telegramLanguage(
+    fallbackLanguage
+  );
+
   const normalized = String(code || "")
     .trim()
     .replace(/^link_/i, "")
     .toUpperCase();
 
   if (!/^[A-F0-9]{8}$/.test(normalized)) {
-    throw new Error("The link code must contain 8 letters or numbers.");
-  }
-
-  const { data: linkCode, error: codeError } = await service
-    .from("telegram_link_codes")
-    .select("*")
-    .eq("code_hash", hashLinkCode(normalized))
-    .is("used_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .maybeSingle();
-
-  if (codeError) throw codeError;
-  if (!linkCode) {
-    throw new Error("This link code is invalid or expired.");
-  }
-
-  const { data: profile, error: profileError } = await service
-    .from("profiles")
-    .select("*,branches(id,name,code)")
-    .eq("id", linkCode.user_id)
-    .eq("is_active", true)
-    .single();
-
-  if (profileError || !profile) {
-    throw new Error("The POS user is inactive or missing.");
-  }
-
-  const { data: collision, error: collisionError } = await service
-    .from("telegram_user_links")
-    .select("id,user_id")
-    .eq("organization_id", profile.organization_id)
-    .eq("telegram_user_id", message.from.id)
-    .neq("user_id", profile.id)
-    .maybeSingle();
-
-  if (collisionError) throw collisionError;
-  if (collision) {
     throw new Error(
-      "This Telegram account is already connected to another POS user."
+      tg(language, "invalid_code_format")
     );
   }
 
-  const { data: link, error: linkError } = await service
-    .from("telegram_user_links")
-    .upsert({
-      organization_id: profile.organization_id,
-      user_id: profile.id,
-      telegram_user_id: message.from.id,
-      chat_id: message.chat.id,
-      username: message.from.username || null,
-      first_name: message.from.first_name || null,
-      last_name: message.from.last_name || null,
-      language_code: message.from.language_code || null,
-      is_active: true,
-      linked_at: new Date().toISOString(),
-      last_seen_at: new Date().toISOString()
-    }, { onConflict: "user_id" })
-    .select()
-    .single();
+  const { data: linkCode, error: codeError } =
+    await service
+      .from("telegram_link_codes")
+      .select("*")
+      .eq(
+        "code_hash",
+        hashLinkCode(normalized)
+      )
+      .is("used_at", null)
+      .gt(
+        "expires_at",
+        new Date().toISOString()
+      )
+      .maybeSingle();
+
+  if (codeError) throw codeError;
+
+  if (!linkCode) {
+    throw new Error(
+      tg(language, "invalid_code")
+    );
+  }
+
+  const { data: profile, error: profileError } =
+    await service
+      .from("profiles")
+      .select("*,branches(id,name,code)")
+      .eq("id", linkCode.user_id)
+      .eq("is_active", true)
+      .single();
+
+  if (profileError || !profile) {
+    throw new Error(
+      tg(language, "inactive_user")
+    );
+  }
+
+  const preferredLanguage = await userLanguage(
+    service,
+    profile.id,
+    fallbackLanguage
+  );
+
+  const { data: collision, error: collisionError } =
+    await service
+      .from("telegram_user_links")
+      .select("id,user_id")
+      .eq(
+        "organization_id",
+        profile.organization_id
+      )
+      .eq(
+        "telegram_user_id",
+        message.from.id
+      )
+      .neq("user_id", profile.id)
+      .maybeSingle();
+
+  if (collisionError) throw collisionError;
+
+  if (collision) {
+    throw new Error(
+      preferredLanguage === "km"
+        ? "គណនី Telegram នេះបានភ្ជាប់ជាមួយអ្នកប្រើ POS ផ្សេងរួចហើយ។"
+        : "This Telegram account is already connected to another POS user."
+    );
+  }
+
+  const { data: link, error: linkError } =
+    await service
+      .from("telegram_user_links")
+      .upsert({
+        organization_id:
+          profile.organization_id,
+        user_id: profile.id,
+        telegram_user_id: message.from.id,
+        chat_id: message.chat.id,
+        username:
+          message.from.username || null,
+        first_name:
+          message.from.first_name || null,
+        last_name:
+          message.from.last_name || null,
+        language_code:
+          message.from.language_code || null,
+        is_active: true,
+        linked_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString()
+      }, {
+        onConflict: "user_id"
+      })
+      .select()
+      .single();
 
   if (linkError) throw linkError;
 
   await service
     .from("telegram_link_codes")
-    .update({ used_at: new Date().toISOString() })
+    .update({
+      used_at: new Date().toISOString()
+    })
     .eq("id", linkCode.id);
 
-  await service.from("audit_logs").insert({
-    organization_id: profile.organization_id,
-    branch_id: profile.branch_id,
-    user_id: profile.id,
-    action: "link_telegram_code",
-    entity_type: "telegram_user_link",
-    entity_id: link.id,
-    new_data: {
-      telegram_user_id: message.from.id,
-      username: message.from.username || null
-    }
-  });
+  await service
+    .from("audit_logs")
+    .insert({
+      organization_id:
+        profile.organization_id,
+      branch_id: profile.branch_id,
+      user_id: profile.id,
+      action: "link_telegram_code",
+      entity_type: "telegram_user_link",
+      entity_id: link.id,
+      new_data: {
+        telegram_user_id: message.from.id,
+        username:
+          message.from.username || null
+      }
+    });
 
-  return { profile, link };
+  return {
+    profile,
+    link,
+    language: preferredLanguage
+  };
 }
 
-async function welcome(chatId, linked) {
+function linkedAccountText(
+  language,
+  titleKey,
+  profile,
+  includeHelp = false
+) {
+  return [
+    `✅ <b>${tg(language, titleKey)}</b>`,
+    "",
+    tg(language, "user", {
+      value: escapeHtml(profile.full_name)
+    }),
+    tg(language, "role", {
+      value: escapeHtml(profile.role)
+    }),
+    tg(language, "branch", {
+      value: escapeHtml(
+        profile.branches?.name
+        || tg(language, "assigned_branch")
+      )
+    }),
+    includeHelp ? "" : null,
+    includeHelp
+      ? tg(language, "alert_settings_help")
+      : null
+  ]
+    .filter((value) => value !== null)
+    .join("\n");
+}
+
+async function welcome(
+  chatId,
+  linked,
+  fallbackLanguage
+) {
+  const language = telegramLanguage(
+    linked?.language || fallbackLanguage
+  );
+
   if (linked) {
     const profile = linked.profiles;
+
     await sendTelegramMessage({
       chatId,
       text: [
-        "👋 <b>Welcome to Tiny POS</b>",
+        language === "km"
+          ? "👋 <b>សូមស្វាគមន៍មកកាន់ Tiny POS</b>"
+          : "👋 <b>Welcome to Tiny POS</b>",
         "",
-        `Connected user: ${escapeHtml(profile.full_name)}`,
-        `Role: ${escapeHtml(profile.role)}`,
-        `Branch: ${escapeHtml(profile.branches?.name || "Assigned branch")}`,
+        language === "km"
+          ? `អ្នកប្រើដែលបានភ្ជាប់៖ ${escapeHtml(profile.full_name)}`
+          : `Connected user: ${escapeHtml(profile.full_name)}`,
+        tg(language, "role", {
+          value: escapeHtml(profile.role)
+        }),
+        tg(language, "branch", {
+          value: escapeHtml(
+            profile.branches?.name
+            || tg(language, "assigned_branch")
+          )
+        }),
         "",
-        "Use the button below to open the POS Mini App."
+        language === "km"
+          ? "ប្រើប៊ូតុងខាងក្រោម ដើម្បីបើក POS Mini App។"
+          : "Use the button below to open the POS Mini App."
       ].join("\n"),
-      path: "/dashboard"
+      path: "/dashboard",
+      buttonText: tg(language, "open_pos")
     });
+
     return;
   }
 
   await sendTelegramMessage({
     chatId,
-    text: [
-      "👋 <b>Welcome to Tiny POS</b>",
-      "",
-      "Open the Mini App and sign in with your POS account.",
-      "Then open Telegram Settings inside Tiny POS and connect this Telegram account.",
-      "",
-      "You may also create a one-time code in Tiny POS and send:",
-      "<code>/link YOUR_CODE</code>"
-    ].join("\n"),
-    path: "/login"
+    text: language === "km"
+      ? [
+          "👋 <b>សូមស្វាគមន៍មកកាន់ Tiny POS</b>",
+          "",
+          "បើក Mini App ហើយចូលដោយគណនី POS របស់អ្នក។",
+          "បន្ទាប់មកបើកការកំណត់ Telegram ក្នុង Tiny POS ហើយភ្ជាប់គណនី Telegram នេះ។",
+          "",
+          "អ្នកក៏អាចបង្កើតកូដប្រើម្ដងក្នុង Tiny POS ហើយផ្ញើ៖",
+          "<code>/link YOUR_CODE</code>"
+        ].join("\n")
+      : [
+          "👋 <b>Welcome to Tiny POS</b>",
+          "",
+          "Open the Mini App and sign in with your POS account.",
+          "Then open Telegram Settings inside Tiny POS and connect this Telegram account.",
+          "",
+          "You may also create a one-time code in Tiny POS and send:",
+          "<code>/link YOUR_CODE</code>"
+        ].join("\n"),
+    path: "/login",
+    buttonText: tg(language, "open_pos")
   });
 }
 
 export default async (request) => {
   if (request.method !== "POST") {
-    return json({ ok: false, error: "Method not allowed." }, 405);
+    return json({
+      ok: false,
+      error: "Method not allowed."
+    }, 405);
   }
 
-  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET || "";
+  const expectedSecret =
+    process.env.TELEGRAM_WEBHOOK_SECRET || "";
+
   const receivedSecret = request.headers.get(
     "x-telegram-bot-api-secret-token"
   ) || "";
 
-  if (!expectedSecret || receivedSecret !== expectedSecret) {
-    return json({ ok: false, error: "Invalid webhook secret." }, 401);
+  if (
+    !expectedSecret
+    || receivedSecret !== expectedSecret
+  ) {
+    return json({
+      ok: false,
+      error: "Invalid webhook secret."
+    }, 401);
   }
 
   try {
     const update = await request.json();
     const message = update.message;
 
-    if (!message?.from?.id || !message?.chat?.id) {
+    if (
+      !message?.from?.id
+      || !message?.chat?.id
+    ) {
       return json({ ok: true, ignored: true });
     }
 
@@ -187,84 +360,137 @@ export default async (request) => {
       return json({ ok: true, ignored: true });
     }
 
+    const fallbackLanguage = telegramLanguage(
+      message.from.language_code
+    );
+
     const service = serviceClient();
     const text = String(message.text || "");
-    const { command, argument } = commandParts(text);
-    let linked = await linkedProfile(service, message.from.id);
+    const { command, argument } =
+      commandParts(text);
+
+    let linked = await linkedProfile(
+      service,
+      message.from.id,
+      fallbackLanguage
+    );
 
     if (linked) {
       await service
         .from("telegram_user_links")
         .update({
           chat_id: message.chat.id,
-          username: message.from.username || null,
-          first_name: message.from.first_name || null,
-          last_name: message.from.last_name || null,
-          language_code: message.from.language_code || null,
-          last_seen_at: new Date().toISOString()
+          username:
+            message.from.username || null,
+          first_name:
+            message.from.first_name || null,
+          last_name:
+            message.from.last_name || null,
+          language_code:
+            message.from.language_code || null,
+          last_seen_at:
+            new Date().toISOString()
         })
         .eq("id", linked.id);
     }
 
+    const language = telegramLanguage(
+      linked?.language || fallbackLanguage
+    );
+
     if (command === "/start") {
-      const payload = argument.replace(/^link_/i, "");
+      const payload = argument.replace(
+        /^link_/i,
+        ""
+      );
 
       if (payload) {
         try {
-          const result = await claimCode(service, payload, message);
-          linked = await linkedProfile(service, message.from.id);
+          const result = await claimCode(
+            service,
+            payload,
+            message,
+            language
+          );
+
+          linked = await linkedProfile(
+            service,
+            message.from.id,
+            result.language
+          );
 
           await sendTelegramMessage({
             chatId: message.chat.id,
-            text: [
-              "✅ <b>Telegram connected</b>",
-              "",
-              `User: ${escapeHtml(result.profile.full_name)}`,
-              `Role: ${escapeHtml(result.profile.role)}`,
-              `Branch: ${escapeHtml(result.profile.branches?.name || "Assigned branch")}`,
-              "",
-              "You will receive only the alert categories enabled in your POS Telegram settings."
-            ].join("\n"),
+            text: linkedAccountText(
+              result.language,
+              "connected_title",
+              result.profile,
+              true
+            ),
             path: "/telegram",
-            buttonText: "Notification settings"
+            buttonText: tg(
+              result.language,
+              "notification_settings"
+            )
           });
-          return json({ ok: true });
         } catch (error) {
           await sendTelegramMessage({
             chatId: message.chat.id,
             text: `❌ ${escapeHtml(error.message)}`,
             path: "/telegram",
-            buttonText: "Create a new link code"
+            buttonText: tg(
+              language,
+              "create_link_code"
+            )
           });
-          return json({ ok: true });
         }
+
+        return json({ ok: true });
       }
 
-      await welcome(message.chat.id, linked);
+      await welcome(
+        message.chat.id,
+        linked,
+        language
+      );
+
       return json({ ok: true });
     }
 
     if (command === "/link") {
       try {
-        const result = await claimCode(service, argument, message);
+        const result = await claimCode(
+          service,
+          argument,
+          message,
+          language
+        );
+
         await sendTelegramMessage({
           chatId: message.chat.id,
-          text: [
-            "✅ <b>Tiny POS connected</b>",
-            "",
-            `User: ${escapeHtml(result.profile.full_name)}`,
-            `Branch: ${escapeHtml(result.profile.branches?.name || "Assigned branch")}`
-          ].join("\n"),
+          text: linkedAccountText(
+            result.language,
+            "connected_pos_title",
+            result.profile
+          ),
           path: "/telegram",
-          buttonText: "Notification settings"
+          buttonText: tg(
+            result.language,
+            "notification_settings"
+          )
         });
       } catch (error) {
         await sendTelegramMessage({
           chatId: message.chat.id,
           text: `❌ ${escapeHtml(error.message)}`,
-          path: "/telegram"
+          path: "/telegram",
+          buttonText: tg(
+            language,
+            "open_pos"
+          )
         });
       }
+
       return json({ ok: true });
     }
 
@@ -272,9 +498,17 @@ export default async (request) => {
       if (!linked) {
         await sendTelegramMessage({
           chatId: message.chat.id,
-          text: "This Telegram account is not connected to Tiny POS.",
-          path: "/login"
+          text: tg(
+            language,
+            "not_connected"
+          ),
+          path: "/login",
+          buttonText: tg(
+            language,
+            "open_pos"
+          )
         });
+
         return json({ ok: true });
       }
 
@@ -285,9 +519,17 @@ export default async (request) => {
 
       await sendTelegramMessage({
         chatId: message.chat.id,
-        text: "✅ Telegram notifications disconnected from your POS account.",
-        path: "/login"
+        text: `✅ ${tg(
+          language,
+          "disconnected"
+        )}`,
+        path: "/login",
+        buttonText: tg(
+          language,
+          "open_pos"
+        )
       });
+
       return json({ ok: true });
     }
 
@@ -295,49 +537,66 @@ export default async (request) => {
       if (!linked) {
         await sendTelegramMessage({
           chatId: message.chat.id,
-          text: "Not connected. Open Tiny POS and connect Telegram from Settings.",
-          path: "/login"
+          text: tg(language, "connect_help"),
+          path: "/login",
+          buttonText: tg(
+            language,
+            "open_pos"
+          )
         });
+
         return json({ ok: true });
       }
 
-      const profile = linked.profiles;
       await sendTelegramMessage({
         chatId: message.chat.id,
-        text: [
-          "✅ <b>Connected POS account</b>",
-          "",
-          `User: ${escapeHtml(profile.full_name)}`,
-          `Role: ${escapeHtml(profile.role)}`,
-          `Branch: ${escapeHtml(profile.branches?.name || "Assigned branch")}`
-        ].join("\n"),
+        text: linkedAccountText(
+          language,
+          "connected_account",
+          linked.profiles
+        ),
         path: "/telegram",
-        buttonText: "Notification settings"
+        buttonText: tg(
+          language,
+          "notification_settings"
+        )
       });
+
       return json({ ok: true });
     }
 
-    if (["/pos", "/menu", "/help"].includes(command)) {
-      await welcome(message.chat.id, linked);
+    if (
+      ["/pos", "/menu", "/help"]
+        .includes(command)
+    ) {
+      await welcome(
+        message.chat.id,
+        linked,
+        language
+      );
+
       return json({ ok: true });
     }
 
-    await telegramApiFallback(message.chat.id, linked);
+    await sendTelegramMessage({
+      chatId: message.chat.id,
+      text: linked
+        ? tg(language, "linked_help")
+        : tg(language, "unlinked_help"),
+      path: linked ? "/dashboard" : "/login",
+      buttonText: tg(language, "open_pos")
+    });
+
     return json({ ok: true });
   } catch (error) {
-    console.error("Telegram webhook error", error);
-    return json({ ok: true, handled_error: error.message });
+    console.error(
+      "Telegram webhook error",
+      error
+    );
+
+    return json({
+      ok: true,
+      handled_error: error.message
+    });
   }
 };
-
-async function telegramApiFallback(chatId, linked) {
-  const text = linked
-    ? "Use the button below to open Tiny POS, or send /status to check your connection."
-    : "Open Tiny POS and connect your Telegram account, or send /link YOUR_CODE.";
-
-  await sendTelegramMessage({
-    chatId,
-    text,
-    path: linked ? "/dashboard" : "/login"
-  });
-}
