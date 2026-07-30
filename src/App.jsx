@@ -39,6 +39,7 @@ import AccountingPage from "./pages/AccountingPage";
 import PayrollPage from "./pages/PayrollPage";
 import OnlineStorePage from "./pages/OnlineStorePage";
 import PublicStorefrontPage from "./pages/PublicStorefrontPage";
+import OfflineCheckoutPage from "./pages/OfflineCheckoutPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -62,6 +63,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
         <Route path="/sales" element={<PermissionRoute permission="sales.create"><SalesPage /></PermissionRoute>} />
+        <Route path="/offline-checkout" element={<PermissionRoute permission="offline_checkout.use"><OfflineCheckoutPage /></PermissionRoute>} />
         <Route path="/quotes" element={<PermissionRoute permission="quotations.manage"><QuotesPage /></PermissionRoute>} />
         <Route path="/sales-orders" element={<PermissionRoute any={["sales_orders.manage","sales_orders.deliver"]}><SalesOrdersPage /></PermissionRoute>} />
         <Route path="/online-store" element={<PermissionRoute any={["online_store.manage","online_orders.manage","online_orders.fulfill"]}><OnlineStorePage /></PermissionRoute>} />
