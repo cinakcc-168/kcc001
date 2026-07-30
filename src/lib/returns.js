@@ -88,6 +88,9 @@ export async function loadReturnsWorkspace(
       change_amount,
       cost_amount,
       gross_profit,
+      credit_account_id,
+      credit_due_date,
+      credit_amount,
       notes,
       created_at,
       completed_at,
@@ -144,6 +147,8 @@ export async function loadReturnsWorkspace(
       refund_amount,
       refund_method,
       refund_reference,
+      credit_account_id,
+      credit_refund_amount,
       reason,
       processed_by,
       processed_at,
@@ -267,12 +272,18 @@ export async function loadReturnsWorkspace(
 
   return {
     sales: hydratedSales,
-    returns: historyResult.data || []
+    returns: (historyResult.data || []).map((refund) => ({
+      ...refund,
+      refund_method:
+        Number(refund.credit_refund_amount || 0) > 0
+          ? "credit"
+          : refund.refund_method
+    }))
   };
 }
 
 export async function processSaleReturn(supabase, values) {
-  const { data, error } = await supabase.rpc("process_sale_return", {
+  const { data, error } = await supabase.rpc("process_sale_return_v2", {
     p_sale_id: values.sale_id,
     p_items: values.items.map((item) => ({
       sale_item_id: item.sale_item_id,

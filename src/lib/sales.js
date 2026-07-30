@@ -94,7 +94,28 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
         .order("name"),
       supabase
         .from("customers")
-        .select("id,customer_code,customer_type,name,company_name,phone,email,loyalty_points,is_active,created_at")
+        .select(`
+          id,
+          customer_code,
+          customer_type,
+          name,
+          company_name,
+          phone,
+          email,
+          loyalty_points,
+          credit_limit,
+          is_active,
+          created_at,
+          customer_credit_accounts (
+            id,
+            currency,
+            credit_limit,
+            balance_due,
+            payment_terms_days,
+            is_on_hold,
+            last_activity_at
+          )
+        `)
         .eq("organization_id", organizationId)
         .eq("is_active", true)
         .order("name"),
@@ -115,6 +136,9 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           currency,
           total_amount,
           gross_profit,
+          credit_account_id,
+          credit_due_date,
+          credit_amount,
           coupon_code,
           coupon_discount_amount,
           created_at,
@@ -246,6 +270,21 @@ export function exactSaleProductMatch(products, code) {
   return null;
 }
 
+export function creditAccountForCustomer(
+  customer,
+  currency
+) {
+  if (!customer || !currency) return null;
+
+  return (
+    (customer.customer_credit_accounts || [])
+      .find(
+        (account) =>
+          account.currency === currency
+      ) || null
+  );
+}
+
 export async function createCustomer(supabase, profile, values) {
   const { data, error } = await supabase
     .from("customers")
@@ -354,7 +393,7 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v3", {
+  const { data, error } = await supabase.rpc("complete_sale_v4", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       product_unit_id: item.selected_unit_id || null,
