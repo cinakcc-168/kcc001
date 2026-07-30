@@ -52,6 +52,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/customer-campaigns"
+  to = "/.netlify/functions/customer-campaign-admin"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
