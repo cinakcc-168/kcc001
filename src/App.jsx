@@ -34,6 +34,7 @@ import PermissionsPage from "./pages/PermissionsPage";
 import BatchesPage from "./pages/BatchesPage";
 import SalesOrdersPage from "./pages/SalesOrdersPage";
 import SystemHealthPage from "./pages/SystemHealthPage";
+import StaffOperationsPage from "./pages/StaffOperationsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/coupons" element={<PermissionRoute permission="coupons.manage"><CouponsPage /></PermissionRoute>} />
         <Route path="/price-lists" element={<PermissionRoute permission="price_lists.manage"><PriceListsPage /></PermissionRoute>} />
         <Route path="/users" element={<PermissionRoute permission="staff.manage"><UsersPage /></PermissionRoute>} />
+        <Route path="/staff-operations" element={<PermissionRoute any={["staff_operations.self","attendance.manage","commissions.manage"]}><StaffOperationsPage /></PermissionRoute>} />
         <Route path="/reports" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
         <Route path="/cash-expenses" element={<PermissionRoute any={["cash_expenses.manage","cash_expenses.void"]}><CashExpensesPage /></PermissionRoute>} />
         <Route path="/cash-register" element={<PermissionRoute any={["cash_register.use","cash_register.close"]}><CashRegisterPage /></PermissionRoute>} />
