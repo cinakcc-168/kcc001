@@ -21,7 +21,9 @@ const OPTIONAL_TABLES = new Set([
   "sales_quote_items",
   "price_lists",
   "price_list_items",
-  "supplier_payment_batches"
+  "supplier_payment_batches",
+  "purchase_receipts",
+  "purchase_receipt_items"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -53,6 +55,8 @@ const DIRECT_ORG_TABLES = [
   "payments",
   "purchases",
   "purchase_items",
+  "purchase_receipts",
+  "purchase_receipt_items",
   "supplier_payment_batches",
   "purchase_payments",
   "returns",
@@ -98,6 +102,8 @@ const DELETE_ORDER = [
   "supplier_payment_batches",
   "purchase_return_items",
   "purchase_returns",
+  "purchase_receipt_items",
+  "purchase_receipts",
   "purchase_items",
   "purchases",
   "stock_transfer_items",
@@ -151,6 +157,8 @@ const INSERT_ORDER = [
   "cash_entries",
   "purchases",
   "purchase_items",
+  "purchase_receipts",
+  "purchase_receipt_items",
   "supplier_payment_batches",
   "purchase_payments",
   "sales",
@@ -384,7 +392,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 29
+      schema_step: 30
     },
     staff: profiles,
     user_preferences: preferences,
