@@ -4,6 +4,25 @@ export const SUPPORTED_LANGUAGES = [
 ];
 
 const EXACT_KM = {
+  "CRM & Campaigns": "CRM និងយុទ្ធនាការ",
+  "CRM, Loyalty & Campaigns": "CRM ភាពស្មោះត្រង់ និងយុទ្ធនាការ",
+  "CUSTOMER RELATIONSHIPS": "ទំនាក់ទំនងអតិថិជន",
+  "Dynamic customer segments": "ក្រុមអតិថិជនថាមវន្ត",
+  "Telegram customer campaigns": "យុទ្ធនាការ Telegram សម្រាប់អតិថិជន",
+  "Loyalty program": "កម្មវិធីភាពស្មោះត្រង់",
+  "Automatic loyalty earning": "ការទទួលពិន្ទុដោយស្វ័យប្រវត្តិ",
+  "Customer tags": "ស្លាកអតិថិជន",
+  "New segment": "ក្រុមថ្មី",
+  "New campaign": "យុទ្ធនាការថ្មី",
+  "Send now": "ផ្ញើឥឡូវនេះ",
+  "Target segment": "ក្រុមគោលដៅ",
+  "Marketing opt-in": "យល់ព្រមទទួលសារផ្សព្វផ្សាយ",
+  "Telegram opted in": "បានយល់ព្រម Telegram",
+  "Follow-ups due": "ការតាមដានដល់កំណត់",
+  "At risk": "ប្រឈមនឹងការបាត់បង់",
+  "Prospect": "អតិថិជនសក្តានុពល",
+  "Do not contact": "កុំទាក់ទង",
+
   "Offline Checkout": "ការលក់ក្រៅបណ្ដាញ",
   "Offline Checkout Center": "មជ្ឈមណ្ឌលការលក់ក្រៅបណ្ដាញ",
   "SAFE OFFLINE SALES": "ការលក់ក្រៅបណ្ដាញដោយសុវត្ថិភាព",
