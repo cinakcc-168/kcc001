@@ -46,6 +46,13 @@ import {
   saveLocalSaleDraft
 } from "../lib/pwa";
 import {
+  listOfflineSales,
+  loadOfflineCheckoutBundle,
+  offlineBundleExpired,
+  queueOfflineSale,
+  workspaceFromOfflineBundle
+} from "../lib/offlineCheckout";
+import {
   consumeQuoteForSale,
   hydrateQuoteCart,
   saveSalesQuote
@@ -128,6 +135,7 @@ export default function SalesPage() {
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === "undefined" ? true : navigator.onLine
   );
+  const [offlineBundle, setOfflineBundle] = useState(null);
   const draftReadyRef = useRef(false);
   const skipDraftSaveRef = useRef(false);
 
@@ -136,6 +144,25 @@ export default function SalesPage() {
 
     try {
       setLoading(true);
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        const bundle = await loadOfflineCheckoutBundle(profile);
+        if (!bundle || offlineBundleExpired(bundle)) {
+          throw new Error("This device has no valid offline checkout bundle. Reconnect and prepare Offline Checkout first.");
+        }
+        const localSales = await listOfflineSales(profile);
+        const data = workspaceFromOfflineBundle(bundle, localSales);
+        setOfflineBundle(bundle);
+        setPriceCatalogs({ USD: null, KHR: null });
+        setBaseProducts(data.products);
+        setCategories(data.categories);
+        setCustomers(data.customers);
+        setParkedSales([]);
+        setRecentSales([]);
+        setCashRegisterOpen(Boolean(bundle.settings?.cash_register_open));
+        return;
+      }
+
       const [data, registerSummary] = await Promise.all([
         loadSalesWorkspace(
           supabase,
@@ -151,6 +178,7 @@ export default function SalesPage() {
       setParkedSales(data.parkedSales);
       setRecentSales(data.recentSales);
       setCashRegisterOpen(Boolean(registerSummary?.session));
+      setOfflineBundle(await loadOfflineCheckoutBundle(profile));
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -171,7 +199,8 @@ export default function SalesPage() {
 
     function handleOffline() {
       setIsOnline(false);
-      setPaymentOpen(false);
+      setPriceCatalogs({ USD: null, KHR: null });
+      refresh();
     }
 
     window.addEventListener("online", handleOnline);
@@ -189,6 +218,7 @@ export default function SalesPage() {
     if (
       !supabase
       || !profile?.branch_id
+      || !isOnline
     ) {
       return undefined;
     }
@@ -223,7 +253,8 @@ export default function SalesPage() {
   }, [
     supabase,
     profile?.branch_id,
-    customerId
+    customerId,
+    isOnline
   ]);
 
   const products = useMemo(() => {
@@ -1023,11 +1054,76 @@ export default function SalesPage() {
     approvalRequestId = null
   ) {
     if (!isOnline) {
-      setPaymentOpen(false);
-      announce(
-        "error",
-        "Reconnect before completing the payment. The sale draft remains saved on this device."
-      );
+      try {
+        if (!offlineBundle || offlineBundleExpired(offlineBundle)) {
+          throw new Error("Offline Checkout is not prepared or has expired on this device.");
+        }
+        if (activeOrderDelivery || activeQuote || activeParkedId) {
+          throw new Error("Sales Orders, quotations and parked sales must be completed online.");
+        }
+        if (appliedCoupon || couponCode.trim() || discountType !== "none" || Number(discountValue || 0) > 0) {
+          throw new Error("Coupons and manual discounts are online-only.");
+        }
+        if (payment.payment_method === "credit") {
+          throw new Error("Customer credit sales are online-only.");
+        }
+        if (payment.payment_method === "cash" && !offlineBundle.settings?.cash_register_open) {
+          throw new Error("Cash was not enabled when this offline bundle was prepared.");
+        }
+
+        setBusy(true);
+        const queued = await queueOfflineSale(profile, offlineBundle, {
+          items: cart.map((item) => ({
+            product_id: item.id,
+            product_unit_id: item.selected_unit_id || null,
+            quantity: Number(item.quantity || 0)
+          })),
+          customer_id: customerId || null,
+          currency,
+          payment_method: payment.payment_method,
+          amount_received: Number(payment.amount_received || 0),
+          payment_reference: payment.payment_reference || null,
+          notes,
+          subtotal: totals.subtotal,
+          tax_amount: totals.taxAmount,
+          total_amount: totals.total
+        });
+
+        setReceipt({
+          invoiceNumber: queued.local_receipt_number,
+          completedAt: queued.offline_created_at,
+          shopName: shop?.shop_name || "Tiny POS",
+          shopPhone: shop?.shop_phone,
+          shopAddress: shop?.shop_address,
+          footer: `${shop?.receipt_footer || ""} · Pending server synchronization`,
+          cashierName: profile?.full_name || "POS User",
+          customerName: selectedCustomer?.name,
+          customerCode: selectedCustomer?.customer_code,
+          customerType: selectedCustomer?.customer_type,
+          cart: cart.map((item) => ({ ...item })),
+          subtotal: totals.subtotal,
+          discountAmount: 0,
+          taxAmount: totals.taxAmount,
+          totalAmount: totals.total,
+          amountReceived: Number(payment.amount_received || 0),
+          changeAmount: Math.max(0, Number(payment.amount_received || 0) - Number(totals.total || 0)),
+          paymentMethod: payment.payment_method,
+          priceListName: "Offline snapshot",
+          currency,
+          offlinePending: true,
+          offlineSaleId: queued.offline_sale_id
+        });
+
+        setPaymentOpen(false);
+        clearSale();
+        await refresh();
+        announce("success", `${queued.local_receipt_number} saved safely on this device. Synchronize when online.`);
+      } catch (error) {
+        setPaymentOpen(false);
+        announce("error", error.message);
+      } finally {
+        setBusy(false);
+      }
       return;
     }
 
@@ -1266,8 +1362,7 @@ export default function SalesPage() {
         <div className="notice warning offline-sale-warning">
           <WifiOff size={20} />
           <span>
-            Offline mode: the current bill is saved locally on this device.
-            Reconnect before applying coupons, parking, creating customers or paying.
+            Offline checkout: cached products and customers are available. Payments create a pending-sync receipt on this device. Coupons, discounts, credit, new customers, quotations and Sales Order deliveries remain online-only.
           </span>
         </div>
       )}
@@ -1532,6 +1627,7 @@ export default function SalesPage() {
         customerName={selectedCustomer?.name}
         creditAccount={selectedCreditAccount}
         cashRegisterOpen={cashRegisterOpen}
+        offline={!isOnline}
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}
       />
