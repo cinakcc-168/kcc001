@@ -42,6 +42,11 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "branches.all",
     "branches.switch",
     "staff.manage",
+    "staff_operations.self",
+    "attendance.manage",
+    "commissions.view_self",
+    "commissions.manage",
+    "commissions.pay",
     "access.manage",
     "approvals.review",
     "audit_backup.manage",
@@ -89,6 +94,9 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "cash_register.close",
     "reports.view",
     "profit.view",
+    "staff_operations.self",
+    "attendance.manage",
+    "commissions.view_self",
     "approvals.review",
     "telegram.use",
     "settings.view"
@@ -105,6 +113,8 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "credit_accounts.sell",
     "cash_register.use",
     "cash_register.close",
+    "staff_operations.self",
+    "commissions.view_self",
     "telegram.use",
     "settings.view"
   ],
@@ -113,6 +123,7 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "dashboard.view",
     "invoices.view",
     "reports.view",
+    "staff_operations.self",
     "profit.view",
     "telegram.use",
     "settings.view"
