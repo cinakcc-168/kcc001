@@ -548,7 +548,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 41
+      schema_step: 42
     },
     staff: profiles,
     user_preferences: preferences,
