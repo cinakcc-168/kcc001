@@ -240,6 +240,10 @@ async function setupBot(service, profile) {
       { command: "attendance", description: "Attendance status / ស្ថានភាពវត្តមាន" },
       { command: "commission", description: "My commission / កម្រៃជើងសារ" },
       { command: "payslip", description: "My payslip / បង្កាន់ដៃប្រាក់ខែ" },
+      { command: "join", description: "Customer link / ភ្ជាប់អតិថិជន" },
+      { command: "points", description: "Customer points / ពិន្ទុអតិថិជន" },
+      { command: "offers", description: "Customer offers / ការផ្តល់ជូន" },
+      { command: "stop", description: "Stop marketing / បញ្ឈប់ផ្សព្វផ្សាយ" },
       { command: "link", description: "Link code / កូដភ្ជាប់" },
       { command: "unlink", description: "Disconnect / ផ្តាច់" },
       { command: "help", description: "Help / ជំនួយ" }

@@ -80,7 +80,13 @@ const OPTIONAL_TABLES = new Set([
   "online_store_settings",
   "online_orders",
   "online_order_items",
-  "online_order_status_history"
+  "online_order_status_history",
+  "crm_tags",
+  "crm_customer_tags",
+  "crm_segments",
+  "loyalty_program_settings",
+  "customer_contact_logs",
+  "customer_campaigns"
 ]);
 
 const DIRECT_ORG_TABLES = [
@@ -101,14 +107,20 @@ const DIRECT_ORG_TABLES = [
   "categories",
   "suppliers",
   "price_lists",
+  "crm_tags",
+  "crm_segments",
   "customers",
   "customer_counters",
   "customer_loyalty_movements",
+  "crm_customer_tags",
+  "loyalty_program_settings",
+  "customer_contact_logs",
   "customer_credit_accounts",
   "customer_credit_payments",
   "customer_credit_payment_allocations",
   "customer_credit_entries",
   "coupons",
+  "customer_campaigns",
   "coupon_redemptions",
   "products",
   "product_images",
@@ -168,6 +180,12 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "customer_campaigns",
+  "customer_contact_logs",
+  "crm_customer_tags",
+  "loyalty_program_settings",
+  "crm_segments",
+  "crm_tags",
   "online_order_status_history",
   "online_order_items",
   "online_orders",
@@ -548,7 +566,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 42
+      schema_step: 43
     },
     staff: profiles,
     user_preferences: preferences,

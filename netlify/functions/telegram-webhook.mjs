@@ -38,6 +38,44 @@ async function userLanguage(
   );
 }
 
+async function linkedCustomer(
+  service,
+  telegramUserId,
+  fallbackLanguage = "en"
+) {
+  const { data, error } = await service
+    .from("customer_telegram_links")
+    .select(`
+      *,
+      customers!inner(
+        id,
+        organization_id,
+        customer_code,
+        name,
+        loyalty_points,
+        preferred_language,
+        marketing_opt_in,
+        crm_status,
+        is_active
+      )
+    `)
+    .eq("telegram_user_id", telegramUserId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    ...data,
+    language: telegramLanguage(
+      data.customers?.preferred_language
+      || data.language_code
+      || fallbackLanguage
+    )
+  };
+}
+
 async function linkedProfile(
   service,
   telegramUserId,
@@ -221,6 +259,133 @@ async function claimCode(
   };
 }
 
+async function claimCustomerCode(
+  service,
+  code,
+  message,
+  fallbackLanguage
+) {
+  const language = telegramLanguage(fallbackLanguage);
+  const normalized = String(code || "")
+    .trim()
+    .replace(/^customer_/i, "")
+    .toUpperCase();
+
+  if (!/^[A-F0-9]{8}$/.test(normalized)) {
+    throw new Error(language === "km" ? "ទម្រង់កូដអតិថិជនមិនត្រឹមត្រូវ។" : "Invalid customer link code format.");
+  }
+
+  const { data: staffCollision } = await service
+    .from("telegram_user_links")
+    .select("id")
+    .eq("telegram_user_id", message.from.id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (staffCollision) {
+    throw new Error(language === "km" ? "គណនី Telegram នេះបានភ្ជាប់ជាបុគ្គលិក POS រួចហើយ។" : "This Telegram account is already linked as POS staff.");
+  }
+
+  const { data: linkCode, error: codeError } = await service
+    .from("customer_telegram_link_codes")
+    .select("*")
+    .eq("code_hash", hashLinkCode(normalized))
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (codeError) throw codeError;
+  if (!linkCode) throw new Error(language === "km" ? "កូដនេះមិនត្រឹមត្រូវ ឬផុតកំណត់។" : "This customer code is invalid or expired.");
+
+  const { data: customer, error: customerError } = await service
+    .from("customers")
+    .select("id,organization_id,customer_code,name,loyalty_points,preferred_language,marketing_opt_in,is_active")
+    .eq("id", linkCode.customer_id)
+    .eq("is_active", true)
+    .single();
+
+  if (customerError || !customer) throw new Error(language === "km" ? "រកមិនឃើញអតិថិជនសកម្ម។" : "Active customer not found.");
+
+  const { data: collision, error: collisionError } = await service
+    .from("customer_telegram_links")
+    .select("id,customer_id")
+    .eq("organization_id", customer.organization_id)
+    .eq("telegram_user_id", message.from.id)
+    .neq("customer_id", customer.id)
+    .maybeSingle();
+
+  if (collisionError) throw collisionError;
+  if (collision) throw new Error(language === "km" ? "Telegram នេះបានភ្ជាប់ជាមួយអតិថិជនផ្សេងរួចហើយ។" : "This Telegram account is already linked to another customer.");
+
+  const { data: link, error: linkError } = await service
+    .from("customer_telegram_links")
+    .upsert({
+      organization_id: customer.organization_id,
+      customer_id: customer.id,
+      telegram_user_id: message.from.id,
+      chat_id: message.chat.id,
+      username: message.from.username || null,
+      first_name: message.from.first_name || null,
+      last_name: message.from.last_name || null,
+      language_code: message.from.language_code || null,
+      marketing_opt_in: true,
+      is_active: true,
+      linked_at: new Date().toISOString(),
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "customer_id" })
+    .select()
+    .single();
+
+  if (linkError) throw linkError;
+
+  const customerUpdate = {
+    preferred_language: telegramLanguage(customer.preferred_language || fallbackLanguage),
+    marketing_opt_in: true,
+    marketing_opt_in_at: new Date().toISOString(),
+    marketing_opt_out_at: null,
+    updated_at: new Date().toISOString()
+  };
+  if (customer.crm_status === "do_not_contact") customerUpdate.crm_status = "active";
+  await service.from("customers").update(customerUpdate).eq("id", customer.id);
+
+  await service.from("customer_telegram_link_codes").update({ used_at: new Date().toISOString() }).eq("id", linkCode.id);
+
+  return { customer, link, language: telegramLanguage(customer.preferred_language || fallbackLanguage) };
+}
+
+async function customerWelcome(chatId, linked, fallbackLanguage) {
+  const language = telegramLanguage(linked?.language || fallbackLanguage);
+  const customer = linked?.customers;
+  if (!customer) return;
+  const points = Number(customer.loyalty_points || 0).toLocaleString("en-US");
+  await sendTelegramMessage({
+    chatId,
+    withoutButton: true,
+    text: language === "km"
+      ? [
+          `👋 <b>សួស្តី ${escapeHtml(customer.name)}</b>`,
+          "",
+          `លេខអតិថិជន៖ <code>${escapeHtml(customer.customer_code)}</code>`,
+          `ពិន្ទុបច្ចុប្បន្ន៖ <b>${points}</b>`,
+          "",
+          "/points — មើលពិន្ទុ",
+          "/offers — មើលការផ្តល់ជូន",
+          "/stop — ឈប់ទទួលសារផ្សព្វផ្សាយ"
+        ].join("\n")
+      : [
+          `👋 <b>Hello ${escapeHtml(customer.name)}</b>`,
+          "",
+          `Customer code: <code>${escapeHtml(customer.customer_code)}</code>`,
+          `Current points: <b>${points}</b>`,
+          "",
+          "/points — View points",
+          "/offers — View offers",
+          "/stop — Stop marketing messages"
+        ].join("\n")
+  });
+}
+
 function linkedAccountText(
   language,
   titleKey,
@@ -374,6 +539,11 @@ export default async (request) => {
       message.from.id,
       fallbackLanguage
     );
+    let customerLinked = await linkedCustomer(
+      service,
+      message.from.id,
+      fallbackLanguage
+    );
 
     if (linked) {
       await service
@@ -394,11 +564,38 @@ export default async (request) => {
         .eq("id", linked.id);
     }
 
+    if (customerLinked) {
+      await service
+        .from("customer_telegram_links")
+        .update({
+          chat_id: message.chat.id,
+          username: message.from.username || null,
+          first_name: message.from.first_name || null,
+          last_name: message.from.last_name || null,
+          language_code: message.from.language_code || null,
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", customerLinked.id);
+    }
+
     const language = telegramLanguage(
-      linked?.language || fallbackLanguage
+      linked?.language || customerLinked?.language || fallbackLanguage
     );
 
     if (command === "/start") {
+      const customerPayload = argument.match(/^customer_(.+)$/i)?.[1] || "";
+      if (customerPayload) {
+        try {
+          const result = await claimCustomerCode(service, customerPayload, message, language);
+          customerLinked = await linkedCustomer(service, message.from.id, result.language);
+          await customerWelcome(message.chat.id, customerLinked, result.language);
+        } catch (error) {
+          await sendTelegramMessage({ chatId: message.chat.id, text: `❌ ${escapeHtml(error.message)}`, withoutButton: true });
+        }
+        return json({ ok: true });
+      }
+
       const payload = argument.replace(
         /^link_/i,
         ""
@@ -448,12 +645,67 @@ export default async (request) => {
         return json({ ok: true });
       }
 
-      await welcome(
-        message.chat.id,
-        linked,
-        language
-      );
+      if (customerLinked && !linked) {
+        await customerWelcome(message.chat.id, customerLinked, language);
+      } else {
+        await welcome(
+          message.chat.id,
+          linked,
+          language
+        );
+      }
 
+      return json({ ok: true });
+    }
+
+    if (command === "/join") {
+      try {
+        const result = await claimCustomerCode(service, argument, message, language);
+        customerLinked = await linkedCustomer(service, message.from.id, result.language);
+        await customerWelcome(message.chat.id, customerLinked, result.language);
+      } catch (error) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: `❌ ${escapeHtml(error.message)}`, withoutButton: true });
+      }
+      return json({ ok: true });
+    }
+
+    if (["/points", "/offers", "/stop"].includes(command)) {
+      if (!customerLinked) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: language === "km" ? "សូមភ្ជាប់ជាមួយកូដអតិថិជនជាមុន៖ <code>/join CODE</code>" : "Connect with a customer code first: <code>/join CODE</code>", withoutButton: true });
+        return json({ ok: true });
+      }
+      const customer = customerLinked.customers;
+      if (command === "/stop") {
+        await Promise.all([
+          service.from("customer_telegram_links").update({ marketing_opt_in: false, updated_at: new Date().toISOString() }).eq("id", customerLinked.id),
+          service.from("customers").update({ marketing_opt_in: false, marketing_opt_out_at: new Date().toISOString(), crm_status: "do_not_contact", updated_at: new Date().toISOString() }).eq("id", customer.id)
+        ]);
+        await sendTelegramMessage({ chatId: message.chat.id, text: language === "km" ? "✅ អ្នកនឹងមិនទទួលសារផ្សព្វផ្សាយទៀតទេ។ អ្នកនៅតែអាចប្រើ /points បាន។" : "✅ Marketing messages are now stopped. You can still use /points.", withoutButton: true });
+        return json({ ok: true });
+      }
+      if (command === "/points") {
+        const { data: fresh } = await service.from("customers").select("loyalty_points,name,customer_code").eq("id", customer.id).single();
+        await sendTelegramMessage({ chatId: message.chat.id, text: language === "km" ? `🎁 <b>ពិន្ទុរបស់អ្នក</b>\n\n${escapeHtml(fresh.name)} · <code>${escapeHtml(fresh.customer_code)}</code>\nពិន្ទុ៖ <b>${Number(fresh.loyalty_points || 0).toLocaleString("en-US")}</b>` : `🎁 <b>Your loyalty points</b>\n\n${escapeHtml(fresh.name)} · <code>${escapeHtml(fresh.customer_code)}</code>\nPoints: <b>${Number(fresh.loyalty_points || 0).toLocaleString("en-US")}</b>`, withoutButton: true });
+        return json({ ok: true });
+      }
+      const { data: offers, error: offersError } = await service
+        .from("customer_campaign_recipients")
+        .select("sent_at,customer_campaigns(name,title_en,title_km,message_en,message_km,bonus_points,coupons(code,end_at))")
+        .eq("customer_id", customer.id)
+        .eq("status", "sent")
+        .order("sent_at", { ascending: false })
+        .limit(5);
+      if (offersError) throw offersError;
+      const lines = [language === "km" ? "🎟 <b>ការផ្តល់ជូនថ្មីៗ</b>" : "🎟 <b>Recent offers</b>"];
+      for (const row of offers || []) {
+        const campaign = row.customer_campaigns;
+        if (!campaign) continue;
+        lines.push("", `• <b>${escapeHtml(language === "km" ? (campaign.title_km || campaign.title_en) : campaign.title_en)}</b>`);
+        if (campaign.coupons?.code) lines.push(`<code>${escapeHtml(campaign.coupons.code)}</code>`);
+        if (Number(campaign.bonus_points || 0)>0) lines.push(language === "km" ? `ពិន្ទុបន្ថែម៖ ${Number(campaign.bonus_points).toLocaleString("en-US")}` : `Bonus points: ${Number(campaign.bonus_points).toLocaleString("en-US")}`);
+      }
+      if (lines.length === 1) lines.push("", language === "km" ? "មិនមានការផ្តល់ជូនថ្មីទេ។" : "No recent offers.");
+      await sendTelegramMessage({ chatId: message.chat.id, text: lines.join("\n"), withoutButton: true });
       return json({ ok: true });
     }
 
@@ -701,23 +953,31 @@ export default async (request) => {
       ["/pos", "/menu", "/help"]
         .includes(command)
     ) {
-      await welcome(
-        message.chat.id,
-        linked,
-        language
-      );
+      if (customerLinked && !linked) {
+        await customerWelcome(message.chat.id, customerLinked, language);
+      } else {
+        await welcome(
+          message.chat.id,
+          linked,
+          language
+        );
+      }
 
       return json({ ok: true });
     }
 
-    await sendTelegramMessage({
-      chatId: message.chat.id,
-      text: linked
-        ? tg(language, "linked_help")
-        : tg(language, "unlinked_help"),
-      path: linked ? "/dashboard" : "/login",
-      buttonText: tg(language, "open_pos")
-    });
+    if (customerLinked && !linked) {
+      await customerWelcome(message.chat.id, customerLinked, language);
+    } else {
+      await sendTelegramMessage({
+        chatId: message.chat.id,
+        text: linked
+          ? tg(language, "linked_help")
+          : tg(language, "unlinked_help"),
+        path: linked ? "/dashboard" : "/login",
+        buttonText: tg(language, "open_pos")
+      });
+    }
 
     return json({ ok: true });
   } catch (error) {
