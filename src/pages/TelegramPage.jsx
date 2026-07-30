@@ -41,6 +41,7 @@ const preferenceFields = [
   ["transfer_alerts", "Stock transfers", "Pending inbound and outbound transfers"],
   ["quotation_alerts", "Quotations", "Customer quotations expiring soon"],
   ["sales_order_alerts", "Sales orders", "Due and overdue reserved customer deliveries"],
+  ["online_order_alerts", "Online orders", "New customer web orders waiting for review"],
   ["cash_register_alerts", "Cash register", "Long-open registers and closing variances"],
   ["attendance_alerts", "Attendance", "Forgotten check-outs and long-open staff sessions"],
   ["payroll_alerts", "Payroll alerts", "Pending payroll approvals and salary payments"],
