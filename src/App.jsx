@@ -22,6 +22,7 @@ import CashRegisterPage from "./pages/CashRegisterPage";
 import ReorderPage from "./pages/ReorderPage";
 import StockCountsPage from "./pages/StockCountsPage";
 import ImportCenterPage from "./pages/ImportCenterPage";
+import CreditAccountsPage from "./pages/CreditAccountsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/sales" element={<SalesPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/credit-accounts" element={<CreditAccountsPage />} />
         <Route path="/coupons" element={<CouponsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/reports" element={<ReportsPage />} />
