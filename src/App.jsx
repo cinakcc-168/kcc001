@@ -25,6 +25,7 @@ import ImportCenterPage from "./pages/ImportCenterPage";
 import CreditAccountsPage from "./pages/CreditAccountsPage";
 import QuotesPage from "./pages/QuotesPage";
 import PriceListsPage from "./pages/PriceListsPage";
+import InvoicesPage from "./pages/InvoicesPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sales" element={<SalesPage />} />
         <Route path="/quotes" element={<QuotesPage />} />
+        <Route path="/invoices" element={<InvoicesPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/credit-accounts" element={<CreditAccountsPage />} />
