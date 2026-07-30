@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { initializePwa } from "./lib/pwa";
+import TelegramMiniAppBridge from "./components/TelegramMiniAppBridge";
 import "./styles/global.css";
 
 initializePwa();
@@ -14,6 +15,7 @@ ReactDOM.createRoot(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <TelegramMiniAppBridge />
         <App />
       </AuthProvider>
     </BrowserRouter>

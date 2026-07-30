@@ -27,6 +27,7 @@ import QuotesPage from "./pages/QuotesPage";
 import PriceListsPage from "./pages/PriceListsPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import SupplierPayablesPage from "./pages/SupplierPayablesPage";
+import TelegramPage from "./pages/TelegramPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -68,6 +69,7 @@ export default function App() {
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/stock-counts" element={<StockCountsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/telegram" element={<TelegramPage />} />
         <Route path="/admin-tools" element={<AdminToolsPage />} />
         <Route path="/import-center" element={<ImportCenterPage />} />
       </Route>
