@@ -24,6 +24,7 @@ import {
   calculateSaleTotals,
   completeSale,
   createCustomer,
+  creditAccountForCustomer,
   createIdempotencyKey,
   exactSaleProductMatch,
   hydrateParkedCart,
@@ -292,7 +293,13 @@ export default function SalesPage() {
     [cart, discountType, discountValue, shop]
   );
 
-  const selectedCustomer = customers.find((customer) => customer.id === customerId);
+  const selectedCustomer = customers.find(
+    (customer) => customer.id === customerId
+  );
+  const selectedCreditAccount = creditAccountForCustomer(
+    selectedCustomer,
+    currency
+  );
 
   function announce(type, text) {
     setMessageType(type);
@@ -674,9 +681,18 @@ export default function SalesPage() {
         discountAmount: Number(result.discount_amount ?? totals.discountAmount),
         taxAmount: Number(result.tax_amount ?? totals.taxAmount),
         totalAmount: Number(result.total_amount ?? totals.total),
-        amountReceived: Number(payment.amount_received),
+        amountReceived: Number(
+          result.amount_received
+          ?? payment.amount_received
+          ?? 0
+        ),
         changeAmount: Number(result.change_amount || 0),
         paymentMethod: payment.payment_method,
+        creditDueDate: result.credit_due_date || null,
+        creditAmount: Number(result.credit_amount || 0),
+        creditBalanceAfter: Number(
+          result.credit_balance_after || 0
+        ),
         currency
       });
 
@@ -700,7 +716,7 @@ export default function SalesPage() {
         <div>
           <p className="eyebrow">POINT OF SALE</p>
           <h1>New Sale</h1>
-          <p className="muted">Search, tap or scan products, then accept cash or bank payment.</p>
+          <p className="muted">Search, tap or scan products, then accept payment or customer credit.</p>
         </div>
         <div className="heading-actions">
           <button
@@ -819,6 +835,7 @@ export default function SalesPage() {
           cart={cart}
           customers={customers}
           customerId={customerId}
+          creditAccount={selectedCreditAccount}
           onCustomerChange={(value) => {
             invalidateCoupon();
             setCustomerId(value);
@@ -888,7 +905,11 @@ export default function SalesPage() {
                     <td data-label="Invoice"><strong>{sale.invoice_number}</strong></td>
                     <td data-label="Date">{dateTime(sale.completed_at || sale.created_at)}</td>
                     <td data-label="Customer">{sale.customers?.name || "Walk-in"}</td>
-                    <td data-label="Payment">{sale.payments?.[0]?.method?.toUpperCase() || "—"}</td>
+                    <td data-label="Payment">
+                      {sale.credit_account_id
+                        ? "CREDIT"
+                        : sale.payments?.[0]?.method?.toUpperCase() || "—"}
+                    </td>
                     <td data-label="Status"><span className={`status-pill ${sale.status === "completed" ? "active" : "inactive"}`}>{sale.status}</span></td>
                     <td data-label="Total"><strong>{money(sale.total_amount, sale.currency)}</strong></td>
                   </tr>
@@ -912,6 +933,7 @@ export default function SalesPage() {
         totals={totals}
         currency={currency}
         customerName={selectedCustomer?.name}
+        creditAccount={selectedCreditAccount}
         cashRegisterOpen={cashRegisterOpen}
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}

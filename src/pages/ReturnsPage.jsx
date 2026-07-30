@@ -149,13 +149,26 @@ export default function ReturnsPage() {
       discountAmount: Number(sale.discount_amount || 0),
       taxAmount: Number(sale.tax_amount || 0),
       totalAmount: Number(sale.total_amount || 0),
-      amountReceived: Number(
-        payment?.tendered_amount || sale.paid_amount || 0
-      ),
-      changeAmount: Number(
-        payment?.change_amount || sale.change_amount || 0
-      ),
-      paymentMethod: payment?.method || "other",
+      amountReceived: sale.credit_account_id
+        ? 0
+        : Number(
+            payment?.tendered_amount
+            || sale.paid_amount
+            || 0
+          ),
+      changeAmount: sale.credit_account_id
+        ? 0
+        : Number(
+            payment?.change_amount
+            || sale.change_amount
+            || 0
+          ),
+      paymentMethod: sale.credit_account_id
+        ? "credit"
+        : payment?.method || "other",
+      creditDueDate: sale.credit_due_date || null,
+      creditAmount: Number(sale.credit_amount || 0),
+      creditBalanceAfter: null,
       currency: sale.currency
     });
   }
