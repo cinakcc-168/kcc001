@@ -24,7 +24,8 @@ import {
   Banknote,
   ListChecks,
   ClipboardCheck,
-  FileUp
+  FileUp,
+  BadgeDollarSign
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -49,6 +50,12 @@ const links = [
     label: "Customers",
     icon: UsersRound,
     roles: ["owner", "admin", "manager"]
+  },
+  {
+    to: "/credit-accounts",
+    label: "Credit Accounts",
+    icon: BadgeDollarSign,
+    roles: ["owner", "admin", "manager", "cashier"]
   },
   {
     to: "/coupons",

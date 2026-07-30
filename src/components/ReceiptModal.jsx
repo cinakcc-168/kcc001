@@ -11,6 +11,16 @@ function dateTime(value) {
   }).format(new Date(value));
 }
 
+function dateOnly(value) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium"
+  }).format(
+    new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  );
+}
+
 export default function ReceiptModal({ receipt, onClose }) {
   const { shop } = useAuth();
 
@@ -115,8 +125,39 @@ export default function ReceiptModal({ receipt, onClose }) {
               <span>Total</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong>
             </div>
             <div><span>Payment</span><strong>{receipt.paymentMethod.toUpperCase()}</strong></div>
-            <div><span>Received</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
-            <div><span>Change</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
+            {receipt.paymentMethod === "credit" ? (
+              <>
+                <div>
+                  <span>Paid now</span>
+                  <strong>{money(0, receipt.currency)}</strong>
+                </div>
+                <div>
+                  <span>Credit due date</span>
+                  <strong>{dateOnly(receipt.creditDueDate)}</strong>
+                </div>
+                <div>
+                  <span>
+                    {receipt.creditBalanceAfter !== null
+                      && receipt.creditBalanceAfter !== undefined
+                      ? "Customer account balance"
+                      : "Invoice credit amount"}
+                  </span>
+                  <strong>
+                    {money(
+                      receipt.creditBalanceAfter
+                      ?? receipt.creditAmount
+                      ?? receipt.totalAmount,
+                      receipt.currency
+                    )}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <>
+                <div><span>Received</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
+                <div><span>Change</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
+              </>
+            )}
           </div>
 
           <div className="receipt-footer">

@@ -15,6 +15,7 @@ export default function SaleCart({
   cart,
   customers,
   customerId,
+  creditAccount,
   onCustomerChange,
   onAddCustomer,
   discountType,
@@ -87,6 +88,28 @@ export default function SaleCart({
           <UserPlus size={20} />
         </button>
       </div>
+
+      {customerId && creditAccount && (
+        <div className={`sale-customer-credit-strip ${creditAccount.is_on_hold ? "hold" : ""}`}>
+          <span>
+            Credit due {money(
+              creditAccount.balance_due || 0,
+              creditAccount.currency
+            )}
+          </span>
+          <strong>
+            Available {money(
+              Math.max(
+                0,
+                Number(creditAccount.credit_limit || 0)
+                  - Number(creditAccount.balance_due || 0)
+              ),
+              creditAccount.currency
+            )}
+          </strong>
+          {creditAccount.is_on_hold && <b>ON HOLD</b>}
+        </div>
+      )}
 
       <div className="sale-cart-lines">
         {cart.length === 0 ? (
