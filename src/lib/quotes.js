@@ -114,6 +114,9 @@ export async function loadSalesQuotes(
       coupon_code,
       tax_amount,
       total_amount,
+      price_list_id,
+      price_list_name,
+      price_adjustment_amount,
       valid_until,
       notes,
       terms,
@@ -148,6 +151,9 @@ export async function loadSalesQuotes(
         sale_unit_name,
         unit_factor,
         unit_price,
+        list_price,
+        price_list_id,
+        price_adjustment_amount,
         unit_cost,
         line_subtotal,
         discount_amount,
@@ -183,6 +189,9 @@ export async function loadSalesQuotes(
     total_amount: Number(
       quote.total_amount || 0
     ),
+    price_adjustment_amount: Number(
+      quote.price_adjustment_amount || 0
+    ),
     sales_quote_items: [
       ...(quote.sales_quote_items || [])
     ]
@@ -197,6 +206,14 @@ export async function loadSalesQuotes(
         ),
         unit_price: Number(
           item.unit_price || 0
+        ),
+        list_price: Number(
+          item.list_price
+          ?? item.unit_price
+          ?? 0
+        ),
+        price_adjustment_amount: Number(
+          item.price_adjustment_amount || 0
         ),
         unit_cost: Number(
           item.unit_cost || 0
@@ -225,7 +242,7 @@ export async function saveSalesQuote(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_sales_quote",
+    "save_sales_quote_v2",
     {
       p_quote_id: values.quote_id || null,
       p_items: values.cart.map((item) => ({

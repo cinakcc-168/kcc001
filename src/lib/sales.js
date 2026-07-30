@@ -104,6 +104,7 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           email,
           loyalty_points,
           credit_limit,
+          price_list_id,
           is_active,
           created_at,
           customer_credit_accounts (
@@ -240,6 +241,16 @@ export function buildSaleCartItem(product, unitId = null) {
     selected_unit_short_name: unit.short_name || unit.name,
     selected_unit_factor: Number(unit.conversion_factor || 1),
     selected_unit_price: Number(unit.selling_price || 0),
+    standard_unit_price: Number(
+      unit.standard_selling_price
+      ?? unit.selling_price
+      ?? 0
+    ),
+    price_list_id: unit.price_list_id || null,
+    price_list_name: unit.price_list_name || null,
+    unit_price_adjustment: Number(
+      unit.price_adjustment || 0
+    ),
     selling_price: Number(unit.selling_price || 0)
   };
 }
@@ -378,7 +389,7 @@ export function hydrateParkedCart(products, parkedCart) {
 }
 
 export async function previewCoupon(supabase, values) {
-  const { data, error } = await supabase.rpc("preview_coupon", {
+  const { data, error } = await supabase.rpc("preview_coupon_v2", {
     p_code: values.code.trim().toUpperCase(),
     p_items: values.cart.map((item) => ({
       product_id: item.id,
@@ -394,7 +405,7 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v5", {
+  const { data, error } = await supabase.rpc("complete_sale_v6", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       product_unit_id: item.selected_unit_id || null,
