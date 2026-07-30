@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  BadgeDollarSign,
   Camera,
   Clock3,
   ImageOff,
@@ -47,6 +48,10 @@ import {
   hydrateQuoteCart,
   saveSalesQuote
 } from "../lib/quotes";
+import {
+  applyPriceCatalog,
+  loadCustomerPriceCatalog
+} from "../lib/priceLists";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -61,7 +66,11 @@ const emptyCustomer = { customer_type: "regular", name: "", phone: "", email: ""
 export default function SalesPage() {
   const { supabase, profile, shop, preferences } = useAuth();
   const canSell = ["owner", "admin", "manager", "cashier"].includes(profile?.role);
-  const [products, setProducts] = useState([]);
+  const [baseProducts, setBaseProducts] = useState([]);
+  const [priceCatalogs, setPriceCatalogs] = useState({
+    USD: null,
+    KHR: null
+  });
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [parkedSales, setParkedSales] = useState([]);
@@ -112,7 +121,7 @@ export default function SalesPage() {
         getOpenCashRegisterSummary(supabase)
       ]);
 
-      setProducts(data.products);
+      setBaseProducts(data.products);
       setCategories(data.categories);
       setCustomers(data.customers);
       setParkedSales(data.parkedSales);
@@ -149,6 +158,98 @@ export default function SalesPage() {
       window.removeEventListener("offline", handleOffline);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (
+      !supabase
+      || !profile?.branch_id
+    ) {
+      return undefined;
+    }
+
+    (async () => {
+      try {
+        const [usd, khr] = await Promise.all([
+          loadCustomerPriceCatalog(
+            supabase,
+            customerId || null,
+            "USD"
+          ),
+          loadCustomerPriceCatalog(
+            supabase,
+            customerId || null,
+            "KHR"
+          )
+        ]);
+
+        if (!active) return;
+
+        setPriceCatalogs({ USD: usd, KHR: khr });
+      } catch (error) {
+        if (!active) return;
+        announce("error", error.message);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [
+    supabase,
+    profile?.branch_id,
+    customerId
+  ]);
+
+  const products = useMemo(() => {
+    const usdProducts = applyPriceCatalog(
+      baseProducts.filter(
+        (product) => product.currency === "USD"
+      ),
+      priceCatalogs.USD
+    );
+
+    const khrProducts = applyPriceCatalog(
+      baseProducts.filter(
+        (product) => product.currency === "KHR"
+      ),
+      priceCatalogs.KHR
+    );
+
+    const priced = new Map(
+      [...usdProducts, ...khrProducts]
+        .map((product) => [product.id, product])
+    );
+
+    return baseProducts.map(
+      (product) => priced.get(product.id) || product
+    );
+  }, [baseProducts, priceCatalogs]);
+
+  useEffect(() => {
+    if (cart.length === 0) return;
+
+    setCart((current) =>
+      current.map((item) => {
+        const product = products.find(
+          (row) => row.id === item.id
+        );
+
+        if (!product) return item;
+
+        const unit = saleUnitForProduct(
+          product,
+          item.selected_unit_id
+        );
+
+        return {
+          ...buildSaleCartItem(product, unit.id),
+          quantity: item.quantity
+        };
+      })
+    );
+  }, [priceCatalogs, baseProducts]);
 
   useEffect(() => {
     draftReadyRef.current = false;
@@ -866,6 +967,13 @@ export default function SalesPage() {
         ),
         changeAmount: Number(result.change_amount || 0),
         paymentMethod: payment.payment_method,
+        priceListName:
+          result.price_list_name
+          || priceCatalogs[currency]?.price_list_name
+          || null,
+        priceAdjustmentAmount: Number(
+          result.price_adjustment_amount || 0
+        ),
         sourceQuoteNumber:
           result.source_quote_number
           || activeQuote?.quote_number
@@ -960,6 +1068,28 @@ export default function SalesPage() {
           <Link to="/quotes">
             Open quotations
           </Link>
+        </div>
+      )}
+
+      {priceCatalogs[currency]?.price_list_name && (
+        <div className="notice success active-price-list-banner">
+          <BadgeDollarSign size={20} />
+          <span>
+            Active price list:{" "}
+            <strong>
+              {priceCatalogs[currency].price_list_name}
+            </strong>
+            {selectedCustomer
+              ? ` · ${selectedCustomer.name}`
+              : " · Walk-in customer"}
+          </span>
+          {["owner", "admin", "manager"].includes(
+            profile?.role
+          ) && (
+            <Link to="/price-lists">
+              Manage prices
+            </Link>
+          )}
         </div>
       )}
 
@@ -1103,6 +1233,10 @@ export default function SalesPage() {
             || ["draft", "sent"].includes(
               activeQuote.status
             )
+          }
+          priceListName={
+            priceCatalogs[currency]?.price_list_name
+            || ""
           }
         />
       </div>
