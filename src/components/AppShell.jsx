@@ -27,7 +27,8 @@ import {
   FileUp,
   BadgeDollarSign,
   FileText,
-  Tags
+  Tags,
+  ReceiptText
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -46,6 +47,12 @@ const links = [
     label: "Quotations",
     icon: FileText,
     roles: ["owner", "admin", "manager", "cashier"]
+  },
+  {
+    to: "/invoices",
+    label: "Invoice Center",
+    icon: ReceiptText,
+    roles: ["owner", "admin", "manager", "cashier", "viewer"]
   },
   {
     to: "/returns",

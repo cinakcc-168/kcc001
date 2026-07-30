@@ -66,6 +66,16 @@ export default function ReceiptModal({ receipt, onClose }) {
             </div>
           )}
             <div><span>Date</span><strong>{dateTime(receipt.completedAt)}</strong></div>
+            {receipt.saleStatus && receipt.saleStatus !== "completed" && (
+              <div>
+                <span>Status</span>
+                <strong>
+                  {String(receipt.saleStatus)
+                    .replaceAll("_", " ")
+                    .toUpperCase()}
+                </strong>
+              </div>
+            )}
             {showCashier && (
               <div><span>Cashier</span><strong>{receipt.cashierName}</strong></div>
             )}
@@ -128,43 +138,21 @@ export default function ReceiptModal({ receipt, onClose }) {
           </div>
 
           <div className="receipt-totals">
-            {Number(receipt.priceAdjustmentAmount || 0) !== 0 ? (
-              <>
-                <div>
-                  <span>Standard value</span>
-                  <strong>
-                    {money(
-                      Number(receipt.subtotal)
-                        + Number(receipt.priceAdjustmentAmount),
-                      receipt.currency
-                    )}
-                  </strong>
-                </div>
-                <div>
-                  <span>
-                    {Number(receipt.priceAdjustmentAmount) > 0
-                      ? "Price-list savings"
-                      : "Price-list markup"}
-                  </span>
-                  <strong>
-                    {Number(receipt.priceAdjustmentAmount) > 0 ? "-" : "+"}
-                    {money(
-                      Math.abs(Number(receipt.priceAdjustmentAmount)),
-                      receipt.currency
-                    )}
-                  </strong>
-                </div>
-                <div>
-                  <span>Price-list subtotal</span>
-                  <strong>
-                    {money(receipt.subtotal, receipt.currency)}
-                  </strong>
-                </div>
-              </>
-            ) : (
+            <div><span>Subtotal</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
+            {Number(receipt.priceAdjustmentAmount || 0) !== 0 && (
               <div>
-                <span>Subtotal</span>
-                <strong>{money(receipt.subtotal, receipt.currency)}</strong>
+                <span>
+                  {Number(receipt.priceAdjustmentAmount) > 0
+                    ? "Price-list savings"
+                    : "Price-list markup"}
+                </span>
+                <strong>
+                  {Number(receipt.priceAdjustmentAmount) > 0 ? "-" : "+"}
+                  {money(
+                    Math.abs(Number(receipt.priceAdjustmentAmount)),
+                    receipt.currency
+                  )}
+                </strong>
               </div>
             )}
             <div><span>Discount</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
@@ -174,6 +162,27 @@ export default function ReceiptModal({ receipt, onClose }) {
             <div className="receipt-grand-total">
               <span>Total</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong>
             </div>
+            {Number(receipt.refundedAmount || 0) > 0 && (
+              <>
+                <div>
+                  <span>Refunded</span>
+                  <strong>
+                    -{money(receipt.refundedAmount, receipt.currency)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Net after refunds</span>
+                  <strong>
+                    {money(
+                      receipt.netTotal
+                      ?? Number(receipt.totalAmount || 0)
+                        - Number(receipt.refundedAmount || 0),
+                      receipt.currency
+                    )}
+                  </strong>
+                </div>
+              </>
+            )}
             <div><span>Payment</span><strong>{receipt.paymentMethod.toUpperCase()}</strong></div>
             {receipt.paymentMethod === "credit" ? (
               <>
@@ -185,6 +194,18 @@ export default function ReceiptModal({ receipt, onClose }) {
                   <span>Credit due date</span>
                   <strong>{dateOnly(receipt.creditDueDate)}</strong>
                 </div>
+                {receipt.creditOutstanding !== null
+                  && receipt.creditOutstanding !== undefined && (
+                  <div>
+                    <span>Invoice outstanding</span>
+                    <strong>
+                      {money(
+                        receipt.creditOutstanding,
+                        receipt.currency
+                      )}
+                    </strong>
+                  </div>
+                )}
                 <div>
                   <span>
                     {receipt.creditBalanceAfter !== null
