@@ -45,6 +45,7 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "access.manage",
     "approvals.review",
     "audit_backup.manage",
+    "system_health.manage",
     "import.manage",
     "telegram.use",
     "telegram.admin",
