@@ -43,6 +43,7 @@ export default function SaleCart({
   onSaveQuote,
   onPay,
   canSell,
+  canDiscount = true,
   online = true,
   activeParkLabel,
   activeQuoteNumber,
@@ -228,7 +229,10 @@ export default function SaleCart({
               onChange={(event) =>
                 onDiscountTypeChange(event.target.value)
               }
-              disabled={Boolean(appliedCoupon)}
+              disabled={
+                Boolean(appliedCoupon)
+                || !canDiscount
+              }
             >
               <option value="none">No discount</option>
               <option value="percent">Percentage</option>
@@ -248,10 +252,20 @@ export default function SaleCart({
               onChange={(event) =>
                 onDiscountValueChange(event.target.value)
               }
-              disabled={discountType === "none" || Boolean(appliedCoupon)}
+              disabled={
+                discountType === "none"
+                || Boolean(appliedCoupon)
+                || !canDiscount
+              }
             />
           </label>
         </div>
+
+        {!canDiscount && (
+          <small className="permission-inline-note">
+            Manual discounts are hidden for your account.
+          </small>
+        )}
 
         <div className="sale-coupon-block">
           <label>

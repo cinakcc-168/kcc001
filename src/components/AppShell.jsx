@@ -30,158 +30,232 @@ import {
   Tags,
   ReceiptText,
   HandCoins,
-  Send
+  Send,
+  KeyRound
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
 import PwaManager from "./PwaManager";
 
 const links = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  {
+    to: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    permission: "dashboard.view"
+  },
   {
     to: "/sales",
     label: "New Sale",
     icon: ShoppingCart,
-    roles: ["owner", "admin", "manager", "cashier"]
+    permission: "sales.create"
   },
   {
     to: "/quotes",
     label: "Quotations",
     icon: FileText,
-    roles: ["owner", "admin", "manager", "cashier"]
+    permission: "quotations.manage"
   },
   {
     to: "/invoices",
     label: "Invoice Center",
     icon: ReceiptText,
-    roles: ["owner", "admin", "manager", "cashier", "viewer"]
+    permission: "invoices.view"
   },
   {
     to: "/returns",
     label: "Returns & Refunds",
     icon: RotateCcw,
-    roles: ["owner", "admin", "manager"]
+    permission: "returns.process"
   },
   {
     to: "/customers",
     label: "Customers",
     icon: UsersRound,
-    roles: ["owner", "admin", "manager"]
+    permission: "customers.manage"
   },
   {
     to: "/credit-accounts",
     label: "Credit Accounts",
     icon: BadgeDollarSign,
-    roles: ["owner", "admin", "manager", "cashier"]
+    any: [
+      "credit_accounts.manage",
+      "credit_accounts.collect"
+    ]
   },
   {
     to: "/coupons",
     label: "Coupons",
     icon: TicketPercent,
-    roles: ["owner", "admin", "manager"]
+    permission: "coupons.manage"
   },
   {
     to: "/price-lists",
     label: "Price Lists",
     icon: Tags,
-    roles: ["owner", "admin", "manager"]
+    permission: "price_lists.manage"
   },
-  { to: "/products", label: "Products", icon: Boxes },
+  {
+    to: "/products",
+    label: "Products",
+    icon: Boxes,
+    permission: "products.manage"
+  },
   {
     to: "/labels",
     label: "Barcode Labels",
     icon: Barcode,
-    roles: ["owner", "admin", "manager"]
+    permission: "labels.print"
   },
   {
     to: "/inventory",
     label: "Inventory",
     icon: Warehouse,
-    roles: ["owner", "admin", "manager"]
+    any: [
+      "inventory.view",
+      "inventory.adjust"
+    ]
   },
   {
     to: "/stock-counts",
     label: "Stock Count",
     icon: ClipboardCheck,
-    roles: ["owner", "admin", "manager"]
+    permission: "stock_counts.manage"
   },
   {
     to: "/transfers",
     label: "Stock Transfers",
     icon: ArrowLeftRight,
-    roles: ["owner", "admin", "manager"]
+    any: [
+      "transfers.create",
+      "transfers.receive",
+      "transfers.cancel"
+    ]
   },
   {
     to: "/purchase-orders",
     label: "Purchase Orders",
     icon: ClipboardList,
-    roles: ["owner", "admin", "manager"]
+    any: [
+      "purchases.manage",
+      "purchases.receive",
+      "purchases.cancel",
+      "purchases.supplier_return"
+    ]
   },
   {
     to: "/supplier-payables",
     label: "Supplier Payables",
     icon: HandCoins,
-    roles: ["owner", "admin", "manager"]
+    any: [
+      "supplier_payables.view",
+      "supplier_payables.pay"
+    ]
   },
   {
     to: "/reorder",
     label: "Reorder Planner",
     icon: ListChecks,
-    roles: ["owner", "admin", "manager"]
+    permission: "reorder.manage"
   },
   {
     to: "/cash-expenses",
     label: "Cash & Expenses",
     icon: WalletCards,
-    roles: ["owner", "admin", "manager"]
+    any: [
+      "cash_expenses.manage",
+      "cash_expenses.void"
+    ]
   },
   {
     to: "/cash-register",
     label: "Cash Register",
     icon: Banknote,
-    roles: ["owner", "admin", "manager", "cashier"]
+    any: [
+      "cash_register.use",
+      "cash_register.close"
+    ]
   },
   {
     to: "/reports",
     label: "Reports",
     icon: BarChart3,
-    roles: ["owner", "admin", "manager", "viewer"]
+    permission: "reports.view"
   },
   {
     to: "/users",
     label: "Staff & Branches",
     icon: UserCog,
-    roles: ["owner", "admin"]
+    permission: "staff.manage"
+  },
+  {
+    to: "/access-control",
+    label: "Access & Approvals",
+    icon: KeyRound,
+    any: [
+      "access.manage",
+      "approvals.review"
+    ]
   },
   {
     to: "/admin-tools",
     label: "Audit & Backup",
     icon: ShieldCheck,
-    roles: ["owner", "admin"]
+    permission: "audit_backup.manage"
   },
   {
     to: "/import-center",
     label: "Import Center",
     icon: FileUp,
-    roles: ["owner", "admin"]
+    permission: "import.manage"
   },
-  { to: "/telegram", label: "Telegram", icon: Send },
-  { to: "/settings", label: "Settings", icon: Settings }
+  {
+    to: "/telegram",
+    label: "Telegram",
+    icon: Send,
+    permission: "telegram.use"
+  },
+  {
+    to: "/settings",
+    label: "Settings",
+    icon: Settings,
+    permission: "settings.view"
+  }
 ];
 
 export default function AppShell() {
-  const { supabase, session, profile, shop, signOut } = useAuth();
+  const {
+    supabase,
+    session,
+    profile,
+    shop,
+    can,
+    canAny,
+    signOut
+  } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [branches, setBranches] = useState([]);
   const [switchingBranch, setSwitchingBranch] = useState(false);
 
   const visibleLinks = useMemo(
-    () => links.filter((link) => !link.roles || link.roles.includes(profile?.role)),
-    [profile?.role]
+    () =>
+      links.filter((link) => {
+        if (link.permission) {
+          return can(link.permission);
+        }
+
+        if (link.any) {
+          return canAny(link.any);
+        }
+
+        return true;
+      }),
+    [can, canAny]
   );
 
-  const canSwitchBranch = ["owner", "admin"].includes(profile?.role);
+  const canSwitchBranch =
+    can("branches.switch");
 
   useEffect(() => {
     if (!supabase || !profile?.organization_id || !canSwitchBranch) {
