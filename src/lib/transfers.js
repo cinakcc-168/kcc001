@@ -95,6 +95,8 @@ export async function loadTransferWorkspace(supabase, profile) {
           currency,
           total_amount,
           received_at,
+          first_received_at,
+          last_received_at,
           created_at,
           suppliers (
             id,
@@ -108,6 +110,8 @@ export async function loadTransferWorkspace(supabase, profile) {
             unit_factor,
             quantity,
             base_quantity,
+            received_quantity,
+            base_received_quantity,
             unit_cost,
             base_unit_cost,
             line_total,
@@ -123,8 +127,8 @@ export async function loadTransferWorkspace(supabase, profile) {
         `)
         .eq("organization_id", orgId)
         .eq("branch_id", branchId)
-        .eq("status", "received")
-        .order("received_at", { ascending: false })
+        .in("status", ["ordered", "received"])
+        .order("last_received_at", { ascending: false, nullsFirst: false })
         .limit(100),
       supabase
         .from("purchase_returns")
@@ -225,6 +229,12 @@ export async function loadTransferWorkspace(supabase, profile) {
           item.base_quantity
           ?? Number(item.quantity || 0) * unitFactor
         ),
+        received_quantity: Number(
+          item.received_quantity || 0
+        ),
+        base_received_quantity: Number(
+          item.base_received_quantity || 0
+        ),
         unit_cost: Number(item.unit_cost || 0),
         base_unit_cost: Number(
           item.base_unit_cost
@@ -234,11 +244,16 @@ export async function loadTransferWorkspace(supabase, profile) {
         returned_quantity: returnedQuantity,
         returnable_quantity: Math.max(
           0,
-          Number(item.quantity || 0) - returnedQuantity
+          Number(item.received_quantity || 0)
+            - returnedQuantity
         )
       };
     })
-  }));
+  })).filter((purchase) =>
+    (purchase.purchase_items || []).some(
+      (item) => Number(item.received_quantity || 0) > 0
+    )
+  );
 
   return {
     branches: branchResult.data || [],
@@ -284,7 +299,7 @@ export async function cancelStockTransfer(supabase, transferId, reason) {
 }
 
 export async function processSupplierReturn(supabase, values) {
-  const { data, error } = await supabase.rpc("process_supplier_return_v2", {
+  const { data, error } = await supabase.rpc("process_supplier_return_v3", {
     p_purchase_id: values.purchase_id,
     p_items: values.items.map((item) => ({
       purchase_item_id: item.purchase_item_id,

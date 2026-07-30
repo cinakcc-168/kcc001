@@ -69,6 +69,83 @@ export function purchaseItemBaseQuantity(item) {
     * Number(item?.unit_factor || 1);
 }
 
+export function purchaseItemRemainingQuantity(item) {
+  return Math.max(
+    0,
+    Number(item?.quantity || 0)
+      - Number(item?.received_quantity || 0)
+  );
+}
+
+export function purchaseItemBaseRemainingQuantity(item) {
+  return Math.max(
+    0,
+    Number(item?.base_quantity || 0)
+      - Number(item?.base_received_quantity || 0)
+  );
+}
+
+export function purchaseReceivingTotals(purchase) {
+  const items = purchase?.purchase_items || [];
+
+  return items.reduce(
+    (result, item) => {
+      result.orderedPurchaseUnits += Number(
+        item.quantity || 0
+      );
+      result.receivedPurchaseUnits += Number(
+        item.received_quantity || 0
+      );
+      result.orderedBaseUnits += Number(
+        item.base_quantity || 0
+      );
+      result.receivedBaseUnits += Number(
+        item.base_received_quantity || 0
+      );
+      result.receivedValue += Number(
+        item.received_quantity || 0
+      ) * Number(item.unit_cost || 0);
+      return result;
+    },
+    {
+      orderedPurchaseUnits: 0,
+      receivedPurchaseUnits: 0,
+      orderedBaseUnits: 0,
+      receivedBaseUnits: 0,
+      receivedValue: 0
+    }
+  );
+}
+
+export function purchaseReceivingStatus(purchase) {
+  if (!purchase) return "draft";
+
+  if (["cancelled", "draft", "received"]
+    .includes(purchase.status)) {
+    return purchase.status;
+  }
+
+  const totals = purchaseReceivingTotals(purchase);
+
+  return totals.receivedBaseUnits > 0
+    ? "partially_received"
+    : "ordered";
+}
+
+export function purchaseReceivingStatusLabel(purchase) {
+  const status = purchaseReceivingStatus(purchase);
+
+  const labels = {
+    draft: "Draft",
+    ordered: "Ordered",
+    partially_received: "Partially received",
+    received: "Received",
+    cancelled: "Cancelled"
+  };
+
+  return labels[status] || status;
+}
+
 export async function loadPurchaseOrderWorkspace(
   supabase,
   profile,
@@ -146,6 +223,8 @@ export async function loadPurchaseOrderWorkspace(
           delivery_address,
           ordered_at,
           received_at,
+          first_received_at,
+          last_received_at,
           cancelled_at,
           cancel_reason,
           created_at,
@@ -168,6 +247,8 @@ export async function loadPurchaseOrderWorkspace(
             unit_factor,
             quantity,
             base_quantity,
+            received_quantity,
+            base_received_quantity,
             unit_cost,
             base_unit_cost,
             tax_amount,
@@ -191,6 +272,34 @@ export async function loadPurchaseOrderWorkspace(
                 is_base,
                 is_active,
                 sort_order
+              )
+            )
+          ),
+          purchase_receipts (
+            id,
+            receipt_number,
+            supplier_invoice_number,
+            received_at,
+            notes,
+            created_at,
+            purchase_receipt_items (
+              id,
+              purchase_item_id,
+              product_id,
+              purchase_unit_name,
+              unit_factor,
+              quantity,
+              base_quantity,
+              unit_cost,
+              base_unit_cost,
+              line_total,
+              products (
+                id,
+                name,
+                sku,
+                barcode,
+                unit_name,
+                currency
               )
             )
           ),
@@ -246,6 +355,12 @@ export async function loadPurchaseOrderWorkspace(
             ?? Number(item.quantity || 0)
               * Number(item.unit_factor || 1)
         ),
+        received_quantity: Number(
+          item.received_quantity || 0
+        ),
+        base_received_quantity: Number(
+          item.base_received_quantity || 0
+        ),
         unit_cost: Number(item.unit_cost || 0),
         base_unit_cost: Number(
           item.base_unit_cost
@@ -266,6 +381,31 @@ export async function loadPurchaseOrderWorkspace(
         String(a.products?.name || "").localeCompare(
           String(b.products?.name || "")
         )
+      ),
+    purchase_receipts: [...(purchase.purchase_receipts || [])]
+      .map((receipt) => ({
+        ...receipt,
+        purchase_receipt_items: [
+          ...(receipt.purchase_receipt_items || [])
+        ]
+          .map((item) => ({
+            ...item,
+            unit_factor: Number(item.unit_factor || 1),
+            quantity: Number(item.quantity || 0),
+            base_quantity: Number(item.base_quantity || 0),
+            unit_cost: Number(item.unit_cost || 0),
+            base_unit_cost: Number(item.base_unit_cost || 0),
+            line_total: Number(item.line_total || 0)
+          }))
+          .sort((a, b) =>
+            String(a.products?.name || "").localeCompare(
+              String(b.products?.name || "")
+            )
+          )
+      }))
+      .sort(
+        (a, b) =>
+          new Date(b.received_at) - new Date(a.received_at)
       ),
     purchase_payments: [...(purchase.purchase_payments || [])]
       .sort(
@@ -314,15 +454,20 @@ export async function savePurchaseOrder(supabase, values) {
 
 export async function receivePurchaseOrder(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "receive_purchase_order_v2",
+    "receive_purchase_order_v3",
     {
       p_purchase_id: values.purchase_id,
+      p_items: values.items.map((item) => ({
+        purchase_item_id: item.purchase_item_id,
+        quantity: Number(item.quantity)
+      })),
       p_amount_paid: Number(values.amount_paid || 0),
       p_payment_method: values.payment_method,
       p_payment_reference:
         values.payment_reference?.trim() || null,
       p_supplier_invoice_number:
         values.supplier_invoice_number?.trim() || null,
+      p_received_at: values.received_at || null,
       p_notes: values.notes?.trim() || null
     }
   );
