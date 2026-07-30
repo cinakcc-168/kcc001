@@ -81,7 +81,7 @@ export async function saveCreditAccount(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_customer_credit_account",
+    "save_customer_credit_account_v2",
     {
       p_customer_id: values.customer_id,
       p_currency: values.currency,
@@ -105,7 +105,7 @@ export async function receiveCreditPayment(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "record_customer_credit_payment",
+    "record_customer_credit_payment_v2",
     {
       p_account_id: values.account_id,
       p_amount: Number(values.amount),

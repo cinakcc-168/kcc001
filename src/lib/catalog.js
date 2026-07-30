@@ -150,7 +150,7 @@ export async function updateCategory(supabase, categoryId, values) {
 }
 
 export async function createProduct(supabase, values) {
-  const { data, error } = await supabase.rpc("create_pos_product", {
+  const { data, error } = await supabase.rpc("create_pos_product_v2", {
     p_name: values.name.trim(),
     p_category_id: values.category_id || null,
     p_name_km: values.name_km.trim() || null,
@@ -173,7 +173,7 @@ export async function createProduct(supabase, values) {
 }
 
 export async function updateProduct(supabase, productId, values) {
-  const { data, error } = await supabase.rpc("update_pos_product", {
+  const { data, error } = await supabase.rpc("update_pos_product_v2", {
     p_product_id: productId,
     p_name: values.name.trim(),
     p_category_id: values.category_id || null,

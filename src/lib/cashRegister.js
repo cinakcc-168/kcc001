@@ -43,7 +43,7 @@ export async function getCashRegisterSessionSummary(
 
 export async function openCashRegister(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "open_cash_register",
+    "open_cash_register_v2",
     {
       p_opening_cash_usd: Number(values.opening_cash_usd || 0),
       p_opening_cash_khr: Number(values.opening_cash_khr || 0),
@@ -58,7 +58,7 @@ export async function openCashRegister(supabase, values) {
 
 export async function closeCashRegister(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "close_cash_register",
+    "close_cash_register_v2",
     {
       p_counted_cash_usd: Number(values.counted_cash_usd || 0),
       p_counted_cash_khr: Number(values.counted_cash_khr || 0),

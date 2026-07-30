@@ -102,7 +102,7 @@ export async function recordSupplierPayment(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "record_supplier_payment_batch",
+    "record_supplier_payment_batch_v2",
     {
       p_supplier_id: values.supplier_id,
       p_currency: values.currency,

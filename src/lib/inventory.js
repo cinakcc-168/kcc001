@@ -136,7 +136,7 @@ export async function loadInventory(supabase, organizationId, branchId) {
 }
 
 export async function adjustInventory(supabase, values) {
-  const { data, error } = await supabase.rpc("adjust_inventory", {
+  const { data, error } = await supabase.rpc("adjust_inventory_v2", {
     p_product_id: values.product_id,
     p_mode: values.mode,
     p_quantity: Number(values.quantity),

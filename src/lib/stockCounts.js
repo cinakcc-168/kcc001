@@ -370,7 +370,7 @@ export async function startStockCount(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "start_stock_count",
+    "start_stock_count_v2",
     {
       p_name: values.name.trim(),
       p_scope: values.scope,
@@ -398,7 +398,7 @@ export async function saveStockCountItem(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_stock_count_item",
+    "save_stock_count_item_v2",
     {
       p_session_id: values.session_id,
       p_product_id: values.product_id,
@@ -422,7 +422,7 @@ export async function scanStockCountItem(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "scan_stock_count_item",
+    "scan_stock_count_item_v2",
     {
       p_session_id: values.session_id,
       p_product_id: values.product_id,
@@ -444,7 +444,7 @@ export async function completeStockCount(
   note
 ) {
   const { data, error } = await supabase.rpc(
-    "complete_stock_count",
+    "complete_stock_count_v2",
     {
       p_session_id: sessionId,
       p_completion_note:
@@ -462,7 +462,7 @@ export async function cancelStockCount(
   reason
 ) {
   const { data, error } = await supabase.rpc(
-    "cancel_stock_count",
+    "cancel_stock_count_v2",
     {
       p_session_id: sessionId,
       p_reason: reason.trim()

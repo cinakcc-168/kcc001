@@ -423,7 +423,7 @@ export async function loadPurchaseOrderWorkspace(
 
 export async function savePurchaseOrder(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "save_purchase_order_v2",
+    "save_purchase_order_v3",
     {
       p_purchase_id: values.purchase_id || null,
       p_supplier_id: values.supplier_id,
@@ -454,7 +454,7 @@ export async function savePurchaseOrder(supabase, values) {
 
 export async function receivePurchaseOrder(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "receive_purchase_order_v3",
+    "receive_purchase_order_v4",
     {
       p_purchase_id: values.purchase_id,
       p_items: values.items.map((item) => ({
@@ -499,7 +499,7 @@ export async function cancelPurchaseOrder(
   reason
 ) {
   const { data, error } = await supabase.rpc(
-    "cancel_purchase_order",
+    "cancel_purchase_order_v2",
     {
       p_purchase_id: purchaseId,
       p_reason: reason.trim()

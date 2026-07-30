@@ -242,7 +242,7 @@ export async function saveSalesQuote(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_sales_quote_v2",
+    "save_sales_quote_v3",
     {
       p_quote_id: values.quote_id || null,
       p_items: values.cart.map((item) => ({
@@ -288,7 +288,7 @@ export async function updateSalesQuoteStatus(
   reason = ""
 ) {
   const { data, error } = await supabase.rpc(
-    "update_sales_quote_status",
+    "update_sales_quote_status_v2",
     {
       p_quote_id: quoteId,
       p_status: status,

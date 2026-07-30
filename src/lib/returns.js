@@ -234,6 +234,7 @@ export async function loadReturnsWorkspace(
 
   const returnedQuantityByItem = new Map();
   const refundedAmountBySale = new Map();
+  const refundedTaxBySale = new Map();
 
   for (const refund of saleReturns) {
     refundedAmountBySale.set(
@@ -242,18 +243,36 @@ export async function loadReturnsWorkspace(
         + Number(refund.refund_amount || 0)
     );
 
+    let taxTotal = 0;
+
     for (const item of refund.return_items || []) {
       returnedQuantityByItem.set(
         item.sale_item_id,
         Number(returnedQuantityByItem.get(item.sale_item_id) || 0)
           + Number(item.quantity || 0)
       );
+
+      taxTotal += Number(
+        item.tax_refund || 0
+      );
     }
+
+    refundedTaxBySale.set(
+      refund.original_sale_id,
+      Number(
+        refundedTaxBySale.get(
+          refund.original_sale_id
+        ) || 0
+      ) + taxTotal
+    );
   }
 
   const hydratedSales = sales.map((sale) => ({
     ...sale,
     refunded_amount: Number(refundedAmountBySale.get(sale.id) || 0),
+    previous_tax_refunded: Number(
+      refundedTaxBySale.get(sale.id) || 0
+    ),
     sale_items: (sale.sale_items || []).map((item) => {
       const returnedQuantity = Number(
         returnedQuantityByItem.get(item.id) || 0
@@ -283,7 +302,7 @@ export async function loadReturnsWorkspace(
 }
 
 export async function processSaleReturn(supabase, values) {
-  const { data, error } = await supabase.rpc("process_sale_return_v2", {
+  const { data, error } = await supabase.rpc("process_sale_return_v3", {
     p_sale_id: values.sale_id,
     p_items: values.items.map((item) => ({
       sale_item_id: item.sale_item_id,
@@ -292,7 +311,9 @@ export async function processSaleReturn(supabase, values) {
     })),
     p_refund_method: values.refund_method,
     p_reason: values.reason.trim(),
-    p_refund_reference: values.refund_reference.trim() || null
+    p_refund_reference: values.refund_reference.trim() || null,
+    p_approval_request_id:
+      values.approval_request_id || null
   });
 
   if (error) throw error;

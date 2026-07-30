@@ -405,7 +405,7 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v6", {
+  const { data, error } = await supabase.rpc("complete_sale_v7", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       product_unit_id: item.selected_unit_id || null,
@@ -421,7 +421,9 @@ export async function completeSale(supabase, values) {
     p_notes: values.notes.trim() || null,
     p_payment_reference: values.payment_reference.trim() || null,
     p_idempotency_key: values.idempotency_key,
-    p_source_quote_id: values.source_quote_id || null
+    p_source_quote_id: values.source_quote_id || null,
+    p_approval_request_id:
+      values.approval_request_id || null
   });
 
   if (error) throw error;

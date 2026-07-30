@@ -171,7 +171,7 @@ export async function loadPriceListWorkspace(
 
 export async function savePriceList(supabase, values) {
   const { data, error } = await supabase.rpc(
-    "save_price_list",
+    "save_price_list_v2",
     {
       p_price_list_id: values.price_list_id || null,
       p_code: values.code.trim(),
@@ -197,7 +197,7 @@ export async function savePriceListItems(
   rows
 ) {
   const { data, error } = await supabase.rpc(
-    "save_price_list_items",
+    "save_price_list_items_v2",
     {
       p_price_list_id: priceListId,
       p_items: rows.map((row) => ({
@@ -217,7 +217,7 @@ export async function assignCustomerPriceList(
   priceListId
 ) {
   const { data, error } = await supabase.rpc(
-    "assign_customer_price_list",
+    "assign_customer_price_list_v2",
     {
       p_customer_id: customerId,
       p_price_list_id: priceListId || null

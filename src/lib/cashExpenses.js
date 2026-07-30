@@ -28,7 +28,7 @@ export async function loadCashExpenseWorkspace(supabase, filters) {
 }
 
 export async function saveCashEntry(supabase, values) {
-  const { data, error } = await supabase.rpc("save_cash_entry", {
+  const { data, error } = await supabase.rpc("save_cash_entry_v2", {
     p_entry_id: values.id || null,
     p_direction: values.direction,
     p_category_id: values.category_id,
@@ -58,7 +58,7 @@ export async function saveCashCategory(supabase, values) {
 }
 
 export async function voidCashEntry(supabase, entryId, reason) {
-  const { data, error } = await supabase.rpc("void_cash_entry", {
+  const { data, error } = await supabase.rpc("void_cash_entry_v2", {
     p_entry_id: entryId,
     p_reason: reason.trim()
   });
