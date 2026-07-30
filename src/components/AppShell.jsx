@@ -39,7 +39,8 @@ import {
   BookOpenCheck,
   Landmark,
   Globe2,
-  CloudOff
+  CloudOff,
+  HeartHandshake
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -109,6 +110,12 @@ const links = [
     label: "Customers",
     icon: UsersRound,
     permission: "customers.manage"
+  },
+  {
+    to: "/crm",
+    label: "CRM & Campaigns",
+    icon: HeartHandshake,
+    permission: "crm.view"
   },
   {
     to: "/credit-accounts",
