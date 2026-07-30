@@ -76,12 +76,17 @@ const OPTIONAL_TABLES = new Set([
   "payroll_compensation_profiles",
   "payroll_runs",
   "payroll_run_lines",
-  "payroll_payments"
+  "payroll_payments",
+  "online_store_settings",
+  "online_orders",
+  "online_order_items",
+  "online_order_status_history"
 ]);
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
   "branches",
+  "online_store_settings",
   "accounting_accounts",
   "accounting_mappings",
   "accounting_periods",
@@ -119,6 +124,9 @@ const DIRECT_ORG_TABLES = [
   "stock_reservations",
   "sales_order_deliveries",
   "sales_order_delivery_items",
+  "online_orders",
+  "online_order_items",
+  "online_order_status_history",
   "sales",
   "sale_items",
   "payments",
@@ -160,6 +168,10 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "online_order_status_history",
+  "online_order_items",
+  "online_orders",
+  "online_store_settings",
   "payroll_payments",
   "payroll_run_lines",
   "payroll_runs",
@@ -240,6 +252,7 @@ const DELETE_ORDER = [
 
 const INSERT_ORDER = [
   "app_settings",
+  "online_store_settings",
   "accounting_accounts",
   "accounting_mappings",
   "accounting_periods",
@@ -276,6 +289,9 @@ const INSERT_ORDER = [
   "stock_reservations",
   "sales_order_deliveries",
   "sales_order_delivery_items",
+  "online_orders",
+  "online_order_items",
+  "online_order_status_history",
   "cash_categories",
   "cash_register_sessions",
   "cash_entries",
@@ -341,7 +357,8 @@ const USER_REFERENCE_COLUMNS = [
   "converted_by",
   "confirmed_by",
   "reserved_by",
-  "released_by"
+  "released_by",
+  "changed_by"
 ];
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -531,7 +548,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 40
+      schema_step: 41
     },
     staff: profiles,
     user_preferences: preferences,

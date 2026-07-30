@@ -144,6 +144,7 @@ function canReceive(role, eventType) {
     transfer: ["owner", "admin", "manager"],
     quotation: ["owner", "admin", "manager", "cashier"],
     sales_order: ["owner", "admin", "manager", "cashier"],
+    online_order: ["owner", "admin", "manager"],
     register: ["owner", "admin", "manager", "cashier"],
     approval: ["owner", "admin", "manager"],
     attendance: ["owner", "admin", "manager", "cashier", "viewer"],
@@ -649,6 +650,115 @@ async function buildSalesOrders(service, link, branchIds, context, scopeName, la
   };
 }
 
+async function buildOnlineOrders(
+  service,
+  link,
+  branchIds,
+  context,
+  scopeName,
+  language
+) {
+  const ids = branchIds.map(
+    (branch) => branch.id
+  );
+
+  const { data, error } = await service
+    .from("online_orders")
+    .select("id,currency,total_amount,created_at")
+    .eq(
+      "organization_id",
+      link.organization_id
+    )
+    .in("branch_id", ids)
+    .eq("status", "pending")
+    .order("created_at", {
+      ascending: false
+    })
+    .limit(100);
+
+  if (error) {
+    // Step 41 may not be installed yet.
+    if (
+      error.code === "42P01"
+      || String(error.message || "")
+        .includes("online_orders")
+    ) {
+      return null;
+    }
+    throw error;
+  }
+
+  if (!(data || []).length) return null;
+
+  const usd = (data || [])
+    .filter((row) => row.currency === "USD")
+    .reduce(
+      (sum, row) =>
+        sum + number(row.total_amount),
+      0
+    );
+
+  const khr = (data || [])
+    .filter((row) => row.currency === "KHR")
+    .reduce(
+      (sum, row) =>
+        sum + number(row.total_amount),
+      0
+    );
+
+  const newest = data[0];
+
+  return {
+    type: "online_order",
+    key: [
+      "online-order",
+      link.user_id,
+      newest.id,
+      data.length
+    ].join(":"),
+    path: "/online-store",
+    language,
+    buttonText: tg(
+      language,
+      "open_online_store"
+    ),
+    text: [
+      `🛍️ <b>${tg(
+        language,
+        "online_order_title",
+        {
+          scope: escapeHtml(scopeName)
+        }
+      )}</b>`,
+      "",
+      tg(language, "online_order_pending", {
+        count: data.length
+      }),
+      tg(
+        language,
+        "online_order_value_usd",
+        {
+          amount: money(usd, "USD")
+        }
+      ),
+      tg(
+        language,
+        "online_order_value_khr",
+        {
+          amount: money(khr, "KHR")
+        }
+      ),
+      tg(language, "online_order_help")
+    ].join("\n"),
+    payload: {
+      pending: data.length,
+      usd,
+      khr,
+      newest_order_id: newest.id
+    }
+  };
+}
+
 async function buildRegister(service, link, branchIds, context, scopeName, language) {
   const ids = branchIds.map((branch) => branch.id);
   const { data, error } = await service
@@ -1060,7 +1170,26 @@ export default async () => {
         ));
       }
 
-      if (preferences.register_alerts && canReceive(profile.role, "register")) {
+      if (
+        preferences.online_order_alerts
+        && canReceive(
+          profile.role,
+          "online_order"
+        )
+      ) {
+        builders.push(() =>
+          buildOnlineOrders(
+            service,
+            link,
+            branches,
+            context,
+            scopeName,
+            language
+          )
+        );
+      }
+
+      if (preferences.cash_register_alerts && canReceive(profile.role, "register")) {
         builders.push(() => buildRegister(
           service, link, branches, context, scopeName, language
         ));
