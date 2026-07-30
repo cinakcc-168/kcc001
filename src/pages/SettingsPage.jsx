@@ -10,6 +10,7 @@ import {
   UserRound
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import {
   removeShopLogo,
   saveShopSettings,
@@ -18,6 +19,8 @@ import {
 } from "../lib/settings";
 
 export default function SettingsPage() {
+  const { language, setLanguage, t } = useLanguage();
+
   const {
     supabase,
     session,
@@ -79,6 +82,11 @@ export default function SettingsPage() {
 
   function updatePersonal(field, value) {
     setPersonal((current) => ({ ...current, [field]: value }));
+
+    if (field === "language") {
+      setLanguage(value);
+    }
+
     setMessage("");
   }
 
@@ -94,7 +102,7 @@ export default function SettingsPage() {
       setBusy(true);
       await savePreferences(personal);
       setMessageType("success");
-      setMessage("Personal preferences saved.");
+      setMessage(t("Personal preferences saved."));
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -205,12 +213,15 @@ export default function SettingsPage() {
               <label>
                 <span>Language</span>
                 <select
-                  value={personal.language}
+                  value={language || personal.language}
                   onChange={(event) => updatePersonal("language", event.target.value)}
                 >
                   <option value="en">English</option>
-                  <option value="km">Khmer</option>
+                  <option value="km">ខ្មែរ</option>
                 </select>
+                <small className="field-help">
+                  {t("Language changes immediately and is saved to your account.")}
+                </small>
               </label>
 
               <label>
@@ -442,7 +453,7 @@ export default function SettingsPage() {
                   onChange={(event) => updateShop("default_language", event.target.value)}
                 >
                   <option value="en">English</option>
-                  <option value="km">Khmer</option>
+                  <option value="km">ខ្មែរ</option>
                 </select>
               </label>
               <label>
