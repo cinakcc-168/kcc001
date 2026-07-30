@@ -26,6 +26,7 @@ import {
   updateProduct,
   uploadPrimaryImage
 } from "../lib/catalog";
+import { saveProductBatchSettings } from "../lib/batches";
 
 export default function ProductsPage() {
   const { supabase, session, profile, can } = useAuth();
@@ -98,6 +99,7 @@ export default function ProductsPage() {
         productId = created.product_id;
       }
       productSaved = true;
+      await saveProductBatchSettings(supabase, productId, form);
 
       if (removeImage && oldImage) {
         await removePrimaryImage({ supabase, session, image: oldImage });
