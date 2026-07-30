@@ -26,6 +26,7 @@ import CreditAccountsPage from "./pages/CreditAccountsPage";
 import QuotesPage from "./pages/QuotesPage";
 import PriceListsPage from "./pages/PriceListsPage";
 import InvoicesPage from "./pages/InvoicesPage";
+import SupplierPayablesPage from "./pages/SupplierPayablesPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="/cash-register" element={<CashRegisterPage />} />
         <Route path="/transfers" element={<TransfersPage />} />
         <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+        <Route path="/supplier-payables" element={<SupplierPayablesPage />} />
         <Route path="/reorder" element={<ReorderPage />} />
         <Route path="/labels" element={<LabelsPage />} />
         <Route path="/products" element={<ProductsPage />} />
