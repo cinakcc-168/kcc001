@@ -10,7 +10,7 @@ export function json(data, status = 200) {
   });
 }
 
-export async function requireManager(request) {
+export async function requireManager(request, permissionKey = "products.manage") {
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY;
   const authorization = request.headers.get("authorization") || "";
@@ -52,11 +52,40 @@ export async function requireManager(request) {
     throw error;
   }
 
-  if (!["owner", "admin", "manager"].includes(profile.role)) {
-    const error = new Error("Your role cannot manage product images.");
+  let allowed =
+    profile.role === "owner";
+
+  try {
+    const { data: accessData } =
+      await supabase.rpc(
+        "get_my_access"
+      );
+
+    allowed = Boolean(
+      accessData?.permissions?.["*"]
+      || accessData?.permissions?.[
+        permissionKey
+      ]
+    );
+  } catch {
+    allowed = [
+      "owner",
+      "admin",
+      "manager"
+    ].includes(profile.role);
+  }
+
+  if (!allowed) {
+    const error = new Error(
+      `Permission required: ${permissionKey}`
+    );
     error.status = 403;
     throw error;
   }
 
-  return { supabase, user: userData.user, profile };
+  return {
+    supabase,
+    user: userData.user,
+    profile
+  };
 }

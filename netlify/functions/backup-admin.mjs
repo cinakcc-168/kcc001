@@ -1,5 +1,32 @@
 import { createClient } from "@supabase/supabase-js";
 
+async function hasIndividualPermission(
+  admin,
+  profile,
+  permissionKey,
+  defaultRoles
+) {
+  if (profile.role === "owner") return true;
+
+  try {
+    const { data, error } = await admin
+      .from("user_permission_overrides")
+      .select("allowed")
+      .eq("user_id", profile.id)
+      .eq("permission_key", permissionKey)
+      .maybeSingle();
+
+    if (!error && data) {
+      return Boolean(data.allowed);
+    }
+  } catch {
+    // Fall back to role defaults when Step 32 is not installed yet.
+  }
+
+  return defaultRoles.includes(profile.role);
+}
+
+
 const BACKUP_FORMAT = "tiny-pos-business-backup";
 const BACKUP_VERSION = 1;
 const PAGE_SIZE = 750;
@@ -23,12 +50,16 @@ const OPTIONAL_TABLES = new Set([
   "price_list_items",
   "supplier_payment_batches",
   "purchase_receipts",
-  "purchase_receipt_items"
+  "purchase_receipt_items",
+  "user_permission_overrides",
+  "user_approval_limits"
 ]);
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
   "branches",
+  "user_permission_overrides",
+  "user_approval_limits",
   "categories",
   "suppliers",
   "price_lists",
@@ -81,6 +112,8 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "user_permission_overrides",
+  "user_approval_limits",
   "data_import_errors",
   "data_import_jobs",
   "coupon_redemptions",
@@ -135,6 +168,8 @@ const DELETE_ORDER = [
 
 const INSERT_ORDER = [
   "app_settings",
+  "user_approval_limits",
+  "user_permission_overrides",
   "categories",
   "suppliers",
   "price_lists",
@@ -289,9 +324,14 @@ async function authenticate(request, admin) {
     });
   }
 
-  if (!["owner", "admin"].includes(profile.role)) {
+  if (!await hasIndividualPermission(
+    admin,
+    profile,
+    "audit_backup.manage",
+    ["owner", "admin"]
+  )) {
     throw Object.assign(
-      new Error("Only the owner or an admin can use Backup Center."),
+      new Error("Permission required: audit_backup.manage"),
       { status: 403 }
     );
   }
@@ -392,7 +432,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 30
+      schema_step: 32
     },
     staff: profiles,
     user_preferences: preferences,

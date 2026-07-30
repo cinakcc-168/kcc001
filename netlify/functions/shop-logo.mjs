@@ -33,7 +33,7 @@ export default async (request) => {
   }
 
   try {
-    const { profile } = await requireManager(request);
+    const { profile } = await requireManager(request, "settings.manage");
 
     if (!["owner", "admin"].includes(profile.role)) {
       return json(

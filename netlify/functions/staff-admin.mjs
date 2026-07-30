@@ -1,5 +1,32 @@
 import { createClient } from "@supabase/supabase-js";
 
+async function hasIndividualPermission(
+  admin,
+  profile,
+  permissionKey,
+  defaultRoles
+) {
+  if (profile.role === "owner") return true;
+
+  try {
+    const { data, error } = await admin
+      .from("user_permission_overrides")
+      .select("allowed")
+      .eq("user_id", profile.id)
+      .eq("permission_key", permissionKey)
+      .maybeSingle();
+
+    if (!error && data) {
+      return Boolean(data.allowed);
+    }
+  } catch {
+    // Fall back to role defaults when Step 32 is not installed yet.
+  }
+
+  return defaultRoles.includes(profile.role);
+}
+
+
 const allowedRoles = new Set(["admin", "manager", "cashier", "viewer"]);
 const editableRoles = new Set(["owner", "admin", "manager", "cashier", "viewer"]);
 
@@ -86,9 +113,14 @@ async function authenticate(request, admin) {
     });
   }
 
-  if (!["owner", "admin"].includes(profile.role)) {
+  if (!await hasIndividualPermission(
+    admin,
+    profile,
+    "staff.manage",
+    ["owner", "admin"]
+  )) {
     throw Object.assign(
-      new Error("Only the owner or an admin can manage staff and branches."),
+      new Error("Permission required: staff.manage"),
       { status: 403 }
     );
   }

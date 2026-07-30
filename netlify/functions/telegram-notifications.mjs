@@ -139,10 +139,25 @@ function canReceive(role, eventType) {
     purchase: ["owner", "admin", "manager"],
     transfer: ["owner", "admin", "manager"],
     quotation: ["owner", "admin", "manager", "cashier"],
-    register: ["owner", "admin", "manager", "cashier"]
+    register: ["owner", "admin", "manager", "cashier"],
+    approval: ["owner", "admin", "manager"]
   };
 
   return (roles[eventType] || []).includes(role);
+}
+
+function permissionAllowed(
+  role,
+  override,
+  defaultRoles
+) {
+  if (role === "owner") return true;
+
+  if (override !== undefined) {
+    return Boolean(override);
+  }
+
+  return defaultRoles.includes(role);
 }
 
 async function reserveDelivery(service, link, event) {
@@ -553,6 +568,93 @@ async function buildRegister(service, link, branchIds, context, scopeName) {
   };
 }
 
+async function buildApprovals(
+  service,
+  link,
+  branchIds
+) {
+  const ids = branchIds.map(
+    (branch) => branch.id
+  );
+
+  const { data, error } = await service
+    .from("approval_requests")
+    .select(`
+      id,
+      branch_id,
+      requested_by,
+      permission_key,
+      action_type,
+      action_summary,
+      amount,
+      currency,
+      requested_at,
+      expires_at,
+      profiles!approval_requests_requested_by_fkey(
+        full_name,
+        role
+      )
+    `)
+    .eq(
+      "organization_id",
+      link.organization_id
+    )
+    .in("branch_id", ids)
+    .eq("status", "pending")
+    .neq("requested_by", link.user_id)
+    .gt(
+      "expires_at",
+      new Date().toISOString()
+    )
+    .order("requested_at", {
+      ascending: true
+    })
+    .limit(10);
+
+  if (error) throw error;
+
+  return (data || []).map((request) => ({
+    type: "approval",
+    key: `approval:${request.id}`,
+    path: "/access-control?tab=approvals",
+    buttonText: "Review Approval",
+    text: [
+      "🛡️ <b>POS approval required</b>",
+      "",
+      escapeHtml(request.action_summary),
+      request.amount !== null
+        && request.currency
+        ? `Amount: ${money(
+            request.amount,
+            request.currency
+          )}`
+        : null,
+      `Requested by: ${escapeHtml(
+        request.profiles?.full_name
+        || "POS user"
+      )}`,
+      `Expires: ${new Intl.DateTimeFormat(
+        "en-US",
+        {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }
+      ).format(
+        new Date(request.expires_at)
+      )}`
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    payload: {
+      approval_request_id: request.id,
+      permission_key:
+        request.permission_key,
+      requested_by:
+        request.requested_by
+    }
+  }));
+}
+
 export default async () => {
   const service = serviceClient();
   let sent = 0;
@@ -591,6 +693,33 @@ export default async () => {
 
     const preferenceMap = new Map(
       (preferenceRows || []).map((row) => [row.user_id, row])
+    );
+
+    const {
+      data: approvalOverrideRows,
+      error: approvalOverrideError
+    } = userIds.length
+      ? await service
+          .from("user_permission_overrides")
+          .select("user_id,allowed")
+          .eq(
+            "permission_key",
+            "approvals.review"
+          )
+          .in("user_id", userIds)
+      : { data: [], error: null };
+
+    if (approvalOverrideError) {
+      throw approvalOverrideError;
+    }
+
+    const approvalOverrideMap = new Map(
+      (approvalOverrideRows || []).map(
+        (row) => [
+          row.user_id,
+          Boolean(row.allowed)
+        ]
+      )
     );
 
     const settingsCache = new Map();
@@ -682,18 +811,47 @@ export default async () => {
         ));
       }
 
-      if (preferences.cash_register_alerts && canReceive(profile.role, "register")) {
-        builders.push(() => buildRegister(
-          service, link, branches, context, scopeName
-        ));
+      if (
+        preferences.system_alerts
+        && canReceive(
+          profile.role,
+          "approval"
+        )
+        && permissionAllowed(
+          profile.role,
+          approvalOverrideMap.get(
+            profile.id
+          ),
+          ["owner", "admin", "manager"]
+        )
+      ) {
+        builders.push(() =>
+          buildApprovals(
+            service,
+            link,
+            branches
+          )
+        );
       }
 
       for (const build of builders) {
         try {
-          const event = await build();
-          if (!event) continue;
-          const delivered = await deliver(service, link, event);
-          if (delivered) sent += 1;
+          const events = asArray(
+            await build()
+          );
+
+          for (const event of events) {
+            if (!event) continue;
+
+            const delivered =
+              await deliver(
+                service,
+                link,
+                event
+              );
+
+            if (delivered) sent += 1;
+          }
         } catch (error) {
           failed += 1;
           console.error(

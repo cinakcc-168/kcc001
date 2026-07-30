@@ -9,6 +9,33 @@ import {
   validateTelegramInitData
 } from "./_telegram-shared.mjs";
 
+async function hasIndividualPermission(
+  admin,
+  profile,
+  permissionKey,
+  defaultRoles
+) {
+  if (profile.role === "owner") return true;
+
+  try {
+    const { data, error } = await admin
+      .from("user_permission_overrides")
+      .select("allowed")
+      .eq("user_id", profile.id)
+      .eq("permission_key", permissionKey)
+      .maybeSingle();
+
+    if (!error && data) {
+      return Boolean(data.allowed);
+    }
+  } catch {
+    // Fall back to role defaults when Step 32 is not installed yet.
+  }
+
+  return defaultRoles.includes(profile.role);
+}
+
+
 function errorResponse(error) {
   return json(
     { ok: false, error: error.message },
@@ -129,10 +156,15 @@ async function linkMiniApp({ service, profile }, initData) {
   return link;
 }
 
-async function setupBot(profile) {
-  if (!["owner", "admin"].includes(profile.role)) {
+async function setupBot(service, profile) {
+  if (!await hasIndividualPermission(
+    service,
+    profile,
+    "telegram.admin",
+    ["owner", "admin"]
+  )) {
     throw Object.assign(
-      new Error("Owner or admin access is required."),
+      new Error("Permission required: telegram.admin"),
       { status: 403 }
     );
   }
@@ -216,7 +248,7 @@ export default async (request) => {
     }
 
     if (action === "setup") {
-      const result = await setupBot(context.profile);
+      const result = await setupBot(context.service, context.profile);
       return json({ ok: true, ...result });
     }
 
