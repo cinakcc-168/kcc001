@@ -40,6 +40,7 @@ import PayrollPage from "./pages/PayrollPage";
 import OnlineStorePage from "./pages/OnlineStorePage";
 import PublicStorefrontPage from "./pages/PublicStorefrontPage";
 import OfflineCheckoutPage from "./pages/OfflineCheckoutPage";
+import CustomerCrmPage from "./pages/CustomerCrmPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="/invoices" element={<PermissionRoute permission="invoices.view"><InvoicesPage /></PermissionRoute>} />
         <Route path="/returns" element={<PermissionRoute permission="returns.process"><ReturnsPage /></PermissionRoute>} />
         <Route path="/customers" element={<PermissionRoute permission="customers.manage"><CustomersPage /></PermissionRoute>} />
+        <Route path="/crm" element={<PermissionRoute permission="crm.view"><CustomerCrmPage /></PermissionRoute>} />
         <Route path="/credit-accounts" element={<PermissionRoute any={["credit_accounts.manage","credit_accounts.collect"]}><CreditAccountsPage /></PermissionRoute>} />
         <Route path="/coupons" element={<PermissionRoute permission="coupons.manage"><CouponsPage /></PermissionRoute>} />
         <Route path="/price-lists" element={<PermissionRoute permission="price_lists.manage"><PriceListsPage /></PermissionRoute>} />
