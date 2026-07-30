@@ -24,6 +24,7 @@ import StockCountsPage from "./pages/StockCountsPage";
 import ImportCenterPage from "./pages/ImportCenterPage";
 import CreditAccountsPage from "./pages/CreditAccountsPage";
 import QuotesPage from "./pages/QuotesPage";
+import PriceListsPage from "./pages/PriceListsPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/credit-accounts" element={<CreditAccountsPage />} />
         <Route path="/coupons" element={<CouponsPage />} />
+        <Route path="/price-lists" element={<PriceListsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/cash-expenses" element={<CashExpensesPage />} />
