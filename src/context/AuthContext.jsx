@@ -6,6 +6,12 @@ import {
   useState
 } from "react";
 import { getSupabase } from "../lib/supabase";
+import {
+  accessAllows,
+  accessAllowsAny,
+  fallbackAccessForRole,
+  loadMyAccess
+} from "../lib/permissions";
 
 const AuthContext = createContext(null);
 
@@ -25,6 +31,7 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState();
   const [preferences, setPreferences] = useState();
   const [shop, setShop] = useState();
+  const [access, setAccess] = useState();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,6 +39,7 @@ export function AuthProvider({ children }) {
     setProfile();
     setPreferences();
     setShop();
+    setAccess();
     applyPreferences(null);
   }
 
@@ -58,19 +66,37 @@ export function AuthProvider({ children }) {
       throw new Error("This POS account is inactive. Contact the owner.");
     }
 
-    const [{ data: preferenceData, error: preferenceError }, { data: shopData, error: shopError }] =
-      await Promise.all([
-        client
-          .from("user_preferences")
-          .select("*")
-          .eq("user_id", userId)
-          .single(),
-        client
-          .from("app_settings")
-          .select("*")
-          .eq("organization_id", profileData.organization_id)
-          .single()
-      ]);
+    const [
+      {
+        data: preferenceData,
+        error: preferenceError
+      },
+      {
+        data: shopData,
+        error: shopError
+      },
+      accessData
+    ] = await Promise.all([
+      client
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", userId)
+        .single(),
+
+      client
+        .from("app_settings")
+        .select("*")
+        .eq(
+          "organization_id",
+          profileData.organization_id
+        )
+        .single(),
+
+      loadMyAccess(
+        client,
+        profileData.role
+      )
+    ]);
 
     if (preferenceError) throw preferenceError;
     if (shopError) throw shopError;
@@ -78,6 +104,12 @@ export function AuthProvider({ children }) {
     setProfile(profileData);
     setPreferences(preferenceData);
     setShop(shopData);
+    setAccess(
+      accessData
+      || fallbackAccessForRole(
+        profileData.role
+      )
+    );
     applyPreferences(preferenceData);
 
     if (recordLogin) {
@@ -144,6 +176,41 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  async function refreshAccess() {
+    if (!supabase || !profile?.role) {
+      return null;
+    }
+
+    const nextAccess =
+      await loadMyAccess(
+        supabase,
+        profile.role
+      );
+
+    setAccess(nextAccess);
+    return nextAccess;
+  }
+
+  function can(permissionKey) {
+    return accessAllows(
+      access
+      || fallbackAccessForRole(
+        profile?.role
+      ),
+      permissionKey
+    );
+  }
+
+  function canAny(permissionKeys) {
+    return accessAllowsAny(
+      access
+      || fallbackAccessForRole(
+        profile?.role
+      ),
+      permissionKeys
+    );
+  }
+
   async function signIn(email, password) {
     if (!supabase) throw new Error("Supabase is still loading.");
 
@@ -197,13 +264,28 @@ export function AuthProvider({ children }) {
       profile,
       preferences,
       shop,
+      access,
+      approvalLimits:
+        access?.limits || {},
       loading,
       error,
+      can,
+      canAny,
+      refreshAccess,
       signIn,
       signOut,
       savePreferences
     }),
-    [supabase, session, profile, preferences, shop, loading, error]
+    [
+      supabase,
+      session,
+      profile,
+      preferences,
+      shop,
+      access,
+      loading,
+      error
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
