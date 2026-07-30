@@ -37,7 +37,7 @@ export function calculateSaleTotals(
 }
 
 export async function loadSalesWorkspace(supabase, organizationId, branchId) {
-  const [productResult, categoryResult, customerResult, parkedResult, recentResult] =
+  const [productResult, categoryResult, customerResult, parkedResult, recentResult, reservationResult] =
     await Promise.all([
       supabase
         .from("products")
@@ -138,6 +138,8 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           total_amount,
           gross_profit,
           source_quote_id,
+          source_sales_order_id,
+          source_sales_order_delivery_id,
           credit_account_id,
           credit_due_date,
           credit_amount,
@@ -151,7 +153,13 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
         .eq("organization_id", organizationId)
         .eq("branch_id", branchId)
         .order("created_at", { ascending: false })
-        .limit(30)
+        .limit(30),
+      supabase
+        .from("stock_reservations")
+        .select("product_id,reserved_base_quantity,delivered_base_quantity,released_base_quantity,status")
+        .eq("organization_id", organizationId)
+        .eq("branch_id", branchId)
+        .eq("status", "active")
     ]);
 
   for (const result of [
@@ -159,9 +167,25 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
     categoryResult,
     customerResult,
     parkedResult,
-    recentResult
+    recentResult,
+    reservationResult
   ]) {
     if (result.error) throw result.error;
+  }
+
+  const reservedByProduct = new Map();
+  for (const row of reservationResult.data || []) {
+    const remaining = Math.max(
+      0,
+      Number(row.reserved_base_quantity || 0)
+        - Number(row.delivered_base_quantity || 0)
+        - Number(row.released_base_quantity || 0)
+    );
+    reservedByProduct.set(
+      row.product_id,
+      Number(reservedByProduct.get(row.product_id) || 0)
+        + remaining
+    );
   }
 
   const products = (productResult.data || []).map((product) => {
@@ -187,7 +211,15 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
       ...product,
       product_units: units,
       units,
-      stock_quantity: Number(balance?.quantity || 0),
+      physical_stock_quantity: Number(balance?.quantity || 0),
+      reserved_stock_quantity: Number(
+        reservedByProduct.get(product.id) || 0
+      ),
+      stock_quantity: Math.max(
+        0,
+        Number(balance?.quantity || 0)
+          - Number(reservedByProduct.get(product.id) || 0)
+      ),
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
       image: image || null
     };
@@ -405,7 +437,7 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v8", {
+  const { data, error } = await supabase.rpc("complete_sale_v9", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       product_unit_id: item.selected_unit_id || null,
@@ -423,7 +455,9 @@ export async function completeSale(supabase, values) {
     p_idempotency_key: values.idempotency_key,
     p_source_quote_id: values.source_quote_id || null,
     p_approval_request_id:
-      values.approval_request_id || null
+      values.approval_request_id || null,
+    p_source_sales_order_delivery_id:
+      values.source_sales_order_delivery_id || null
   });
 
   if (error) throw error;
