@@ -37,7 +37,8 @@ import {
   Activity,
   Clock3,
   BookOpenCheck,
-  Landmark
+  Landmark,
+  Globe2
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -71,6 +72,16 @@ const links = [
     any: [
       "sales_orders.manage",
       "sales_orders.deliver"
+    ]
+  },
+  {
+    to: "/online-store",
+    label: "Online Store",
+    icon: Globe2,
+    any: [
+      "online_store.manage",
+      "online_orders.manage",
+      "online_orders.fulfill"
     ]
   },
   {
