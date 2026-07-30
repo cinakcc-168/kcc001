@@ -31,6 +31,7 @@ import InvoicesPage from "./pages/InvoicesPage";
 import SupplierPayablesPage from "./pages/SupplierPayablesPage";
 import TelegramPage from "./pages/TelegramPage";
 import PermissionsPage from "./pages/PermissionsPage";
+import BatchesPage from "./pages/BatchesPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/labels" element={<PermissionRoute permission="labels.print"><LabelsPage /></PermissionRoute>} />
         <Route path="/products" element={<PermissionRoute permission="products.manage"><ProductsPage /></PermissionRoute>} />
         <Route path="/inventory" element={<PermissionRoute any={["inventory.view","inventory.adjust"]}><InventoryPage /></PermissionRoute>} />
+        <Route path="/batches" element={<PermissionRoute any={["inventory.view","inventory.adjust"]}><BatchesPage /></PermissionRoute>} />
         <Route path="/stock-counts" element={<PermissionRoute permission="stock_counts.manage"><StockCountsPage /></PermissionRoute>} />
         <Route path="/settings" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
         <Route path="/telegram" element={<PermissionRoute permission="telegram.use"><TelegramPage /></PermissionRoute>} />
