@@ -22,6 +22,9 @@ import {
   loadPurchaseOrderWorkspace,
   purchaseBalance,
   purchasePaymentStatus,
+  purchaseReceivingStatus,
+  purchaseReceivingStatusLabel,
+  purchaseReceivingTotals,
   receivePurchaseOrder,
   recordPurchasePayment,
   savePurchaseOrder,
@@ -30,6 +33,8 @@ import {
 import PurchaseOrderFormModal from "../components/PurchaseOrderFormModal";
 import PurchaseOrderActionModal from "../components/PurchaseOrderActionModal";
 import PurchaseOrderPrintModal from "../components/PurchaseOrderPrintModal";
+import PurchaseReceiptModal from "../components/PurchaseReceiptModal";
+import PurchaseReceiptPrintModal from "../components/PurchaseReceiptPrintModal";
 import SupplierFormModal from "../components/SupplierFormModal";
 
 function defaultFilters() {
@@ -52,6 +57,12 @@ function searchablePurchase(purchase) {
     purchase.suppliers?.supplier_code,
     purchase.suppliers?.name,
     purchase.status,
+    purchaseReceivingStatusLabel(purchase),
+    ...(purchase.purchase_receipts || []).flatMap((receipt) => [
+      receipt.receipt_number,
+      receipt.supplier_invoice_number,
+      receipt.notes
+    ]),
     ...(purchase.purchase_items || []).flatMap((item) => [
       item.products?.name,
       item.products?.sku,
@@ -109,6 +120,8 @@ export default function PurchaseOrdersPage() {
   const [actionPurchase, setActionPurchase] = useState(null);
   const [actionType, setActionType] = useState(null);
   const [printPurchase, setPrintPurchase] = useState(null);
+  const [receivingPurchase, setReceivingPurchase] = useState(null);
+  const [receiptPrint, setReceiptPrint] = useState(null);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
 
@@ -137,7 +150,10 @@ export default function PurchaseOrdersPage() {
     const needle = search.trim().toLowerCase();
 
     return purchases.filter((purchase) => {
-      if (filters.status !== "all" && purchase.status !== filters.status) {
+      if (
+        filters.status !== "all"
+        && purchaseReceivingStatus(purchase) !== filters.status
+      ) {
         return false;
       }
       if (filters.supplier !== "all" && purchase.supplier_id !== filters.supplier) {
@@ -158,40 +174,61 @@ export default function PurchaseOrdersPage() {
   const usdToKhrRate = Number(shop?.usd_to_khr_rate || 4100);
 
   const metrics = useMemo(() => {
-    const openOrders = purchases.filter((purchase) =>
-      ["draft", "ordered"].includes(purchase.status)
+    const openOrders = purchases.filter(
+      (purchase) =>
+        ["draft", "ordered"].includes(
+          purchaseReceivingStatus(purchase)
+        )
     );
-    const received = purchases.filter((purchase) => purchase.status === "received");
+
+    const partial = purchases.filter(
+      (purchase) =>
+        purchaseReceivingStatus(purchase)
+          === "partially_received"
+    );
+
+    const received = purchases.filter(
+      (purchase) =>
+        purchaseReceivingStatus(purchase)
+          === "received"
+    );
+
     const outstanding = purchases
-      .filter((purchase) => purchase.status !== "cancelled")
+      .filter(
+        (purchase) =>
+          purchase.status !== "cancelled"
+      )
       .reduce(
         (sum, purchase) =>
-          sum +
-          convertToBase(
-            purchaseBalance(purchase),
-            purchase.currency,
-            baseCurrency,
-            usdToKhrRate
-          ),
+          sum
+          + convertToBase(
+              purchaseBalance(purchase),
+              purchase.currency,
+              baseCurrency,
+              usdToKhrRate
+            ),
         0
       );
-    const orderedValue = openOrders.reduce(
-      (sum, purchase) =>
-        sum +
-        convertToBase(
-          purchase.total_amount,
-          purchase.currency,
-          baseCurrency,
-          usdToKhrRate
-        ),
-      0
-    );
+
+    const openValue = [...openOrders, ...partial]
+      .reduce(
+        (sum, purchase) =>
+          sum
+          + convertToBase(
+              purchase.total_amount,
+              purchase.currency,
+              baseCurrency,
+              usdToKhrRate
+            ),
+        0
+      );
 
     return {
       openCount: openOrders.length,
+      partialCount: partial.length,
       receivedCount: received.length,
       outstanding,
-      orderedValue
+      openValue
     };
   }, [purchases, baseCurrency, usdToKhrRate]);
 
@@ -235,6 +272,36 @@ export default function PurchaseOrdersPage() {
     }
   }
 
+  async function handleReceivePurchase(values) {
+    try {
+      setBusy(true);
+
+      const result = await receivePurchaseOrder(
+        supabase,
+        values
+      );
+
+      setReceivingPurchase(null);
+
+      showSuccess(
+        `${result.receipt_number} saved. ${
+          result.fully_received
+            ? `${result.purchase_number} is fully received.`
+            : `${result.order_remaining_units.toLocaleString(
+                "en-US",
+                { maximumFractionDigits: 3 }
+              )} purchase units remain on backorder.`
+        }`
+      );
+
+      await refresh();
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleOrderAction(values) {
     if (!actionPurchase) return;
 
@@ -242,22 +309,7 @@ export default function PurchaseOrdersPage() {
       setBusy(true);
       let result;
 
-      if (values.action === "receive") {
-        result = await receivePurchaseOrder(supabase, {
-          purchase_id: actionPurchase.id,
-          amount_paid: values.amount,
-          payment_method: values.method,
-          payment_reference: values.reference,
-          supplier_invoice_number: values.supplier_invoice_number,
-          notes: values.notes
-        });
-        showSuccess(
-          `${result.purchase_number} received. Balance due: ${money(
-            result.balance_due,
-            result.currency
-          )}.`
-        );
-      } else if (values.action === "payment") {
+      if (values.action === "payment") {
         result = await recordPurchasePayment(supabase, {
           purchase_id: actionPurchase.id,
           amount: values.amount,
@@ -338,11 +390,38 @@ export default function PurchaseOrdersPage() {
 
       {message && <div className={`notice ${messageType}`}>{message}</div>}
 
-      <div className="po-metrics">
-        <article><ClipboardList /><span>Open orders</span><strong>{metrics.openCount}</strong><small>Draft and ordered</small></article>
-        <article><PackageCheck /><span>Received</span><strong>{metrics.receivedCount}</strong><small>Orders received in range</small></article>
-        <article><Truck /><span>Open order value</span><strong>{money(metrics.orderedValue, baseCurrency)}</strong><small>Current branch</small></article>
-        <article><CircleDollarSign /><span>Outstanding</span><strong>{money(metrics.outstanding, baseCurrency)}</strong><small>Unpaid supplier balance</small></article>
+      <div className="po-metrics partial-enabled">
+        <article>
+          <ClipboardList />
+          <span>Open orders</span>
+          <strong>{metrics.openCount}</strong>
+          <small>
+            {money(metrics.openValue, baseCurrency)} open value
+          </small>
+        </article>
+
+        <article>
+          <Truck />
+          <span>Partially received</span>
+          <strong>{metrics.partialCount}</strong>
+          <small>Has remaining backorders</small>
+        </article>
+
+        <article>
+          <PackageCheck />
+          <span>Fully received</span>
+          <strong>{metrics.receivedCount}</strong>
+          <small>Completed orders in range</small>
+        </article>
+
+        <article>
+          <CircleDollarSign />
+          <span>Outstanding</span>
+          <strong>
+            {money(metrics.outstanding, baseCurrency)}
+          </strong>
+          <small>Unpaid supplier balance</small>
+        </article>
       </div>
 
       <div className="po-tabs">
@@ -401,6 +480,9 @@ export default function PurchaseOrdersPage() {
                 <option value="all">All statuses</option>
                 <option value="draft">Draft</option>
                 <option value="ordered">Ordered</option>
+                <option value="partially_received">
+                  Partially received
+                </option>
                 <option value="received">Received</option>
                 <option value="cancelled">Cancelled</option>
               </select>
@@ -447,10 +529,59 @@ export default function PurchaseOrdersPage() {
           ) : (
             <div className="po-card-list">
               {filteredPurchases.map((purchase) => {
-                const paymentStatus = purchasePaymentStatus(purchase);
-                const editable = ["draft", "ordered"].includes(purchase.status) && Number(purchase.amount_paid || 0) === 0;
-                const receivable = ["draft", "ordered"].includes(purchase.status);
-                const payable = purchase.status !== "cancelled" && purchaseBalance(purchase) > 0;
+                const paymentStatus =
+                  purchasePaymentStatus(purchase);
+
+                const receivingStatus =
+                  purchaseReceivingStatus(purchase);
+
+                const receivingTotals =
+                  purchaseReceivingTotals(purchase);
+
+                const hasReceived =
+                  receivingTotals.receivedBaseUnits > 0;
+
+                const remainingBase = Math.max(
+                  0,
+                  receivingTotals.orderedBaseUnits
+                    - receivingTotals.receivedBaseUnits
+                );
+
+                const receivingProgress =
+                  receivingTotals.orderedBaseUnits > 0
+                    ? Math.min(
+                        100,
+                        receivingTotals.receivedBaseUnits
+                          / receivingTotals.orderedBaseUnits
+                          * 100
+                      )
+                    : 0;
+
+                const editable =
+                  ["draft", "ordered"].includes(
+                    purchase.status
+                  )
+                  && !hasReceived
+                  && Number(
+                    purchase.amount_paid || 0
+                  ) === 0;
+
+                const receivable =
+                  ["draft", "ordered"].includes(
+                    purchase.status
+                  )
+                  && remainingBase > 0;
+
+                const payable =
+                  purchase.status !== "cancelled"
+                  && purchaseBalance(purchase) > 0;
+
+                const cancelable =
+                  receivable
+                  && !hasReceived
+                  && Number(
+                    purchase.amount_paid || 0
+                  ) === 0;
 
                 return (
                   <article className="po-card" key={purchase.id}>
@@ -460,25 +591,123 @@ export default function PurchaseOrdersPage() {
                         <span>{dateTime(purchase.created_at)} · {purchase.suppliers?.name || "No supplier"}</span>
                       </div>
                       <div className="po-status-group">
-                        <span className={`status-pill ${purchase.status}`}>{purchase.status}</span>
+                        <span
+                          className={`status-pill ${receivingStatus}`}
+                        >
+                          {purchaseReceivingStatusLabel(purchase)}
+                        </span>
                         <span className={`payment-pill ${paymentStatus}`}>{paymentStatus}</span>
                       </div>
                     </div>
 
-                    <div className="po-card-info">
-                      <div><span>Expected</span><strong>{dateOnly(purchase.expected_date)}</strong></div>
-                      <div><span>Items</span><strong>{purchase.purchase_items?.length || 0}</strong></div>
-                      <div><span>Total</span><strong>{money(purchase.total_amount, purchase.currency)}</strong></div>
-                      <div><span>Paid</span><strong>{money(purchase.amount_paid, purchase.currency)}</strong></div>
-                      <div><span>Balance</span><strong>{money(purchaseBalance(purchase), purchase.currency)}</strong></div>
+                    <div className="po-card-info partial">
+                      <div>
+                        <span>Expected</span>
+                        <strong>
+                          {dateOnly(purchase.expected_date)}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Items</span>
+                        <strong>
+                          {purchase.purchase_items?.length || 0}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Received value</span>
+                        <strong>
+                          {money(
+                            receivingTotals.receivedValue,
+                            purchase.currency
+                          )}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Total</span>
+                        <strong>
+                          {money(
+                            purchase.total_amount,
+                            purchase.currency
+                          )}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <span>Balance</span>
+                        <strong>
+                          {money(
+                            purchaseBalance(purchase),
+                            purchase.currency
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="po-receiving-progress">
+                      <div>
+                        <span>
+                          Received {receivingProgress.toLocaleString(
+                            "en-US",
+                            { maximumFractionDigits: 0 }
+                          )}%
+                        </span>
+                        <strong>
+                          {receivingTotals.receivedBaseUnits.toLocaleString(
+                            "en-US",
+                            { maximumFractionDigits: 3 }
+                          )}
+                          {" / "}
+                          {receivingTotals.orderedBaseUnits.toLocaleString(
+                            "en-US",
+                            { maximumFractionDigits: 3 }
+                          )}
+                          {" base units"}
+                        </strong>
+                      </div>
+
+                      <div className="po-receiving-track">
+                        <div
+                          style={{
+                            width: `${receivingProgress}%`
+                          }}
+                        />
+                      </div>
+
+                      <small>
+                        {(purchase.purchase_receipts || []).length}
+                        {" goods-received note"}
+                        {(purchase.purchase_receipts || []).length === 1
+                          ? ""
+                          : "s"}
+                      </small>
                     </div>
 
                     <div className="po-card-items">
                       {(purchase.purchase_items || []).slice(0, 4).map((item) => (
                         <span key={item.id}>
                           {item.products?.name || "Product"}
-                          {" × "}
-                          {Number(item.quantity || 0).toLocaleString("en-US")}
+                          {" · Ordered "}
+                          {Number(item.quantity || 0).toLocaleString(
+                            "en-US",
+                            { maximumFractionDigits: 3 }
+                          )}
+                          {" · Received "}
+                          {Number(item.received_quantity || 0).toLocaleString(
+                            "en-US",
+                            { maximumFractionDigits: 3 }
+                          )}
+                          {" · Remaining "}
+                          {Math.max(
+                            0,
+                            Number(item.quantity || 0)
+                              - Number(item.received_quantity || 0)
+                          ).toLocaleString(
+                            "en-US",
+                            { maximumFractionDigits: 3 }
+                          )}
                           {" "}
                           {item.purchase_unit_name || item.products?.unit_name || "pcs"}
                         </span>
@@ -507,11 +736,20 @@ export default function PurchaseOrdersPage() {
                         </button>
                       )}
                       {receivable && (
-                        <button type="button" className="primary-button compact" onClick={() => openAction(purchase, "receive")}>
-                          <PackageCheck size={17} /> Receive
+                        <button
+                          type="button"
+                          className="primary-button compact"
+                          onClick={() =>
+                            setReceivingPurchase(purchase)
+                          }
+                        >
+                          <PackageCheck size={17} />
+                          {hasReceived
+                            ? "Receive more"
+                            : "Receive"}
                         </button>
                       )}
-                      {receivable && Number(purchase.amount_paid || 0) === 0 && (
+                      {cancelable && (
                         <button type="button" className="danger-button" onClick={() => openAction(purchase, "cancel")}>
                           <Ban size={17} /> Cancel
                         </button>
@@ -534,16 +772,17 @@ export default function PurchaseOrdersPage() {
               {filteredSuppliers.map((supplier) => {
                 const supplierPurchases = purchases.filter((purchase) => purchase.supplier_id === supplier.id);
                 const totalPurchased = supplierPurchases
-                  .filter((purchase) => purchase.status === "received")
                   .reduce(
                     (sum, purchase) =>
-                      sum +
-                      convertToBase(
-                        purchase.total_amount,
-                        purchase.currency,
-                        baseCurrency,
-                        usdToKhrRate
-                      ),
+                      sum
+                      + convertToBase(
+                          purchaseReceivingTotals(
+                            purchase
+                          ).receivedValue,
+                          purchase.currency,
+                          baseCurrency,
+                          usdToKhrRate
+                        ),
                     0
                   );
                 const balanceDue = supplierPurchases
@@ -617,6 +856,15 @@ export default function PurchaseOrdersPage() {
         }}
       />
 
+      <PurchaseReceiptModal
+        purchase={receivingPurchase}
+        busy={busy}
+        onClose={() =>
+          setReceivingPurchase(null)
+        }
+        onSubmit={handleReceivePurchase}
+      />
+
       <PurchaseOrderActionModal
         action={actionType}
         purchase={actionPurchase}
@@ -633,6 +881,21 @@ export default function PurchaseOrdersPage() {
         shop={shop}
         branch={profile?.branches}
         onClose={() => setPrintPurchase(null)}
+        onPrintReceipt={(receipt) => {
+          setReceiptPrint({
+            receipt,
+            purchase: printPurchase
+          });
+          setPrintPurchase(null);
+        }}
+      />
+
+      <PurchaseReceiptPrintModal
+        receipt={receiptPrint?.receipt}
+        purchase={receiptPrint?.purchase}
+        shop={shop}
+        branch={profile?.branches}
+        onClose={() => setReceiptPrint(null)}
       />
 
       <SupplierFormModal
