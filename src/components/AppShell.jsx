@@ -29,7 +29,8 @@ import {
   FileText,
   Tags,
   ReceiptText,
-  HandCoins
+  HandCoins,
+  Send
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -164,6 +165,7 @@ const links = [
     icon: FileUp,
     roles: ["owner", "admin"]
   },
+  { to: "/telegram", label: "Telegram", icon: Send },
   { to: "/settings", label: "Settings", icon: Settings }
 ];
 
