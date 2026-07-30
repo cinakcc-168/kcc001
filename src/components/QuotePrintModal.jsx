@@ -1,4 +1,5 @@
 import {
+  ClipboardList,
   Printer,
   ShoppingCart
 } from "lucide-react";
@@ -20,7 +21,10 @@ export default function QuotePrintModal({
   shop,
   branch,
   onClose,
-  onConvert
+  onConvert,
+  onCreateOrder,
+  canCreateOrder = false,
+  orderBusy = false
 }) {
   if (!quote) return null;
 
@@ -316,6 +320,25 @@ export default function QuotePrintModal({
             <Printer size={18} />
             Print quotation
           </button>
+
+          {canCreateOrder && quoteCanConvert(quote) && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => onCreateOrder(quote)}
+              disabled={orderBusy || !quote.customer_id}
+              title={
+                quote.customer_id
+                  ? "Create a reservable sales order"
+                  : "Choose a customer before creating a sales order"
+              }
+            >
+              <ClipboardList size={18} />
+              {orderBusy
+                ? "Creating order..."
+                : "Create Sales Order"}
+            </button>
+          )}
 
           {quoteCanConvert(quote) && (
             <button

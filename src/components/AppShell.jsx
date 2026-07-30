@@ -32,7 +32,8 @@ import {
   HandCoins,
   Send,
   KeyRound,
-  CalendarClock
+  CalendarClock,
+  PackageCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -58,6 +59,15 @@ const links = [
     label: "Quotations",
     icon: FileText,
     permission: "quotations.manage"
+  },
+  {
+    to: "/sales-orders",
+    label: "Sales Orders",
+    icon: PackageCheck,
+    any: [
+      "sales_orders.manage",
+      "sales_orders.deliver"
+    ]
   },
   {
     to: "/invoices",

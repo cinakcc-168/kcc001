@@ -65,6 +65,18 @@ export default function ReceiptModal({ receipt, onClose }) {
               <strong>{receipt.sourceQuoteNumber}</strong>
             </div>
           )}
+          {receipt.sourceSalesOrderNumber && (
+            <div>
+              <span>Sales Order</span>
+              <strong>{receipt.sourceSalesOrderNumber}</strong>
+            </div>
+          )}
+          {receipt.sourceDeliveryNumber && (
+            <div>
+              <span>Delivery Note</span>
+              <strong>{receipt.sourceDeliveryNumber}</strong>
+            </div>
+          )}
             <div><span>Date</span><strong>{dateTime(receipt.completedAt)}</strong></div>
             {receipt.saleStatus && receipt.saleStatus !== "completed" && (
               <div>

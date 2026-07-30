@@ -48,7 +48,9 @@ export default function SaleCart({
   activeParkLabel,
   activeQuoteNumber,
   quoteEditable = true,
-  priceListName = ""
+  priceListName = "",
+  fulfillmentLocked = false,
+  fulfillmentLabel = ""
 }) {
   return (
     <aside className="sale-cart panel">
@@ -56,12 +58,13 @@ export default function SaleCart({
         <div>
           <p className="eyebrow">CURRENT BILL</p>
           <h2>
-            {activeParkLabel
+            {fulfillmentLabel
+              || activeParkLabel
               || activeQuoteNumber
               || "New sale"}
           </h2>
         </div>
-        {cart.length > 0 && (
+        {cart.length > 0 && !fulfillmentLocked && (
           <button
             type="button"
             className="text-button danger-text"
@@ -78,6 +81,7 @@ export default function SaleCart({
           <select
             value={customerId}
             onChange={(event) => onCustomerChange(event.target.value)}
+            disabled={fulfillmentLocked}
           >
             <option value="">Walk-in customer</option>
             {customers.map((customer) => (
@@ -92,7 +96,7 @@ export default function SaleCart({
           type="button"
           className="icon-button customer-add-button"
           onClick={onAddCustomer}
-          disabled={!online}
+          disabled={!online || fulfillmentLocked}
           aria-label="Add customer"
           title="Add customer"
         >
@@ -179,6 +183,7 @@ export default function SaleCart({
                         value={item.selected_unit_id || ""}
                         onChange={(event) => onUnitChange(item.id, event.target.value)}
                         aria-label={`${item.name} selling unit`}
+                        disabled={fulfillmentLocked}
                       >
                         {units.map((unit) => (
                           <option value={unit.id} key={unit.id}>
@@ -203,14 +208,14 @@ export default function SaleCart({
                   </small>
                 </div>
                 <div className="cart-quantity-controls">
-                  <button type="button" className="icon-button" onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)} aria-label={`Reduce ${item.name}`}>
+                  <button type="button" className="icon-button" onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)} disabled={fulfillmentLocked} aria-label={`Reduce ${item.name}`}>
                     <Minus size={17} />
                   </button>
-                  <input type="number" min="0.001" step="0.001" value={item.quantity} onChange={(event) => onQuantityChange(item.id, event.target.value)} aria-label={`${item.name} quantity`} />
-                  <button type="button" className="icon-button" onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)} aria-label={`Add ${item.name}`}>
+                  <input type="number" min="0.001" step="0.001" value={item.quantity} onChange={(event) => onQuantityChange(item.id, event.target.value)} disabled={fulfillmentLocked} aria-label={`${item.name} quantity`} />
+                  <button type="button" className="icon-button" onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)} disabled={fulfillmentLocked} aria-label={`Add ${item.name}`}>
                     <Plus size={17} />
                   </button>
-                  <button type="button" className="icon-button danger-icon" onClick={() => onRemove(item.id)} aria-label={`Remove ${item.name}`}>
+                  <button type="button" className="icon-button danger-icon" onClick={() => onRemove(item.id)} disabled={fulfillmentLocked} aria-label={`Remove ${item.name}`}>
                     <Trash2 size={17} />
                   </button>
                 </div>
@@ -232,6 +237,7 @@ export default function SaleCart({
               disabled={
                 Boolean(appliedCoupon)
                 || !canDiscount
+                || fulfillmentLocked
               }
             >
               <option value="none">No discount</option>
@@ -256,6 +262,7 @@ export default function SaleCart({
                 discountType === "none"
                 || Boolean(appliedCoupon)
                 || !canDiscount
+                || fulfillmentLocked
               }
             />
           </label>
@@ -278,7 +285,7 @@ export default function SaleCart({
                   onCouponCodeChange(event.target.value.toUpperCase())
                 }
                 placeholder="Enter coupon"
-                disabled={couponBusy || Boolean(appliedCoupon)}
+                disabled={couponBusy || Boolean(appliedCoupon) || fulfillmentLocked}
               />
               {appliedCoupon ? (
                 <button
@@ -299,6 +306,7 @@ export default function SaleCart({
                     || cart.length === 0
                     || !couponCode.trim()
                     || !online
+                    || fulfillmentLocked
                   }
                 >
                   {couponBusy ? "Checking..." : "Apply"}
@@ -325,6 +333,7 @@ export default function SaleCart({
           <input
             value={notes}
             onChange={(event) => onNotesChange(event.target.value)}
+            disabled={fulfillmentLocked}
             placeholder="Optional sale note"
           />
         </label>
@@ -367,6 +376,7 @@ export default function SaleCart({
             || !online
             || cart.length === 0
             || Boolean(activeQuoteNumber)
+            || fulfillmentLocked
           }
           title={
             activeQuoteNumber
@@ -387,6 +397,7 @@ export default function SaleCart({
             || !online
             || cart.length === 0
             || !quoteEditable
+            || fulfillmentLocked
           }
           title={
             !quoteEditable
