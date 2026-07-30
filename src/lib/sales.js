@@ -136,6 +136,7 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           currency,
           total_amount,
           gross_profit,
+          source_quote_id,
           credit_account_id,
           credit_due_date,
           credit_amount,
@@ -393,7 +394,7 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v4", {
+  const { data, error } = await supabase.rpc("complete_sale_v5", {
     p_items: values.cart.map((item) => ({
       product_id: item.id,
       product_unit_id: item.selected_unit_id || null,
@@ -408,7 +409,8 @@ export async function completeSale(supabase, values) {
     p_currency: values.currency,
     p_notes: values.notes.trim() || null,
     p_payment_reference: values.payment_reference.trim() || null,
-    p_idempotency_key: values.idempotency_key
+    p_idempotency_key: values.idempotency_key,
+    p_source_quote_id: values.source_quote_id || null
   });
 
   if (error) throw error;
