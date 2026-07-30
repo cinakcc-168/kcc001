@@ -23,6 +23,7 @@ import ReorderPage from "./pages/ReorderPage";
 import StockCountsPage from "./pages/StockCountsPage";
 import ImportCenterPage from "./pages/ImportCenterPage";
 import CreditAccountsPage from "./pages/CreditAccountsPage";
+import QuotesPage from "./pages/QuotesPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -44,6 +45,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/sales" element={<SalesPage />} />
+        <Route path="/quotes" element={<QuotesPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/credit-accounts" element={<CreditAccountsPage />} />
