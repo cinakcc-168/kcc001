@@ -39,6 +39,7 @@ export default function PaymentModal({
   customerName,
   creditAccount,
   cashRegisterOpen = true,
+  offline = false,
   onClose,
   onSubmit
 }) {
@@ -59,6 +60,7 @@ export default function PaymentModal({
     && creditAccount
     && !creditAccount.is_on_hold
     && Number(creditAccount.credit_limit || 0) > 0
+    && !offline
     && Number(totals.total || 0) > 0
     && creditAvailable >= Number(totals.total || 0)
   );
@@ -211,6 +213,12 @@ export default function PaymentModal({
             {customerName || "Walk-in customer"}
           </small>
         </div>
+
+        {offline && (
+          <div className="notice warning payment-register-warning">
+            Offline payment creates a pending-sync receipt. Credit, coupons and manual discounts are unavailable until reconnected.
+          </div>
+        )}
 
         {!cashRegisterOpen && (
           <div className="notice warning payment-register-warning">

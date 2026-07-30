@@ -35,8 +35,13 @@ export default function ReceiptModal({ receipt, onClose }) {
   const showBarcode = shop?.receipt_show_barcode !== false;
 
   return (
-    <Modal title="Sale completed" onClose={onClose}>
+    <Modal title={receipt.offlinePending ? "Offline receipt saved" : "Sale completed"} onClose={onClose}>
       <div className="receipt-wrapper">
+        {receipt.offlinePending && (
+          <div className="notice warning offline-receipt-notice">
+            Pending synchronization. This local receipt becomes a final invoice only after the server accepts it.
+          </div>
+        )}
         <article
           className="receipt-document"
           style={{ "--receipt-width": `${receiptWidth}mm` }}

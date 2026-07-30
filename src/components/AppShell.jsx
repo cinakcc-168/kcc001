@@ -38,12 +38,14 @@ import {
   Clock3,
   BookOpenCheck,
   Landmark,
-  Globe2
+  Globe2,
+  CloudOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
 import PwaManager from "./PwaManager";
 import LanguageSwitcher from "./LanguageSwitcher";
+import OfflineSyncManager from "./OfflineSyncManager";
 import { useLanguage } from "../context/LanguageContext";
 
 const links = [
@@ -58,6 +60,12 @@ const links = [
     label: "New Sale",
     icon: ShoppingCart,
     permission: "sales.create"
+  },
+  {
+    to: "/offline-checkout",
+    label: "Offline Checkout",
+    icon: CloudOff,
+    permission: "offline_checkout.use"
   },
   {
     to: "/quotes",
@@ -471,6 +479,7 @@ export default function AppShell() {
         </header>
 
         <PwaManager />
+        <OfflineSyncManager />
 
         <section className="content"><Outlet /></section>
       </main>
