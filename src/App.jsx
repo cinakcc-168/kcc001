@@ -41,6 +41,7 @@ import OnlineStorePage from "./pages/OnlineStorePage";
 import PublicStorefrontPage from "./pages/PublicStorefrontPage";
 import OfflineCheckoutPage from "./pages/OfflineCheckoutPage";
 import CustomerCrmPage from "./pages/CustomerCrmPage";
+import DemandPlanningPage from "./pages/DemandPlanningPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/purchase-orders" element={<PermissionRoute any={["purchases.manage","purchases.receive","purchases.cancel","purchases.supplier_return"]}><PurchaseOrdersPage /></PermissionRoute>} />
         <Route path="/supplier-payables" element={<PermissionRoute any={["supplier_payables.view","supplier_payables.pay"]}><SupplierPayablesPage /></PermissionRoute>} />
         <Route path="/reorder" element={<PermissionRoute permission="reorder.manage"><ReorderPage /></PermissionRoute>} />
+        <Route path="/demand-planning" element={<PermissionRoute permission="demand_planning.view"><DemandPlanningPage /></PermissionRoute>} />
         <Route path="/labels" element={<PermissionRoute permission="labels.print"><LabelsPage /></PermissionRoute>} />
         <Route path="/products" element={<PermissionRoute permission="products.manage"><ProductsPage /></PermissionRoute>} />
         <Route path="/inventory" element={<PermissionRoute any={["inventory.view","inventory.adjust"]}><InventoryPage /></PermissionRoute>} />
