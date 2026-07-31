@@ -42,6 +42,7 @@ import PublicStorefrontPage from "./pages/PublicStorefrontPage";
 import OfflineCheckoutPage from "./pages/OfflineCheckoutPage";
 import CustomerCrmPage from "./pages/CustomerCrmPage";
 import DemandPlanningPage from "./pages/DemandPlanningPage";
+import IntegrationCenterPage from "./pages/IntegrationCenterPage";
 
 export default function App() {
   const { loading } = useAuth();
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/stock-counts" element={<PermissionRoute permission="stock_counts.manage"><StockCountsPage /></PermissionRoute>} />
         <Route path="/settings" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
         <Route path="/telegram" element={<PermissionRoute permission="telegram.use"><TelegramPage /></PermissionRoute>} />
+        <Route path="/integrations" element={<PermissionRoute permission="integrations.view"><IntegrationCenterPage /></PermissionRoute>} />
         <Route path="/access-control" element={<PermissionRoute any={["access.manage","approvals.review"]}><PermissionsPage /></PermissionRoute>} />
         <Route path="/admin-tools" element={<PermissionRoute permission="audit_backup.manage"><AdminToolsPage /></PermissionRoute>} />
         <Route path="/system-health" element={<PermissionRoute permission="system_health.manage"><SystemHealthPage /></PermissionRoute>} />
