@@ -41,7 +41,8 @@ import {
   Globe2,
   CloudOff,
   HeartHandshake,
-  TrendingUp
+  TrendingUp,
+  Cable
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -304,6 +305,12 @@ const links = [
     label: "Telegram",
     icon: Send,
     permission: "telegram.use"
+  },
+  {
+    to: "/integrations",
+    label: "Integration & API Center",
+    icon: Cable,
+    permission: "integrations.view"
   },
   {
     to: "/settings",
