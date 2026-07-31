@@ -46,6 +46,7 @@ const preferenceFields = [
   ["cash_register_alerts", "Cash register", "Long-open registers and closing variances"],
   ["attendance_alerts", "Attendance", "Forgotten check-outs and long-open staff sessions"],
   ["payroll_alerts", "Payroll alerts", "Pending payroll approvals and salary payments"],
+  ["integration_alerts", "Integration alerts", "Dead webhooks and API server failures"],
   ["system_alerts", "System alerts", "Reserved for backup and service errors"]
 ];
 
