@@ -40,7 +40,8 @@ import {
   Landmark,
   Globe2,
   CloudOff,
-  HeartHandshake
+  HeartHandshake,
+  TrendingUp
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { switchMyBranch } from "../lib/staff";
@@ -209,6 +210,12 @@ const links = [
     label: "Reorder Planner",
     icon: ListChecks,
     permission: "reorder.manage"
+  },
+  {
+    to: "/demand-planning",
+    label: "Demand Planning",
+    icon: TrendingUp,
+    permission: "demand_planning.view"
   },
   {
     to: "/cash-expenses",
