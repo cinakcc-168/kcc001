@@ -72,6 +72,10 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "import.manage",
     "telegram.use",
     "telegram.admin",
+    "integrations.view",
+    "integrations.manage",
+    "integrations.keys.manage",
+    "integrations.webhooks.manage",
     "settings.view",
     "settings.manage"
   ],
