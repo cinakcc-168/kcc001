@@ -149,7 +149,8 @@ function canReceive(role, eventType) {
     register: ["owner", "admin", "manager", "cashier"],
     approval: ["owner", "admin", "manager"],
     attendance: ["owner", "admin", "manager", "cashier", "viewer"],
-    payroll: ["owner", "admin"]
+    payroll: ["owner", "admin"],
+    integration: ["owner", "admin"]
   };
 
   return (roles[eventType] || []).includes(role);
@@ -1030,6 +1031,52 @@ async function buildPayrollEvent(service, link, branches, context, scopeName, la
   };
 }
 
+
+async function buildIntegrationAlerts(service, link, branches, context, scopeName, language) {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const branchIds = branches.map((branch) => branch.id);
+  const [deadResult, apiResult] = await Promise.all([
+    service.from("integration_webhook_deliveries")
+      .select("id,integration_events(branch_id)")
+      .eq("organization_id", link.organization_id)
+      .eq("status", "dead")
+      .gte("created_at", since)
+      .limit(200),
+    service.from("integration_api_request_logs")
+      .select("id,branch_id")
+      .eq("organization_id", link.organization_id)
+      .gte("status_code", 500)
+      .gte("created_at", since)
+      .limit(200)
+  ]);
+  for (const result of [deadResult, apiResult]) {
+    if (result.error) {
+      if (result.error.code === "42P01") return null;
+      throw result.error;
+    }
+  }
+  const dead = (deadResult.data || []).filter((row) => {
+    const id = row.integration_events?.branch_id;
+    return !id || branchIds.includes(id);
+  }).length;
+  const failures = (apiResult.data || []).filter((row) => !row.branch_id || branchIds.includes(row.branch_id)).length;
+  if (!dead && !failures) return null;
+  return {
+    type: "integration",
+    key: `integration:${context.date}:${link.user_id}:${scopeName}:${dead}:${failures}`,
+    path: "/integrations?tab=activity",
+    language,
+    buttonText: tg(language, "open_integrations"),
+    text: [
+      `🔌 <b>${tg(language, "integration_alert_title", { scope: escapeHtml(scopeName) })}</b>`,
+      "",
+      tg(language, "integration_dead_webhooks", { count: dead }),
+      tg(language, "integration_api_failures", { count: failures }),
+      tg(language, "integration_alert_help")
+    ].join("\n")
+  };
+}
+
 export default async () => {
   const service = serviceClient();
   let sent = 0;
@@ -1273,6 +1320,12 @@ export default async () => {
 
       if (preferences.payroll_alerts && canReceive(profile.role, "payroll")) {
         builders.push(() => buildPayrollEvent(
+          service, link, branches, context, scopeName, language
+        ));
+      }
+
+      if (preferences.integration_alerts && canReceive(profile.role, "integration")) {
+        builders.push(() => buildIntegrationAlerts(
           service, link, branches, context, scopeName, language
         ));
       }

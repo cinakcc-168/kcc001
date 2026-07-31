@@ -27,6 +27,23 @@ async function hasIndividualPermission(
 }
 
 
+
+// Step 45 security boundary: integration API keys, webhook secrets, external
+// mappings, request logs and delivery queues are intentionally not included in
+// business backups. Restored environments must create new credentials.
+const STEP45_SECURITY_TABLES_EXCLUDED_FROM_BACKUP = Object.freeze([
+  "integration_api_clients",
+  "integration_api_rate_windows",
+  "integration_api_request_logs",
+  "integration_external_references",
+  "integration_webhook_endpoints",
+  "integration_webhook_secrets",
+  "integration_events",
+  "integration_webhook_deliveries",
+  "integration_webhook_attempts"
+]);
+void STEP45_SECURITY_TABLES_EXCLUDED_FROM_BACKUP;
+
 const BACKUP_FORMAT = "tiny-pos-business-backup";
 const BACKUP_VERSION = 1;
 const PAGE_SIZE = 750;

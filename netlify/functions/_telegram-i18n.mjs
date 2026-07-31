@@ -12,6 +12,7 @@ const messages = {
     open_dashboard: "Open Dashboard",
     open_reorder: "Open Reorder Planner",
     open_demand_planning: "Open Demand Planning",
+    open_integrations: "Open Integration Center",
     open_batches: "Open Batch & Expiry",
     open_credit: "Open Credit Accounts",
     open_payables: "Open Supplier Payables",
@@ -130,6 +131,7 @@ const messages = {
     open_dashboard: "បើកផ្ទាំងសង្ខេប",
     open_reorder: "បើកផែនការបញ្ជាទិញឡើងវិញ",
     open_demand_planning: "បើកផែនការតម្រូវការ",
+    open_integrations: "បើកមជ្ឈមណ្ឌល API និងការតភ្ជាប់",
     open_batches: "បើកបាច់ និងផុតកំណត់",
     open_credit: "បើកគណនីឥណទាន",
     open_payables: "បើកបំណុលអ្នកផ្គត់ផ្គង់",
@@ -241,7 +243,11 @@ const messages = {
     payroll_alert_title: "ការយកចិត្តទុកដាក់ប្រាក់ខែ · {{scope}}",
     payroll_due_runs: "ការគណនាប្រាក់ខែដល់ ឬហួសកំណត់៖ {{count}}",
     payroll_unpaid_staff: "បុគ្គលិកមានប្រាក់ខែមិនទាន់បង់៖ {{count}}",
-    payroll_alert_help: "សូមពិនិត្យ អនុម័ត ឬទូទាត់ប្រាក់ខែក្នុងមជ្ឈមណ្ឌលបើកប្រាក់ខែ។"
+    payroll_alert_help: "សូមពិនិត្យ អនុម័ត ឬទូទាត់ប្រាក់ខែក្នុងមជ្ឈមណ្ឌលបើកប្រាក់ខែ។",
+    integration_alert_title: "ការយកចិត្តទុកដាក់ការតភ្ជាប់ · {{scope}}",
+    integration_dead_webhooks: "Webhook បរាជ័យជាអចិន្ត្រៃយ៍៖ {{count}}",
+    integration_api_failures: "API បរាជ័យ (24 ម៉ោង)៖ {{count}}",
+    integration_alert_help: "សូមពិនិត្យសំណើបរាជ័យ និងផ្ញើឡើងវិញក្នុងមជ្ឈមណ្ឌល API និងការតភ្ជាប់។"
   }
 };
 
