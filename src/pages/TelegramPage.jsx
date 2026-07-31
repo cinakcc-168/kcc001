@@ -34,6 +34,7 @@ import {
 
 const preferenceFields = [
   ["stock_alerts", "Stock alerts", "Low-stock and out-of-stock products"],
+  ["forecast_alerts", "Forecast alerts", "Daily demand risks and purchase suggestions"],
   ["sales_summary", "Daily sales summary", "Daily transaction, refund, USD and KHR totals"],
   ["credit_alerts", "Customer credit", "Overdue credit invoices and balances"],
   ["supplier_alerts", "Supplier payables", "Due and overdue supplier balances"],
