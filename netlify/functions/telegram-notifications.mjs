@@ -137,6 +137,7 @@ function isQuiet(preferences, hour) {
 function canReceive(role, eventType) {
   const roles = {
     stock: ["owner", "admin", "manager"],
+    forecast: ["owner", "admin", "manager"],
     summary: ["owner", "admin", "manager", "cashier", "viewer"],
     credit: ["owner", "admin", "manager"],
     supplier: ["owner", "admin", "manager"],
@@ -419,6 +420,69 @@ async function buildExpiry(service, link, branchIds, context, scopeName, languag
       tg(language, "expiry_help")
     ].join("\n"),
     payload: { expired, expiring }
+  };
+}
+
+async function buildForecast(service, link, branchIds, context, scopeName, language) {
+  const ids = branchIds.map((branch) => branch.id);
+  const { data: runRows, error: runError } = await service
+    .from("demand_forecast_runs")
+    .select("id,branch_id,generated_at,as_of_date,status")
+    .eq("organization_id", link.organization_id)
+    .in("branch_id", ids)
+    .eq("status", "completed")
+    .order("generated_at", { ascending: false })
+    .limit(100);
+
+  if (runError) {
+    if (runError.code === "42P01" || String(runError.message || "").includes("demand_forecast_runs")) {
+      return null;
+    }
+    throw runError;
+  }
+
+  const latestByBranch = new Map();
+  for (const row of runRows || []) {
+    if (!latestByBranch.has(row.branch_id)) latestByBranch.set(row.branch_id, row);
+  }
+  const runs = [...latestByBranch.values()];
+  if (!runs.length) return null;
+
+  const { data, error } = await service
+    .from("demand_forecast_items")
+    .select("id,run_id,risk_status,currency,estimated_order_total")
+    .in("run_id", runs.map((row) => row.id))
+    .in("risk_status", ["out_of_stock", "critical", "urgent"]);
+
+  if (error) throw error;
+  if (!(data || []).length) return null;
+
+  const critical = (data || []).filter(
+    (row) => row.risk_status === "out_of_stock" || row.risk_status === "critical"
+  ).length;
+  const urgent = (data || []).filter((row) => row.risk_status === "urgent").length;
+  const usd = (data || []).filter((row) => row.currency === "USD")
+    .reduce((sum, row) => sum + number(row.estimated_order_total), 0);
+  const khr = (data || []).filter((row) => row.currency === "KHR")
+    .reduce((sum, row) => sum + number(row.estimated_order_total), 0);
+
+  return {
+    type: "forecast",
+    key: `forecast:${context.date}:${scopeName}:${runs.map((row) => row.id).sort().join("-")}`,
+    path: "/demand-planning",
+    language,
+    buttonText: tg(language, "open_demand_planning"),
+    text: [
+      `📈 <b>${tg(language, "forecast_title", { scope: escapeHtml(scopeName) })}</b>`,
+      "",
+      tg(language, "forecast_critical", { count: critical }),
+      tg(language, "forecast_urgent", { count: urgent }),
+      tg(language, "forecast_value_usd", { amount: money(usd, "USD") }),
+      tg(language, "forecast_value_khr", { amount: money(khr, "KHR") }),
+      "",
+      tg(language, "forecast_help")
+    ].join("\n"),
+    payload: { critical, urgent, usd, khr, run_ids: runs.map((row) => row.id) }
   };
 }
 
@@ -1130,6 +1194,12 @@ export default async () => {
           service, link, branches, context, scopeName, settings, language
         ));
         builders.push(() => buildExpiry(
+          service, link, branches, context, scopeName, language
+        ));
+      }
+
+      if (preferences.forecast_alerts && canReceive(profile.role, "forecast")) {
+        builders.push(() => buildForecast(
           service, link, branches, context, scopeName, language
         ));
       }
