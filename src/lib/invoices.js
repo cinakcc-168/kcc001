@@ -58,22 +58,46 @@ export async function loadInvoiceCenter(
       p_payment_method: filters.payment_method || null,
       p_currency: filters.currency || null,
       p_branch_id: filters.branch_id || null,
-      p_page: Number(filters.page || 1),
-      p_page_size: Number(filters.page_size || 25)
+      p_page: filters.cashier_id ? 1 : Number(filters.page || 1),
+      p_page_size: filters.cashier_id ? 1000 : Number(filters.page_size || 25)
     }
   );
 
   if (error) throw error;
 
+  const allRows = Array.isArray(data?.rows) ? data.rows : [];
+  if (!filters.cashier_id) {
+    return { meta: data?.meta || {}, summary: data?.summary || { USD: {}, KHR: {} }, rows: allRows };
+  }
+
+  const filteredRows = allRows.filter((row) => row.cashier_id === filters.cashier_id);
+  const pageSize = Number(filters.page_size || 25);
+  const page = Number(filters.page || 1);
+  const start = (page - 1) * pageSize;
+  const summary = { USD: {}, KHR: {} };
+  for (const currency of ["USD", "KHR"]) {
+    const rows = filteredRows.filter((row) => row.currency === currency);
+    summary[currency] = rows.reduce((acc, row) => ({
+      invoice_count: acc.invoice_count + 1,
+      gross_sales: acc.gross_sales + Number(row.total_amount || 0),
+      refunds: acc.refunds + Number(row.refunded_amount || 0),
+      net_sales: acc.net_sales + Number(row.net_total || 0),
+      paid_amount: acc.paid_amount + Number(row.paid_amount || 0),
+      credit_outstanding: acc.credit_outstanding + Number(row.credit_outstanding || 0),
+      gross_profit: acc.gross_profit + Number(row.gross_profit || 0),
+      net_profit: acc.net_profit + Number(row.net_profit || 0)
+    }), { invoice_count: 0, gross_sales: 0, refunds: 0, net_sales: 0, paid_amount: 0, credit_outstanding: 0, gross_profit: 0, net_profit: 0 });
+  }
   return {
-    meta: data?.meta || {},
-    summary: data?.summary || {
-      USD: {},
-      KHR: {}
+    meta: {
+      ...(data?.meta || {}),
+      page,
+      page_size: pageSize,
+      total_rows: filteredRows.length,
+      total_pages: Math.max(1, Math.ceil(filteredRows.length / pageSize))
     },
-    rows: Array.isArray(data?.rows)
-      ? data.rows
-      : []
+    summary,
+    rows: filteredRows.slice(start, start + pageSize)
   };
 }
 

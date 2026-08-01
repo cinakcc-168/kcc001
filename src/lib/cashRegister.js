@@ -62,7 +62,8 @@ export async function closeCashRegister(supabase, values) {
     {
       p_counted_cash_usd: Number(values.counted_cash_usd || 0),
       p_counted_cash_khr: Number(values.counted_cash_khr || 0),
-      p_closing_note: values.closing_note.trim() || null
+      p_closing_note: values.closing_note.trim() || null,
+      p_session_id: values.session_id || null
     }
   );
 
