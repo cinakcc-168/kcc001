@@ -65,11 +65,13 @@ export default function InvoicesPage() {
     payment_status: "",
     payment_method: "",
     currency: "",
+    cashier_id: "",
     branch_id: profile?.branch_id || "",
     page: 1,
     page_size: 25
   });
 
+  const [staffOptions, setStaffOptions] = useState([]);
   const [result, setResult] = useState({
     meta: {},
     summary: {
@@ -138,6 +140,22 @@ export default function InvoicesPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!supabase || !profile?.organization_id) return;
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id,full_name,email,role,is_active")
+        .eq("organization_id", profile.organization_id)
+        .eq("is_active", true)
+        .order("full_name");
+      if (active && !error) setStaffOptions(data || []);
+    })();
+    return () => { active = false; };
+  }, [supabase, profile?.organization_id]);
+
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -524,6 +542,15 @@ export default function InvoicesPage() {
             </select>
           </label>
         )}
+
+
+        <label>
+          <span>Sold by / User</span>
+          <select value={filters.cashier_id} onChange={(event) => updateFilter("cashier_id", event.target.value)}>
+            <option value="">All users</option>
+            {staffOptions.map((member) => <option value={member.id} key={member.id}>{member.full_name || member.email || "POS Staff"} · {member.role}</option>)}
+          </select>
+        </label>
 
         <label>
           <span>Sale status</span>

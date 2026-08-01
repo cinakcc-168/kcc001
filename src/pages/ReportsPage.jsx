@@ -19,7 +19,8 @@ import {
   WalletCards,
   Warehouse,
   Landmark,
-  TrendingDown
+  TrendingDown,
+  ClipboardCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { money, stockNumber } from "../lib/catalog";
@@ -32,12 +33,15 @@ import {
 } from "../lib/reports";
 import ReportMetricCard from "../components/ReportMetricCard";
 import ReportBarChart from "../components/ReportBarChart";
+import EndOfDayReport from "../components/EndOfDayReport";
+import { exportEndOfDayCsv, loadEndOfDay } from "../lib/endOfDay";
 
 const tabs = [
   ["sales", "Sales Summary", ReceiptText],
   ["profit", "Profit & Loss", TrendingUp],
   ["stock", "Stock Analysis", Warehouse],
-  ["customers", "Customer Analysis", UsersRound]
+  ["customers", "Customer Analysis", UsersRound],
+  ["endofday", "End of Day", ClipboardCheck]
 ];
 
 function number(value, maximumFractionDigits = 2) {
@@ -64,6 +68,7 @@ export default function ReportsPage() {
   const [branches, setBranches] = useState([]);
   const [activeTab, setActiveTab] = useState("sales");
   const [data, setData] = useState(null);
+  const [endOfDay, setEndOfDay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -117,11 +122,13 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       setMessage("");
-      const report = await loadReports(supabase, {
-        ...filters,
-        branchId: filters.branchId || profile.branch_id
-      });
+      const resolvedFilters = { ...filters, branchId: filters.branchId || profile.branch_id };
+      const [report, eod] = await Promise.all([
+        loadReports(supabase, resolvedFilters),
+        loadEndOfDay(supabase, resolvedFilters)
+      ]);
       setData(report);
+      setEndOfDay(eod);
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -151,6 +158,10 @@ export default function ReportsPage() {
   }
 
   function exportCurrentTab() {
+    if (activeTab === "endofday") {
+      exportEndOfDayCsv(endOfDay || {}, `tiny-pos-end-of-day-${filters.from}-to-${filters.to}.csv`);
+      return;
+    }
     const scope = data?.scope?.all_branches
       ? "all-branches"
       : String(data?.scope?.branch_name || "branch").toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
@@ -397,6 +408,7 @@ export default function ReportsPage() {
       {data && activeTab === "profit" && <ProfitReport />}
       {data && activeTab === "stock" && <StockReport />}
       {data && activeTab === "customers" && <CustomerReport />}
+      {endOfDay && activeTab === "endofday" && <EndOfDayReport report={endOfDay} />}
     </div>
   );
 }
