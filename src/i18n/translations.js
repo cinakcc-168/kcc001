@@ -453,7 +453,7 @@ const EXACT_KM = {
   "Save Quote": "រក្សាទុកសម្រង់តម្លៃ",
   "Update Quote": "កែសម្រង់តម្លៃ",
   "Pay": "ទូទាត់",
-  "Subtotal": "សរុបរង",
+  "Subtotal": "សរុប",
   "Tax": "ពន្ធ",
   "Total": "សរុប",
   "Change": "ប្រាក់អាប់",
