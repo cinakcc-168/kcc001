@@ -20,6 +20,48 @@ import {
 
 const AuthContext = createContext(null);
 
+async function loadProfileWithCustomRole(client, userId) {
+  // Load the core profile first. Do not embed custom_staff_roles here:
+  // Step 46 creates multiple foreign keys between profiles and custom roles,
+  // which can make the PostgREST relationship ambiguous and prevent every
+  // account (owner/admin/cashier) from loading.
+  const { data: baseProfile, error: profileError } = await client
+    .from("profiles")
+    .select("*,organizations(*),branches(*)")
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !baseProfile) {
+    throw new Error(profileError?.message || "POS profile not found.");
+  }
+
+  if (!baseProfile.custom_role_id) {
+    return {
+      ...baseProfile,
+      custom_staff_roles: null
+    };
+  }
+
+  // A custom role is optional. If its table/relationship is temporarily
+  // unavailable, keep the user's standard base role instead of locking the
+  // entire POS.
+  const { data: customRole, error: customRoleError } = await client
+    .from("custom_staff_roles")
+    .select("id,name,description,base_role,is_active")
+    .eq("id", baseProfile.custom_role_id)
+    .eq("organization_id", baseProfile.organization_id)
+    .maybeSingle();
+
+  if (customRoleError) {
+    console.warn("Tiny POS custom role could not be loaded:", customRoleError.message);
+  }
+
+  return {
+    ...baseProfile,
+    custom_staff_roles: customRole || null
+  };
+}
+
 function applyPreferences(preferences) {
   const root = document.documentElement;
   const theme = preferences?.theme || "system";
@@ -56,13 +98,11 @@ export function AuthProvider({ children }) {
 
     const userId = activeSession.user.id;
 
-    const { data: profileData, error: profileError } = await client
-      .from("profiles")
-      .select("*,organizations(*),branches(*),custom_staff_roles(id,name,description,base_role,is_active)")
-      .eq("id", userId)
-      .single();
+    let profileData;
 
-    if (profileError || !profileData) {
+    try {
+      profileData = await loadProfileWithCustomRole(client, userId);
+    } catch (profileLoadError) {
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         const cached = loadOfflineAuthSnapshot(userId);
         if (cached?.profile) {
@@ -74,7 +114,7 @@ export function AuthProvider({ children }) {
           return;
         }
       }
-      throw new Error(profileError?.message || "POS profile not found.");
+      throw profileLoadError;
     }
 
     if (!profileData.is_active) {
@@ -216,6 +256,12 @@ export function AuthProvider({ children }) {
   }
 
   function can(permissionKey) {
+    // The organization owner must never be locked out by a stale access RPC
+    // response or an unfinished custom-role migration.
+    if (String(profile?.role || "").trim().toLowerCase() === "owner") {
+      return true;
+    }
+
     return accessAllows(
       access
       || fallbackAccessForRole(
@@ -226,6 +272,10 @@ export function AuthProvider({ children }) {
   }
 
   function canAny(permissionKeys) {
+    if (String(profile?.role || "").trim().toLowerCase() === "owner") {
+      return true;
+    }
+
     return accessAllowsAny(
       access
       || fallbackAccessForRole(
