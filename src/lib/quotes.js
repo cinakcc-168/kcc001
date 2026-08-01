@@ -144,6 +144,9 @@ export async function loadSalesQuotes(
         product_id,
         product_unit_id,
         product_name,
+        products (
+          name_km
+        ),
         sku,
         barcode,
         quantity,
