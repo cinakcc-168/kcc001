@@ -32,7 +32,7 @@ import {
   exactStockCountMatch,
   loadStockCountItems,
   loadStockCountWorkspace,
-  saveStockCountItem,
+  saveAllStockCountItems,
   scanStockCountItem,
   startStockCount
 } from "../lib/stockCounts";
@@ -88,6 +88,7 @@ export default function StockCountsPage() {
   const [loading, setLoading] =
     useState(true);
   const [busy, setBusy] = useState("");
+  const [draftItems, setDraftItems] = useState({});
   const [message, setMessage] =
     useState("");
   const [messageType, setMessageType] =
@@ -119,6 +120,7 @@ export default function StockCountsPage() {
       setItems(workspace.activeItems);
       setProducts(workspace.products);
       setCategories(workspace.categories);
+      setDraftItems({});
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -315,36 +317,74 @@ export default function StockCountsPage() {
     }
   }
 
-  async function handleSave(
-    item,
-    countedQuantity,
-    note
-  ) {
-    try {
-      setBusy(`item-${item.id}`);
+  function handleDraftChange(item, countedQuantity, note) {
+    setDraftItems((current) => {
+      const originalQuantity =
+        item.counted_quantity === null
+          ? null
+          : Number(item.counted_quantity);
+      const normalizedQuantity =
+        countedQuantity === null
+          ? null
+          : Number(countedQuantity);
+      const originalNote = String(item.note || "").trim();
+      const normalizedNote = String(note || "").trim();
 
-      await saveStockCountItem(
+      const next = { ...current };
+      const unchanged =
+        originalQuantity === normalizedQuantity
+        && originalNote === normalizedNote;
+
+      if (unchanged) {
+        delete next[item.product_id];
+      } else {
+        next[item.product_id] = {
+          product_id: item.product_id,
+          counted_quantity: normalizedQuantity,
+          note: normalizedNote
+        };
+      }
+
+      return next;
+    });
+  }
+
+  async function handleSaveAll() {
+    const pending = Object.values(draftItems);
+
+    if (pending.length === 0) {
+      announce("error", "Enter or change at least one counted quantity first.");
+      return;
+    }
+
+    const invalid = pending.find((item) =>
+      item.counted_quantity !== null
+      && (
+        !Number.isFinite(item.counted_quantity)
+        || item.counted_quantity < 0
+      )
+    );
+
+    if (invalid) {
+      announce("error", "Every counted quantity must be zero or greater.");
+      return;
+    }
+
+    try {
+      setBusy("save-all");
+
+      const result = await saveAllStockCountItems(
         supabase,
         {
-          session_id:
-            activeSession.id,
-          product_id:
-            item.product_id,
-          counted_quantity:
-            countedQuantity,
-          note
+          session_id: activeSession.id,
+          items: pending
         }
       );
 
       announce(
         "success",
-        countedQuantity === null
-          ? `${item.products?.name} count cleared.`
-          : `${item.products?.name} saved at ${stockNumber(
-              countedQuantity
-            )} ${item.products?.unit_name}.`
+        `${result.saved_items || pending.length} product counts saved together.`
       );
-
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -548,10 +588,26 @@ export default function StockCountsPage() {
               <button
                 type="button"
                 className="primary-button"
+                onClick={handleSaveAll}
+                disabled={
+                  loading
+                  || busy === "save-all"
+                  || Object.keys(draftItems).length === 0
+                }
+              >
+                <CheckCircle2 size={18} />
+                {busy === "save-all"
+                  ? "Saving all..."
+                  : `Save all counts (${Object.keys(draftItems).length})`}
+              </button>
+
+              <button
+                type="button"
+                className="secondary-button"
                 onClick={() =>
                   setCompleteOpen(true)
                 }
-                disabled={loading}
+                disabled={loading || busy === "save-all"}
               >
                 <CheckCircle2 size={18} />
                 Review & complete
@@ -820,7 +876,7 @@ export default function StockCountsPage() {
                       <th>Variance</th>
                       <th>Value variance</th>
                       <th>Note</th>
-                      <th />
+                      <th>Status</th>
                     </tr>
                   </thead>
 
@@ -833,11 +889,8 @@ export default function StockCountsPage() {
                           activeSession
                             .blind_count
                         }
-                        busy={
-                          busy
-                            === `item-${item.id}`
-                        }
-                        onSave={handleSave}
+                        busy={busy === "save-all"}
+                        onDraftChange={handleDraftChange}
                       />
                     ))}
                   </tbody>
