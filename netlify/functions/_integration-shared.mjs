@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import dns from "node:dns/promises";
 import net from "node:net";
+import { hasEffectivePermission } from "./_permission.mjs";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -34,8 +35,7 @@ export async function requireUser(request,permission="integrations.view"){
   if(userError||!userData?.user) throw Object.assign(new Error("Invalid or expired session"),{status:401});
   const {data:profile,error}=await admin.from("profiles").select("id,organization_id,branch_id,full_name,role,is_active").eq("id",userData.user.id).single();
   if(error||!profile?.is_active) throw Object.assign(new Error("Active POS profile required"),{status:403});
-  let allowed=profile.role==="owner";
-  if(!allowed){ const {data:override}=await admin.from("user_permission_overrides").select("allowed").eq("user_id",profile.id).eq("permission_key",permission).maybeSingle(); allowed=override?Boolean(override.allowed):(defaults[permission]||[]).includes(profile.role); }
+  const allowed=await hasEffectivePermission(admin,profile,permission,defaults[permission]||[]);
   if(!allowed) throw Object.assign(new Error(`Permission required: ${permission}`),{status:403});
   return {admin,user:userData.user,profile};
 }

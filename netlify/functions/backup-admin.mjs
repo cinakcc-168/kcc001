@@ -1,31 +1,5 @@
+import { hasEffectivePermission } from "./_permission.mjs";
 import { createClient } from "@supabase/supabase-js";
-
-async function hasIndividualPermission(
-  admin,
-  profile,
-  permissionKey,
-  defaultRoles
-) {
-  if (profile.role === "owner") return true;
-
-  try {
-    const { data, error } = await admin
-      .from("user_permission_overrides")
-      .select("allowed")
-      .eq("user_id", profile.id)
-      .eq("permission_key", permissionKey)
-      .maybeSingle();
-
-    if (!error && data) {
-      return Boolean(data.allowed);
-    }
-  } catch {
-    // Fall back to role defaults when Step 32 is not installed yet.
-  }
-
-  return defaultRoles.includes(profile.role);
-}
-
 
 
 // Step 45 security boundary: integration API keys, webhook secrets, external
@@ -49,6 +23,7 @@ const BACKUP_VERSION = 1;
 const PAGE_SIZE = 750;
 const INSERT_SIZE = 300;
 const OPTIONAL_TABLES = new Set([
+  "custom_staff_roles",
   "coupons",
   "coupon_redemptions",
   "cash_register_sessions",
@@ -111,6 +86,7 @@ const OPTIONAL_TABLES = new Set([
 
 const DIRECT_ORG_TABLES = [
   "app_settings",
+  "custom_staff_roles",
   "branches",
   "online_store_settings",
   "accounting_accounts",
@@ -203,6 +179,7 @@ const DIRECT_ORG_TABLES = [
 ];
 
 const DELETE_ORDER = [
+  "custom_staff_roles",
   "customer_campaigns",
   "customer_contact_logs",
   "crm_customer_tags",
@@ -296,6 +273,7 @@ const DELETE_ORDER = [
 
 const INSERT_ORDER = [
   "app_settings",
+  "custom_staff_roles",
   "online_store_settings",
   "accounting_accounts",
   "accounting_mappings",
@@ -487,7 +465,7 @@ async function authenticate(request, admin) {
     });
   }
 
-  if (!await hasIndividualPermission(
+  if (!await hasEffectivePermission(
     admin,
     profile,
     "audit_backup.manage",
@@ -548,7 +526,7 @@ async function createBackup(admin, caller) {
     admin
       .from("profiles")
       .select(
-        "id,organization_id,branch_id,email,full_name,role,phone,avatar_url,is_active,last_login_at,created_at,updated_at"
+        "id,organization_id,branch_id,email,full_name,role,custom_role_id,phone,avatar_url,is_active,last_login_at,created_at,updated_at"
       )
       .eq("organization_id", caller.organization_id)
   );
@@ -595,7 +573,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 44
+      schema_step: 46
     },
     staff: profiles,
     user_preferences: preferences,
@@ -828,7 +806,7 @@ async function restoreBackup(admin, caller, backup) {
     admin
       .from("profiles")
       .select(
-        "id,organization_id,branch_id,email,full_name,role,is_active"
+        "id,organization_id,branch_id,email,full_name,role,custom_role_id,is_active"
       )
       .eq("organization_id", caller.organization_id)
   );
@@ -962,6 +940,10 @@ async function restoreBackup(admin, caller, backup) {
         phone: sourceProfile.phone || null,
         avatar_url: sourceProfile.avatar_url || null,
         role: nextRole,
+        custom_role_id:
+          target.id === caller.id
+            ? null
+            : sourceProfile.custom_role_id || null,
         is_active:
           target.id === caller.id
             ? true

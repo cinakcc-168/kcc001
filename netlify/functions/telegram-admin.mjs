@@ -1,3 +1,4 @@
+import { hasEffectivePermission } from "./_permission.mjs";
 import {
   authenticatedProfile,
   botToken,
@@ -12,33 +13,6 @@ import {
   tg,
   telegramLanguage
 } from "./_telegram-i18n.mjs";
-
-async function hasIndividualPermission(
-  admin,
-  profile,
-  permissionKey,
-  defaultRoles
-) {
-  if (profile.role === "owner") return true;
-
-  try {
-    const { data, error } = await admin
-      .from("user_permission_overrides")
-      .select("allowed")
-      .eq("user_id", profile.id)
-      .eq("permission_key", permissionKey)
-      .maybeSingle();
-
-    if (!error && data) {
-      return Boolean(data.allowed);
-    }
-  } catch {
-    // Fall back to role defaults when Step 32 is not installed yet.
-  }
-
-  return defaultRoles.includes(profile.role);
-}
-
 
 function errorResponse(error) {
   return json(
@@ -64,6 +38,7 @@ async function preferredLanguage(
 }
 
 async function botStatus(service, userId) {
+  const expectedWebhookUrl = miniAppUrl("/api/telegram-webhook");
   const [me, webhookInfo, linkResult, preferenceResult] = await Promise.all([
     telegramApi("getMe"),
     telegramApi("getWebhookInfo"),
@@ -91,9 +66,12 @@ async function botStatus(service, userId) {
     },
     mini_app_url: miniAppUrl("/"),
     webhook: {
-      configured: Boolean(webhookInfo.url),
+      configured: webhookInfo.url === expectedWebhookUrl,
+      healthy: webhookInfo.url === expectedWebhookUrl && !webhookInfo.last_error_message,
+      expected_url: expectedWebhookUrl,
       url: webhookInfo.url || null,
       pending_update_count: webhookInfo.pending_update_count || 0,
+      last_error_date: webhookInfo.last_error_date || null,
       last_error_message: webhookInfo.last_error_message || null
     },
     link: linkResult.data || null,
@@ -193,7 +171,7 @@ async function linkMiniApp({ service, profile }, initData) {
 }
 
 async function setupBot(service, profile) {
-  if (!await hasIndividualPermission(
+  if (!await hasEffectivePermission(
     service,
     profile,
     "telegram.admin",
@@ -212,7 +190,7 @@ async function setupBot(service, profile) {
     );
   }
 
-  const webhookUrl = miniAppUrl("/.netlify/functions/telegram-webhook");
+  const webhookUrl = miniAppUrl("/api/telegram-webhook");
   const appUrl = miniAppUrl("/");
 
   const webhook = await telegramApi("setWebhook", {
@@ -221,6 +199,11 @@ async function setupBot(service, profile) {
     allowed_updates: ["message"],
     drop_pending_updates: false
   });
+
+  const verifiedWebhook = await telegramApi("getWebhookInfo");
+  if (verifiedWebhook.url !== webhookUrl) {
+    throw new Error("Telegram did not save the Tiny POS webhook URL. Run setup again after confirming TELEGRAM_MINI_APP_URL.");
+  }
 
   const menu = await telegramApi("setChatMenuButton", {
     menu_button: {
