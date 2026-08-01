@@ -4,7 +4,6 @@ import {
   ArrowDownAZ,
   BadgeDollarSign,
   Camera,
-  Clock3,
   ImageOff,
   CirclePause,
   FileText,
@@ -17,7 +16,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import BarcodeScanner from "../components/BarcodeScanner";
+import BarcodeScanner, { primeScannerFeedback } from "../components/BarcodeScanner";
 import Modal from "../components/Modal";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
@@ -1335,36 +1334,21 @@ export default function SalesPage() {
 
   return (
     <div className="page-stack sales-page">
-      <div className="page-heading">
+      <div className="sale-compact-heading">
         <div>
           <p className="eyebrow">POINT OF SALE</p>
           <h1>New Sale</h1>
-          <p className="muted">Search, tap or scan products, then accept payment or customer credit.</p>
         </div>
-        <div className="heading-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => setParkedOpen(true)}
-          >
-            <CirclePause size={18} /> Parked ({parkedSales.length})
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setScannerOpen(true)}
-            disabled={!canSell || Boolean(activeOrderDelivery)}
-          >
-            <Camera size={18} /> Scan
-          </button>
-        </div>
-      </div>
 
-      {message && (
-        <div className={`notice ${messageType}`} onClick={() => setMessage("")}>
-          {message}
-        </div>
-      )}
+        {message && (
+          <div
+            className={`notice ${messageType} sale-heading-notice`}
+            onClick={() => setMessage("")}
+          >
+            {message}
+          </div>
+        )}
+      </div>
 
       {!cashRegisterOpen && (
         <div className="notice warning cash-register-sale-warning">
@@ -1441,7 +1425,7 @@ export default function SalesPage() {
       <div className="sale-layout">
         <section className="sale-products-panel panel">
           <form className="sale-toolbar" onSubmit={submitSearch}>
-            <label className="search-box">
+            <label className="search-box sale-product-search">
               <Search size={19} />
               <input
                 value={search}
@@ -1449,29 +1433,59 @@ export default function SalesPage() {
                 placeholder="Search product, code or barcode"
               />
             </label>
-            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+
+            <button
+              type="button"
+              className="primary-button sale-scan-button"
+              onClick={async () => {
+                await primeScannerFeedback();
+                setScannerOpen(true);
+              }}
+              disabled={!canSell || Boolean(activeOrderDelivery)}
+            >
+              <Camera size={18} /> Scan
+            </button>
+
+            <select
+              className="sale-category-select"
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              aria-label="Filter products by category"
+            >
               <option value="all">All categories</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
+
             <label className="sale-sort-select">
               <ArrowDownAZ size={18} />
-              <select value={productSort} onChange={(event) => setProductSort(event.target.value)} aria-label="Sort products">
+              <select
+                value={productSort}
+                onChange={(event) => setProductSort(event.target.value)}
+                aria-label="Sort products"
+              >
                 <option value="name_az">A–Z</option>
                 <option value="name_za">Z–A</option>
                 <option value="km_az">ក–អ</option>
                 <option value="km_za">អ–ក</option>
               </select>
             </label>
-            <button type="button" className="icon-button refresh-button" onClick={refresh} title="Refresh">
-              <RefreshCw className={loading ? "spin" : ""} size={20} />
-            </button>
           </form>
 
           <div className="sale-product-summary">
             <span><strong>{visibleProducts.length}</strong> products available</span>
-            <small>Tap a product to add one unit.</small>
+            <div>
+              <small>Tap a product to add one unit.</small>
+              <button
+                type="button"
+                className="icon-button refresh-button"
+                onClick={refresh}
+                title="Refresh products"
+              >
+                <RefreshCw className={loading ? "spin" : ""} size={19} />
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -1555,6 +1569,8 @@ export default function SalesPage() {
             );
           }}
           onClear={clearSale}
+          parkedCount={parkedSales.length}
+          onOpenParked={() => setParkedOpen(true)}
           onPark={handlePark}
           onSaveQuote={() => {
             if (activeOrderDelivery) {
@@ -1606,38 +1622,6 @@ export default function SalesPage() {
           }
         />
       </div>
-
-      <section className="panel recent-sales-panel">
-        <div className="panel-title-row">
-          <div><p className="eyebrow">HISTORY</p><h2>Recent sales</h2></div>
-          <Clock3 size={22} />
-        </div>
-        {recentSales.length === 0 ? (
-          <p className="muted">No completed sales yet.</p>
-        ) : (
-          <div className="recent-sales-table-wrap">
-            <table className="recent-sales-table">
-              <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Payment</th><th>Status</th><th>Total</th></tr></thead>
-              <tbody>
-                {recentSales.map((sale) => (
-                  <tr key={sale.id}>
-                    <td data-label="Invoice"><strong>{sale.invoice_number}</strong></td>
-                    <td data-label="Date">{dateTime(sale.completed_at || sale.created_at)}</td>
-                    <td data-label="Customer">{sale.customers?.name || "Walk-in"}</td>
-                    <td data-label="Payment">
-                      {sale.credit_account_id
-                        ? "CREDIT"
-                        : sale.payments?.[0]?.method?.toUpperCase() || "—"}
-                    </td>
-                    <td data-label="Status"><span className={`status-pill ${sale.status === "completed" ? "active" : "inactive"}`}>{sale.status}</span></td>
-                    <td data-label="Total"><strong>{money(sale.total_amount, sale.currency)}</strong></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       <BarcodeScanner
         open={scannerOpen}

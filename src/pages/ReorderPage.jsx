@@ -273,7 +273,7 @@ export default function ReorderPage() {
       ["Product", "Code", "Category", "Status", "Current stock", "Reorder point", "Target stock", "Supplier", "Suggested quantity", "Purchase unit", "Estimate", "Currency"],
       ...visible.map((item) => [item.product_name, item.sku || item.barcode, item.category_name, item.reorder_status, item.current_stock, item.reorder_point, item.target_stock, item.preferred_supplier_name, item.suggested_purchase_quantity, item.purchase_unit_name || item.base_unit_name, item.estimated_order_total, item.currency])
     ];
-    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob(["\uFEFF", rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -286,7 +286,7 @@ export default function ReorderPage() {
     const win = window.open("", "_blank", "noopener,noreferrer");
     if (!win) { announce("error", "Allow pop-ups to print the reorder list."); return; }
     const rows = visible.map((item) => `<tr><td>${item.product_name}</td><td>${item.sku || item.barcode || "—"}</td><td>${reorderStatusLabel(item.reorder_status)}</td><td>${stockNumber(item.current_stock)} ${item.base_unit_name}</td><td>${stockNumber(item.reorder_point)}</td><td>${item.preferred_supplier_name || "Not configured"}</td><td>${stockNumber(item.suggested_purchase_quantity)} ${item.purchase_unit_name || item.base_unit_name}</td><td>${money(item.estimated_order_total, item.currency)}</td></tr>`).join("");
-    win.document.write(`<!doctype html><html><head><title>Reorder Planner</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eee}</style></head><body><h1>Reorder Planner</h1><p>${visible.length} products · ${new Date().toLocaleString()}</p><table><thead><tr><th>Product</th><th>Code</th><th>Status</th><th>Stock</th><th>Reorder at</th><th>Supplier</th><th>Suggested</th><th>Estimate</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+    win.document.write(`<!doctype html><html><head><title>Reorder Planner</title><style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap');body{font-family:'Noto Sans Khmer','Khmer OS System',Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eee}</style></head><body><h1>Reorder Planner</h1><p>${visible.length} products · ${new Date().toLocaleString()}</p><table><thead><tr><th>Product</th><th>Code</th><th>Status</th><th>Stock</th><th>Reorder at</th><th>Supplier</th><th>Suggested</th><th>Estimate</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
     win.document.close();
   }
 
