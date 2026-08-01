@@ -384,6 +384,7 @@ export default function ReturnsPage() {
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
+      throw error;
     } finally {
       setBusy(false);
     }

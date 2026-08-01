@@ -643,6 +643,12 @@ export default function TelegramPage() {
             </span>
           </div>
 
+          {!status?.webhook?.configured && status?.webhook?.url && (
+            <div className="notice error">
+              Telegram is using a different webhook URL: {status.webhook.url}. Press Configure Telegram bot to replace it with {status.webhook.expected_url}.
+            </div>
+          )}
+
           {status?.webhook?.last_error_message && (
             <div className="notice error">
               Telegram webhook error: {status.webhook.last_error_message}

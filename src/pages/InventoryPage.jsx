@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Camera,
   ClipboardCheck,
+  Download,
   History,
   PackagePlus,
   PencilLine,
+  Printer,
   RefreshCw,
   Search,
   Truck,
@@ -93,13 +95,12 @@ export default function InventoryPage() {
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(needle));
       const matchesCategory = categoryFilter === "all" || product.category_id === categoryFilter;
-      const lowStock = product.track_stock &&
-        product.stock_quantity <= Number(product.low_stock_threshold || 0);
       const matchesStock =
         stockFilter === "all" ||
-        (stockFilter === "low" && lowStock) ||
-        (stockFilter === "out" && product.stock_quantity <= 0) ||
-        (stockFilter === "positive" && product.stock_quantity > 0);
+        (stockFilter === "low" && ["low_stock", "out_of_stock"].includes(product.stock_status)) ||
+        (stockFilter === "out" && product.stock_status === "out_of_stock") ||
+        (stockFilter === "positive" && product.stock_quantity > 0) ||
+        (stockFilter === "healthy" && product.stock_status === "healthy");
 
       return product.is_active && product.track_stock && matchesSearch && matchesCategory && matchesStock;
     });
@@ -122,10 +123,41 @@ export default function InventoryPage() {
         0
       ),
       low: tracked.filter(
-        (product) => product.stock_quantity <= Number(product.low_stock_threshold || 0)
+        (product) => ["low_stock", "out_of_stock"].includes(product.stock_status)
       ).length
     };
   }, [products]);
+
+  function csvCell(value) {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  }
+
+  function exportInventory() {
+    const rows = [
+      ["Product", "Code", "Barcode", "Category", "Stock", "Unit", "Low-stock threshold", "Stock status", "Average cost", "Stock value", "Currency"],
+      ...visibleProducts.map((product) => [
+        product.name, product.sku, product.barcode, product.categories?.name || "Uncategorized",
+        product.stock_quantity, product.unit_name, product.effective_low_stock_threshold, product.stock_status,
+        product.average_cost, product.stock_quantity * product.average_cost, product.currency
+      ])
+    ];
+    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tiny-pos-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printInventory() {
+    const win = window.open("", "_blank", "noopener,noreferrer");
+    if (!win) { setMessageType("error"); setMessage("Allow pop-ups to print inventory."); return; }
+    const rows = visibleProducts.map((product) => `<tr><td>${product.name}</td><td>${product.sku || product.barcode || "—"}</td><td>${product.categories?.name || "Uncategorized"}</td><td>${stockNumber(product.stock_quantity)} ${product.unit_name}</td><td>${stockNumber(product.effective_low_stock_threshold)}</td><td>${product.stock_status.replaceAll("_", " ")}</td><td>${money(product.stock_quantity * product.average_cost, product.currency)}</td></tr>`).join("");
+    win.document.write(`<!doctype html><html><head><title>Inventory</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eee}</style></head><body><h1>Inventory</h1><p>${visibleProducts.length} items · ${new Date().toLocaleString()}</p><table><thead><tr><th>Product</th><th>Code</th><th>Category</th><th>Stock</th><th>Low at</th><th>Status</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+    win.document.close();
+  }
 
   async function saveAdjustment(values) {
     try {
@@ -220,9 +252,12 @@ export default function InventoryPage() {
         <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}>
           <option value="all">All stock</option>
           <option value="positive">In stock</option>
-          <option value="low">Low stock</option>
+          <option value="low">Low stock (including out)</option>
           <option value="out">Out of stock</option>
+          <option value="healthy">Healthy stock</option>
         </select>
+        <button className="icon-button refresh-button" onClick={exportInventory} title="Export CSV"><Download size={20} /></button>
+        <button className="icon-button refresh-button" onClick={printInventory} title="Print"><Printer size={20} /></button>
         <button className="icon-button refresh-button" onClick={refresh} title="Refresh"><RefreshCw className={loading ? "spin" : ""} size={20} /></button>
       </section>
 
@@ -238,12 +273,12 @@ export default function InventoryPage() {
               <thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Average cost</th><th>Stock value</th><th>Updated</th><th /></tr></thead>
               <tbody>
                 {visibleProducts.map((product) => {
-                  const low = product.stock_quantity <= Number(product.low_stock_threshold || 0);
+                  const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
                   return (
                     <tr key={product.id}>
                       <td data-label="Product"><div className="inventory-product"><strong>{product.name}</strong><span>{product.sku} · {product.barcode || "No barcode"}</span></div></td>
                       <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
-                      <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span></td>
+                      <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></td>
                       <td data-label="Average cost">{money(product.average_cost, product.currency)}</td>
                       <td data-label="Stock value"><strong>{money(product.stock_quantity * product.average_cost, product.currency)}</strong></td>
                       <td data-label="Updated">{dateTime(product.balance_updated_at)}</td>

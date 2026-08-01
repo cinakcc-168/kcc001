@@ -5,6 +5,7 @@ import {
   Clock3,
   LogIn,
   LogOut,
+  MapPin,
   Pencil,
   Plus,
   RefreshCw,
@@ -28,6 +29,28 @@ import {
   saveCommissionPlan,
   staffDateTime
 } from "../lib/staffOperations";
+
+function currentPosition() {
+  if (!navigator.geolocation) {
+    return Promise.reject(new Error("This device does not support location. Attendance check-in requires branch location verification."));
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      }),
+      (error) => reject(new Error(
+        error.code === 1
+          ? "Location permission was denied. Allow precise location for Tiny POS and try again."
+          : "Your location could not be verified. Move near the branch and try again."
+      )),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 15000 }
+    );
+  });
+}
 
 export default function StaffOperationsPage() {
   const { supabase, profile, access, can } = useAuth();
@@ -78,10 +101,14 @@ export default function StaffOperationsPage() {
   async function check(action) {
     try {
       setBusy(action);
-      if (action === "check-in") await attendanceCheckIn(supabase, profile.branch_id, note);
-      else await attendanceCheckOut(supabase, note);
+      const branch = workspace.branches.find((row) => row.id === profile.branch_id) || profile.branches;
+      const location = branch?.attendance_geofence_required === false
+        ? {}
+        : await currentPosition();
+      if (action === "check-in") await attendanceCheckIn(supabase, profile.branch_id, note, location);
+      else await attendanceCheckOut(supabase, note, location);
       setNote("");
-      announce("success", action === "check-in" ? "Checked in successfully." : "Checked out successfully.");
+      announce("success", action === "check-in" ? "Checked in at the branch successfully." : "Checked out successfully.");
       await refresh();
     } catch (error) { announce("error", error.message); }
     finally { setBusy(""); }
@@ -122,7 +149,8 @@ export default function StaffOperationsPage() {
         <div className="attendance-clock-copy">
           <span>{status?.checked_in ? "Currently checked in" : "Not checked in"}</span>
           <strong>{status?.checked_in ? durationLabel(elapsed) : profile?.branches?.name || "Assigned branch"}</strong>
-          <small>{status?.checked_in ? `Since ${staffDateTime(status.session?.check_in_at)} · ${status.session?.branch_id === profile.branch_id ? profile?.branches?.name || "Current branch" : "Selected branch"}` : "Use POS or Telegram /checkin when your shift begins."}</small>
+          <small>{status?.checked_in ? `Since ${staffDateTime(status.session?.check_in_at)} · ${status.session?.branch_id === profile.branch_id ? profile?.branches?.name || "Current branch" : "Selected branch"}` : "Check-in verifies that this device is inside the branch attendance radius."}</small>
+          {profile?.branches?.attendance_geofence_required !== false && <span className="attendance-location-chip"><MapPin size={15} /> Branch location required · {profile?.branches?.attendance_radius_m || 150} m</span>}
         </div>
         <label className="attendance-note"><span>Optional note</span><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Shift or handover note" /></label>
         <button type="button" className={status?.checked_in ? "danger-button" : "primary-button"} disabled={Boolean(busy)} onClick={() => check(status?.checked_in ? "check-out" : "check-in")}>

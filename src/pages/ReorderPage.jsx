@@ -3,8 +3,10 @@ import {
   Boxes,
   CheckCircle2,
   ClipboardList,
+  Download,
   Edit3,
   PackageCheck,
+  Printer,
   RefreshCw,
   Search,
   ShoppingCart,
@@ -16,7 +18,7 @@ import {
   useMemo,
   useState
 } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ReorderRuleModal from "../components/ReorderRuleModal";
 import { money, stockNumber } from "../lib/catalog";
@@ -30,6 +32,7 @@ import {
 
 const statuses = [
   ["", "All statuses"],
+  ["attention", "Low stock (all attention)"],
   ["out_of_stock", "Out of stock"],
   ["reorder", "Reorder now"],
   ["draft_order", "Draft PO exists"],
@@ -42,6 +45,7 @@ export default function ReorderPage() {
   const { supabase, profile, can } = useAuth();
 
   const canManage = can("reorder.manage");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [suggestions, setSuggestions] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -49,7 +53,7 @@ export default function ReorderPage() {
     useState(new Set());
 
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() => searchParams.get("status") || "");
   const [supplierId, setSupplierId] = useState("");
   const [categoryId, setCategoryId] = useState("");
 
@@ -105,6 +109,11 @@ export default function ReorderPage() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const requested = searchParams.get("status") || "";
+    if (requested !== status) setStatus(requested);
+  }, [searchParams]);
+
   const categories = useMemo(() => {
     const map = new Map();
 
@@ -128,10 +137,15 @@ export default function ReorderPage() {
     const needle = search.trim().toLowerCase();
 
     return suggestions.filter((item) => {
-      if (
-        status
-        && item.reorder_status !== status
-      ) {
+      if (status === "attention" && Number(item.current_stock || 0) > Number(item.reorder_point || 0)) {
+        return false;
+      }
+
+      if (status === "out_of_stock" && Number(item.current_stock || 0) > 0) {
+        return false;
+      }
+
+      if (status && !["attention", "out_of_stock"].includes(status) && item.reorder_status !== status) {
         return false;
       }
 
@@ -248,6 +262,41 @@ export default function ReorderPage() {
     && allVisibleEligible.every((item) =>
       selectedIds.has(item.product_id)
     );
+
+  function csvCell(value) {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  }
+
+  function exportVisible() {
+    const rows = [
+      ["Product", "Code", "Category", "Status", "Current stock", "Reorder point", "Target stock", "Supplier", "Suggested quantity", "Purchase unit", "Estimate", "Currency"],
+      ...visible.map((item) => [item.product_name, item.sku || item.barcode, item.category_name, item.reorder_status, item.current_stock, item.reorder_point, item.target_stock, item.preferred_supplier_name, item.suggested_purchase_quantity, item.purchase_unit_name || item.base_unit_name, item.estimated_order_total, item.currency])
+    ];
+    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tiny-pos-reorder-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function printVisible() {
+    const win = window.open("", "_blank", "noopener,noreferrer");
+    if (!win) { announce("error", "Allow pop-ups to print the reorder list."); return; }
+    const rows = visible.map((item) => `<tr><td>${item.product_name}</td><td>${item.sku || item.barcode || "—"}</td><td>${reorderStatusLabel(item.reorder_status)}</td><td>${stockNumber(item.current_stock)} ${item.base_unit_name}</td><td>${stockNumber(item.reorder_point)}</td><td>${item.preferred_supplier_name || "Not configured"}</td><td>${stockNumber(item.suggested_purchase_quantity)} ${item.purchase_unit_name || item.base_unit_name}</td><td>${money(item.estimated_order_total, item.currency)}</td></tr>`).join("");
+    win.document.write(`<!doctype html><html><head><title>Reorder Planner</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eee}</style></head><body><h1>Reorder Planner</h1><p>${visible.length} products · ${new Date().toLocaleString()}</p><table><thead><tr><th>Product</th><th>Code</th><th>Status</th><th>Stock</th><th>Reorder at</th><th>Supplier</th><th>Suggested</th><th>Estimate</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
+    win.document.close();
+  }
+
+  function changeStatus(nextStatus) {
+    setStatus(nextStatus);
+    const next = new URLSearchParams(searchParams);
+    if (nextStatus) next.set("status", nextStatus);
+    else next.delete("status");
+    setSearchParams(next, { replace: true });
+  }
 
   function announce(type, text) {
     setMessageType(type);
@@ -393,6 +442,14 @@ export default function ReorderPage() {
             Purchase orders
           </Link>
 
+          <button type="button" className="secondary-button" onClick={exportVisible}>
+            <Download size={18} /> Export CSV
+          </button>
+
+          <button type="button" className="secondary-button" onClick={printVisible}>
+            <Printer size={18} /> Print
+          </button>
+
           <button
             type="button"
             className="secondary-button"
@@ -472,7 +529,7 @@ export default function ReorderPage() {
           <select
             value={status}
             onChange={(event) =>
-              setStatus(event.target.value)
+              changeStatus(event.target.value)
             }
           >
             {statuses.map(([value, label]) => (

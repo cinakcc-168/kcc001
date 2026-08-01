@@ -302,6 +302,7 @@ export default function PurchaseOrdersPage() {
       await refresh();
     } catch (error) {
       showError(error);
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -342,6 +343,7 @@ export default function PurchaseOrdersPage() {
       await refresh();
     } catch (error) {
       showError(error);
+      throw error;
     } finally {
       setBusy(false);
     }

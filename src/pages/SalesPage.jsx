@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  ArrowDownAZ,
   BadgeDollarSign,
   Camera,
   Clock3,
@@ -110,6 +111,7 @@ export default function SalesPage() {
   const [messageType, setMessageType] = useState("success");
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [productSort, setProductSort] = useState("name_az");
   const [cart, setCart] = useState([]);
   const [customerId, setCustomerId] = useState("");
   const [discountType, setDiscountType] = useState("none");
@@ -599,8 +601,19 @@ export default function SalesPage() {
       const matchesCategory =
         categoryFilter === "all" || product.category_id === categoryFilter;
       return matchesSearch && matchesCategory;
+    }).sort((a, b) => {
+      if (productSort === "name_za") {
+        return String(b.name || "").localeCompare(String(a.name || ""), "en", { sensitivity: "base" });
+      }
+      if (productSort === "km_az") {
+        return String(a.name_km || a.name || "").localeCompare(String(b.name_km || b.name || ""), "km");
+      }
+      if (productSort === "km_za") {
+        return String(b.name_km || b.name || "").localeCompare(String(a.name_km || a.name || ""), "km");
+      }
+      return String(a.name || "").localeCompare(String(b.name || ""), "en", { sensitivity: "base" });
     });
-  }, [products, search, categoryFilter, shop]);
+  }, [products, search, categoryFilter, productSort]);
 
   const currency = cart[0]?.currency || shop?.base_currency || "USD";
   const totals = useMemo(
@@ -717,7 +730,7 @@ export default function SalesPage() {
     return next;
   }
 
-  function addProduct(product, preferredUnitId = null) {
+  function addProduct(product, preferredUnitId = null, throwOnError = false) {
     try {
       if (!canSell) throw new Error("Your role cannot create sales.");
       if (activeOrderDelivery) {
@@ -759,11 +772,14 @@ export default function SalesPage() {
         ]);
       }
 
-      if (preferences?.scanner_vibration) navigator.vibrate?.(55);
+      if (!throwOnError && preferences?.scanner_vibration) navigator.vibrate?.(55);
       setSearch("");
       announce("success", `${product.name} · ${unit.name} added to the bill.`);
+      return true;
     } catch (error) {
       announce("error", error.message);
+      if (throwOnError) throw error;
+      return false;
     }
   }
 
@@ -828,17 +844,18 @@ export default function SalesPage() {
   }
 
   function handleScan(code) {
-    setScannerOpen(false);
     if (activeOrderDelivery) {
-      announce("error", "Scanning is disabled for a prepared delivery.");
-      return;
+      const error = new Error("Scanning is disabled for a prepared delivery.");
+      announce("error", error.message);
+      throw error;
     }
     const match = exactSaleProductMatch(products, code);
     if (!match) {
-      announce("error", `No active product or package matches ${code}.`);
-      return;
+      const error = new Error(`No active product or package matches ${code}.`);
+      announce("error", error.message);
+      throw error;
     }
-    addProduct(match.product, match.unit?.id || null);
+    return addProduct(match.product, match.unit?.id || null, true);
   }
 
   function submitSearch(event) {
@@ -1044,6 +1061,7 @@ export default function SalesPage() {
       );
     } catch (error) {
       announce("error", error.message);
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -1437,6 +1455,15 @@ export default function SalesPage() {
                 <option key={category.id} value={category.id}>{category.name}</option>
               ))}
             </select>
+            <label className="sale-sort-select">
+              <ArrowDownAZ size={18} />
+              <select value={productSort} onChange={(event) => setProductSort(event.target.value)} aria-label="Sort products">
+                <option value="name_az">A–Z</option>
+                <option value="name_za">Z–A</option>
+                <option value="km_az">ក–អ</option>
+                <option value="km_za">អ–ក</option>
+              </select>
+            </label>
             <button type="button" className="icon-button refresh-button" onClick={refresh} title="Refresh">
               <RefreshCw className={loading ? "spin" : ""} size={20} />
             </button>
@@ -1617,6 +1644,9 @@ export default function SalesPage() {
         title="Scan product for sale"
         onClose={() => setScannerOpen(false)}
         onDetected={handleScan}
+        continuous
+        vibration={preferences?.scanner_vibration !== false}
+        sound={preferences?.scanner_sound !== false}
       />
 
       <PaymentModal

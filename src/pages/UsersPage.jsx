@@ -4,6 +4,7 @@ import {
   Edit3,
   KeyRound,
   Plus,
+  Trash2,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -16,12 +17,15 @@ import { useAuth } from "../context/AuthContext";
 import BranchFormModal from "../components/BranchFormModal";
 import PasswordResetModal from "../components/PasswordResetModal";
 import StaffFormModal from "../components/StaffFormModal";
+import CustomRoleModal from "../components/CustomRoleModal";
 import {
   createStaffUser,
   loadStaffWorkspace,
   resetStaffPassword,
   roleLabel,
   saveBranch,
+  saveCustomRole,
+  deleteCustomRole,
   setBranchStatus,
   setStaffStatus,
   updateStaffUser
@@ -64,6 +68,10 @@ export default function UsersPage() {
 
   const [staff, setStaff] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [customRoles, setCustomRoles] = useState([]);
+  const [permissionDefinitions, setPermissionDefinitions] = useState([]);
+  const [customRoleOpen, setCustomRoleOpen] = useState(false);
+  const [editingCustomRole, setEditingCustomRole] = useState(null);
   const [tab, setTab] = useState("staff");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -87,6 +95,8 @@ export default function UsersPage() {
       const data = await loadStaffWorkspace(session);
       setStaff(data.staff);
       setBranches(data.branches);
+      setCustomRoles(data.customRoles);
+      setPermissionDefinitions(data.permissionDefinitions);
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -103,7 +113,11 @@ export default function UsersPage() {
     const needle = search.trim().toLowerCase();
 
     return staff.filter((member) => {
-      if (roleFilter !== "all" && member.role !== roleFilter) return false;
+      if (roleFilter !== "all") {
+        if (roleFilter.startsWith("custom:")) {
+          if (member.custom_role_id !== roleFilter.slice(7)) return false;
+        } else if (member.role !== roleFilter) return false;
+      }
       if (branchFilter !== "all" && member.branch_id !== branchFilter) return false;
       if (statusFilter === "active" && !member.is_active) return false;
       if (statusFilter === "inactive" && member.is_active) return false;
@@ -115,6 +129,7 @@ export default function UsersPage() {
         member.email,
         member.phone,
         member.role,
+        member.custom_staff_roles?.name,
         member.branches?.name,
         member.branches?.code
       ]
@@ -168,6 +183,7 @@ export default function UsersPage() {
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -225,6 +241,7 @@ export default function UsersPage() {
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
+      throw error;
     } finally {
       setBusy(false);
     }
@@ -244,6 +261,40 @@ export default function UsersPage() {
       setMessage(
         nextStatus ? `${branch.name} is active.` : `${branch.name} is inactive.`
       );
+      await refresh();
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitCustomRole(values) {
+    try {
+      setBusy(true);
+      await saveCustomRole(session, values);
+      setMessageType("success");
+      setMessage(values.id ? "Custom role updated." : "Custom role created.");
+      setCustomRoleOpen(false);
+      setEditingCustomRole(null);
+      await refresh();
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error.message);
+      throw error;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeCustomRole(role) {
+    if (!window.confirm(`Delete ${role.name}? Existing staff must be moved to another role first.`)) return;
+    try {
+      setBusy(true);
+      await deleteCustomRole(session, role.id);
+      setMessageType("success");
+      setMessage(`${role.name} deleted.`);
       await refresh();
     } catch (error) {
       setMessageType("error");
@@ -325,7 +376,7 @@ export default function UsersPage() {
           className={tab === "roles" ? "active" : ""}
           onClick={() => setTab("roles")}
         >
-          <ShieldCheck size={18} /> Role guide
+          <ShieldCheck size={18} /> Roles
         </button>
       </div>
 
@@ -351,6 +402,9 @@ export default function UsersPage() {
               <option value="manager">Manager</option>
               <option value="cashier">Cashier</option>
               <option value="viewer">Viewer</option>
+              {customRoles.map((role) => (
+                <option value={`custom:${role.id}`} key={role.id}>{role.name}</option>
+              ))}
             </select>
 
             <select
@@ -417,7 +471,7 @@ export default function UsersPage() {
 
                     <div className="staff-role-branch">
                       <span className={`role-pill role-${member.role}`}>
-                        {roleLabel(member.role)}
+                        {member.custom_staff_roles?.name || roleLabel(member.role)}
                       </span>
                       <strong>{member.branches?.name || "No branch"}</strong>
                       <small>{member.branches?.code || "—"}</small>
@@ -517,6 +571,7 @@ export default function UsersPage() {
                   <div><span>Phone</span><strong>{branch.phone || "—"}</strong></div>
                   <div><span>Active staff</span><strong>{branch.active_staff_count}</strong></div>
                   <div className="branch-address"><span>Address</span><strong>{branch.address || "—"}</strong></div>
+                  <div className="branch-address"><span>Attendance</span><strong>{branch.attendance_geofence_required ? `${branch.attendance_radius_m || 150} m geofence` : "Location check off"}</strong></div>
                 </div>
 
                 <div className="branch-card-actions">
@@ -546,21 +601,52 @@ export default function UsersPage() {
       )}
 
       {tab === "roles" && (
-        <section className="role-guide-grid">
-          {roleGuide.map((item) => (
-            <article className="panel role-guide-card" key={item.role}>
-              <ShieldCheck size={24} />
-              <h2>{item.role}</h2>
-              <p>{item.text}</p>
-            </article>
-          ))}
-        </section>
+        <div className="role-management-stack">
+          <section className="panel panel-heading custom-role-heading">
+            <div>
+              <h2>Custom staff roles</h2>
+              <p className="muted">Create roles such as Stock Controller, Purchase Officer or Branch Supervisor, then choose their exact permissions.</p>
+            </div>
+            <button type="button" className="primary-button" onClick={() => { setEditingCustomRole(null); setCustomRoleOpen(true); }}>
+              <Plus size={18} /> Add custom role
+            </button>
+          </section>
+
+          <section className="custom-role-card-grid">
+            {customRoles.map((role) => (
+              <article className="panel custom-role-card" key={role.id}>
+                <header>
+                  <div><ShieldCheck size={22} /><span><strong>{role.name}</strong><small>Based on {roleLabel(role.base_role)}</small></span></div>
+                  <span className={`status-pill ${role.is_active ? "active" : "inactive"}`}>{role.is_active ? "Active" : "Inactive"}</span>
+                </header>
+                <p>{role.description || "No description."}</p>
+                <div className="custom-role-card-metrics"><span>{(role.permission_keys || []).length} permissions</span><span>{role.assigned_staff_count || 0} staff</span></div>
+                <footer>
+                  <button type="button" className="secondary-button" onClick={() => { setEditingCustomRole(role); setCustomRoleOpen(true); }}><Edit3 size={17} /> Edit</button>
+                  <button type="button" className="danger-text-button" disabled={busy || Number(role.assigned_staff_count || 0) > 0} onClick={() => removeCustomRole(role)}><Trash2 size={17} /> Delete</button>
+                </footer>
+              </article>
+            ))}
+            {!customRoles.length && <section className="panel empty-state compact"><ShieldCheck size={38} /><p>No custom roles yet. Standard roles remain available.</p></section>}
+          </section>
+
+          <section className="role-guide-grid">
+            {roleGuide.map((item) => (
+              <article className="panel role-guide-card" key={item.role}>
+                <ShieldCheck size={24} />
+                <h2>{item.role}</h2>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </section>
+        </div>
       )}
 
       <StaffFormModal
         open={staffFormOpen}
         member={editingStaff}
         branches={branches}
+        customRoles={customRoles}
         callerRole={profile.role}
         busy={busy}
         onClose={() => {
@@ -575,6 +661,16 @@ export default function UsersPage() {
         busy={busy}
         onClose={() => setResetMember(null)}
         onReset={resetPassword}
+      />
+
+      <CustomRoleModal
+        open={customRoleOpen}
+        role={editingCustomRole}
+        definitions={permissionDefinitions}
+        callerRole={profile.role}
+        busy={busy}
+        onClose={() => { setCustomRoleOpen(false); setEditingCustomRole(null); }}
+        onSave={submitCustomRole}
       />
 
       <BranchFormModal
