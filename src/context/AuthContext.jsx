@@ -58,7 +58,7 @@ export function AuthProvider({ children }) {
 
     const { data: profileData, error: profileError } = await client
       .from("profiles")
-      .select("*,organizations(*),branches(*)")
+      .select("*,organizations(*),branches(*),custom_staff_roles(id,name,description,base_role,is_active)")
       .eq("id", userId)
       .single();
 
