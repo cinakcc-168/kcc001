@@ -417,6 +417,29 @@ export async function saveStockCountItem(
   return data;
 }
 
+export async function saveAllStockCountItems(
+  supabase,
+  values
+) {
+  const { data, error } = await supabase.rpc(
+    "save_stock_count_items_bulk_v2",
+    {
+      p_session_id: values.session_id,
+      p_items: values.items.map((item) => ({
+        product_id: item.product_id,
+        counted_quantity:
+          item.counted_quantity === null
+            ? null
+            : Number(item.counted_quantity),
+        note: item.note?.trim() || null
+      }))
+    }
+  );
+
+  if (error) throw error;
+  return data;
+}
+
 export async function scanStockCountItem(
   supabase,
   values
