@@ -1,8 +1,4 @@
 import {
-  Check,
-  RotateCcw
-} from "lucide-react";
-import {
   useEffect,
   useMemo,
   useState
@@ -16,7 +12,7 @@ export default function StockCountRow({
   item,
   blind,
   busy,
-  onSave
+  onDraftChange
 }) {
   const [quantity, setQuantity] =
     useState("");
@@ -59,43 +55,26 @@ export default function StockCountRow({
     (
       item.counted_quantity === null
         ? quantity.trim() !== ""
-        : Number(quantity)
-          !== Number(item.counted_quantity)
+        : Number(quantity) !== Number(item.counted_quantity)
     )
-    || note.trim() !== String(
-      item.note || ""
-    ).trim();
+    || note.trim() !== String(item.note || "").trim();
 
   const product = item.products || {};
   const valueVariance =
     variance === null
       ? null
-      : variance
-        * Number(
-          item.unit_cost_snapshot || 0
-        );
+      : variance * Number(item.unit_cost_snapshot || 0);
 
-  async function save() {
-    if (
-      counted !== null
-      && (
-        !Number.isFinite(counted)
-        || counted < 0
-      )
-    ) {
-      window.alert(
-        "Counted quantity must be zero or greater."
-      );
-      return;
-    }
-
-    await onSave(item, counted, note);
+  function updateQuantity(value) {
+    setQuantity(value);
+    const parsed = value.trim() === "" ? null : Number(value);
+    onDraftChange(item, parsed, note);
   }
 
-  async function clear() {
-    setQuantity("");
-    setNote("");
-    await onSave(item, null, "");
+  function updateNote(value) {
+    setNote(value);
+    const parsed = quantity.trim() === "" ? null : Number(quantity);
+    onDraftChange(item, parsed, value);
   }
 
   return (
@@ -150,8 +129,9 @@ export default function StockCountRow({
           step="0.001"
           value={quantity}
           onChange={(event) =>
-            setQuantity(event.target.value)
+            updateQuantity(event.target.value)
           }
+          disabled={busy}
           placeholder="Not counted"
         />
       </td>
@@ -193,50 +173,17 @@ export default function StockCountRow({
           className="stock-count-note-input"
           value={note}
           onChange={(event) =>
-            setNote(event.target.value)
+            updateNote(event.target.value)
           }
+          disabled={busy}
           placeholder="Optional note"
         />
       </td>
 
-      <td data-label="Actions">
-        <div className="stock-count-row-actions">
-          <button
-            type="button"
-            className="icon-button"
-            onClick={save}
-            disabled={
-              busy
-              || !changed
-              || (
-                counted !== null
-                && (
-                  !Number.isFinite(counted)
-                  || counted < 0
-                )
-              )
-            }
-            title="Save count"
-          >
-            <Check size={18} />
-          </button>
-
-          <button
-            type="button"
-            className="icon-button"
-            onClick={clear}
-            disabled={
-              busy
-              || (
-                item.counted_quantity === null
-                && !item.note
-              )
-            }
-            title="Clear count"
-          >
-            <RotateCcw size={17} />
-          </button>
-        </div>
+      <td data-label="Status">
+        <span className={`status-pill ${changed ? "pending" : "active"}`}>
+          {changed ? "Unsaved" : "Saved"}
+        </span>
       </td>
     </tr>
   );
