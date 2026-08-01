@@ -252,13 +252,6 @@ async function loadWorkspace(admin, caller) {
           name,
           code,
           is_active
-        ),
-        custom_staff_roles (
-          id,
-          name,
-          description,
-          base_role,
-          is_active
         )
       `)
       .eq("organization_id", caller.organization_id)
@@ -292,11 +285,18 @@ async function loadWorkspace(admin, caller) {
     (authUsersResult.data?.users || []).map((user) => [user.id, user])
   );
 
+  const customRoleById = new Map(
+    (customRolesResult.data || []).map((role) => [role.id, role])
+  );
+
   const staff = (profilesResult.data || []).map((profile) => {
     const authUser = authById.get(profile.id);
 
     return {
       ...profile,
+      custom_staff_roles: profile.custom_role_id
+        ? customRoleById.get(profile.custom_role_id) || null
+        : null,
       email: authUser?.email || profile.email,
       email_confirmed_at: authUser?.email_confirmed_at || null,
       auth_last_sign_in_at: authUser?.last_sign_in_at || null

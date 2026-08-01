@@ -96,19 +96,49 @@ export function botToken() {
 }
 
 export function miniAppUrl(path = "/") {
-  const base = (
+  const rawBase = (
     process.env.TELEGRAM_MINI_APP_URL
     || process.env.URL
     || ""
   ).trim();
 
-  if (!base || !/^https:\/\//i.test(base)) {
+  if (!rawBase || !/^https:\/\//i.test(rawBase)) {
     throw new Error(
-      "TELEGRAM_MINI_APP_URL or Netlify URL must be an HTTPS address."
+      "TELEGRAM_MINI_APP_URL must be one complete HTTPS URL, for example https://kcc-tinypos.netlify.app"
     );
   }
 
-  return new URL(path, `${base.replace(/\/$/, "")}/`).toString();
+  let parsed;
+  try {
+    parsed = new URL(rawBase);
+  } catch {
+    throw new Error(
+      "TELEGRAM_MINI_APP_URL is invalid. Use one complete URL with no spaces or duplicated domain."
+    );
+  }
+
+  const duplicatedNetlifyHost = parsed.hostname.match(
+    /^([a-z0-9-]+\.netlify\.app)\1$/i
+  );
+
+  if (duplicatedNetlifyHost) {
+    parsed.hostname = duplicatedNetlifyHost[1];
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("TELEGRAM_MINI_APP_URL must use HTTPS.");
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new Error("TELEGRAM_MINI_APP_URL must not contain a username or password.");
+  }
+
+  parsed.search = "";
+  parsed.hash = "";
+  parsed.pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+
+  const normalizedBase = parsed.toString().replace(/\/$/, "");
+  return new URL(path, `${normalizedBase}/`).toString();
 }
 
 export async function telegramApi(method, payload = {}) {
