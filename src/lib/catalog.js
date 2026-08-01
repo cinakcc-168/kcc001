@@ -22,7 +22,7 @@ export function cloudinaryThumb(url, width = 120, height = 120) {
 }
 
 export async function loadCatalog(supabase, organizationId, branchId) {
-  const [categoryResult, productResult] = await Promise.all([
+  const [categoryResult, productResult, settingsResult, reorderResult] = await Promise.all([
     supabase
       .from("categories")
       .select("id, name, description, sort_order, is_active, created_at")
@@ -84,11 +84,30 @@ export async function loadCatalog(supabase, organizationId, branchId) {
         )
       `)
       .eq("organization_id", organizationId)
-      .order("name")
+      .order("name"),
+    supabase
+      .from("app_settings")
+      .select("low_stock_threshold")
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
+    supabase
+      .from("reorder_rules")
+      .select("product_id,reorder_point,target_stock,is_active")
+      .eq("organization_id", organizationId)
+      .eq("branch_id", branchId)
   ]);
 
   if (categoryResult.error) throw categoryResult.error;
   if (productResult.error) throw productResult.error;
+  if (settingsResult.error) throw settingsResult.error;
+  if (reorderResult.error) throw reorderResult.error;
+
+  const organizationThreshold = Number(
+    settingsResult?.data?.low_stock_threshold || 0
+  );
+  const reorderByProduct = new Map(
+    (reorderResult?.data || []).map((rule) => [rule.product_id, rule])
+  );
 
   const products = (productResult.data || []).map((product) => {
     const balance = (product.inventory_balances || []).find(
@@ -105,12 +124,35 @@ export async function loadCatalog(supabase, organizationId, branchId) {
         || String(a.name).localeCompare(String(b.name))
     );
 
+    const stockQuantity = Number(balance?.quantity || 0);
+    const reorderRule = reorderByProduct.get(product.id) || null;
+    const effectiveLowStockThreshold = Number(
+      reorderRule?.is_active
+        ? reorderRule.reorder_point
+        : product.low_stock_threshold ?? organizationThreshold ?? 0
+    );
+    const stockStatus = !product.track_stock
+      ? "not_tracked"
+      : stockQuantity <= 0
+        ? "out_of_stock"
+        : stockQuantity <= effectiveLowStockThreshold
+          ? "low_stock"
+          : "healthy";
+
     return {
       ...product,
       product_units: units,
       units,
-      stock_quantity: Number(balance?.quantity || 0),
+      stock_quantity: stockQuantity,
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
+      configured_reorder_point: reorderRule?.is_active
+        ? Number(reorderRule.reorder_point || 0)
+        : null,
+      target_stock: reorderRule?.is_active
+        ? Number(reorderRule.target_stock || 0)
+        : null,
+      effective_low_stock_threshold: effectiveLowStockThreshold,
+      stock_status: stockStatus,
       image: image || null
     };
   });

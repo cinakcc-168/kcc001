@@ -26,7 +26,9 @@ export async function loadStaffWorkspace(session) {
   const result = await authorizedRequest(session);
   return {
     staff: result.staff || [],
-    branches: result.branches || []
+    branches: result.branches || [],
+    customRoles: result.custom_roles || [],
+    permissionDefinitions: result.permission_definitions || []
   };
 }
 
@@ -75,7 +77,11 @@ export async function saveBranch(session, values) {
       name: values.name,
       code: values.code,
       phone: values.phone,
-      address: values.address
+      address: values.address,
+      latitude: values.latitude,
+      longitude: values.longitude,
+      attendance_radius_m: values.attendance_radius_m,
+      attendance_geofence_required: Boolean(values.attendance_geofence_required)
     }
   });
 }
@@ -87,6 +93,32 @@ export async function setBranchStatus(session, branchId, isActive) {
       action: "set_branch_status",
       branch_id: branchId,
       is_active: Boolean(isActive)
+    }
+  });
+}
+
+
+export async function saveCustomRole(session, values) {
+  return authorizedRequest(session, {
+    method: "POST",
+    body: {
+      action: values.id ? "update_custom_role" : "create_custom_role",
+      custom_role_id: values.id || undefined,
+      name: values.name,
+      description: values.description,
+      base_role: values.base_role,
+      permission_keys: values.permission_keys || [],
+      is_active: values.is_active !== false
+    }
+  });
+}
+
+export async function deleteCustomRole(session, roleId) {
+  return authorizedRequest(session, {
+    method: "POST",
+    body: {
+      action: "delete_custom_role",
+      custom_role_id: roleId
     }
   });
 }
@@ -114,6 +146,7 @@ export function staffToForm(member) {
     full_name: member?.full_name || "",
     phone: member?.phone || "",
     role: member?.role || "cashier",
+    custom_role_id: member?.custom_role_id || "",
     branch_id: member?.branch_id || "",
     is_active: member?.is_active !== false,
     password: "",
@@ -127,6 +160,10 @@ export function branchToForm(branch) {
     name: branch?.name || "",
     code: branch?.code || "",
     phone: branch?.phone || "",
-    address: branch?.address || ""
+    address: branch?.address || "",
+    latitude: branch?.latitude ?? "",
+    longitude: branch?.longitude ?? "",
+    attendance_radius_m: branch?.attendance_radius_m ?? 150,
+    attendance_geofence_required: branch?.attendance_geofence_required !== false
   };
 }

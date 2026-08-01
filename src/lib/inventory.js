@@ -23,7 +23,7 @@ export const movementLabels = {
 };
 
 export async function loadInventory(supabase, organizationId, branchId) {
-  const [productResult, categoryResult, supplierResult, movementResult, purchaseResult] =
+  const [productResult, categoryResult, supplierResult, movementResult, purchaseResult, settingsResult, reorderResult] =
     await Promise.all([
       supabase
         .from("products")
@@ -100,7 +100,17 @@ export async function loadInventory(supabase, organizationId, branchId) {
         .eq("organization_id", organizationId)
         .eq("branch_id", branchId)
         .order("created_at", { ascending: false })
-        .limit(50)
+        .limit(50),
+      supabase
+        .from("app_settings")
+        .select("low_stock_threshold")
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      supabase
+        .from("reorder_rules")
+        .select("product_id,reorder_point,target_stock,is_active")
+        .eq("organization_id", organizationId)
+        .eq("branch_id", branchId)
     ]);
 
   for (const result of [
@@ -108,21 +118,41 @@ export async function loadInventory(supabase, organizationId, branchId) {
     categoryResult,
     supplierResult,
     movementResult,
-    purchaseResult
+    purchaseResult,
+    settingsResult,
+    reorderResult
   ]) {
     if (result.error) throw result.error;
   }
+
+  const organizationThreshold = Number(settingsResult?.data?.low_stock_threshold || 0);
+  const reorderByProduct = new Map((reorderResult?.data || []).map((rule) => [rule.product_id, rule]));
 
   const products = (productResult.data || []).map((product) => {
     const balance = (product.inventory_balances || []).find(
       (row) => row.branch_id === branchId
     );
 
+    const stockQuantity = Number(balance?.quantity || 0);
+    const rule = reorderByProduct.get(product.id);
+    const effectiveThreshold = Number(
+      rule?.is_active
+        ? rule.reorder_point
+        : product.low_stock_threshold ?? organizationThreshold ?? 0
+    );
     return {
       ...product,
-      stock_quantity: Number(balance?.quantity || 0),
+      stock_quantity: stockQuantity,
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
-      balance_updated_at: balance?.updated_at || null
+      balance_updated_at: balance?.updated_at || null,
+      effective_low_stock_threshold: effectiveThreshold,
+      stock_status: !product.track_stock
+        ? "not_tracked"
+        : stockQuantity <= 0
+          ? "out_of_stock"
+          : stockQuantity <= effectiveThreshold
+            ? "low_stock"
+            : "healthy"
     };
   });
 

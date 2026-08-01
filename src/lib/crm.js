@@ -27,7 +27,7 @@ export async function loadCrmSetup(supabase, organizationId) {
     supabase.from("crm_segments").select("*").eq("organization_id", organizationId).order("name"),
     supabase.from("customer_campaigns").select("*,crm_segments(name),coupons(code,name)").eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(200),
     supabase.from("loyalty_program_settings").select("*").eq("organization_id", organizationId).maybeSingle(),
-    supabase.from("coupons").select("id,code,name,is_active,start_at,end_at").eq("organization_id", organizationId).eq("is_active", true).order("name")
+    supabase.from("coupons").select("id,code,name,is_active,starts_at,ends_at").eq("organization_id", organizationId).eq("is_active", true).order("name")
   ]);
   for (const result of [tags, segments, campaigns, loyalty, coupons]) {
     if (result.error) throw result.error;

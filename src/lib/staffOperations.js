@@ -40,18 +40,24 @@ export async function getMyAttendanceStatus(supabase) {
   return data;
 }
 
-export async function attendanceCheckIn(supabase, branchId, note = "") {
-  const { data, error } = await supabase.rpc("attendance_check_in", {
+export async function attendanceCheckIn(supabase, branchId, note = "", location = {}) {
+  const { data, error } = await supabase.rpc("attendance_check_in_v2", {
     p_branch_id: branchId || null,
-    p_note: note || null
+    p_note: note || null,
+    p_latitude: location.latitude ?? null,
+    p_longitude: location.longitude ?? null,
+    p_accuracy_m: location.accuracy ?? null
   });
   if (error) throw error;
   return data;
 }
 
-export async function attendanceCheckOut(supabase, note = "") {
-  const { data, error } = await supabase.rpc("attendance_check_out", {
-    p_note: note || null
+export async function attendanceCheckOut(supabase, note = "", location = {}) {
+  const { data, error } = await supabase.rpc("attendance_check_out_v2", {
+    p_note: note || null,
+    p_latitude: location.latitude ?? null,
+    p_longitude: location.longitude ?? null,
+    p_accuracy_m: location.accuracy ?? null
   });
   if (error) throw error;
   return data;
@@ -165,7 +171,7 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     (canManageAttendance || canManageCommissions)
       ? supabase.from("profiles").select("id,full_name,role,branch_id,is_active").eq("organization_id", profile.organization_id).eq("is_active", true).order("full_name")
       : Promise.resolve({ data: [profile], error: null }),
-    supabase.from("branches").select("id,name,code,is_active").eq("organization_id", profile.organization_id).eq("is_active", true).order("name")
+    supabase.from("branches").select("id,name,code,is_active,latitude,longitude,attendance_radius_m,attendance_geofence_required").eq("organization_id", profile.organization_id).eq("is_active", true).order("name")
   ]);
 
   for (const result of [attendanceResult, commissionResult, payoutResult, planResult, staffResult, branchResult]) {
