@@ -152,7 +152,16 @@ export default function ReceiptModal({ receipt, onClose }) {
             {receipt.cart.map((item) => (
               <div key={item.id}>
                 <span>
-                  <strong>{item.name}</strong>
+                  <strong>
+                    {receiptLanguage === "km"
+                      ? item.name_km || item.name
+                      : item.name}
+                  </strong>
+                  {receiptLanguage === "km"
+                    && item.name_km
+                    && item.name_km !== item.name && (
+                    <small>{item.name}</small>
+                  )}
                   <small>
                     {stockNumber(item.quantity)}{" "}
                     {item.selected_unit_name || item.sale_unit_name || item.unit_name}

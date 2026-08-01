@@ -40,6 +40,8 @@ export default function SaleCart({
   onUnitChange,
   onRemove,
   onClear,
+  parkedCount = 0,
+  onOpenParked,
   onPark,
   onSaveQuote,
   onPay,
@@ -102,15 +104,28 @@ export default function SaleCart({
               || "New sale"}
           </h2>
         </div>
-        {cart.length > 0 && !fulfillmentLocked && (
+
+        <div className="sale-cart-heading-actions">
           <button
             type="button"
-            className="text-button danger-text"
-            onClick={onClear}
+            className="secondary-button compact-button"
+            onClick={onOpenParked}
+            disabled={!online || fulfillmentLocked}
           >
-            Clear
+            <CirclePause size={17} />
+            Parked ({parkedCount})
           </button>
-        )}
+
+          {cart.length > 0 && !fulfillmentLocked && (
+            <button
+              type="button"
+              className="text-button danger-text"
+              onClick={onClear}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="customer-select-row">
@@ -231,20 +246,22 @@ export default function SaleCart({
 
             return (
               <article className="sale-cart-line" key={item.id}>
-                <div className="cart-line-number">{index + 1}</div>
-                <div className="cart-line-info">
-                  <strong>{item.name}</strong>
-                  <span>
+                <div className="cart-line-main">
+                  <div className="cart-line-number">{index + 1}</div>
+
+                  <strong className="cart-line-name" title={item.name}>
+                    {item.name}
+                  </strong>
+
+                  <span className="cart-line-math">
                     {standardPrice !== selectedPrice && (
-                      <del>
-                        {money(standardPrice, item.currency)}
-                      </del>
+                      <del>{money(standardPrice, item.currency)}</del>
                     )}
                     {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} ={" "}
                     <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
                   </span>
 
-                  <div className="cart-unit-row">
+                  <div className="cart-line-unit-control">
                     {units.length > 1 ? (
                       <select
                         value={item.selected_unit_id || ""}
@@ -263,28 +280,59 @@ export default function SaleCart({
                         {item.selected_unit_name || item.unit_name}
                       </span>
                     )}
-                    <small>
-                      1 {item.selected_unit_name || item.unit_name} = {stockNumber(factor)} {item.unit_name}
-                    </small>
                   </div>
 
+                  <div className="cart-quantity-controls">
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)}
+                      disabled={fulfillmentLocked}
+                      aria-label={`Reduce ${item.name}`}
+                    >
+                      <Minus size={17} />
+                    </button>
+                    <input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      value={item.quantity}
+                      onChange={(event) => onQuantityChange(item.id, event.target.value)}
+                      disabled={fulfillmentLocked}
+                      aria-label={`${item.name} quantity`}
+                    />
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)}
+                      disabled={fulfillmentLocked}
+                      aria-label={`Add ${item.name}`}
+                    >
+                      <Plus size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-button danger-icon"
+                      onClick={() => onRemove(item.id)}
+                      disabled={fulfillmentLocked}
+                      aria-label={`Remove ${item.name}`}
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="cart-line-stock">
                   <small>
                     Available: {item.track_stock
                       ? `${stockNumber(availableSelectedUnits)} ${item.selected_unit_name || item.unit_name}`
                       : "Not tracked"}
                   </small>
-                </div>
-                <div className="cart-quantity-controls">
-                  <button type="button" className="icon-button" onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)} disabled={fulfillmentLocked} aria-label={`Reduce ${item.name}`}>
-                    <Minus size={17} />
-                  </button>
-                  <input type="number" min="0.001" step="0.001" value={item.quantity} onChange={(event) => onQuantityChange(item.id, event.target.value)} disabled={fulfillmentLocked} aria-label={`${item.name} quantity`} />
-                  <button type="button" className="icon-button" onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)} disabled={fulfillmentLocked} aria-label={`Add ${item.name}`}>
-                    <Plus size={17} />
-                  </button>
-                  <button type="button" className="icon-button danger-icon" onClick={() => onRemove(item.id)} disabled={fulfillmentLocked} aria-label={`Remove ${item.name}`}>
-                    <Trash2 size={17} />
-                  </button>
+                  {factor !== 1 && (
+                    <small>
+                      1 {item.selected_unit_name || item.unit_name} = {stockNumber(factor)} {item.unit_name}
+                    </small>
+                  )}
                 </div>
               </article>
             );

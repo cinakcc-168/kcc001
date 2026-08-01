@@ -1,36 +1,82 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { BrowserMultiFormatReader } from "@zxing/browser";
-import { Camera, Flashlight, Keyboard, X } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  Flashlight,
+  Keyboard,
+  Volume2,
+  X
+} from "lucide-react";
 
 const ROI_WIDTH = 0.72;
 const ROI_HEIGHT = 0.38;
 const SCAN_INTERVAL_MS = 150;
 const SAME_CODE_COOLDOWN_MS = 2500;
-const SUCCESS_PAUSE_MS = 900;
+const SUCCESS_PAUSE_MS = 850;
+
+let sharedAudioContext = null;
+
+function getAudioContext() {
+  if (typeof window === "undefined") return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!sharedAudioContext || sharedAudioContext.state === "closed") {
+    sharedAudioContext = new AudioContextClass();
+  }
+  return sharedAudioContext;
+}
+
+export async function primeScannerFeedback() {
+  try {
+    const context = getAudioContext();
+    if (!context) return false;
+    if (context.state === "suspended") await context.resume();
+
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.00001, context.currentTime);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.015);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function stopStream(stream) {
   stream?.getTracks?.().forEach((track) => track.stop());
 }
 
-function playSuccessSound() {
+async function playSuccessSound() {
   try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const oscillator = context.createOscillator();
+    const context = getAudioContext();
+    if (!context) return;
+    if (context.state === "suspended") await context.resume();
+
+    const now = context.currentTime;
     const gain = context.createGain();
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(880, context.currentTime);
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.11);
-    oscillator.connect(gain);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.19, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
     gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.12);
-    oscillator.addEventListener("ended", () => context.close().catch(() => {}));
+
+    for (const [frequency, offset, duration] of [
+      [880, 0, 0.10],
+      [1175, 0.10, 0.12]
+    ]) {
+      const oscillator = context.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, now + offset);
+      oscillator.connect(gain);
+      oscillator.start(now + offset);
+      oscillator.stop(now + offset + duration);
+    }
   } catch {
-    // Sound is optional and may be blocked by the browser.
+    // Audio feedback is optional and can be blocked by the browser.
   }
 }
 
@@ -48,6 +94,7 @@ export default function BarcodeScanner({
   const boxRef = useRef(null);
   const streamRef = useRef(null);
   const animationRef = useRef(null);
+  const feedbackTimerRef = useRef(null);
   const lastAttemptRef = useRef(0);
   const pauseUntilRef = useRef(0);
   const lastCodeRef = useRef({ code: "", at: 0 });
@@ -56,6 +103,8 @@ export default function BarcodeScanner({
   const [manualCode, setManualCode] = useState("");
   const [torchAvailable, setTorchAvailable] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [feedbackState, setFeedbackState] = useState("");
+  const [lastAddedCode, setLastAddedCode] = useState("");
 
   useEffect(() => {
     onDetectedRef.current = onDetected;
@@ -75,12 +124,32 @@ export default function BarcodeScanner({
     setManualCode("");
     setTorchAvailable(false);
     setTorchOn(false);
+    setFeedbackState("");
+    setLastAddedCode("");
     pauseUntilRef.current = 0;
     lastCodeRef.current = { code: "", at: 0 };
 
-    function feedback() {
-      if (vibration) navigator.vibrate?.([70, 35, 70]);
-      if (sound) playSuccessSound();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    function showFeedback(type, code = "") {
+      setFeedbackState(type);
+      if (code) setLastAddedCode(code);
+      window.clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = window.setTimeout(() => {
+        if (!cancelled) setFeedbackState("");
+      }, 650);
+    }
+
+    async function feedback() {
+      if (vibration) {
+        try {
+          navigator.vibrate?.([85, 35, 85]);
+        } catch {
+          // Vibration is not supported in all browsers.
+        }
+      }
+      if (sound) await playSuccessSound();
     }
 
     async function deliver(code) {
@@ -101,11 +170,16 @@ export default function BarcodeScanner({
         }
         lastCodeRef.current = { code, at: now };
         setStatus(`Added: ${code}. Keep scanning or close when finished.`);
-        feedback();
+        showFeedback("success", code);
+        await feedback();
       } catch (error) {
         lastCodeRef.current = { code: "", at: 0 };
-        pauseUntilRef.current = Date.now() + 450;
-        setStatus(error?.message || "The barcode was read, but the product could not be added.");
+        pauseUntilRef.current = Date.now() + 500;
+        setStatus(
+          error?.message
+          || "The barcode was read, but the product could not be added."
+        );
+        showFeedback("error", code);
         return;
       }
 
@@ -114,7 +188,9 @@ export default function BarcodeScanner({
         stopStream(streamRef.current);
       } else {
         window.setTimeout(() => {
-          if (!cancelled) setStatus("Place the next barcode inside the white box.");
+          if (!cancelled) {
+            setStatus("Place the next barcode inside the white box.");
+          }
         }, SUCCESS_PAUSE_MS);
       }
     }
@@ -145,7 +221,7 @@ export default function BarcodeScanner({
         setTorchAvailable(Boolean(capabilities.torch));
         setStatus(
           continuous
-            ? "Place a barcode inside the white box. The camera stays open for the next product."
+            ? "Place a barcode inside the white box. The camera remains open for the next product."
             : "Place the barcode inside the white box."
         );
 
@@ -176,8 +252,12 @@ export default function BarcodeScanner({
           let sourceHeight;
 
           if (boxRect && coverScale > 0) {
-            sourceX = Math.round((boxRect.left - videoRect.left + hiddenX) / coverScale);
-            sourceY = Math.round((boxRect.top - videoRect.top + hiddenY) / coverScale);
+            sourceX = Math.round(
+              (boxRect.left - videoRect.left + hiddenX) / coverScale
+            );
+            sourceY = Math.round(
+              (boxRect.top - videoRect.top + hiddenY) / coverScale
+            );
             sourceWidth = Math.round(boxRect.width / coverScale);
             sourceHeight = Math.round(boxRect.height / coverScale);
           } else {
@@ -189,8 +269,14 @@ export default function BarcodeScanner({
 
           sourceX = Math.max(0, Math.min(sourceX, video.videoWidth - 1));
           sourceY = Math.max(0, Math.min(sourceY, video.videoHeight - 1));
-          sourceWidth = Math.max(1, Math.min(sourceWidth, video.videoWidth - sourceX));
-          sourceHeight = Math.max(1, Math.min(sourceHeight, video.videoHeight - sourceY));
+          sourceWidth = Math.max(
+            1,
+            Math.min(sourceWidth, video.videoWidth - sourceX)
+          );
+          sourceHeight = Math.max(
+            1,
+            Math.min(sourceHeight, video.videoHeight - sourceY)
+          );
 
           const canvas = canvasRef.current;
           const maxCanvasWidth = 1100;
@@ -231,6 +317,7 @@ export default function BarcodeScanner({
               ? "Camera permission was denied. Allow access or enter the code manually."
               : "Camera could not start. Enter the barcode manually."
           );
+          showFeedback("error");
         }
       }
     }
@@ -239,6 +326,8 @@ export default function BarcodeScanner({
 
     return () => {
       cancelled = true;
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(feedbackTimerRef.current);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
       stopStream(streamRef.current);
       streamRef.current = null;
@@ -260,6 +349,18 @@ export default function BarcodeScanner({
     }
   }
 
+  async function testFeedback() {
+    if (vibration) navigator.vibrate?.(80);
+    if (sound) await playSuccessSound();
+    setFeedbackState("success");
+    setStatus("Sound and vibration feedback are ready.");
+    window.clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = window.setTimeout(
+      () => setFeedbackState(""),
+      600
+    );
+  }
+
   async function submitManual(event) {
     event.preventDefault();
     const value = manualCode.trim();
@@ -267,19 +368,28 @@ export default function BarcodeScanner({
 
     try {
       const accepted = await Promise.resolve(onDetectedRef.current?.(value));
-      if (accepted === false) throw new Error("The entered code could not be added.");
+      if (accepted === false) {
+        throw new Error("The entered code could not be added.");
+      }
       if (vibration) navigator.vibrate?.(90);
-      if (sound) playSuccessSound();
+      if (sound) await playSuccessSound();
       setManualCode("");
-      setStatus(continuous ? "Code added. Enter or scan the next product." : `Added: ${value}`);
+      setLastAddedCode(value);
+      setFeedbackState("success");
+      setStatus(
+        continuous
+          ? "Code added. Enter or scan the next product."
+          : `Added: ${value}`
+      );
       if (!continuous) stopStream(streamRef.current);
     } catch (error) {
+      setFeedbackState("error");
       setStatus(error?.message || "The entered code could not be added.");
     }
   }
 
-  return (
-    <div className="scanner-layer" role="presentation">
+  const scanner = (
+    <div className={`scanner-layer ${feedbackState}`} role="presentation">
       <section
         className="scanner-card"
         role="dialog"
@@ -287,11 +397,23 @@ export default function BarcodeScanner({
         aria-label={title}
       >
         <header className="scanner-header">
-          <div>
+          <div className="scanner-title">
             <Camera size={21} />
-            <strong>{title}</strong>
+            <span>
+              <strong>{title}</strong>
+              {continuous && <small>Continuous scan</small>}
+            </span>
           </div>
           <div className="scanner-header-actions">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={testFeedback}
+              aria-label="Test scanner sound and vibration"
+              title="Test sound and vibration"
+            >
+              <Volume2 size={20} />
+            </button>
             {torchAvailable && (
               <button
                 type="button"
@@ -304,7 +426,7 @@ export default function BarcodeScanner({
             )}
             <button
               type="button"
-              className="icon-button"
+              className="icon-button scanner-close-button"
               onClick={onClose}
               aria-label="Close scanner"
             >
@@ -319,11 +441,19 @@ export default function BarcodeScanner({
           <div className="scanner-mask" aria-hidden="true">
             <div className="scanner-box" ref={boxRef}>
               <span />
+              {feedbackState === "success" && (
+                <CheckCircle2 className="scanner-success-icon" size={68} />
+              )}
             </div>
           </div>
         </div>
 
-        <p className="scanner-status">{status}</p>
+        <p className="scanner-status">
+          {lastAddedCode && feedbackState === "success" && (
+            <strong>{lastAddedCode} · </strong>
+          )}
+          {status}
+        </p>
 
         <form className="scanner-manual" onSubmit={submitManual}>
           <Keyboard size={19} />
@@ -339,4 +469,6 @@ export default function BarcodeScanner({
       </section>
     </div>
   );
+
+  return createPortal(scanner, document.body);
 }
