@@ -77,7 +77,7 @@ export default function LoginPage() {
             {busy ? t("Signing in…") : t("Log in")}
           </button>
 
-          <small className="login-security-note"><ShieldCheck size={15} /> {t("Protected by Supabase authentication and role permissions.")}</small>
+          <small className="login-security-note"><ShieldCheck size={15} /> {t("Protected by KCC authentication and role permissions.")}</small>
         </form>
       </section>
     </main>
