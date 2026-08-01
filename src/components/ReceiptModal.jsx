@@ -1,20 +1,22 @@
-import { Printer } from "lucide-react";
+import { Languages, Printer } from "lucide-react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import ProductBarcode from "./ProductBarcode";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
 
-function dateTime(value) {
-  return new Intl.DateTimeFormat("en-US", {
+function dateTime(value, locale = "en-US") {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 }
 
-function dateOnly(value) {
+function dateOnly(value, locale = "en-US") {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium"
   }).format(
     new Date(`${String(value).slice(0, 10)}T00:00:00`)
@@ -23,6 +25,15 @@ function dateOnly(value) {
 
 export default function ReceiptModal({ receipt, onClose }) {
   const { shop } = useAuth();
+  const { language } = useLanguage();
+  const [receiptLanguage, setReceiptLanguage] = useState(language === "km" ? "km" : "en");
+
+  useEffect(() => {
+    if (receipt) setReceiptLanguage(language === "km" ? "km" : "en");
+  }, [receipt, language]);
+
+  const label = (english, khmer) => receiptLanguage === "km" ? khmer : english;
+  const locale = receiptLanguage === "km" ? "km-KH" : "en-US";
 
   if (!receipt) return null;
 
@@ -35,13 +46,18 @@ export default function ReceiptModal({ receipt, onClose }) {
   const showBarcode = shop?.receipt_show_barcode !== false;
 
   return (
-    <Modal title={receipt.offlinePending ? "Offline receipt saved" : "Sale completed"} onClose={onClose}>
+    <Modal title={receipt.offlinePending ? label("Offline receipt saved", "បានរក្សាទុកវិក្កយបត្រក្រៅបណ្តាញ") : label("Sale completed", "ការលក់បានបញ្ចប់")} onClose={onClose}>
       <div className="receipt-wrapper">
         {receipt.offlinePending && (
           <div className="notice warning offline-receipt-notice">
             Pending synchronization. This local receipt becomes a final invoice only after the server accepts it.
           </div>
         )}
+        <div className="receipt-language-toolbar" data-print-hide>
+          <Languages size={18} />
+          <button type="button" className={receiptLanguage === "en" ? "active" : ""} onClick={() => setReceiptLanguage("en")}>English</button>
+          <button type="button" className={receiptLanguage === "km" ? "active" : ""} onClick={() => setReceiptLanguage("km")}>ខ្មែរ</button>
+        </div>
         <article
           className="receipt-document"
           style={{ "--receipt-width": `${receiptWidth}mm` }}
@@ -59,33 +75,33 @@ export default function ReceiptModal({ receipt, onClose }) {
               <p>{shop?.shop_phone || receipt.shopPhone}</p>
             )}
             {showPhone && shop?.shop_email && <p>{shop.shop_email}</p>}
-            {shop?.tax_id && <p>Tax ID: {shop.tax_id}</p>}
+            {shop?.tax_id && <p>{label("Tax ID", "លេខអត្តសញ្ញាណពន្ធ")}: {shop.tax_id}</p>}
           </div>
 
           <div className="receipt-meta">
-            <div><span>Invoice</span><strong>{receipt.invoiceNumber}</strong></div>
+            <div><span>{label("Invoice", "វិក្កយបត្រ")}</span><strong>{receipt.invoiceNumber}</strong></div>
           {receipt.sourceQuoteNumber && (
             <div>
-              <span>Quotation</span>
+              <span>{label("Quotation", "សម្រង់តម្លៃ")}</span>
               <strong>{receipt.sourceQuoteNumber}</strong>
             </div>
           )}
           {receipt.sourceSalesOrderNumber && (
             <div>
-              <span>Sales Order</span>
+              <span>{label("Sales Order", "បញ្ជាទិញលក់")}</span>
               <strong>{receipt.sourceSalesOrderNumber}</strong>
             </div>
           )}
           {receipt.sourceDeliveryNumber && (
             <div>
-              <span>Delivery Note</span>
+              <span>{label("Delivery Note", "ប័ណ្ណប្រគល់ទំនិញ")}</span>
               <strong>{receipt.sourceDeliveryNumber}</strong>
             </div>
           )}
-            <div><span>Date</span><strong>{dateTime(receipt.completedAt)}</strong></div>
+            <div><span>{label("Date", "កាលបរិច្ឆេទ")}</span><strong>{dateTime(receipt.completedAt, locale)}</strong></div>
             {receipt.saleStatus && receipt.saleStatus !== "completed" && (
               <div>
-                <span>Status</span>
+                <span>{label("Status", "ស្ថានភាព")}</span>
                 <strong>
                   {String(receipt.saleStatus)
                     .replaceAll("_", " ")
@@ -94,17 +110,17 @@ export default function ReceiptModal({ receipt, onClose }) {
               </div>
             )}
             {showCashier && (
-              <div><span>Cashier</span><strong>{receipt.cashierName}</strong></div>
+              <div><span>{label("Cashier", "អ្នកគិតលុយ")}</span><strong>{receipt.cashierName}</strong></div>
             )}
             {showCustomer && (
               <div>
-                <span>Customer</span>
-                <strong>{receipt.customerName || "Walk-in"}</strong>
+                <span>{label("Customer", "អតិថិជន")}</span>
+                <strong>{receipt.customerName || label("Walk-in", "អតិថិជនទូទៅ")}</strong>
               </div>
             )}
             {showCustomer && receipt.customerName && (
               <div>
-                <span>Customer profile</span>
+                <span>{label("Customer profile", "ប្រភេទអតិថិជន")}</span>
                 <strong>
                   {[receipt.customerCode, receipt.customerType]
                     .filter(Boolean)
@@ -114,7 +130,7 @@ export default function ReceiptModal({ receipt, onClose }) {
             )}
             {receipt.priceListName && (
               <div>
-                <span>Price list</span>
+                <span>{label("Price list", "បញ្ជីតម្លៃ")}</span>
                 <strong>{receipt.priceListName}</strong>
               </div>
             )}
@@ -155,13 +171,13 @@ export default function ReceiptModal({ receipt, onClose }) {
           </div>
 
           <div className="receipt-totals">
-            <div><span>Subtotal</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
+            <div><span>{label("Subtotal", "សរុបរង")}</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
             {Number(receipt.priceAdjustmentAmount || 0) !== 0 && (
               <div>
                 <span>
                   {Number(receipt.priceAdjustmentAmount) > 0
-                    ? "Price-list savings"
-                    : "Price-list markup"}
+                    ? label("Price-list savings", "សន្សំពីបញ្ជីតម្លៃ")
+                    : label("Price-list markup", "តម្លៃបន្ថែមពីបញ្ជីតម្លៃ")}
                 </span>
                 <strong>
                   {Number(receipt.priceAdjustmentAmount) > 0 ? "-" : "+"}
@@ -172,23 +188,23 @@ export default function ReceiptModal({ receipt, onClose }) {
                 </strong>
               </div>
             )}
-            <div><span>Discount</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
+            <div><span>{label("Discount", "បញ្ចុះតម្លៃ")}</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
             {Number(receipt.taxAmount) > 0 && (
-              <div><span>Tax</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
+              <div><span>{label("Tax", "ពន្ធ")}</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
             )}
             <div className="receipt-grand-total">
-              <span>Total</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong>
+              <span>{label("Total", "សរុប")}</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong>
             </div>
             {Number(receipt.refundedAmount || 0) > 0 && (
               <>
                 <div>
-                  <span>Refunded</span>
+                  <span>{label("Refunded", "បានសងប្រាក់")}</span>
                   <strong>
                     -{money(receipt.refundedAmount, receipt.currency)}
                   </strong>
                 </div>
                 <div>
-                  <span>Net after refunds</span>
+                  <span>{label("Net after refunds", "សរុបក្រោយសងប្រាក់")}</span>
                   <strong>
                     {money(
                       receipt.netTotal
@@ -200,21 +216,21 @@ export default function ReceiptModal({ receipt, onClose }) {
                 </div>
               </>
             )}
-            <div><span>Payment</span><strong>{receipt.paymentMethod.toUpperCase()}</strong></div>
+            <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{receipt.paymentMethod.toUpperCase()}</strong></div>
             {receipt.paymentMethod === "credit" ? (
               <>
                 <div>
-                  <span>Paid now</span>
+                  <span>{label("Paid now", "បានបង់ឥឡូវ")}</span>
                   <strong>{money(0, receipt.currency)}</strong>
                 </div>
                 <div>
-                  <span>Credit due date</span>
-                  <strong>{dateOnly(receipt.creditDueDate)}</strong>
+                  <span>{label("Credit due date", "ថ្ងៃផុតកំណត់ឥណទាន")}</span>
+                  <strong>{dateOnly(receipt.creditDueDate, locale)}</strong>
                 </div>
                 {receipt.creditOutstanding !== null
                   && receipt.creditOutstanding !== undefined && (
                   <div>
-                    <span>Invoice outstanding</span>
+                    <span>{label("Invoice outstanding", "ប្រាក់នៅសល់លើវិក្កយបត្រ")}</span>
                     <strong>
                       {money(
                         receipt.creditOutstanding,
@@ -227,8 +243,8 @@ export default function ReceiptModal({ receipt, onClose }) {
                   <span>
                     {receipt.creditBalanceAfter !== null
                       && receipt.creditBalanceAfter !== undefined
-                      ? "Customer account balance"
-                      : "Invoice credit amount"}
+                      ? label("Customer account balance", "សមតុល្យគណនីអតិថិជន")
+                      : label("Invoice credit amount", "ចំនួនឥណទានវិក្កយបត្រ")}
                   </span>
                   <strong>
                     {money(
@@ -242,21 +258,21 @@ export default function ReceiptModal({ receipt, onClose }) {
               </>
             ) : (
               <>
-                <div><span>Received</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
-                <div><span>Change</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
+                <div><span>{label("Received", "ប្រាក់ទទួល")}</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
+                <div><span>{label("Change", "ប្រាក់អាប់")}</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
               </>
             )}
           </div>
 
           <div className="receipt-footer">
-            {shop?.receipt_footer || receipt.footer || "Thank you for your purchase."}
+            {shop?.receipt_footer || receipt.footer || label("Thank you for your purchase.", "សូមអរគុណសម្រាប់ការទិញ។")}
           </div>
         </article>
 
         <div className="receipt-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>Close</button>
+          <button type="button" className="secondary-button" onClick={onClose}>{label("Close", "បិទ")}</button>
           <button type="button" className="primary-button" onClick={() => window.print()}>
-            <Printer size={18} /> Print receipt
+            <Printer size={18} /> {label("Print receipt", "បោះពុម្ពវិក្កយបត្រ")}
           </button>
         </div>
       </div>

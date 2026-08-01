@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgeDollarSign,
   Check,
@@ -52,6 +53,43 @@ export default function SaleCart({
   fulfillmentLocked = false,
   fulfillmentLabel = ""
 }) {
+  const selectedCustomer = useMemo(
+    () => customers.find((customer) => customer.id === customerId) || null,
+    [customers, customerId]
+  );
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      setCustomerSearch(
+        `${selectedCustomer.name}${selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}`
+      );
+    } else if (!customerPickerOpen) {
+      setCustomerSearch("");
+    }
+  }, [selectedCustomer, customerPickerOpen]);
+
+  const customerMatches = useMemo(() => {
+    const needle = customerSearch.trim().toLowerCase();
+    if (!needle) return customers.slice(0, 12);
+    return customers.filter((customer) =>
+      [customer.name, customer.phone, customer.email, customer.customer_code]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(needle)
+    ).slice(0, 12);
+  }, [customers, customerSearch]);
+
+  function selectCustomer(customer) {
+    onCustomerChange(customer?.id || "");
+    setCustomerSearch(customer
+      ? `${customer.name}${customer.phone ? ` · ${customer.phone}` : ""}`
+      : "");
+    setCustomerPickerOpen(false);
+  }
+
   return (
     <aside className="sale-cart panel">
       <div className="sale-cart-heading">
@@ -76,21 +114,50 @@ export default function SaleCart({
       </div>
 
       <div className="customer-select-row">
-        <label>
+        <label
+          className="customer-search-picker"
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setCustomerPickerOpen(false);
+              if (!selectedCustomer) setCustomerSearch("");
+            }
+          }}
+        >
           <span>Customer</span>
-          <select
-            value={customerId}
-            onChange={(event) => onCustomerChange(event.target.value)}
+          <input
+            value={customerSearch}
+            onFocus={() => setCustomerPickerOpen(true)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setCustomerSearch(value);
+              setCustomerPickerOpen(true);
+              if (customerId) onCustomerChange("");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setCustomerPickerOpen(false);
+              if (event.key === "Enter" && customerMatches[0]) {
+                event.preventDefault();
+                selectCustomer(customerMatches[0]);
+              }
+            }}
             disabled={fulfillmentLocked}
-          >
-            <option value="">Walk-in customer</option>
-            {customers.map((customer) => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name}
-                {customer.phone ? ` · ${customer.phone}` : ""}
-              </option>
-            ))}
-          </select>
+            placeholder="Walk-in or type customer name / phone"
+            autoComplete="off"
+          />
+          {customerPickerOpen && !fulfillmentLocked && (
+            <div className="customer-search-results">
+              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(null)}>
+                <strong>Walk-in customer</strong><small>No customer account</small>
+              </button>
+              {customerMatches.map((customer) => (
+                <button type="button" key={customer.id} onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(customer)}>
+                  <strong>{customer.name}</strong>
+                  <small>{[customer.phone, customer.email, customer.customer_code].filter(Boolean).join(" · ") || "Customer"}</small>
+                </button>
+              ))}
+              {customerMatches.length === 0 && <span>No matching customer</span>}
+            </div>
+          )}
         </label>
         <button
           type="button"

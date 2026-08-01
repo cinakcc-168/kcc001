@@ -40,13 +40,39 @@ export default function BranchFormModal({
       return;
     }
 
-    await onSave({
-      ...form,
-      name: form.name.trim(),
-      code: form.code.trim().toUpperCase(),
-      phone: form.phone.trim(),
-      address: form.address.trim()
-    });
+    const latitude = form.latitude === "" ? null : Number(form.latitude);
+    const longitude = form.longitude === "" ? null : Number(form.longitude);
+    const radius = Number(form.attendance_radius_m || 150);
+
+    if (form.attendance_geofence_required) {
+      if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+        setError("Enter a valid branch latitude before requiring attendance location.");
+        return;
+      }
+      if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+        setError("Enter a valid branch longitude before requiring attendance location.");
+        return;
+      }
+      if (!Number.isFinite(radius) || radius < 25 || radius > 5000) {
+        setError("Attendance radius must be between 25 and 5,000 metres.");
+        return;
+      }
+    }
+
+    try {
+      await onSave({
+        ...form,
+        name: form.name.trim(),
+        code: form.code.trim().toUpperCase(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        latitude,
+        longitude,
+        attendance_radius_m: radius
+      });
+    } catch (saveError) {
+      setError(saveError?.message || "The branch could not be saved.");
+    }
   }
 
   return (
@@ -92,6 +118,36 @@ export default function BranchFormModal({
             placeholder="Branch address"
           />
         </label>
+
+        <section className="branch-attendance-location">
+          <label className="staff-active-toggle">
+            <span>
+              <strong>Require branch location for attendance</strong>
+              <small>Blocks POS and Telegram check-in from home. Staff must be inside the branch radius.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={Boolean(form.attendance_geofence_required)}
+              onChange={(event) => update("attendance_geofence_required", event.target.checked)}
+            />
+          </label>
+
+          <div className="form-grid three">
+            <label>
+              <span>Latitude</span>
+              <input type="number" step="0.000001" min="-90" max="90" value={form.latitude} onChange={(event) => update("latitude", event.target.value)} placeholder="11.5564" />
+            </label>
+            <label>
+              <span>Longitude</span>
+              <input type="number" step="0.000001" min="-180" max="180" value={form.longitude} onChange={(event) => update("longitude", event.target.value)} placeholder="104.9282" />
+            </label>
+            <label>
+              <span>Allowed radius (metres)</span>
+              <input type="number" min="25" max="5000" step="10" value={form.attendance_radius_m} onChange={(event) => update("attendance_radius_m", event.target.value)} />
+            </label>
+          </div>
+          <small>Use the branch location from Google Maps. Owners can disable this when attendance is not used.</small>
+        </section>
 
         {error && <div className="notice error">{error}</div>}
 

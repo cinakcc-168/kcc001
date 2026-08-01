@@ -196,13 +196,17 @@ export default function RefundModal({
       return;
     }
 
-    await onSubmit({
-      sale_id: sale.id,
-      items: selectedItems,
-      refund_method: refundMethod,
-      refund_reference: refundReference,
-      reason
-    });
+    try {
+      await onSubmit({
+        sale_id: sale.id,
+        items: selectedItems,
+        refund_method: refundMethod,
+        refund_reference: refundReference,
+        reason
+      });
+    } catch (submitError) {
+      setError(submitError?.message || "Unable to process this refund.");
+    }
   }
 
   return (

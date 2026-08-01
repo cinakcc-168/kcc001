@@ -70,7 +70,7 @@ export default function QuoteSaveModal({
 
   if (!open) return null;
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
     setError("");
 
@@ -92,11 +92,15 @@ export default function QuoteSaveModal({
       return;
     }
 
-    onSubmit({
-      valid_until: validUntil,
-      terms,
-      status
-    });
+    try {
+      await onSubmit({
+        valid_until: validUntil,
+        terms,
+        status
+      });
+    } catch (submitError) {
+      setError(submitError?.message || "Unable to save quotation.");
+    }
   }
 
   return (

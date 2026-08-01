@@ -333,7 +333,13 @@ export default function AppShell() {
     signOut
   } = useAuth();
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem("tiny-pos-sidebar-collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [branches, setBranches] = useState([]);
   const [switchingBranch, setSwitchingBranch] = useState(false);
 
@@ -355,6 +361,17 @@ export default function AppShell() {
 
   const canSwitchBranch =
     can("branches.switch");
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "tiny-pos-sidebar-collapsed",
+        collapsed ? "1" : "0"
+      );
+    } catch {
+      // Sidebar preference is optional.
+    }
+  }, [collapsed]);
 
   useEffect(() => {
     if (!supabase || !profile?.organization_id || !canSwitchBranch) {
@@ -413,9 +430,26 @@ export default function AppShell() {
             <b>T</b>
           )}
           <span className="side-label" data-i18n-skip>{shop?.shop_name || "Tiny POS"}</span>
+          <button
+            type="button"
+            className="side-collapse-top desktop-only"
+            onClick={() => setCollapsed((value) => !value)}
+            title={collapsed ? t("Expand") : t("Collapse")}
+            aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+          >
+            {collapsed ? <ChevronRight size={19} /> : <ChevronLeft size={19} />}
+          </button>
+          <button
+            type="button"
+            className="side-mobile-close"
+            onClick={() => setOpen(false)}
+            aria-label={t("Close menu")}
+          >
+            <ChevronLeft size={22} />
+          </button>
         </div>
 
-        <nav>
+        <nav className="side-nav-scroll" aria-label={t("Main navigation")}>
           {visibleLinks.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -430,14 +464,10 @@ export default function AppShell() {
         </nav>
 
         <div className="side-footer">
-          <button
-            type="button"
-            className="collapse-button desktop-only"
-            onClick={() => setCollapsed((value) => !value)}
-          >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            <span className="side-label">{t("Collapse")}</span>
-          </button>
+          <div className="side-account side-label">
+            <strong data-i18n-skip>{profile?.full_name || t("Owner")}</strong>
+            <small data-i18n-skip>{profile?.custom_staff_roles?.name || t(profile?.role || "Owner")}</small>
+          </div>
 
           <button
             type="button"
@@ -495,7 +525,7 @@ export default function AppShell() {
           <LanguageSwitcher compact />
 
           <strong data-i18n-skip>
-            {profile?.full_name || t("Owner")} · {t(profile?.role || "Owner")}
+            {profile?.full_name || t("Owner")} · {profile?.custom_staff_roles?.name || t(profile?.role || "Owner")}
           </strong>
         </header>
 

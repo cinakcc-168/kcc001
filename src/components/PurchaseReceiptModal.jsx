@@ -236,22 +236,24 @@ export default function PurchaseReceiptModal({
       return;
     }
 
-    await onSubmit({
-      purchase_id: purchase.id,
-      items: selectedRows.map((row) => ({
-        purchase_item_id: row.item.id,
-        quantity: row.quantity,
-        batches: batchAllocations[row.item.id] || []
-      })),
-      amount_paid: payment,
-      payment_method: method,
-      payment_reference: reference,
-      supplier_invoice_number:
-        supplierInvoice,
-      received_at:
-        parsedDate.toISOString(),
-      notes
-    });
+    try {
+      await onSubmit({
+        purchase_id: purchase.id,
+        items: selectedRows.map((row) => ({
+          purchase_item_id: row.item.id,
+          quantity: row.quantity,
+          batches: batchAllocations[row.item.id] || []
+        })),
+        amount_paid: payment,
+        payment_method: method,
+        payment_reference: reference,
+        supplier_invoice_number: supplierInvoice,
+        received_at: parsedDate.toISOString(),
+        notes
+      });
+    } catch (submitError) {
+      setError(submitError?.message || "The purchase receipt could not be saved.");
+    }
   }
 
   return (
@@ -385,24 +387,34 @@ export default function PurchaseReceiptModal({
                     </strong>
                   </div>
 
-                  <label>
+                  <label className="partial-receipt-quantity-field">
                     <span>
                       Receive {item.purchase_unit_name || "quantity"}
                     </span>
-                    <input
-                      type="number"
-                      min="0"
-                      max={remaining}
-                      step="0.001"
-                      value={quantities[item.id] || ""}
-                      onChange={(event) =>
-                        updateQuantity(
-                          item.id,
-                          event.target.value
-                        )
-                      }
-                      placeholder="0"
-                    />
+                    <div className="partial-receipt-quantity-input">
+                      <input
+                        type="number"
+                        min="0"
+                        max={remaining}
+                        step="0.001"
+                        value={quantities[item.id] || ""}
+                        onChange={(event) =>
+                          updateQuantity(
+                            item.id,
+                            event.target.value
+                          )
+                        }
+                        placeholder="0"
+                      />
+                      <button
+                        type="button"
+                        className="secondary-button compact"
+                        onClick={() => updateQuantity(item.id, String(remaining))}
+                        disabled={busy}
+                      >
+                        Receive remaining
+                      </button>
+                    </div>
                     <small>
                       Adds {stockNumber(baseReceipt)}{" "}
                       {item.products?.unit_name || "base units"}

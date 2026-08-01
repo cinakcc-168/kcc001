@@ -1,13 +1,15 @@
-import { Printer } from "lucide-react";
+import { Languages, Printer } from "lucide-react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import ProductBarcode from "./ProductBarcode";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
 
-function dateTime(value) {
+function dateTime(value, locale = "en-US") {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
@@ -15,14 +17,28 @@ function dateTime(value) {
 
 export default function ReturnReceiptModal({ receipt, onClose }) {
   const { shop } = useAuth();
+  const { language } = useLanguage();
+  const [receiptLanguage, setReceiptLanguage] = useState(language === "km" ? "km" : "en");
+
+  useEffect(() => {
+    if (receipt) setReceiptLanguage(language === "km" ? "km" : "en");
+  }, [receipt, language]);
+
+  const label = (english, khmer) => receiptLanguage === "km" ? khmer : english;
+  const locale = receiptLanguage === "km" ? "km-KH" : "en-US";
 
   if (!receipt) return null;
 
   const receiptWidth = Number(shop?.receipt_width_mm || 80);
 
   return (
-    <Modal title="Refund completed" onClose={onClose}>
+    <Modal title={label("Refund completed", "ការសងប្រាក់បានបញ្ចប់")} onClose={onClose}>
       <div className="receipt-wrapper">
+        <div className="receipt-language-toolbar" data-print-hide>
+          <Languages size={18} />
+          <button type="button" className={receiptLanguage === "en" ? "active" : ""} onClick={() => setReceiptLanguage("en")}>English</button>
+          <button type="button" className={receiptLanguage === "km" ? "active" : ""} onClick={() => setReceiptLanguage("km")}>ខ្មែរ</button>
+        </div>
         <article
           className="receipt-document return-receipt-document"
           style={{ "--receipt-width": `${receiptWidth}mm` }}
@@ -32,7 +48,7 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
               <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
             )}
             <h2>{shop?.shop_name || receipt.shopName}</h2>
-            <strong>RETURN / REFUND RECEIPT</strong>
+            <strong>{label("RETURN / REFUND RECEIPT", "វិក្កយបត្រសងទំនិញ / សងប្រាក់")}</strong>
             {shop?.receipt_show_address !== false && (shop?.shop_address || receipt.shopAddress) && (
               <p>{shop?.shop_address || receipt.shopAddress}</p>
             )}
@@ -42,14 +58,14 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
           </div>
 
           <div className="receipt-meta">
-            <div><span>Return</span><strong>{receipt.returnNumber}</strong></div>
-            <div><span>Original invoice</span><strong>{receipt.invoiceNumber}</strong></div>
-            <div><span>Date</span><strong>{dateTime(receipt.processedAt)}</strong></div>
+            <div><span>{label("Return", "លេខសងទំនិញ")}</span><strong>{receipt.returnNumber}</strong></div>
+            <div><span>{label("Original invoice", "វិក្កយបត្រដើម")}</span><strong>{receipt.invoiceNumber}</strong></div>
+            <div><span>{label("Date", "កាលបរិច្ឆេទ")}</span><strong>{dateTime(receipt.processedAt, locale)}</strong></div>
             {shop?.receipt_show_cashier !== false && (
-              <div><span>Processed by</span><strong>{receipt.processedBy}</strong></div>
+              <div><span>{label("Processed by", "ដំណើរការដោយ")}</span><strong>{receipt.processedBy}</strong></div>
             )}
             {shop?.receipt_show_customer !== false && (
-              <div><span>Customer</span><strong>{receipt.customerName || "Walk-in"}</strong></div>
+              <div><span>{label("Customer", "អតិថិជន")}</span><strong>{receipt.customerName || label("Walk-in", "អតិថិជនទូទៅ")}</strong></div>
             )}
           </div>
 
@@ -69,7 +85,7 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
                     {stockNumber(item.quantity)}{" "}
                     {item.unit_name || item.return_unit_name || "pcs"}
                     {" × "}{money(item.unit_refund, receipt.currency)}
-                    {item.restock ? " · Restocked" : " · Not restocked"}
+                    {item.restock ? label(" · Restocked", " · បានបញ្ចូលស្តុកវិញ") : label(" · Not restocked", " · មិនបានបញ្ចូលស្តុកវិញ")}
                   </small>
                 </span>
                 <strong>-{money(item.line_refund, receipt.currency)}</strong>
@@ -79,32 +95,32 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
 
           <div className="receipt-totals">
             {Number(receipt.taxRefund || 0) > 0 && (
-              <div><span>Tax included</span><strong>{money(receipt.taxRefund, receipt.currency)}</strong></div>
+              <div><span>{label("Tax included", "ពន្ធរួមបញ្ចូល")}</span><strong>{money(receipt.taxRefund, receipt.currency)}</strong></div>
             )}
             <div className="receipt-grand-total">
-              <span>Total refunded</span>
+              <span>{label("Total refunded", "ប្រាក់សងសរុប")}</span>
               <strong>-{money(receipt.refundAmount, receipt.currency)}</strong>
             </div>
-            <div><span>Refund method</span><strong>{String(receipt.refundMethod).toUpperCase()}</strong></div>
+            <div><span>{label("Refund method", "វិធីសងប្រាក់")}</span><strong>{String(receipt.refundMethod).toUpperCase()}</strong></div>
             {receipt.refundReference && (
-              <div><span>Reference</span><strong>{receipt.refundReference}</strong></div>
+              <div><span>{label("Reference", "លេខយោង")}</span><strong>{receipt.refundReference}</strong></div>
             )}
           </div>
 
           <div className="return-reason">
-            <strong>Reason</strong>
+            <strong>{label("Reason", "មូលហេតុ")}</strong>
             <p>{receipt.reason}</p>
           </div>
 
           <div className="receipt-footer">
-            {shop?.receipt_footer || "Refund processed by Tiny POS"}
+            {shop?.receipt_footer || label("Refund processed by Tiny POS", "ការសងប្រាក់ដំណើរការដោយ Tiny POS")}
           </div>
         </article>
 
         <div className="receipt-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>Close</button>
+          <button type="button" className="secondary-button" onClick={onClose}>{label("Close", "បិទ")}</button>
           <button type="button" className="primary-button" onClick={() => window.print()}>
-            <Printer size={18} /> Print refund receipt
+            <Printer size={18} /> {label("Print refund receipt", "បោះពុម្ពវិក្កយបត្រសងប្រាក់")}
           </button>
         </div>
       </div>

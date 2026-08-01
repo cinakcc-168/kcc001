@@ -50,7 +50,11 @@ export default function PurchaseOrderActionModal({
         setError("Enter a cancellation reason.");
         return;
       }
-      await onConfirm({ action, reason });
+      try {
+        await onConfirm({ action, reason });
+      } catch (submitError) {
+        setError(submitError?.message || "The purchase action failed.");
+      }
       return;
     }
 
@@ -66,14 +70,18 @@ export default function PurchaseOrderActionModal({
       return;
     }
 
-    await onConfirm({
-      action,
-      amount: numericAmount,
-      method,
-      reference,
-      supplier_invoice_number: supplierInvoice,
-      notes
-    });
+    try {
+      await onConfirm({
+        action,
+        amount: numericAmount,
+        method,
+        reference,
+        supplier_invoice_number: supplierInvoice,
+        notes
+      });
+    } catch (submitError) {
+      setError(submitError?.message || "The purchase action failed.");
+    }
   }
 
   return (

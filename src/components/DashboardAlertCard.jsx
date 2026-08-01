@@ -28,9 +28,15 @@ export default function DashboardAlertCard({
   alert,
   currency = "USD"
 }) {
+  const target = alert.key === "out_of_stock"
+    ? "/reorder?status=out_of_stock"
+    : alert.key === "low_stock"
+      ? "/reorder?status=attention"
+      : alert.link || "/dashboard";
+
   return (
     <Link
-      to={alert.link || "/dashboard"}
+      to={target}
       className={`dashboard-alert-card ${alert.severity || "neutral"}`}
     >
       <div className="dashboard-alert-icon">

@@ -7,6 +7,7 @@ export default function StaffFormModal({
   open,
   member,
   branches,
+  customRoles = [],
   callerRole,
   busy,
   onClose,
@@ -31,6 +32,11 @@ export default function StaffFormModal({
     if (member?.role === "admin" && callerRole === "admin") return ["admin"];
     return roles;
   }, [callerRole, member]);
+
+  const selectedCustomRole = useMemo(
+    () => customRoles.find((item) => item.id === form.custom_role_id) || null,
+    [customRoles, form.custom_role_id]
+  );
 
   if (!open) return null;
 
@@ -73,16 +79,21 @@ export default function StaffFormModal({
       }
     }
 
-    await onSave({
-      user_id: form.user_id,
-      email: form.email.trim(),
-      full_name: form.full_name.trim(),
-      phone: form.phone.trim(),
-      role: ownerAccount ? "owner" : form.role,
-      branch_id: form.branch_id,
-      is_active: form.is_active,
-      password: form.password
-    });
+    try {
+      await onSave({
+        user_id: form.user_id,
+        email: form.email.trim(),
+        full_name: form.full_name.trim(),
+        phone: form.phone.trim(),
+        role: ownerAccount ? "owner" : (selectedCustomRole?.base_role || form.role),
+        custom_role_id: ownerAccount ? null : (form.custom_role_id || null),
+        branch_id: form.branch_id,
+        is_active: form.is_active,
+        password: form.password
+      });
+    } catch (saveError) {
+      setError(saveError?.message || "The staff account could not be saved.");
+    }
   }
 
   return (
@@ -126,15 +137,38 @@ export default function StaffFormModal({
           <label>
             <span>Role *</span>
             <select
-              value={form.role}
-              disabled={ownerAccount || roleOptions.length === 1}
-              onChange={(event) => update("role", event.target.value)}
+              value={form.custom_role_id ? `custom:${form.custom_role_id}` : `base:${form.role}`}
+              disabled={ownerAccount || (roleOptions.length === 1 && customRoles.length === 0)}
+              onChange={(event) => {
+                const [kind, value] = event.target.value.split(":");
+                if (kind === "custom") {
+                  const custom = customRoles.find((item) => item.id === value);
+                  setForm((current) => ({ ...current, custom_role_id: value, role: custom?.base_role || "viewer" }));
+                } else {
+                  setForm((current) => ({ ...current, custom_role_id: "", role: value }));
+                }
+                setError("");
+              }}
             >
-              {roleOptions.map((role) => (
-                <option value={role} key={role}>
-                  {roleLabel(role)}
-                </option>
-              ))}
+              <optgroup label="Standard roles">
+                {roleOptions.map((role) => (
+                  <option value={`base:${role}`} key={role}>
+                    {roleLabel(role)}
+                  </option>
+                ))}
+              </optgroup>
+              {customRoles.some((item) => item.is_active || item.id === form.custom_role_id) && (
+                <optgroup label="Custom roles">
+                  {customRoles
+                    .filter((item) => item.is_active || item.id === form.custom_role_id)
+                    .filter((item) => callerRole === "owner" || item.base_role !== "admin")
+                    .map((item) => (
+                      <option value={`custom:${item.id}`} key={item.id}>
+                        {item.name} · based on {roleLabel(item.base_role)}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
             </select>
           </label>
 
@@ -201,17 +235,18 @@ export default function StaffFormModal({
         </div>
 
         <div className="role-description-card">
-          <strong>{roleLabel(form.role)}</strong>
+          <strong>{selectedCustomRole?.name || roleLabel(form.role)}</strong>
           <span>
-            {form.role === "admin" &&
+            {selectedCustomRole?.description || selectedCustomRole && `Custom permission template based on ${roleLabel(selectedCustomRole.base_role)}.`}
+            {!selectedCustomRole && form.role === "admin" &&
               "Manages products, inventory, returns, staff, branches, and settings."}
-            {form.role === "manager" &&
+            {!selectedCustomRole && form.role === "manager" &&
               "Manages sales, refunds, customers, products, purchases, and inventory."}
-            {form.role === "cashier" &&
+            {!selectedCustomRole && form.role === "cashier" &&
               "Creates sales and customers but cannot manage inventory or refunds."}
-            {form.role === "viewer" &&
+            {!selectedCustomRole && form.role === "viewer" &&
               "Read-only role intended for dashboards and reports."}
-            {form.role === "owner" && "Full access to the entire organization."}
+            {!selectedCustomRole && form.role === "owner" && "Full access to the entire organization."}
           </span>
         </div>
 
