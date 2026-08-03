@@ -35,6 +35,7 @@ export default function SaleCart({
   onNotesChange,
   totals,
   currency,
+  exchangeRate = 4100,
   taxPercent,
   onQuantityChange,
   onUnitChange,
@@ -477,6 +478,14 @@ export default function SaleCart({
         <div className="grand-total">
           <span>Total</span>
           <strong>{money(totals.total, currency)}</strong>
+          <small>
+            ≈ {money(
+              currency === "USD"
+                ? Number(totals.total || 0) * Number(exchangeRate || 4100)
+                : Number(totals.total || 0) / Number(exchangeRate || 4100),
+              currency === "USD" ? "KHR" : "USD"
+            )}
+          </small>
         </div>
       </div>
 

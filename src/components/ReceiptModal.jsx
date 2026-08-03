@@ -44,6 +44,23 @@ export default function ReceiptModal({ receipt, onClose }) {
   const showCustomer = shop?.receipt_show_customer !== false;
   const showCashier = shop?.receipt_show_cashier !== false;
   const showBarcode = shop?.receipt_show_barcode !== false;
+  const exchangeRate = Math.max(0.0001, Number(
+    receipt.exchangeRate
+    || shop?.usd_to_khr_rate
+    || 4100
+  ));
+  const alternateCurrency = receipt.currency === "USD" ? "KHR" : "USD";
+  const alternateTotal = receipt.currency === "USD"
+    ? Number(receipt.totalAmount || 0) * exchangeRate
+    : Number(receipt.totalAmount || 0) / exchangeRate;
+  const paymentRows = Array.isArray(receipt.payments)
+    ? receipt.payments
+    : [];
+  const paymentMethod = String(
+    receipt.paymentMethod
+    || (paymentRows.length > 1 ? "split" : paymentRows[0]?.method)
+    || "other"
+  );
 
   return (
     <Modal title={receipt.offlinePending ? label("Offline receipt saved", "បានរក្សាទុកវិក្កយបត្រក្រៅបណ្តាញ") : label("Sale completed", "ការលក់បានបញ្ចប់")} onClose={onClose}>
@@ -202,7 +219,9 @@ export default function ReceiptModal({ receipt, onClose }) {
               <div><span>{label("Tax", "ពន្ធ")}</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
             )}
             <div className="receipt-grand-total">
-              <span>{label("Total", "សរុប")}</span><strong>{money(receipt.totalAmount, receipt.currency)}</strong>
+              <span>{label("Total", "សរុប")}</span>
+              <strong>{money(receipt.totalAmount, receipt.currency)}</strong>
+              <small>≈ {money(alternateTotal, alternateCurrency)}</small>
             </div>
             {Number(receipt.refundedAmount || 0) > 0 && (
               <>
@@ -225,8 +244,8 @@ export default function ReceiptModal({ receipt, onClose }) {
                 </div>
               </>
             )}
-            <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{receipt.paymentMethod.toUpperCase()}</strong></div>
-            {receipt.paymentMethod === "credit" ? (
+            <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{paymentMethod.toUpperCase()}</strong></div>
+            {paymentMethod === "credit" ? (
               <>
                 <div>
                   <span>{label("Paid now", "បានបង់ឥឡូវ")}</span>
@@ -240,12 +259,7 @@ export default function ReceiptModal({ receipt, onClose }) {
                   && receipt.creditOutstanding !== undefined && (
                   <div>
                     <span>{label("Invoice outstanding", "ប្រាក់នៅសល់លើវិក្កយបត្រ")}</span>
-                    <strong>
-                      {money(
-                        receipt.creditOutstanding,
-                        receipt.currency
-                      )}
-                    </strong>
+                    <strong>{money(receipt.creditOutstanding, receipt.currency)}</strong>
                   </div>
                 )}
                 <div>
@@ -265,6 +279,43 @@ export default function ReceiptModal({ receipt, onClose }) {
                   </strong>
                 </div>
               </>
+            ) : paymentRows.length ? (
+              <div className="receipt-payment-parts">
+                {paymentRows.map((payment, index) => {
+                  const tenderCurrency = payment.tender_currency
+                    || payment.currency
+                    || receipt.currency;
+                  const tenderAmount = Number(
+                    payment.tender_amount
+                    ?? payment.amount_received
+                    ?? payment.settlement_amount
+                    ?? 0
+                  );
+                  const change = Number(
+                    payment.change_amount
+                    ?? payment.tender_change_amount
+                    ?? 0
+                  );
+                  return (
+                    <div className="receipt-payment-part" key={`${payment.method || "payment"}-${index}`}>
+                      <span>
+                        <strong>{String(payment.method || "other").toUpperCase()}</strong>
+                        {payment.reference_number && <small>{payment.reference_number}</small>}
+                      </span>
+                      <span>
+                        <strong>{money(tenderAmount, tenderCurrency)}</strong>
+                        {payment.settlement_amount !== undefined
+                          && tenderCurrency !== receipt.currency && (
+                          <small>={money(payment.settlement_amount, receipt.currency)}</small>
+                        )}
+                        {change > 0 && (
+                          <small>{label("Change", "ប្រាក់អាប់")}: {money(change, tenderCurrency)}</small>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             ) : (
               <>
                 <div><span>{label("Received", "ប្រាក់ទទួល")}</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
