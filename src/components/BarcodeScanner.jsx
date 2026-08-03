@@ -12,9 +12,9 @@ import {
 
 const ROI_WIDTH = 0.72;
 const ROI_HEIGHT = 0.38;
-const SCAN_INTERVAL_MS = 150;
-const SAME_CODE_COOLDOWN_MS = 2500;
-const SUCCESS_PAUSE_MS = 850;
+const SCAN_INTERVAL_MS = 90;
+const SAME_CODE_COOLDOWN_MS = 1400;
+const SUCCESS_PAUSE_MS = 560;
 
 let sharedAudioContext = null;
 
@@ -116,7 +116,7 @@ export default function BarcodeScanner({
     let cancelled = false;
     let decoding = false;
     const reader = new BrowserMultiFormatReader(undefined, {
-      delayBetweenScanAttempts: 120,
+      delayBetweenScanAttempts: 70,
       delayBetweenScanSuccess: SUCCESS_PAUSE_MS
     });
 
@@ -127,6 +127,7 @@ export default function BarcodeScanner({
     setFeedbackState("");
     setLastAddedCode("");
     pauseUntilRef.current = 0;
+    lastAttemptRef.current = 0;
     lastCodeRef.current = { code: "", at: 0 };
 
     const previousOverflow = document.body.style.overflow;
@@ -201,8 +202,8 @@ export default function BarcodeScanner({
           audio: false,
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         });
 
@@ -219,6 +220,9 @@ export default function BarcodeScanner({
         const track = stream.getVideoTracks()[0];
         const capabilities = track?.getCapabilities?.() || {};
         setTorchAvailable(Boolean(capabilities.torch));
+        if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes("continuous")) {
+          track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+        }
         setStatus(
           continuous
             ? "Place a barcode inside the white box. The camera remains open for the next product."
@@ -279,7 +283,7 @@ export default function BarcodeScanner({
           );
 
           const canvas = canvasRef.current;
-          const maxCanvasWidth = 1100;
+          const maxCanvasWidth = 860;
           const scale = Math.min(1, maxCanvasWidth / sourceWidth);
           canvas.width = Math.max(1, Math.round(sourceWidth * scale));
           canvas.height = Math.max(1, Math.round(sourceHeight * scale));

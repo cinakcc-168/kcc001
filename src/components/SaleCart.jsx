@@ -245,7 +245,10 @@ export default function SaleCart({
               : Number(item.stock_quantity || 0);
 
             return (
-              <article className="sale-cart-line" key={item.id}>
+              <article
+                className="sale-cart-line"
+                key={item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}:${index}`}
+              >
                 <div className="cart-line-main">
                   <div className="cart-line-number">{index + 1}</div>
 
@@ -265,7 +268,7 @@ export default function SaleCart({
                     {units.length > 1 ? (
                       <select
                         value={item.selected_unit_id || ""}
-                        onChange={(event) => onUnitChange(item.id, event.target.value)}
+                        onChange={(event) => onUnitChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, event.target.value)}
                         aria-label={`${item.name} selling unit`}
                         disabled={fulfillmentLocked}
                       >
@@ -286,7 +289,7 @@ export default function SaleCart({
                     <button
                       type="button"
                       className="icon-button"
-                      onClick={() => onQuantityChange(item.id, Number(item.quantity) - 1)}
+                      onClick={() => onQuantityChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, Number(item.quantity) - 1)}
                       disabled={fulfillmentLocked}
                       aria-label={`Reduce ${item.name}`}
                     >
@@ -297,14 +300,14 @@ export default function SaleCart({
                       min="0.001"
                       step="0.001"
                       value={item.quantity}
-                      onChange={(event) => onQuantityChange(item.id, event.target.value)}
+                      onChange={(event) => onQuantityChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, event.target.value)}
                       disabled={fulfillmentLocked}
                       aria-label={`${item.name} quantity`}
                     />
                     <button
                       type="button"
                       className="icon-button"
-                      onClick={() => onQuantityChange(item.id, Number(item.quantity) + 1)}
+                      onClick={() => onQuantityChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, Number(item.quantity) + 1)}
                       disabled={fulfillmentLocked}
                       aria-label={`Add ${item.name}`}
                     >
@@ -313,7 +316,7 @@ export default function SaleCart({
                     <button
                       type="button"
                       className="icon-button danger-icon"
-                      onClick={() => onRemove(item.id)}
+                      onClick={() => onRemove(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`)}
                       disabled={fulfillmentLocked}
                       aria-label={`Remove ${item.name}`}
                     >
