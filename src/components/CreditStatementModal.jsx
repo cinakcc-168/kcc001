@@ -71,10 +71,12 @@ export default function CreditStatementModal({
                   )}
                 </strong>
                 <small>
-                  Available credit {money(
-                    account.available_credit,
-                    account.currency
-                  )}
+                  Available credit {account.allow_unlimited_credit
+                    ? "Unlimited"
+                    : money(
+                        account.available_credit,
+                        account.currency
+                      )}
                 </small>
               </div>
             </header>
@@ -87,10 +89,12 @@ export default function CreditStatementModal({
               <div>
                 <span>Credit limit</span>
                 <strong>
-                  {money(
-                    account.credit_limit,
-                    account.currency
-                  )}
+                  {account.allow_unlimited_credit
+                    ? "Unlimited"
+                    : money(
+                        account.credit_limit,
+                        account.currency
+                      )}
                 </strong>
               </div>
               <div>

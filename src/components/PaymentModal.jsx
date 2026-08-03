@@ -49,20 +49,32 @@ export default function PaymentModal({
   const [reference, setReference] = useState("");
   const [error, setError] = useState("");
 
-  const creditAvailable = Math.max(
-    0,
-    Number(creditAccount?.credit_limit || 0)
-      - Number(creditAccount?.balance_due || 0)
+  const unlimitedCredit = Boolean(
+    creditAccount?.allow_unlimited_credit
   );
+
+  const creditAvailable = unlimitedCredit
+    ? Number.POSITIVE_INFINITY
+    : Math.max(
+        0,
+        Number(creditAccount?.credit_limit || 0)
+          - Number(creditAccount?.balance_due || 0)
+      );
 
   const creditAllowed = Boolean(
     customerName
     && creditAccount
     && !creditAccount.is_on_hold
-    && Number(creditAccount.credit_limit || 0) > 0
+    && (
+      unlimitedCredit
+      || Number(creditAccount.credit_limit || 0) > 0
+    )
     && !offline
     && Number(totals.total || 0) > 0
-    && creditAvailable >= Number(totals.total || 0)
+    && (
+      unlimitedCredit
+      || creditAvailable >= Number(totals.total || 0)
+    )
   );
 
   useEffect(() => {
@@ -140,7 +152,10 @@ export default function PaymentModal({
         return;
       }
 
-      if (creditAvailable < Number(totals.total)) {
+      if (
+        !unlimitedCredit
+        && creditAvailable < Number(totals.total)
+      ) {
         setError(
           `Available credit is only ${money(
             creditAvailable,
@@ -247,7 +262,8 @@ export default function PaymentModal({
               } else if (creditAccount.is_on_hold) {
                 title = "Credit account is on hold";
               } else if (
-                creditAvailable < Number(totals.total)
+                !unlimitedCredit
+                && creditAvailable < Number(totals.total)
               ) {
                 title = "Available credit is too low";
               }
@@ -285,10 +301,9 @@ export default function PaymentModal({
             <div>
               <span>Available credit</span>
               <strong>
-                {money(
-                  creditAvailable,
-                  currency
-                )}
+                {unlimitedCredit
+                  ? "Unlimited"
+                  : money(creditAvailable, currency)}
               </strong>
             </div>
             <div>

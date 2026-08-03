@@ -142,8 +142,35 @@ export default function CustomerFormModal({
               onChange={(event) =>
                 update("credit_limit", event.target.value)
               }
+              disabled={form.allow_unlimited_credit}
             />
+            <small className="customer-credit-help">
+              Default 0 blocks credit. Enter an exact limit when needed.
+            </small>
           </label>
+
+          <div className="customer-credit-mode">
+            <span>Credit permission</span>
+            <div className="customer-credit-toggle" role="group" aria-label="Customer credit permission">
+              <button
+                type="button"
+                className={!form.allow_unlimited_credit ? "active" : ""}
+                onClick={() => update("allow_unlimited_credit", false)}
+              >
+                Default / limit
+              </button>
+              <button
+                type="button"
+                className={form.allow_unlimited_credit ? "active" : ""}
+                onClick={() => update("allow_unlimited_credit", true)}
+              >
+                Allow any amount
+              </button>
+            </div>
+            <small>
+              Allow any amount removes the credit ceiling but still tracks the balance due.
+            </small>
+          </div>
 
           <label className="customer-form-wide">
             <span>Address</span>

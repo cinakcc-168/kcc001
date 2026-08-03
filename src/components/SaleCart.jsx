@@ -195,14 +195,16 @@ export default function SaleCart({
             )}
           </span>
           <strong>
-            Available {money(
-              Math.max(
-                0,
-                Number(creditAccount.credit_limit || 0)
-                  - Number(creditAccount.balance_due || 0)
-              ),
-              creditAccount.currency
-            )}
+            Available {creditAccount.allow_unlimited_credit
+              ? "Unlimited"
+              : money(
+                  Math.max(
+                    0,
+                    Number(creditAccount.credit_limit || 0)
+                      - Number(creditAccount.balance_due || 0)
+                  ),
+                  creditAccount.currency
+                )}
           </strong>
           {creditAccount.is_on_hold && <b>ON HOLD</b>}
         </div>

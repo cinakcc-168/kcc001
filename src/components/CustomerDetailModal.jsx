@@ -158,11 +158,17 @@ export default function CustomerDetailModal({
           </article>
         </section>
 
-        {(customer.notes || Number(customer.credit_limit || 0) > 0) && (
+        {(customer.notes
+          || customer.allow_unlimited_credit
+          || Number(customer.credit_limit || 0) > 0) && (
           <section className="customer-notes-card">
             <div>
               <span>Credit limit</span>
-              <strong>{money(customer.credit_limit, summaryCurrency)}</strong>
+              <strong>
+                {customer.allow_unlimited_credit
+                  ? "Unlimited"
+                  : money(customer.credit_limit, summaryCurrency)}
+              </strong>
             </div>
             <div>
               <span>Notes</span>

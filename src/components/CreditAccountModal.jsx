@@ -22,6 +22,7 @@ export default function CreditAccountModal({
     customer_id: "",
     currency: "USD",
     credit_limit: "0",
+    allow_unlimited_credit: false,
     payment_terms_days: "30",
     is_on_hold: false,
     notes: ""
@@ -36,6 +37,9 @@ export default function CreditAccountModal({
       currency: account?.currency || "USD",
       credit_limit: String(
         account?.credit_limit || 0
+      ),
+      allow_unlimited_credit: Boolean(
+        account?.allow_unlimited_credit
       ),
       payment_terms_days: String(
         account?.payment_terms_days ?? 30
@@ -100,6 +104,7 @@ export default function CreditAccountModal({
 
     if (
       account
+      && !form.allow_unlimited_credit
       && limit < Number(account.balance_due || 0)
     ) {
       const confirmed = window.confirm(
@@ -215,7 +220,21 @@ export default function CreditAccountModal({
                   event.target.value
                 )
               }
+              disabled={form.allow_unlimited_credit}
             />
+            <label className="credit-unlimited-check">
+              <input
+                type="checkbox"
+                checked={form.allow_unlimited_credit}
+                onChange={(event) =>
+                  update(
+                    "allow_unlimited_credit",
+                    event.target.checked
+                  )
+                }
+              />
+              <span>Allow any amount</span>
+            </label>
           </label>
 
           <label>
@@ -253,16 +272,18 @@ export default function CreditAccountModal({
             <div>
               <span>Available credit</span>
               <strong>
-                {money(
-                  Math.max(
-                    0,
-                    Number(form.credit_limit || 0)
-                      - Number(
-                          account.balance_due || 0
-                        )
-                  ),
-                  account.currency
-                )}
+                {form.allow_unlimited_credit
+                  ? "Unlimited"
+                  : money(
+                      Math.max(
+                        0,
+                        Number(form.credit_limit || 0)
+                          - Number(
+                              account.balance_due || 0
+                            )
+                      ),
+                      account.currency
+                    )}
               </strong>
             </div>
           </section>
