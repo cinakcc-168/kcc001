@@ -2364,3 +2364,10 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
   .sale-scan-button{display:grid!important;place-items:center!important;gap:0!important;padding:0!important;line-height:0!important}
 }
 @media print{.products-page .product-list-panel{break-inside:auto!important}}
+
+
+/* Step 46.4.2: customer credit rule selector */
+.customer-credit-help{display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.35}.customer-credit-mode{display:grid;gap:8px;align-content:start}.customer-credit-mode>span{font-weight:700}.customer-credit-mode>small{color:var(--muted);font-size:11px;line-height:1.35}.customer-credit-toggle{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border:1px solid var(--border);border-radius:12px;background:var(--surface2)}.customer-credit-toggle button{min-height:40px;padding:8px 10px;border:0;border-radius:9px;background:transparent;color:var(--muted);font:inherit;font-weight:800;cursor:pointer}.customer-credit-toggle button.active{background:var(--surface);color:var(--accent);box-shadow:var(--shadow)}.customer-credit-toggle button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}.customer-form input:disabled{opacity:.72;cursor:not-allowed}
+@media(max-width:700px){.customer-credit-toggle{grid-template-columns:1fr}.customer-credit-mode{grid-column:1/-1}}
+
+.credit-unlimited-check{display:flex!important;align-items:center;gap:8px;margin-top:7px;color:var(--muted);font-size:12px;font-weight:700}.credit-unlimited-check input{width:18px;height:18px;min-height:0!important;accent-color:var(--accent)}
