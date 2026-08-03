@@ -262,13 +262,40 @@ export default function InvoicesPage() {
     setMessage(text);
   }
 
-  function openReceipt(invoice) {
-    setReceipt(
-      buildInvoiceReceipt(
-        invoice,
-        shop
-      )
-    );
+  async function openReceipt(invoice) {
+    try {
+      const { data, error } = await supabase
+        .from("payments")
+        .select(`
+          id,
+          method,
+          currency,
+          amount,
+          tendered_amount,
+          change_amount,
+          reference_number,
+          paid_at,
+          notes,
+          credit_payment_id,
+          tender_currency,
+          tender_amount,
+          tender_change_amount,
+          exchange_rate
+        `)
+        .eq("sale_id", invoice.id)
+        .order("paid_at")
+        .order("id");
+      if (error) throw error;
+      setReceipt(buildInvoiceReceipt({
+        ...invoice,
+        payments: (data || []).map((payment) => ({
+          ...payment,
+          is_credit_collection: Boolean(payment.credit_payment_id)
+        }))
+      }, shop));
+    } catch (error) {
+      announce("error", error.message);
+    }
   }
 
   function openReturn(invoice) {

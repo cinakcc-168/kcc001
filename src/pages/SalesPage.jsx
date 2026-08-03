@@ -1176,6 +1176,8 @@ export default function SalesPage() {
           amountReceived: Number(payment.amount_received || 0),
           changeAmount: Math.max(0, Number(payment.amount_received || 0) - Number(totals.total || 0)),
           paymentMethod: payment.payment_method,
+          payments: payment.payments || [],
+          exchangeRate: Number(shop?.usd_to_khr_rate || 4100),
           priceListName: "Offline snapshot",
           currency,
           offlinePending: true,
@@ -1339,7 +1341,15 @@ export default function SalesPage() {
           ?? 0
         ),
         changeAmount: Number(result.change_amount || 0),
-        paymentMethod: payment.payment_method,
+        paymentMethod: result.payment_method || payment.payment_method,
+        payments: Array.isArray(result.payments)
+          ? result.payments
+          : (payment.payments || []),
+        exchangeRate: Number(
+          result.exchange_rate
+          || shop?.usd_to_khr_rate
+          || 4100
+        ),
         priceListName:
           result.price_list_name
           || priceCatalogs[currency]?.price_list_name
@@ -1609,6 +1619,7 @@ export default function SalesPage() {
           onNotesChange={setNotes}
           totals={totals}
           currency={currency}
+          exchangeRate={Number(shop?.usd_to_khr_rate || 4100)}
           taxPercent={shop?.tax_percent || 0}
           onQuantityChange={changeQuantity}
           onUnitChange={changeUnit}
@@ -1688,6 +1699,7 @@ export default function SalesPage() {
         busy={busy}
         totals={totals}
         currency={currency}
+        exchangeRate={Number(shop?.usd_to_khr_rate || 4100)}
         customerName={selectedCustomer?.name}
         creditAccount={selectedCreditAccount}
         cashRegisterOpen={cashRegisterOpen}
