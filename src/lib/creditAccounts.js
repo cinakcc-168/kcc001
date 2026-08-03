@@ -81,12 +81,15 @@ export async function saveCreditAccount(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_customer_credit_account_v2",
+    "save_customer_credit_account_v3",
     {
       p_customer_id: values.customer_id,
       p_currency: values.currency,
       p_credit_limit: Number(
         values.credit_limit || 0
+      ),
+      p_allow_unlimited_credit: Boolean(
+        values.allow_unlimited_credit
       ),
       p_payment_terms_days: Number(
         values.payment_terms_days || 0

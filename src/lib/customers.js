@@ -14,6 +14,7 @@ export function emptyCustomerForm() {
     address: "",
     date_of_birth: "",
     credit_limit: "0",
+    allow_unlimited_credit: false,
     notes: "",
     is_active: true
   };
@@ -31,6 +32,7 @@ export function customerToForm(customer) {
     address: customer.address || "",
     date_of_birth: customer.date_of_birth || "",
     credit_limit: String(customer.credit_limit || 0),
+    allow_unlimited_credit: Boolean(customer.allow_unlimited_credit),
     notes: customer.notes || "",
     is_active: Boolean(customer.is_active)
   };
@@ -58,6 +60,7 @@ export async function saveCustomer(supabase, profile, values) {
     address: values.address.trim() || null,
     date_of_birth: values.date_of_birth || null,
     credit_limit: roundMoney(values.credit_limit),
+    allow_unlimited_credit: Boolean(values.allow_unlimited_credit),
     notes: values.notes.trim() || null,
     is_active: Boolean(values.is_active)
   };

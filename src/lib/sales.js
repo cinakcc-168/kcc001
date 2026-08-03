@@ -104,6 +104,7 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           email,
           loyalty_points,
           credit_limit,
+          allow_unlimited_credit,
           price_list_id,
           is_active,
           created_at,
@@ -111,6 +112,7 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
             id,
             currency,
             credit_limit,
+            allow_unlimited_credit,
             balance_due,
             payment_terms_days,
             is_on_hold,
@@ -329,13 +331,18 @@ export function creditAccountForCustomer(
 ) {
   if (!customer || !currency) return null;
 
-  return (
-    (customer.customer_credit_accounts || [])
-      .find(
-        (account) =>
-          account.currency === currency
-      ) || null
-  );
+  const account = (customer.customer_credit_accounts || [])
+    .find((candidate) => candidate.currency === currency) || null;
+
+  if (!account) return null;
+
+  return {
+    ...account,
+    allow_unlimited_credit: Boolean(
+      account.allow_unlimited_credit
+      || customer.allow_unlimited_credit
+    )
+  };
 }
 
 export async function createCustomer(supabase, profile, values) {
