@@ -4,6 +4,13 @@ export const SUPPORTED_LANGUAGES = [
 ];
 
 const EXACT_KM = {
+  "Sales": "ការលក់",
+  "Customers & Marketing": "អតិថិជន និងទីផ្សារ",
+  "Products & Inventory": "ផលិតផល និងស្តុក",
+  "Purchasing": "ការទិញ",
+  "Cash & Accounting": "សាច់ប្រាក់ និងគណនេយ្យ",
+  "Staff": "បុគ្គលិក",
+  "Integrations & Settings": "ការតភ្ជាប់ និងការកំណត់",
   "Demand Planning": "ផែនការតម្រូវការ",
   "FORECAST & PROCUREMENT": "ការព្យាករណ៍ និងការផ្គត់ផ្គង់",
   "Forecast Settings": "ការកំណត់ការព្យាករណ៍",
@@ -453,7 +460,7 @@ const EXACT_KM = {
   "Save Quote": "រក្សាទុកសម្រង់តម្លៃ",
   "Update Quote": "កែសម្រង់តម្លៃ",
   "Pay": "ទូទាត់",
-  "Subtotal": "សរុប",
+  "Subtotal": "សរុបរង",
   "Tax": "ពន្ធ",
   "Total": "សរុប",
   "Change": "ប្រាក់អាប់",
