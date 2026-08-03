@@ -2378,3 +2378,19 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
 @media(max-width:1200px){.attendance-metric-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.manual-attendance-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-day-buttons{grid-template-columns:repeat(7,minmax(42px,1fr))}}
 @media(max-width:700px){.payment-amount-currency-row,.split-payment-editor{grid-template-columns:1fr}.split-payment-summary{grid-column:auto}.staff-report-toolbar{align-items:stretch;flex-direction:column}.staff-report-toolbar>div{display:grid;grid-template-columns:1fr}.attendance-metric-grid,.manual-attendance-grid{grid-template-columns:1fr 1fr}.attendance-day-buttons{grid-template-columns:repeat(5,minmax(42px,1fr))}.attendance-day-picker-heading{align-items:flex-start;flex-direction:column}}
 @media(max-width:430px){.attendance-metric-grid,.manual-attendance-grid{grid-template-columns:1fr}.attendance-day-buttons{grid-template-columns:repeat(4,minmax(42px,1fr))}}
+
+/* Step 46.4.4 — grouped navigation and mobile sidebar cleanup */
+.side-primary-links,.side-menu-groups{display:grid;gap:6px}.side-menu-groups{margin-top:4px}.side-menu-group{display:grid;gap:3px;min-width:0}.side-group-button{width:100%;min-height:44px;border:0;border-radius:12px;background:transparent;color:var(--muted);display:flex;align-items:center;gap:10px;padding:10px 11px;font-weight:800;text-align:left;transition:background .16s,color .16s,transform .16s}.side-group-button:hover{background:var(--surface2);color:var(--text);transform:translateX(2px)}.side-menu-group.active>.side-group-button{color:var(--accent)}.side-group-chevron{margin-left:auto;transition:transform .18s ease}.side-menu-group.open .side-group-chevron{transform:rotate(180deg)}.side-submenu{display:grid;gap:3px;padding:2px 0 4px 18px}.side-submenu[hidden]{display:none}.side-submenu a{min-height:40px!important;padding:8px 10px!important;font-size:14px}.side-submenu a svg{flex:0 0 auto}.side-new-sale-link{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)!important}.shell.collapsed .side-group-button{justify-content:center;padding-inline:0}.shell.collapsed .side-submenu{display:none!important}
+
+@media(max-width:800px){
+  .side-collapse-top{display:none!important}
+  .side-mobile-close{display:grid!important;margin-left:auto!important}
+  .brand{gap:12px}
+  .side-nav-scroll{padding:10px 12px!important}
+  .side-primary-links,.side-menu-groups{gap:5px}
+  .side-group-button{min-height:48px;padding:11px 12px;font-size:16px}
+  .side-submenu{padding-left:20px}
+  .side-submenu a{min-height:44px!important;padding:9px 11px!important;font-size:15px}
+  .side-new-sale-link{min-height:52px!important;font-size:17px}
+  .shell.collapsed .side-submenu{display:grid!important}
+}
