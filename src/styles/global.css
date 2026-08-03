@@ -2163,3 +2163,204 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
     font-family:"Noto Sans Khmer","Khmer OS System","Khmer UI",Arial,sans-serif!important;
   }
 }
+
+/* ========================================================================== */
+/* Step 46.4.1 — mobile control alignment and authoritative print recovery     */
+/* ========================================================================== */
+.sale-scan-button,
+.cart-line-main .cart-quantity-controls .icon-button,
+.scanner-header-actions .icon-button{
+  display:inline-grid!important;
+  place-items:center!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:0!important;
+  line-height:0!important;
+}
+.sale-scan-button svg,
+.cart-line-main .cart-quantity-controls .icon-button svg,
+.scanner-header-actions .icon-button svg{
+  display:block!important;
+  margin:auto!important;
+  flex:0 0 auto!important;
+}
+.product-print-heading{display:none}
+
+@media print{
+  @page{margin:8mm}
+  html,body,#root{width:100%!important;min-height:0!important;background:#fff!important;overflow:visible!important}
+  body *{visibility:hidden!important}
+
+  /* Page reports and product list. */
+  .reports-page,.reports-page *,
+  .products-page,.products-page *,
+
+  /* Every supported print document/modal. */
+  .modal-layer,.modal-layer *,
+  .receipt-document,.receipt-document *,
+  .return-receipt-document,.return-receipt-document *,
+  .register-report-document,.register-report-document *,
+  .quote-print-document,.quote-print-document *,
+  .sales-order-print-document,.sales-order-print-document *,
+  .po-print-document,.po-print-document *,
+  .grn-print-document,.grn-print-document *,
+  .credit-statement-document,.credit-statement-document *,
+  .supplier-statement-document,.supplier-statement-document *,
+  .stock-count-print-document,.stock-count-print-document *,
+  .payslip-sheet,.payslip-sheet *,
+  .label-print-area,.label-print-area *{
+    visibility:visible!important;
+  }
+
+  .side,.shell>header,.backdrop,
+  .report-heading-actions,.report-filters,.report-tabs,
+  .products-page>.page-heading,.products-page>.notice,.catalog-toolbar,
+  .modal-header,.modal-heading,
+  .receipt-actions,.quote-print-actions,.sales-order-document-actions,
+  .sales-order-document-tabs,.po-print-actions,.grn-print-actions,
+  .supplier-statement-actions,.stock-count-workspace-actions,
+  .label-toolbar,[data-print-hide]{display:none!important}
+
+  .shell,.shell.collapsed,.content{
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    padding:0!important;
+    margin:0!important;
+    overflow:visible!important;
+  }
+  .reports-page,.products-page{
+    position:static!important;
+    width:100%!important;
+    max-width:none!important;
+    padding:0!important;
+    margin:0!important;
+    animation:none!important;
+  }
+  .reports-page>.page-heading{
+    display:block!important;
+    visibility:visible!important;
+    margin:0 0 10mm!important;
+  }
+  .reports-page>.page-heading *{visibility:visible!important}
+  .reports-page>.page-heading .muted{display:block!important}
+
+  .product-print-heading{
+    display:block!important;
+    visibility:visible!important;
+    margin:0 0 7mm!important;
+  }
+  .product-print-heading *{visibility:visible!important}
+  .product-print-heading h1{margin:0 0 2mm!important}
+  .product-print-heading p{margin:0!important;color:#444!important}
+  .products-page .product-list-panel{
+    padding:0!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+  .products-page .list-summary{display:none!important}
+  .products-page .product-table-wrap{overflow:visible!important}
+  .products-page .product-table{
+    display:table!important;
+    width:100%!important;
+    min-width:0!important;
+    border-collapse:collapse!important;
+    font-size:9px!important;
+  }
+  .products-page .product-table thead{display:table-header-group!important}
+  .products-page .product-table tbody{display:table-row-group!important}
+  .products-page .product-table tr{display:table-row!important;break-inside:avoid!important}
+  .products-page .product-table th,
+  .products-page .product-table td{
+    display:table-cell!important;
+    position:static!important;
+    width:auto!important;
+    padding:4px!important;
+    border:1px solid #aaa!important;
+    text-align:left!important;
+  }
+  .products-page .product-table th:last-child,
+  .products-page .product-table td:last-child,
+  .products-page .product-thumb,
+  .products-page .product-units-button{display:none!important}
+  .products-page .product-cell{display:block!important}
+  .products-page .product-cell span,
+  .products-page .product-cell small{display:block!important}
+  .products-page .product-table td::before{display:none!important}
+
+  .modal-layer{
+    position:static!important;
+    inset:auto!important;
+    display:block!important;
+    background:#fff!important;
+    padding:0!important;
+    overflow:visible!important;
+  }
+  .modal-card,.modal-card.wide{
+    position:static!important;
+    width:100%!important;
+    max-width:none!important;
+    height:auto!important;
+    max-height:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+  }
+  .modal-body{
+    padding:0!important;
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  .register-report-document,.quote-print-document,
+  .sales-order-print-document,.po-print-document,.grn-print-document,
+  .credit-statement-document,.supplier-statement-document,
+  .stock-count-print-document,.return-receipt-document{
+    position:static!important;
+    inset:auto!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+  }
+  .report-table-wrap{overflow:visible!important}
+  .report-table,.report-table.wide{min-width:0!important;font-size:8.5px!important}
+  .report-table th,.report-table td{padding:4px!important}
+  .report-panel,.report-metric-card,.panel{box-shadow:none!important;break-inside:avoid}
+}
+.end-of-day-print-header h2{margin:2px 0 14px;font-size:26px}
+.end-of-day-scope-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.end-of-day-scope-grid span{display:grid;gap:3px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2)}
+.end-of-day-scope-grid small{color:var(--muted)}
+.end-of-day-currency-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.end-of-day-summary-table th{font-weight:700;color:var(--muted)}
+.end-of-day-summary-table td{text-align:right;font-weight:700}
+.end-of-day-summary-table .summary-strong th,.end-of-day-summary-table .summary-strong td{font-weight:900;color:var(--text);border-top:2px solid var(--border)}
+@media(max-width:900px){.end-of-day-scope-grid,.end-of-day-currency-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.end-of-day-scope-grid,.end-of-day-currency-grid{grid-template-columns:1fr}.end-of-day-print-header h2{font-size:22px}}
+@media print{
+  .end-of-day-print-header{display:block!important;padding:0 0 5mm!important;border:0!important}
+  .end-of-day-scope-grid{grid-template-columns:repeat(4,1fr)!important;gap:3mm!important}
+  .end-of-day-scope-grid span{padding:2mm!important;border:1px solid #aaa!important;background:#fff!important}
+  .end-of-day-currency-grid{grid-template-columns:repeat(2,1fr)!important;gap:4mm!important}
+  .end-of-day-report .report-panel{break-inside:auto!important}
+  .end-of-day-report table{break-inside:auto!important}
+  .end-of-day-report tr{break-inside:avoid!important}
+}
+/* Keep the desktop scan label beside the icon; mobile remains icon-only. */
+.sale-scan-button{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:8px!important;
+  padding-inline:14px!important;
+  line-height:1!important;
+}
+@media(max-width:480px){
+  .sale-scan-button{display:grid!important;place-items:center!important;gap:0!important;padding:0!important;line-height:0!important}
+}
+@media print{.products-page .product-list-panel{break-inside:auto!important}}
