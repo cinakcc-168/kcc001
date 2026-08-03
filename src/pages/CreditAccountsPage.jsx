@@ -502,18 +502,22 @@ export default function CreditAccountsPage() {
                     </td>
 
                     <td data-label="Credit limit">
-                      {money(
-                        account.credit_limit,
-                        account.currency
-                      )}
+                      {account.allow_unlimited_credit
+                        ? "Unlimited"
+                        : money(
+                            account.credit_limit,
+                            account.currency
+                          )}
                     </td>
 
                     <td data-label="Available">
                       <strong>
-                        {money(
-                          account.available_credit,
-                          account.currency
-                        )}
+                        {account.allow_unlimited_credit
+                          ? "Unlimited"
+                          : money(
+                              account.available_credit,
+                              account.currency
+                            )}
                       </strong>
                     </td>
 
