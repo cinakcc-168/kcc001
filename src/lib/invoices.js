@@ -102,84 +102,82 @@ export async function loadInvoiceCenter(
 }
 
 export function buildInvoiceReceipt(invoice, shop) {
-  const initialPayment = (invoice.payments || [])
-    .find((payment) => !payment.is_credit_collection)
-    || (invoice.payments || [])[0]
-    || null;
+  const salePayments = (invoice.payments || [])
+    .filter((payment) => !payment.is_credit_collection);
+  const initialPayment = salePayments[0] || null;
+  const receiptPayments = salePayments.map((payment) => ({
+    id: payment.id,
+    method: payment.method,
+    settlement_currency: payment.currency || invoice.currency,
+    settlement_amount: Number(payment.amount || 0),
+    tender_currency: payment.tender_currency || payment.currency || invoice.currency,
+    tender_amount: Number(
+      payment.tender_amount
+      ?? payment.tendered_amount
+      ?? payment.amount
+      ?? 0
+    ),
+    change_amount: Number(
+      payment.tender_change_amount
+      ?? payment.change_amount
+      ?? 0
+    ),
+    exchange_rate: Number(
+      payment.exchange_rate
+      || shop?.usd_to_khr_rate
+      || 4100
+    ),
+    reference_number: payment.reference_number || null
+  }));
 
   return {
     invoiceNumber: invoice.invoice_number,
     sourceQuoteNumber: invoice.source_quote_number,
-    completedAt:
-      invoice.completed_at || invoice.created_at,
+    completedAt: invoice.completed_at || invoice.created_at,
     shopName: shop?.shop_name || "Tiny POS",
     shopPhone: shop?.shop_phone,
     shopAddress: shop?.shop_address,
     footer: shop?.receipt_footer,
-    cashierName:
-      invoice.cashier_name || "POS Staff",
-    customerName:
-      invoice.customer?.name || null,
-    customerCode:
-      invoice.customer?.customer_code || null,
-    customerType:
-      invoice.customer?.customer_type || null,
-    priceListName:
-      invoice.price_list_name || null,
-    priceAdjustmentAmount: Number(
-      invoice.price_adjustment_amount || 0
-    ),
+    cashierName: invoice.cashier_name || "POS Staff",
+    customerName: invoice.customer?.name || null,
+    customerCode: invoice.customer?.customer_code || null,
+    customerType: invoice.customer?.customer_type || null,
+    priceListName: invoice.price_list_name || null,
+    priceAdjustmentAmount: Number(invoice.price_adjustment_amount || 0),
     cart: (invoice.items || []).map((item) => ({
       id: item.id,
       name: item.product_name,
       quantity: Number(item.quantity || 0),
-      selected_unit_price: Number(
-        item.unit_price || 0
-      ),
-      selected_unit_name:
-        item.sale_unit_name || "pcs",
+      selected_unit_price: Number(item.unit_price || 0),
+      selected_unit_name: item.sale_unit_name || "pcs",
       currency: invoice.currency
     })),
     subtotal: Number(invoice.subtotal || 0),
-    discountAmount: Number(
-      invoice.discount_amount || 0
-    ),
+    discountAmount: Number(invoice.discount_amount || 0),
     taxAmount: Number(invoice.tax_amount || 0),
     totalAmount: Number(invoice.total_amount || 0),
-    refundedAmount: Number(
-      invoice.refunded_amount || 0
-    ),
+    refundedAmount: Number(invoice.refunded_amount || 0),
     netTotal: Number(invoice.net_total || 0),
-    amountReceived:
-      invoice.credit_account_id
-        ? 0
-        : Number(
-            initialPayment?.tendered_amount
-            || invoice.paid_amount
-            || 0
-          ),
-    changeAmount:
-      invoice.credit_account_id
-        ? 0
-        : Number(
-            initialPayment?.change_amount
-            || invoice.change_amount
-            || 0
-          ),
-    paymentMethod:
-      invoice.credit_account_id
-        ? "credit"
-        : initialPayment?.method
-          || invoice.payment_method
-          || "other",
-    creditDueDate:
-      invoice.credit_due_date || null,
-    creditAmount: Number(
-      invoice.credit_amount || 0
+    amountReceived: invoice.credit_account_id
+      ? 0
+      : Number(initialPayment?.tendered_amount || invoice.paid_amount || 0),
+    changeAmount: invoice.credit_account_id
+      ? 0
+      : Number(initialPayment?.change_amount || invoice.change_amount || 0),
+    paymentMethod: invoice.credit_account_id
+      ? "credit"
+      : receiptPayments.length > 1
+        ? "split"
+        : initialPayment?.method || invoice.payment_method || "other",
+    payments: receiptPayments,
+    exchangeRate: Number(
+      initialPayment?.exchange_rate
+      || shop?.usd_to_khr_rate
+      || 4100
     ),
-    creditOutstanding: Number(
-      invoice.credit_outstanding || 0
-    ),
+    creditDueDate: invoice.credit_due_date || null,
+    creditAmount: Number(invoice.credit_amount || 0),
+    creditOutstanding: Number(invoice.credit_outstanding || 0),
     creditBalanceAfter: null,
     currency: invoice.currency,
     saleStatus: invoice.status

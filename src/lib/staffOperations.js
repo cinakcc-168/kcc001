@@ -18,6 +18,14 @@ export function staffDateTime(value) {
   }).format(new Date(value));
 }
 
+export function staffTime(value) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
 export function durationLabel(minutes) {
   const total = Math.max(0, Number(minutes || 0));
   const hours = Math.floor(total / 60);
@@ -32,6 +40,22 @@ export function commissionMoney(value, currency) {
     currency,
     maximumFractionDigits: currency === "KHR" ? 0 : 2
   }).format(Number(value || 0));
+}
+
+export function attendanceStatusLabel(value) {
+  const labels = {
+    on_time: "On time",
+    late: "Late",
+    overtime: "Overtime",
+    late_overtime: "Late + overtime",
+    open: "Checked in",
+    absent: "Absent",
+    day_off: "Day off",
+    worked_day_off: "Worked on day off",
+    leave: "Leave",
+    scheduled: "Scheduled"
+  };
+  return labels[value] || String(value || "—").replaceAll("_", " ");
 }
 
 export async function getMyAttendanceStatus(supabase) {
@@ -74,6 +98,21 @@ export async function correctAttendance(supabase, values) {
   return data;
 }
 
+export async function saveManualAttendance(supabase, values) {
+  const { data, error } = await supabase.rpc("save_manual_attendance_days", {
+    p_user_id: values.user_id,
+    p_branch_id: values.branch_id,
+    p_month: values.month,
+    p_days: values.days.map(Number),
+    p_day_type: values.day_type,
+    p_check_in_time: values.day_type === "work" ? values.check_in_time : null,
+    p_check_out_time: values.day_type === "work" ? values.check_out_time : null,
+    p_note: String(values.note || "").trim() || null
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function saveCommissionPlan(supabase, values) {
   const { data, error } = await supabase.rpc("save_commission_plan", {
     p_plan_id: values.id || null,
@@ -107,6 +146,84 @@ export async function recordCommissionPayout(supabase, values) {
   });
   if (error) throw error;
   return data;
+}
+
+function csvCell(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+export function downloadStaffCsv(filename, columns, rows, summary = []) {
+  const lines = [];
+  for (const item of summary) {
+    lines.push([csvCell(item.label), csvCell(item.value)].join(","));
+  }
+  if (summary.length) lines.push("");
+  lines.push(columns.map((column) => csvCell(column.label)).join(","));
+  for (const row of rows) {
+    lines.push(columns.map((column) => csvCell(
+      typeof column.value === "function" ? column.value(row) : row[column.value]
+    )).join(","));
+  }
+  const blob = new Blob(["\ufeff", lines.join("\r\n")], {
+    type: "text/csv;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+export function printStaffReport({ title, subtitle = "", summary = [], columns, rows }) {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.position = "fixed";
+  frame.style.right = "0";
+  frame.style.bottom = "0";
+  frame.style.width = "1px";
+  frame.style.height = "1px";
+  frame.style.opacity = "0";
+  frame.style.pointerEvents = "none";
+  document.body.appendChild(frame);
+
+  const summaryHtml = summary.length
+    ? `<section class="summary">${summary.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}</section>`
+    : "";
+  const head = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
+  const body = rows.length
+    ? rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(typeof column.value === "function" ? column.value(row) : row[column.value])}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${columns.length}">No records in the selected period.</td></tr>`;
+  const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
+    @page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,"Noto Sans Khmer",sans-serif;color:#162033;margin:0;font-size:11px}h1{font-size:22px;margin:0 0 4px}p{margin:0 0 14px;color:#5e6b80}.summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:12px 0}.summary div{border:1px solid #cad3df;border-radius:6px;padding:7px}.summary span{display:block;color:#667085;font-size:9px}.summary strong{display:block;margin-top:3px;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aeb9c8;padding:6px 7px;text-align:left;vertical-align:top}th{background:#edf3f8;font-weight:700}tbody tr:nth-child(even){background:#f8fafc}.footer{margin-top:10px;color:#667085;font-size:9px}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+  </style></head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p>${summaryHtml}<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><div class="footer">Printed ${escapeHtml(new Date().toLocaleString())}</div></body></html>`;
+
+  const printWindow = frame.contentWindow;
+  const printDocument = frame.contentDocument || printWindow?.document;
+  if (!printWindow || !printDocument) {
+    frame.remove();
+    throw new Error("This browser could not open the print document.");
+  }
+  printDocument.open();
+  printDocument.write(documentHtml);
+  printDocument.close();
+  window.setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+    window.setTimeout(() => frame.remove(), 1200);
+  }, 250);
 }
 
 export async function loadStaffOperations(supabase, profile, access, filters) {
@@ -160,9 +277,26 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
   if (userId) payoutQuery = payoutQuery.eq("user_id", userId);
   if (branchId) payoutQuery = payoutQuery.eq("branch_id", branchId);
 
-  const [statusResult, attendanceResult, commissionResult, payoutResult, planResult, staffResult, branchResult] = await Promise.all([
+  const attendanceReportRequest = supabase.rpc("get_attendance_report", {
+    p_date_from: filters.date_from,
+    p_date_to: filters.date_to,
+    p_branch_id: canManageAttendance ? branchId : null,
+    p_user_id: userId
+  });
+
+  const [
+    statusResult,
+    attendanceResult,
+    attendanceReportResult,
+    commissionResult,
+    payoutResult,
+    planResult,
+    staffResult,
+    branchResult
+  ] = await Promise.all([
     getMyAttendanceStatus(supabase),
     attendanceQuery,
+    attendanceReportRequest,
     commissionQuery,
     payoutQuery,
     canManageCommissions
@@ -174,13 +308,22 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     supabase.from("branches").select("id,name,code,is_active,latitude,longitude,attendance_radius_m,attendance_geofence_required").eq("organization_id", profile.organization_id).eq("is_active", true).order("name")
   ]);
 
-  for (const result of [attendanceResult, commissionResult, payoutResult, planResult, staffResult, branchResult]) {
+  for (const result of [
+    attendanceResult,
+    attendanceReportResult,
+    commissionResult,
+    payoutResult,
+    planResult,
+    staffResult,
+    branchResult
+  ]) {
     if (result.error) throw result.error;
   }
 
   return {
     status: statusResult,
     attendance: attendanceResult.data || [],
+    attendanceReport: attendanceReportResult.data || { rows: [], summary: [], settings: {} },
     commissions: commissionResult.data || [],
     payouts: payoutResult.data || [],
     plans: planResult.data || [],

@@ -453,29 +453,47 @@ export async function previewCoupon(supabase, values) {
 }
 
 export async function completeSale(supabase, values) {
-  const { data, error } = await supabase.rpc("complete_sale_v9", {
-    p_items: values.cart.map((item) => ({
-      product_id: item.id,
-      product_unit_id: item.selected_unit_id || null,
-      quantity: Number(item.quantity)
-    })),
-    p_payment_method: values.payment_method,
-    p_amount_received: Number(values.amount_received),
+  const items = values.cart.map((item) => ({
+    product_id: item.id,
+    product_unit_id: item.selected_unit_id || null,
+    quantity: Number(item.quantity)
+  }));
+
+  const common = {
+    p_items: items,
     p_customer_id: values.customer_id || null,
     p_manual_discount_type: values.discount_type,
     p_manual_discount_value: Number(values.discount_value || 0),
     p_coupon_code: values.coupon_code?.trim().toUpperCase() || null,
     p_currency: values.currency,
-    p_notes: values.notes.trim() || null,
-    p_payment_reference: values.payment_reference.trim() || null,
+    p_notes: String(values.notes || "").trim() || null,
     p_idempotency_key: values.idempotency_key,
     p_source_quote_id: values.source_quote_id || null,
-    p_approval_request_id:
-      values.approval_request_id || null,
+    p_approval_request_id: values.approval_request_id || null,
     p_source_sales_order_delivery_id:
       values.source_sales_order_delivery_id || null
-  });
+  };
 
+  const isCredit = values.payment_method === "credit";
+  const request = isCredit
+    ? supabase.rpc("complete_sale_v9", {
+        ...common,
+        p_payment_method: "credit",
+        p_amount_received: 0,
+        p_payment_reference: null
+      })
+    : supabase.rpc("complete_sale_v10_tenders", {
+        ...common,
+        p_payments: (values.payments || []).map((payment) => ({
+          method: payment.method,
+          currency: payment.currency || "USD",
+          amount_received: Number(payment.amount_received || 0),
+          reference_number:
+            String(payment.reference_number || "").trim() || null
+        }))
+      });
+
+  const { data, error } = await request;
   if (error) throw error;
   return data;
 }

@@ -1,10 +1,17 @@
 export function money(value, currency = "USD") {
+  const amount = Number(value || 0);
+  if (currency === "KHR") {
+    return `៛${new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)}`;
+  }
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
-    minimumFractionDigits: currency === "KHR" ? 0 : 2,
-    maximumFractionDigits: currency === "KHR" ? 0 : 2
-  }).format(Number(value || 0));
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
 }
 
 export function stockNumber(value) {
