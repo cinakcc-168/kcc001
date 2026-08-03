@@ -63,9 +63,13 @@ export default function ReportsPage() {
   const { supabase, profile, shop, can } = useAuth();
   const [filters, setFilters] = useState(() => ({
     ...defaultReportRange(),
-    branchId: profile?.branch_id || ""
+    branchId: profile?.branch_id || "",
+    cashierId: "",
+    registerName: ""
   }));
   const [branches, setBranches] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [registerNames, setRegisterNames] = useState([]);
   const [activeTab, setActiveTab] = useState("sales");
   const [data, setData] = useState(null);
   const [endOfDay, setEndOfDay] = useState(null);
@@ -115,6 +119,61 @@ export default function ReportsPage() {
       active = false;
     };
   }, [supabase, profile?.organization_id, canAllBranches]);
+
+  useEffect(() => {
+    if (!supabase || !profile?.organization_id) {
+      setStaff([]);
+      setRegisterNames([]);
+      return;
+    }
+
+    let active = true;
+    const selectedBranch = filters.allBranches
+      ? null
+      : filters.branchId || profile.branch_id;
+
+    (async () => {
+      let staffQuery = supabase
+        .from("profiles")
+        .select("id,full_name,email,role,branch_id,is_active")
+        .eq("organization_id", profile.organization_id)
+        .eq("is_active", true)
+        .order("full_name");
+      let registerQuery = supabase
+        .from("cash_register_sessions")
+        .select("register_name,branch_id")
+        .eq("organization_id", profile.organization_id)
+        .order("register_name");
+
+      if (selectedBranch) {
+        staffQuery = staffQuery.or(`branch_id.eq.${selectedBranch},branch_id.is.null`);
+        registerQuery = registerQuery.eq("branch_id", selectedBranch);
+      }
+
+      const [staffResult, registerResult] = await Promise.all([
+        staffQuery,
+        registerQuery
+      ]);
+
+      if (!active) return;
+      if (!staffResult.error) setStaff(staffResult.data || []);
+      if (!registerResult.error) {
+        setRegisterNames([...new Set(
+          (registerResult.data || [])
+            .map((row) => row.register_name)
+            .filter(Boolean)
+        )]);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [
+    supabase,
+    profile?.organization_id,
+    profile?.branch_id,
+    filters.branchId,
+    filters.allBranches
+  ]);
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.branch_id) return;
@@ -397,8 +456,10 @@ export default function ReportsPage() {
       <section className="panel report-filters">
         <label><span>From</span><input type="date" value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} /></label>
         <label><span>To</span><input type="date" value={filters.to} onChange={(event) => updateFilter("to", event.target.value)} /></label>
-        {canAllBranches && <label><span>Branch scope</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value })); }}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
-        <div className="report-filter-summary"><span>Report scope</span><strong>{data?.scope?.branch_name || profile?.branches?.name || "Current branch"}</strong><small>{data ? titlePeriod(data) : "Choose dates"}</small></div>
+        {canAllBranches && <label><span>Branch scope</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true, registerName: "" })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value, registerName: "" })); }}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
+        {activeTab === "endofday" && <label><span>Sale user / cashier</span><select value={filters.cashierId} onChange={(event) => updateFilter("cashierId", event.target.value)}><option value="">All users</option>{staff.map((member) => <option value={member.id} key={member.id}>{member.full_name || member.email || "POS Staff"} · {String(member.role || "staff").replaceAll("_", " ")}</option>)}</select></label>}
+        {activeTab === "endofday" && <label><span>Counter / register</span><select value={filters.registerName} onChange={(event) => updateFilter("registerName", event.target.value)}><option value="">All counters</option>{registerNames.map((name) => <option value={name} key={name}>{name}</option>)}</select></label>}
+        <div className="report-filter-summary"><span>Report scope</span><strong>{activeTab === "endofday" ? (endOfDay?.branch_name || profile?.branches?.name || "Current branch") : (data?.scope?.branch_name || profile?.branches?.name || "Current branch")}</strong><small>{data ? titlePeriod(data) : "Choose dates"}</small></div>
       </section>
 
       <div className="report-tabs">{tabs.map(([key, label, Icon]) => <button type="button" key={key} className={activeTab === key ? "active" : ""} onClick={() => setActiveTab(key)}><Icon size={18} />{label}</button>)}</div>

@@ -123,12 +123,7 @@ export default function ProductsPage() {
   }
 
   function printProducts() {
-    const win = window.open("", "_blank", "noopener,noreferrer");
-    if (!win) { setMessage("Allow pop-ups to print the product list."); return; }
-    const rows = filteredProducts.map((product) => `
-      <tr><td>${product.sku || "—"}</td><td>${product.name}${product.name_km ? `<br><small>${product.name_km}</small>` : ""}</td><td>${product.categories?.name || "Uncategorized"}</td><td>${stockNumber(product.stock_quantity)} ${product.unit_name}</td><td>${stockNumber(product.effective_low_stock_threshold)}</td><td>${product.stock_status.replaceAll("_", " ")}</td><td>${money(product.selling_price, product.currency)}</td></tr>`).join("");
-    win.document.write(`<!doctype html><html><head><title>Products</title><style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap');body{font-family:'Noto Sans Khmer','Khmer OS System',Arial,sans-serif;padding:24px;color:#111}h1{margin:0 0 6px}p{color:#555}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eee}small{color:#555}@media print{button{display:none}}</style></head><body><h1>Products</h1><p>${filteredProducts.length} products · ${new Date().toLocaleString()}</p><table><thead><tr><th>Code</th><th>Product</th><th>Category</th><th>Stock</th><th>Low at</th><th>Status</th><th>Price</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
-    win.document.close();
+    window.print();
   }
 
   function openCategoryEditor(category = {}) {
@@ -199,7 +194,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack products-page">
       <div className="page-heading">
         <div>
           <p className="eyebrow">CATALOG</p>
@@ -210,6 +205,11 @@ export default function ProductsPage() {
           <button className="secondary-button" onClick={() => setShowCategories(true)}><Tags size={18} /> Categories</button>
           <button className="primary-button" onClick={() => setProductModal({})} disabled={!canManage}><Plus size={18} /> Add product</button>
         </div>
+      </div>
+
+      <div className="product-print-heading" aria-hidden="true">
+        <h1>Products</h1>
+        <p>{filteredProducts.length} products · {new Date().toLocaleString()}</p>
       </div>
 
       {message && <div className="notice success" onClick={() => setMessage("")}>{message}</div>}

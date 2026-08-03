@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowDownAZ,
   BadgeDollarSign,
   Camera,
   ImageOff,
@@ -300,7 +299,7 @@ export default function SalesPage() {
         );
 
         return {
-          ...buildSaleCartItem(product, unit.id),
+          ...buildSaleCartItem(product, unit.id, item.cart_line_id),
           quantity: item.quantity
         };
       })
@@ -704,7 +703,11 @@ export default function SalesPage() {
     setDiscountValue("0");
   }
 
-  function validateQuantity(product, unit, quantity) {
+  function lineKey(item) {
+    return item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`;
+  }
+
+  function validateQuantity(product, unit, quantity, excludingLineIds = []) {
     const next = Number(quantity);
     if (!Number.isFinite(next) || next <= 0) {
       throw new Error("Quantity must be greater than zero.");
@@ -712,17 +715,35 @@ export default function SalesPage() {
 
     const factor = Number(unit?.conversion_factor || 1);
     const requestedBase = next * factor;
+    const excluded = new Set(
+      Array.isArray(excludingLineIds)
+        ? excludingLineIds.filter(Boolean)
+        : [excludingLineIds].filter(Boolean)
+    );
+    const otherBaseQuantity = cart
+      .filter((item) =>
+        item.id === product.id
+        && !excluded.has(lineKey(item))
+      )
+      .reduce(
+        (total, item) => total + (
+          Number(item.quantity || 0)
+          * Number(item.selected_unit_factor || 1)
+        ),
+        0
+      );
+    const totalRequestedBase = requestedBase + otherBaseQuantity;
 
     if (
       product.track_stock
       && !product.allow_negative_stock
       && !shop?.allow_negative_stock
-      && requestedBase > Number(product.stock_quantity || 0)
+      && totalRequestedBase > Number(product.stock_quantity || 0)
     ) {
       throw new Error(
         `${product.name} has only ${stockNumber(
           Number(product.stock_quantity || 0) / factor
-        )} ${unit?.name || product.unit_name} available.`
+        )} ${unit?.name || product.unit_name} available across this bill.`
       );
     }
 
@@ -742,25 +763,23 @@ export default function SalesPage() {
       }
 
       const unit = saleUnitForProduct(product, preferredUnitId);
-      const existing = cart.find((item) => item.id === product.id);
+      const existing = cart.find((item) =>
+        item.id === product.id
+        && item.selected_unit_id === unit.id
+      );
       invalidateCoupon();
 
-      if (existing && existing.selected_unit_id === unit.id) {
+      if (existing) {
+        const existingLineId = lineKey(existing);
         const nextQuantity = validateQuantity(
           product,
           unit,
-          Number(existing.quantity || 0) + 1
+          Number(existing.quantity || 0) + 1,
+          [existingLineId]
         );
         setCart((current) => current.map((item) =>
-          item.id === product.id
+          lineKey(item) === existingLineId
             ? { ...item, quantity: nextQuantity }
-            : item
-        ));
-      } else if (existing) {
-        validateQuantity(product, unit, 1);
-        setCart((current) => current.map((item) =>
-          item.id === product.id
-            ? { ...buildSaleCartItem(product, unit.id), quantity: 1 }
             : item
         ));
       } else {
@@ -782,44 +801,76 @@ export default function SalesPage() {
     }
   }
 
-  function changeQuantity(productId, value) {
+  function changeQuantity(cartLineId, value) {
     if (activeOrderDelivery) return;
-    const product = cart.find((item) => item.id === productId);
+    const product = cart.find((item) => lineKey(item) === cartLineId);
     if (!product) return;
 
     const number = Number(value);
     if (!Number.isFinite(number) || number <= 0) {
       invalidateCoupon();
-      setCart((current) => current.filter((item) => item.id !== productId));
+      setCart((current) => current.filter(
+        (item) => lineKey(item) !== cartLineId
+      ));
       return;
     }
 
     try {
       const unit = saleUnitForProduct(product, product.selected_unit_id);
-      const quantity = validateQuantity(product, unit, number);
+      const quantity = validateQuantity(product, unit, number, [cartLineId]);
       invalidateCoupon();
       setCart((current) => current.map((item) =>
-        item.id === productId ? { ...item, quantity } : item
+        lineKey(item) === cartLineId ? { ...item, quantity } : item
       ));
     } catch (error) {
       announce("error", error.message);
     }
   }
 
-  function changeUnit(productId, unitId) {
+  function changeUnit(cartLineId, unitId) {
     if (activeOrderDelivery) return;
-    const product = cart.find((item) => item.id === productId);
+    const product = cart.find((item) => lineKey(item) === cartLineId);
     if (!product) return;
 
     try {
       const unit = saleUnitForProduct(product, unitId);
-      validateQuantity(product, unit, 1);
+      const duplicate = cart.find((item) =>
+        item.id === product.id
+        && item.selected_unit_id === unit.id
+        && lineKey(item) !== cartLineId
+      );
+      const nextQuantity = Number(product.quantity || 1)
+        + Number(duplicate?.quantity || 0);
+      validateQuantity(
+        product,
+        unit,
+        nextQuantity,
+        duplicate
+          ? [cartLineId, lineKey(duplicate)]
+          : [cartLineId]
+      );
       invalidateCoupon();
-      setCart((current) => current.map((item) =>
-        item.id === productId
-          ? { ...buildSaleCartItem(product, unit.id), quantity: 1 }
-          : item
-      ));
+
+      if (duplicate) {
+        const duplicateLineId = lineKey(duplicate);
+        setCart((current) => current
+          .filter((item) => lineKey(item) !== cartLineId)
+          .map((item) =>
+            lineKey(item) === duplicateLineId
+              ? { ...item, quantity: nextQuantity }
+              : item
+          ));
+      } else {
+        setCart((current) => current.map((item) =>
+          lineKey(item) === cartLineId
+            ? {
+                ...buildSaleCartItem(product, unit.id, product.cart_line_id),
+                quantity: Number(product.quantity || 1)
+              }
+            : item
+        ));
+      }
+
       announce("success", `${product.name} unit changed to ${unit.name}.`);
     } catch (error) {
       announce("error", error.message);
@@ -1459,7 +1510,6 @@ export default function SalesPage() {
             </select>
 
             <label className="sale-sort-select">
-              <ArrowDownAZ size={18} />
               <select
                 value={productSort}
                 onChange={(event) => setProductSort(event.target.value)}
@@ -1562,11 +1612,11 @@ export default function SalesPage() {
           taxPercent={shop?.tax_percent || 0}
           onQuantityChange={changeQuantity}
           onUnitChange={changeUnit}
-          onRemove={(productId) => {
+          onRemove={(cartLineId) => {
             invalidateCoupon();
-            setCart((current) =>
-              current.filter((item) => item.id !== productId)
-            );
+            setCart((current) => current.filter((item) =>
+              lineKey(item) !== cartLineId
+            ));
           }}
           onClear={clearSale}
           parkedCount={parkedSales.length}
