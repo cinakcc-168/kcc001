@@ -219,27 +219,38 @@ export function validateTelegramInitData(initData, maxAgeSeconds = 86400) {
   }
 
   params.delete("hash");
-  params.delete("signature");
-
-  const dataCheckString = [...params.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([key, value]) => `${key}=${value}`)
-    .join("\n");
 
   const secretKey = createHmac("sha256", "WebAppData")
     .update(botToken())
     .digest();
-
-  const calculated = createHmac("sha256", secretKey)
-    .update(dataCheckString)
-    .digest();
-
   const received = Buffer.from(receivedHash, "hex");
 
-  if (
-    received.length !== calculated.length
-    || !timingSafeEqual(received, calculated)
-  ) {
+  function calculatedHash(sourceParams) {
+    const dataCheckString = [...sourceParams.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+
+    return createHmac("sha256", secretKey)
+      .update(dataCheckString)
+      .digest();
+  }
+
+  const currentCalculated = calculatedHash(params);
+  let valid = received.length === currentCalculated.length
+    && timingSafeEqual(received, currentCalculated);
+
+  // Compatibility for older Telegram clients that did not include the
+  // optional Ed25519 signature field in the bot-token HMAC payload.
+  if (!valid && params.has("signature")) {
+    const legacyParams = new URLSearchParams(params);
+    legacyParams.delete("signature");
+    const legacyCalculated = calculatedHash(legacyParams);
+    valid = received.length === legacyCalculated.length
+      && timingSafeEqual(received, legacyCalculated);
+  }
+
+  if (!valid) {
     throw new Error("Telegram Mini App signature is invalid.");
   }
 
