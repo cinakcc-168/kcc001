@@ -262,11 +262,20 @@ export function saleUnitForProduct(product, unitId = null) {
   );
 }
 
-export function buildSaleCartItem(product, unitId = null) {
+function createCartLineId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `cart-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function buildSaleCartItem(product, unitId = null, cartLineId = null) {
   const unit = saleUnitForProduct(product, unitId);
 
   return {
     ...product,
+    cart_line_id: cartLineId || createCartLineId(),
     quantity: 1,
     selected_unit_id: unit.id,
     selected_unit_name: unit.name,
