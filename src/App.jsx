@@ -78,7 +78,7 @@ export default function App() {
         <Route path="/coupons" element={<PermissionRoute permission="coupons.manage"><CouponsPage /></PermissionRoute>} />
         <Route path="/price-lists" element={<PermissionRoute permission="price_lists.manage"><PriceListsPage /></PermissionRoute>} />
         <Route path="/users" element={<PermissionRoute permission="staff.manage"><UsersPage /></PermissionRoute>} />
-        <Route path="/staff-operations" element={<PermissionRoute any={["staff_operations.self","attendance.manage","commissions.manage"]}><StaffOperationsPage /></PermissionRoute>} />
+        <Route path="/staff-operations" element={<PermissionRoute any={["staff_operations.self","attendance.manage","commissions.manage","leave.request","leave.manage"]}><StaffOperationsPage /></PermissionRoute>} />
         <Route path="/reports" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
         <Route path="/accounting" element={<PermissionRoute permission="accounting.view"><AccountingPage /></PermissionRoute>} />
         <Route path="/payroll" element={<PermissionRoute any={["payroll.view_self","payroll.manage"]}><PayrollPage /></PermissionRoute>} />
