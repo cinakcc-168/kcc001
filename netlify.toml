@@ -82,6 +82,24 @@
   force = true
 
 [[redirects]]
+  from = "/api/telegram-session"
+  to = "/.netlify/functions/telegram-session"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/telegram-event"
+  to = "/.netlify/functions/telegram-event"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/staff-file-signature"
+  to = "/.netlify/functions/staff-file-signature"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/system-health"
   to = "/.netlify/functions/system-health"
   status = 200
