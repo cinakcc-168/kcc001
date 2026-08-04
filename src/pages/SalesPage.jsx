@@ -64,6 +64,7 @@ import {
   saleApprovalPayload,
   saleDiscountApprovalRequirement
 } from "../lib/permissions";
+import { notifyTelegramEvent } from "../lib/telegram";
 import {
   consumeDeliveryForSale,
   hydrateSalesOrderDeliveryCart
@@ -82,6 +83,7 @@ const emptyCustomer = { customer_type: "regular", name: "", phone: "", email: ""
 export default function SalesPage() {
   const {
     supabase,
+    session,
     profile,
     shop,
     preferences,
@@ -1310,6 +1312,12 @@ export default function SalesPage() {
           approval_request_id:
             approvalRequestId
         }
+      );
+
+      void notifyTelegramEvent(
+        session,
+        "sale_completed",
+        result.sale_id
       );
 
       if (activeParkedId) {

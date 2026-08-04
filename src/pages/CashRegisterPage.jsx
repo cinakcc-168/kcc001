@@ -21,6 +21,7 @@ import {
   loadCashRegisterWorkspace,
   openCashRegister
 } from "../lib/cashRegister";
+import { notifyTelegramEvent } from "../lib/telegram";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -72,7 +73,7 @@ function DrawerBreakdown({ summary, currency }) {
 }
 
 export default function CashRegisterPage() {
-  const { supabase, profile, shop, canAny } = useAuth();
+  const { supabase, session, profile, shop, canAny } = useAuth();
   const canOperate = canAny([
     "cash_register.use",
     "cash_register.close"
@@ -164,6 +165,7 @@ export default function CashRegisterPage() {
       );
 
       setOpenSummary(result);
+      void notifyTelegramEvent(session, "cash_register_opened", result.session.id);
       setOpening({
         register_name: "Main Register",
         opening_cash_usd: "0",
@@ -191,6 +193,7 @@ export default function CashRegisterPage() {
       );
 
       setCloseOpen(false);
+      void notifyTelegramEvent(session, "cash_register_closed", result.session.id);
       setReport(result);
       setOpenSummary(null);
       announce(

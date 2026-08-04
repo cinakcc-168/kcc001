@@ -2,9 +2,13 @@ import {
   BadgeDollarSign,
   CalendarDays,
   CalendarPlus,
+  Check,
   CheckCircle2,
   Clock3,
   Download,
+  Eye,
+  FileSpreadsheet,
+  Image as ImageIcon,
   LogIn,
   LogOut,
   MapPin,
@@ -12,32 +16,42 @@ import {
   Plus,
   Printer,
   RefreshCw,
+  Send,
   Umbrella,
-  WalletCards
+  WalletCards,
+  X
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import AttendanceCorrectionModal from "../components/AttendanceCorrectionModal";
 import CommissionPlanModal from "../components/CommissionPlanModal";
 import CommissionPayoutModal from "../components/CommissionPayoutModal";
+import LeaveRequestModal from "../components/LeaveRequestModal";
 import ManualAttendanceModal from "../components/ManualAttendanceModal";
 import {
   attendanceCheckIn,
   attendanceCheckOut,
   attendanceStatusLabel,
+  buildDayOffMatrix,
+  cancelLeaveRequest,
   commissionMoney,
   correctAttendance,
-  downloadStaffCsv,
+  downloadStaffExcel,
   durationLabel,
+  isoDate,
+  leaveStatusLabel,
   loadStaffOperations,
   monthRange,
   printStaffReport,
   recordCommissionPayout,
+  reviewLeaveRequest,
   saveCommissionPlan,
   saveManualAttendance,
   staffDateTime,
-  staffTime
+  staffTime,
+  submitLeaveRequest
 } from "../lib/staffOperations";
+import { notifyTelegramEvent } from "../lib/telegram";
 
 function currentPosition() {
   if (!navigator.geolocation) {
@@ -64,6 +78,7 @@ const attendanceColumns = [
   { label: "Date", value: "business_date" },
   { label: "Day", value: "weekday_name" },
   { label: "Staff", value: "full_name" },
+  { label: "Role", value: "role" },
   { label: "Branch", value: (row) => row.branch_name || "—" },
   { label: "Check-in", value: (row) => staffTime(row.check_in_at) },
   { label: "Check-out", value: (row) => staffTime(row.check_out_at) },
@@ -74,13 +89,28 @@ const attendanceColumns = [
   { label: "Note", value: (row) => row.note || "" }
 ];
 
+const leaveColumns = [
+  { label: "Requested", value: (row) => staffDateTime(row.created_at) },
+  { label: "Staff", value: (row) => row.profiles?.full_name || "—" },
+  { label: "Role", value: (row) => row.profiles?.role || "—" },
+  { label: "Branch", value: (row) => row.branches?.name || "—" },
+  { label: "From", value: "date_from" },
+  { label: "To", value: "date_to" },
+  { label: "Type", value: (row) => String(row.leave_type || "").replaceAll("_", " ") },
+  { label: "Reason", value: "reason" },
+  { label: "Status", value: (row) => leaveStatusLabel(row.status) },
+  { label: "Reviewed by", value: (row) => row.reviewer?.full_name || "—" },
+  { label: "Review note", value: (row) => row.review_note || "" },
+  { label: "Picture", value: (row) => row.image_url || "" }
+];
+
 const commissionColumns = [
   { label: "Date", value: (row) => staffDateTime(row.sale_completed_at) },
   { label: "Staff", value: (row) => row.profiles?.full_name || "—" },
   { label: "Invoice", value: (row) => row.sales?.invoice_number || "—" },
   { label: "Branch", value: (row) => row.branches?.name || "—" },
   { label: "Currency", value: "currency" },
-  { label: "Base", value: (row) => row.commissionable_amount },
+  { label: "Base", value: "commissionable_amount" },
   { label: "Rate %", value: (row) => Number(row.rate_percent || 0).toFixed(2) },
   { label: "Fixed", value: "fixed_per_sale" },
   { label: "Refund", value: "refunded_amount" },
@@ -88,12 +118,42 @@ const commissionColumns = [
   { label: "Status", value: "status" }
 ];
 
+function initialTab() {
+  const value = new URLSearchParams(window.location.search).get("tab");
+  return ["attendance", "dayoff", "leave", "commission", "plans"].includes(value)
+    ? value
+    : "attendance";
+}
+
+function PageSizeControl({ value, onChange }) {
+  return (
+    <label className="staff-page-size">
+      <span>Rows</span>
+      <select value={value} onChange={(event) => onChange(Number(event.target.value))}>
+        {[30, 60, 90, 120].map((size) => <option key={size} value={size}>{size}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function Pagination({ page, pageSize, total, onPage }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  if (pages <= 1) return null;
+  return (
+    <div className="staff-pagination">
+      <button type="button" className="secondary-button" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
+      <span>Page <strong>{page}</strong> of <strong>{pages}</strong></span>
+      <button type="button" className="secondary-button" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</button>
+    </div>
+  );
+}
+
 export default function StaffOperationsPage() {
-  const { supabase, profile, access, can } = useAuth();
-  const range = useMemo(() => monthRange(), []);
+  const { supabase, session, profile, access, can } = useAuth();
+  const today = useMemo(() => isoDate(), []);
   const [filters, setFilters] = useState({
-    date_from: range.start,
-    date_to: range.end,
+    date_from: today,
+    date_to: today,
     branch_id: "",
     user_id: ""
   });
@@ -105,9 +165,10 @@ export default function StaffOperationsPage() {
     payouts: [],
     plans: [],
     staff: [],
-    branches: []
+    branches: [],
+    leaveRequests: []
   });
-  const [tab, setTab] = useState("attendance");
+  const [tab, setTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -115,13 +176,18 @@ export default function StaffOperationsPage() {
   const [note, setNote] = useState("");
   const [correction, setCorrection] = useState(null);
   const [manualAttendance, setManualAttendance] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
   const [plan, setPlan] = useState(undefined);
   const [payout, setPayout] = useState(false);
+  const [pageSize, setPageSize] = useState(30);
+  const [page, setPage] = useState(1);
 
   const canManageAttendance = can("attendance.manage");
   const canManageCommissions = can("commissions.manage");
   const canPayCommissions = can("commissions.pay");
   const canViewCommission = can("commissions.view_self") || canManageCommissions;
+  const canRequestLeave = can("leave.request") || can("staff_operations.self") || canManageAttendance;
+  const canManageLeave = can("leave.manage") || canManageAttendance;
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.id) return;
@@ -137,6 +203,11 @@ export default function StaffOperationsPage() {
   }, [supabase, profile, access, filters]);
 
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { setPage(1); }, [tab, pageSize, filters]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") === "1" && canRequestLeave) setLeaveOpen(true);
+  }, [canRequestLeave]);
 
   const totals = useMemo(() => {
     const earned = { USD: 0, KHR: 0 };
@@ -182,28 +253,68 @@ export default function StaffOperationsPage() {
     late_minutes: 0
   }), [reportSummary]);
 
+  const leaveTotals = useMemo(() => workspace.leaveRequests.reduce((result, row) => {
+    result[row.status] = Number(result[row.status] || 0) + 1;
+    return result;
+  }, { pending: 0, approved: 0, rejected: 0, cancelled: 0 }), [workspace.leaveRequests]);
+
   const selectedStaff = workspace.staff.find((row) => row.id === filters.user_id);
   const selectedBranch = workspace.branches.find((row) => row.id === filters.branch_id);
-  const selectionText = `${selectedStaff?.full_name || (canManageAttendance ? "All staff" : profile?.full_name)} · ${selectedBranch?.name || "All accessible branches"} · ${filters.date_from} to ${filters.date_to}`;
+  const selectionText = `${selectedStaff?.full_name || (canManageAttendance || canManageLeave ? "All staff" : profile?.full_name)} · ${selectedBranch?.name || "All accessible branches"} · ${filters.date_from} to ${filters.date_to}`;
 
   const attendancePrintSummary = [
-    { label: "Selection", value: selectedStaff?.full_name || (canManageAttendance ? "All staff" : profile?.full_name) },
-    { label: "Period", value: `${filters.date_from} → ${filters.date_to}` },
+    { label: "Selected filters", value: selectionText },
     { label: "Present", value: attendanceTotals.present_days },
     { label: "On time", value: attendanceTotals.on_time_days },
     { label: "Late", value: attendanceTotals.late_days },
     { label: "Overtime", value: attendanceTotals.overtime_days },
     { label: "Absent", value: attendanceTotals.absent_days },
     { label: "Day off", value: attendanceTotals.day_off_days },
-    { label: "Leave", value: attendanceTotals.leave_days },
+    { label: "Approved leave", value: attendanceTotals.leave_days },
     { label: "Worked", value: durationLabel(attendanceTotals.work_minutes) },
     { label: "Late time", value: durationLabel(attendanceTotals.late_minutes) },
     { label: "OT time", value: durationLabel(attendanceTotals.overtime_minutes) }
   ];
 
+  const availableStaffForMatrix = useMemo(() => workspace.staff.filter((row) =>
+    (!filters.user_id || row.id === filters.user_id)
+    && (!filters.branch_id || row.branch_id === filters.branch_id)
+  ), [workspace.staff, filters.user_id, filters.branch_id]);
+  const dayOffMatrix = useMemo(() => buildDayOffMatrix(
+    attendanceRows,
+    availableStaffForMatrix,
+    filters.date_from,
+    filters.date_to
+  ), [attendanceRows, availableStaffForMatrix, filters.date_from, filters.date_to]);
+
+  const allRows = tab === "attendance"
+    ? attendanceRows
+    : tab === "dayoff"
+      ? dayOffRows
+      : tab === "leave"
+        ? workspace.leaveRequests
+        : tab === "commission"
+          ? workspace.commissions
+          : [];
+  const pagedRows = allRows.slice((page - 1) * pageSize, page * pageSize);
+
   function announce(type, text) {
     setMessageType(type);
     setMessage(text);
+  }
+
+  function selectTab(next) {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    url.searchParams.delete("new");
+    window.history.replaceState({}, "", url);
+  }
+
+  function showDayOffList() {
+    const range = monthRange(filters.date_from);
+    setFilters((current) => ({ ...current, date_from: range.start, date_to: range.end }));
+    selectTab("dayoff");
   }
 
   async function check(action) {
@@ -251,6 +362,54 @@ export default function StaffOperationsPage() {
     }
   }
 
+  async function saveLeave(values) {
+    try {
+      setBusy("leave");
+      const result = await submitLeaveRequest(supabase, session, values);
+      setLeaveOpen(false);
+      selectTab("leave");
+      announce("success", "Leave request submitted and waiting for manager approval.");
+      void notifyTelegramEvent(session, "leave_requested", result.id);
+      await refresh();
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function reviewLeave(row, status) {
+    const label = status === "approved" ? "approve" : "reject";
+    if (!window.confirm(`${label[0].toUpperCase()}${label.slice(1)} ${row.profiles?.full_name}'s leave request?`)) return;
+    const reviewNote = window.prompt("Review note (optional):", "") || "";
+    try {
+      setBusy(`leave-${row.id}`);
+      const result = await reviewLeaveRequest(supabase, row.id, status, reviewNote);
+      announce("success", `Leave request ${status}.`);
+      void notifyTelegramEvent(session, `leave_${status}`, result.id);
+      await refresh();
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function cancelLeave(row) {
+    if (!window.confirm("Cancel this pending leave request?")) return;
+    try {
+      setBusy(`leave-${row.id}`);
+      const result = await cancelLeaveRequest(supabase, row.id);
+      announce("success", "Leave request cancelled.");
+      void notifyTelegramEvent(session, "leave_cancelled", result.id);
+      await refresh();
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function savePlan(values) {
     try {
       setBusy("plan");
@@ -279,12 +438,14 @@ export default function StaffOperationsPage() {
     }
   }
 
-  function printCurrent() {
+  function reportDefinition() {
     if (tab === "commission") {
-      printStaffReport({
+      return {
         title: "Sales Commission Report",
-        subtitle: selectionText,
+        columns: commissionColumns,
+        rows: workspace.commissions,
         summary: [
+          { label: "Selected filters", value: selectionText },
           { label: "Earned USD", value: commissionMoney(totals.earned.USD, "USD") },
           { label: "Paid USD", value: commissionMoney(totals.paid.USD, "USD") },
           { label: "Outstanding USD", value: commissionMoney(totals.outstanding.USD, "USD") },
@@ -292,60 +453,64 @@ export default function StaffOperationsPage() {
           { label: "Paid KHR", value: commissionMoney(totals.paid.KHR, "KHR") },
           { label: "Outstanding KHR", value: commissionMoney(totals.outstanding.KHR, "KHR") }
         ],
-        columns: commissionColumns,
-        rows: workspace.commissions
-      });
-      return;
+        filename: `commission-${filters.date_from}-${filters.date_to}.xls`
+      };
     }
-    const rows = tab === "dayoff" ? dayOffRows : attendanceRows;
-    printStaffReport({
-      title: tab === "dayoff" ? "Staff Day-Off & Leave Report" : "Staff Attendance Report",
-      subtitle: selectionText,
-      summary: attendancePrintSummary,
+    if (tab === "leave") {
+      return {
+        title: "Staff Take Leave Requests",
+        columns: leaveColumns,
+        rows: workspace.leaveRequests,
+        summary: [
+          { label: "Selected filters", value: selectionText },
+          { label: "Pending", value: leaveTotals.pending },
+          { label: "Approved", value: leaveTotals.approved },
+          { label: "Rejected", value: leaveTotals.rejected },
+          { label: "Cancelled", value: leaveTotals.cancelled }
+        ],
+        filename: `take-leave-${filters.date_from}-${filters.date_to}.xls`
+      };
+    }
+    if (tab === "dayoff") {
+      return {
+        title: "Employee Day-Off Schedule",
+        columns: dayOffMatrix.columns,
+        rows: dayOffMatrix.rows,
+        summary: [
+          { label: "Selected filters", value: selectionText },
+          { label: "Purpose", value: "Manager-set Day-Off schedule and approved leave; separate from pending Take Leave requests." }
+        ],
+        filename: `day-off-list-${filters.date_from}-${filters.date_to}.xls`
+      };
+    }
+    return {
+      title: "Daily Attendance Report",
       columns: attendanceColumns,
-      rows
-    });
+      rows: attendanceRows,
+      summary: attendancePrintSummary,
+      filename: `attendance-${filters.date_from}-${filters.date_to}.xls`
+    };
+  }
+
+  function printCurrent() {
+    const report = reportDefinition();
+    printStaffReport({ ...report, subtitle: selectionText, orientation: "landscape" });
   }
 
   function exportCurrent() {
-    if (tab === "commission") {
-      downloadStaffCsv(
-        `commission-${filters.date_from}-${filters.date_to}.csv`,
-        commissionColumns,
-        workspace.commissions,
-        [
-          { label: "Selection", value: selectionText },
-          { label: "Earned USD", value: totals.earned.USD },
-          { label: "Paid USD", value: totals.paid.USD },
-          { label: "Outstanding USD", value: totals.outstanding.USD },
-          { label: "Earned KHR", value: totals.earned.KHR },
-          { label: "Paid KHR", value: totals.paid.KHR },
-          { label: "Outstanding KHR", value: totals.outstanding.KHR }
-        ]
-      );
-      return;
-    }
-    const rows = tab === "dayoff" ? dayOffRows : attendanceRows;
-    downloadStaffCsv(
-      `${tab === "dayoff" ? "day-off" : "attendance"}-${filters.date_from}-${filters.date_to}.csv`,
-      attendanceColumns,
-      rows,
-      [
-        { label: "Selected filters", value: selectionText },
-        ...attendancePrintSummary.slice(1)
-      ]
-    );
+    const report = reportDefinition();
+    downloadStaffExcel(report.filename, report.columns, report.rows, report.summary, report.title);
   }
 
   function openCorrection(row) {
     if (!row.session_id) return;
-    const session = workspace.attendance.find((item) => item.id === row.session_id);
-    if (session) setCorrection(session);
+    const record = workspace.attendance.find((item) => item.id === row.session_id);
+    if (record) setCorrection(record);
   }
 
   const status = workspace.status;
   const elapsed = status?.elapsed_minutes || 0;
-  const printableTab = ["attendance", "dayoff", "commission"].includes(tab);
+  const printableTab = ["attendance", "dayoff", "leave", "commission"].includes(tab);
 
   return (
     <div className="page-stack staff-operations-page">
@@ -353,7 +518,7 @@ export default function StaffOperationsPage() {
         <div>
           <p className="eyebrow">STAFF OPERATIONS</p>
           <h1>Attendance & Commission</h1>
-          <p className="muted">Monthly timesheets, day-off schedules, attendance corrections and refund-adjusted commission.</p>
+          <p className="muted">Daily attendance, manager day-off schedules, staff leave requests and commission reports.</p>
         </div>
         <div className="page-heading-actions">
           <button type="button" className="secondary-button" onClick={refresh} disabled={loading}>
@@ -382,31 +547,32 @@ export default function StaffOperationsPage() {
       </section>
 
       <div className="staff-tabs" role="tablist">
-        <button type="button" className={tab === "attendance" ? "active" : ""} onClick={() => setTab("attendance")}><CalendarDays size={18} />Attendance</button>
-        <button type="button" className={tab === "dayoff" ? "active" : ""} onClick={() => setTab("dayoff")}><Umbrella size={18} />Day off & leave</button>
-        {canViewCommission && <button type="button" className={tab === "commission" ? "active" : ""} onClick={() => setTab("commission")}><BadgeDollarSign size={18} />Commission</button>}
-        {canManageCommissions && <button type="button" className={tab === "plans" ? "active" : ""} onClick={() => setTab("plans")}><WalletCards size={18} />Plans & payouts</button>}
+        <button type="button" className={tab === "attendance" ? "active" : ""} onClick={() => selectTab("attendance")}><CalendarDays size={18} />Attendance</button>
+        {canRequestLeave && <button type="button" className={tab === "leave" ? "active" : ""} onClick={() => selectTab("leave")}><Send size={18} />Take Leave</button>}
+        <button type="button" className={tab === "dayoff" ? "active" : ""} onClick={() => selectTab("dayoff")}><Umbrella size={18} />Day-Off List</button>
+        {canViewCommission && <button type="button" className={tab === "commission" ? "active" : ""} onClick={() => selectTab("commission")}><BadgeDollarSign size={18} />Commission</button>}
+        {canManageCommissions && <button type="button" className={tab === "plans" ? "active" : ""} onClick={() => selectTab("plans")}><WalletCards size={18} />Plans & payouts</button>}
       </div>
 
       <section className="panel staff-filter-panel">
         <div className="staff-filters">
           <label><span>From</span><input type="date" value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} /></label>
-          <label><span>To</span><input type="date" value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} /></label>
-          {(canManageAttendance || canManageCommissions) && (
+          <label><span>To</span><input type="date" min={filters.date_from} value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} /></label>
+          {(canManageAttendance || canManageCommissions || canManageLeave) && (
             <label><span>Branch</span><select value={filters.branch_id} onChange={(event) => setFilters((current) => ({ ...current, branch_id: event.target.value }))}><option value="">Accessible branches</option>{workspace.branches.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
           )}
-          {(canManageAttendance || canManageCommissions) && (
+          {(canManageAttendance || canManageCommissions || canManageLeave) && (
             <label><span>Staff member</span><select value={filters.user_id} onChange={(event) => setFilters((current) => ({ ...current, user_id: event.target.value }))}><option value="">All staff</option>{workspace.staff.map((row) => <option key={row.id} value={row.id}>{row.full_name}</option>)}</select></label>
           )}
         </div>
         <div className="staff-report-toolbar">
           <span><strong>Selected:</strong> {selectionText}</span>
           <div>
-            {canManageAttendance && (
-              <button type="button" className="primary-button" onClick={() => setManualAttendance(true)}><CalendarPlus size={18} />Set attendance</button>
-            )}
+            {canManageAttendance && <button type="button" className="primary-button" onClick={() => setManualAttendance(true)}><CalendarPlus size={18} />Set attendance</button>}
+            {canRequestLeave && <button type="button" className="secondary-button" onClick={() => setLeaveOpen(true)}><Send size={18} />Take Leave</button>}
+            <button type="button" className="secondary-button" onClick={showDayOffList}><FileSpreadsheet size={18} />Day-Off List</button>
             {printableTab && <button type="button" className="secondary-button" onClick={printCurrent}><Printer size={18} />Print</button>}
-            {printableTab && <button type="button" className="secondary-button" onClick={exportCurrent}><Download size={18} />Export CSV</button>}
+            {printableTab && <button type="button" className="secondary-button" onClick={exportCurrent}><Download size={18} />Export Excel</button>}
           </div>
         </div>
       </section>
@@ -419,47 +585,84 @@ export default function StaffOperationsPage() {
           <article><span>Overtime</span><strong>{attendanceTotals.overtime_days}</strong><small>{durationLabel(attendanceTotals.overtime_minutes)}</small></article>
           <article><span>Absent</span><strong>{attendanceTotals.absent_days}</strong></article>
           <article><span>Day off</span><strong>{attendanceTotals.day_off_days}</strong></article>
-          <article><span>Leave</span><strong>{attendanceTotals.leave_days}</strong></article>
+          <article><span>Approved leave</span><strong>{attendanceTotals.leave_days}</strong></article>
           <article><span>Total worked</span><strong>{durationLabel(attendanceTotals.work_minutes)}</strong></article>
         </div>
       )}
 
+      {tab === "leave" && (
+        <div className="staff-metric-grid leave-metric-grid">
+          <article><span>Pending</span><strong>{leaveTotals.pending}</strong></article>
+          <article><span>Approved</span><strong>{leaveTotals.approved}</strong></article>
+          <article><span>Rejected</span><strong>{leaveTotals.rejected}</strong></article>
+          <article><span>Cancelled</span><strong>{leaveTotals.cancelled}</strong></article>
+        </div>
+      )}
+
       {tab === "attendance" && (
-        <section className="panel">
-          <div className="panel-title-row"><div><p className="eyebrow">MONTHLY TIMESHEET</p><h2>Daily attendance report</h2></div><span className="status-pill">{attendanceRows.length} staff-days</span></div>
-          <div className="responsive-table attendance-report-table"><table><thead><tr><th>Date</th><th>Staff</th><th>Branch</th><th>Check-in</th><th>Check-out</th><th>Worked</th><th>Late</th><th>Overtime</th><th>Status</th><th>Note</th>{canManageAttendance && <th />}</tr></thead><tbody>
-            {attendanceRows.map((row) => <tr key={`${row.user_id}-${row.business_date}`}><td><strong>{row.business_date}</strong><small>{row.weekday_name}</small></td><td><strong>{row.full_name}</strong><small>{row.role}</small></td><td>{row.branch_name || "—"}</td><td>{staffTime(row.check_in_at)}<small>{row.check_in_source || "—"}</small></td><td>{staffTime(row.check_out_at)}<small>{row.check_out_source || "—"}</small></td><td>{row.session_id ? durationLabel(row.total_minutes) : "—"}</td><td>{Number(row.late_minutes || 0) ? durationLabel(row.late_minutes) : "—"}</td><td>{Number(row.overtime_minutes || 0) ? durationLabel(row.overtime_minutes) : "—"}</td><td><span className={`status-pill attendance-${row.attendance_status}`}>{attendanceStatusLabel(row.attendance_status)}</span></td><td>{row.note || "—"}</td>{canManageAttendance && <td>{row.session_id && <button type="button" className="icon-button" onClick={() => openCorrection(row)} title="Correct attendance"><Pencil size={17} /></button>}</td>}</tr>)}
-            {!attendanceRows.length && <tr><td colSpan={canManageAttendance ? 11 : 10} className="empty-table">No attendance days in this period.</td></tr>}
-          </tbody></table></div>
+        <section className="panel staff-report-panel">
+          <div className="panel-title-row">
+            <div><p className="eyebrow">DAILY TIMESHEET</p><h2>Daily attendance report</h2><p className="muted">Defaults to the current date and all accessible staff.</p></div>
+            <div className="staff-table-tools"><PageSizeControl value={pageSize} onChange={setPageSize} /><span className="status-pill">{attendanceRows.length} staff-days</span></div>
+          </div>
+          <div className="staff-horizontal-scroll attendance-report-table">
+            <table><thead><tr><th>Date</th><th>Staff</th><th>Branch</th><th>Check-in</th><th>Check-out</th><th>Worked</th><th>Late</th><th>Overtime</th><th>Status</th><th>Note</th>{canManageAttendance && <th />}</tr></thead><tbody>
+              {pagedRows.map((row) => <tr key={`${row.user_id}-${row.business_date}`}><td><strong>{row.business_date}</strong><small>{row.weekday_name}</small></td><td><strong>{row.full_name}</strong><small>{row.role}</small></td><td>{row.branch_name || "—"}</td><td>{staffTime(row.check_in_at)}<small>{row.check_in_source || "—"}</small></td><td>{staffTime(row.check_out_at)}<small>{row.check_out_source || "—"}</small></td><td>{row.session_id ? durationLabel(row.total_minutes) : "—"}</td><td>{Number(row.late_minutes || 0) ? durationLabel(row.late_minutes) : "—"}</td><td>{Number(row.overtime_minutes || 0) ? durationLabel(row.overtime_minutes) : "—"}</td><td><span className={`status-pill attendance-${row.attendance_status}`}>{attendanceStatusLabel(row.attendance_status)}</span></td><td>{row.note || "—"}</td>{canManageAttendance && <td>{row.session_id && <button type="button" className="icon-button" onClick={() => openCorrection(row)} title="Correct attendance"><Pencil size={17} /></button>}</td>}</tr>)}
+              {!pagedRows.length && <tr><td colSpan={canManageAttendance ? 11 : 10} className="empty-table">No attendance days in this period.</td></tr>}
+            </tbody></table>
+          </div>
+          <Pagination page={page} pageSize={pageSize} total={attendanceRows.length} onPage={setPage} />
         </section>
       )}
 
       {tab === "dayoff" && (
-        <section className="panel">
-          <div className="panel-title-row"><div><p className="eyebrow">STAFF SCHEDULE</p><h2>Day off and approved leave</h2></div><span className="status-pill">{dayOffRows.length} days</span></div>
-          <div className="responsive-table"><table><thead><tr><th>Date</th><th>Day</th><th>Staff</th><th>Branch</th><th>Type</th><th>Worked</th><th>Note</th></tr></thead><tbody>
-            {dayOffRows.map((row) => <tr key={`${row.user_id}-${row.business_date}`}><td>{row.business_date}</td><td>{row.weekday_name}</td><td><strong>{row.full_name}</strong><small>{row.role}</small></td><td>{row.branch_name || "—"}</td><td><span className={`status-pill attendance-${row.attendance_status}`}>{attendanceStatusLabel(row.attendance_status)}</span></td><td>{row.session_id ? durationLabel(row.total_minutes) : "—"}</td><td>{row.note || "—"}</td></tr>)}
-            {!dayOffRows.length && <tr><td colSpan="7" className="empty-table">No day-off or leave records in this period.</td></tr>}
+        <section className="panel staff-report-panel">
+          <div className="panel-title-row">
+            <div><p className="eyebrow">MANAGER SCHEDULE</p><h2>Day-Off List</h2><p className="muted">Manager-set days off and approved leave. Pending Take Leave requests are shown in their own tab.</p></div>
+            <div className="staff-table-tools"><PageSizeControl value={pageSize} onChange={setPageSize} /><span className="status-pill">{dayOffRows.length} days</span></div>
+          </div>
+          <div className="staff-horizontal-scroll"><table><thead><tr><th>Date</th><th>Day</th><th>Staff</th><th>Branch</th><th>Type</th><th>Worked</th><th>Note</th></tr></thead><tbody>
+            {pagedRows.map((row) => <tr key={`${row.user_id}-${row.business_date}`}><td>{row.business_date}</td><td>{row.weekday_name}</td><td><strong>{row.full_name}</strong><small>{row.role}</small></td><td>{row.branch_name || "—"}</td><td><span className={`status-pill attendance-${row.attendance_status}`}>{attendanceStatusLabel(row.attendance_status)}</span></td><td>{row.session_id ? durationLabel(row.total_minutes) : "—"}</td><td>{row.note || "—"}</td></tr>)}
+            {!pagedRows.length && <tr><td colSpan="7" className="empty-table">No day-off or approved leave records in this period.</td></tr>}
           </tbody></table></div>
+          <Pagination page={page} pageSize={pageSize} total={dayOffRows.length} onPage={setPage} />
+        </section>
+      )}
+
+      {tab === "leave" && (
+        <section className="panel staff-report-panel">
+          <div className="panel-title-row">
+            <div><p className="eyebrow">STAFF REQUESTS</p><h2>Take Leave</h2><p className="muted">Staff requests remain pending until a manager approves or rejects them.</p></div>
+            <div className="staff-table-tools"><PageSizeControl value={pageSize} onChange={setPageSize} /><span className="status-pill">{workspace.leaveRequests.length} requests</span></div>
+          </div>
+          <div className="staff-horizontal-scroll take-leave-table"><table><thead><tr><th>Requested</th><th>Staff</th><th>Branch</th><th>Dates</th><th>Type</th><th>Reason</th><th>Picture</th><th>Status</th><th>Reviewed by</th><th>Review note</th><th>Actions</th></tr></thead><tbody>
+            {pagedRows.map((row) => {
+              const own = row.user_id === profile.id;
+              return <tr key={row.id}><td>{staffDateTime(row.created_at)}</td><td><strong>{row.profiles?.full_name}</strong><small>{row.profiles?.role}</small></td><td>{row.branches?.name || "—"}</td><td><strong>{row.date_from}</strong><small>to {row.date_to}</small></td><td>{String(row.leave_type || "").replaceAll("_", " ")}</td><td className="leave-reason-cell">{row.reason}</td><td>{row.image_url ? <a className="leave-image-link" href={row.image_url} target="_blank" rel="noreferrer"><ImageIcon size={18} />View</a> : "—"}</td><td><span className={`status-pill leave-${row.status}`}>{leaveStatusLabel(row.status)}</span></td><td>{row.reviewer?.full_name || "—"}</td><td>{row.review_note || "—"}</td><td><div className="leave-row-actions">{canManageLeave && row.status === "pending" && <><button type="button" className="success-icon-button" disabled={busy === `leave-${row.id}`} onClick={() => reviewLeave(row, "approved")} title="Approve"><Check size={17} /></button><button type="button" className="danger-icon-button" disabled={busy === `leave-${row.id}`} onClick={() => reviewLeave(row, "rejected")} title="Reject"><X size={17} /></button></>}{own && row.status === "pending" && <button type="button" className="secondary-button compact-button" disabled={busy === `leave-${row.id}`} onClick={() => cancelLeave(row)}>Cancel</button>}</div></td></tr>;
+            })}
+            {!pagedRows.length && <tr><td colSpan="11" className="empty-table">No leave requests in this period.</td></tr>}
+          </tbody></table></div>
+          <Pagination page={page} pageSize={pageSize} total={workspace.leaveRequests.length} onPage={setPage} />
         </section>
       )}
 
       {tab === "commission" && canViewCommission && (
         <>
           <div className="staff-metric-grid"><article><span>Earned USD</span><strong>{commissionMoney(totals.earned.USD, "USD")}</strong></article><article><span>Paid USD</span><strong>{commissionMoney(totals.paid.USD, "USD")}</strong></article><article><span>Outstanding USD</span><strong>{commissionMoney(totals.outstanding.USD, "USD")}</strong></article><article><span>Outstanding KHR</span><strong>{commissionMoney(totals.outstanding.KHR, "KHR")}</strong></article></div>
-          <section className="panel"><div className="panel-title-row"><div><p className="eyebrow">EARNINGS</p><h2>Sales commission ledger</h2></div><span className="status-pill">{workspace.commissions.length} sales</span></div><div className="responsive-table"><table><thead><tr><th>Date</th><th>Staff</th><th>Invoice</th><th>Branch</th><th>Base</th><th>Rate</th><th>Refund</th><th>Commission</th><th>Status</th></tr></thead><tbody>{workspace.commissions.map((row) => <tr key={row.id}><td>{staffDateTime(row.sale_completed_at)}</td><td>{row.profiles?.full_name}</td><td>{row.sales?.invoice_number}</td><td>{row.branches?.name}</td><td>{commissionMoney(row.commissionable_amount, row.currency)}<small>{row.base_type.replaceAll("_", " ")}</small></td><td>{Number(row.rate_percent || 0).toFixed(2)}%<small>+ {commissionMoney(row.fixed_per_sale, row.currency)}</small></td><td>{commissionMoney(row.refunded_amount, row.currency)}</td><td><strong>{commissionMoney(row.commission_amount, row.currency)}</strong></td><td><span className={`status-pill ${row.status}`}>{row.status}</span></td></tr>)}{!workspace.commissions.length && <tr><td colSpan="9" className="empty-table">No commission records in this period.</td></tr>}</tbody></table></div></section>
+          <section className="panel staff-report-panel"><div className="panel-title-row"><div><p className="eyebrow">EARNINGS</p><h2>Sales commission ledger</h2></div><div className="staff-table-tools"><PageSizeControl value={pageSize} onChange={setPageSize} /><span className="status-pill">{workspace.commissions.length} sales</span></div></div><div className="staff-horizontal-scroll"><table><thead><tr><th>Date</th><th>Staff</th><th>Invoice</th><th>Branch</th><th>Base</th><th>Rate</th><th>Refund</th><th>Commission</th><th>Status</th></tr></thead><tbody>{pagedRows.map((row) => <tr key={row.id}><td>{staffDateTime(row.sale_completed_at)}</td><td>{row.profiles?.full_name}</td><td>{row.sales?.invoice_number}</td><td>{row.branches?.name}</td><td>{commissionMoney(row.commissionable_amount, row.currency)}<small>{row.base_type.replaceAll("_", " ")}</small></td><td>{Number(row.rate_percent || 0).toFixed(2)}%<small>+ {commissionMoney(row.fixed_per_sale, row.currency)}</small></td><td>{commissionMoney(row.refunded_amount, row.currency)}</td><td><strong>{commissionMoney(row.commission_amount, row.currency)}</strong></td><td><span className={`status-pill ${row.status}`}>{row.status}</span></td></tr>)}{!pagedRows.length && <tr><td colSpan="9" className="empty-table">No commission records in this period.</td></tr>}</tbody></table></div><Pagination page={page} pageSize={pageSize} total={workspace.commissions.length} onPage={setPage} /></section>
         </>
       )}
 
       {tab === "plans" && canManageCommissions && (
         <div className="staff-plan-grid">
           <section className="panel"><div className="panel-title-row"><div><p className="eyebrow">RULES</p><h2>Commission plans</h2></div><button type="button" className="primary-button" onClick={() => setPlan(null)}><Plus size={18} />New plan</button></div><div className="staff-plan-list">{workspace.plans.map((row) => <button type="button" key={row.id} className="staff-plan-row" onClick={() => setPlan(row)}><span><strong>{row.name}</strong><small>{row.profiles?.full_name} · {row.branches?.name || "All branches"}</small></span><span>{row.currency} · {Number(row.rate_percent).toFixed(2)}% + {commissionMoney(row.fixed_per_sale, row.currency)}<small>{row.base_type.replaceAll("_", " ")} · {row.is_active ? "Active" : "Inactive"}</small></span></button>)}{!workspace.plans.length && <div className="empty-state compact"><p>No commission plans yet.</p></div>}</div></section>
-          <section className="panel"><div className="panel-title-row"><div><p className="eyebrow">PAYOUTS</p><h2>Payment history</h2></div>{canPayCommissions && <button type="button" className="primary-button" onClick={() => setPayout(true)}><Plus size={18} />Record payout</button>}</div><div className="responsive-table"><table><thead><tr><th>Paid at</th><th>Staff</th><th>Branch</th><th>Period</th><th>Method</th><th>Amount</th></tr></thead><tbody>{workspace.payouts.map((row) => <tr key={row.id}><td>{staffDateTime(row.paid_at)}</td><td>{row.profiles?.full_name}</td><td>{row.branches?.name}</td><td>{row.period_start} → {row.period_end}</td><td>{row.payment_method}<small>{row.reference_number || "—"}</small></td><td><strong>{commissionMoney(row.amount, row.currency)}</strong></td></tr>)}{!workspace.payouts.length && <tr><td colSpan="6" className="empty-table">No commission payouts in this period.</td></tr>}</tbody></table></div></section>
+          <section className="panel"><div className="panel-title-row"><div><p className="eyebrow">PAYOUTS</p><h2>Payment history</h2></div>{canPayCommissions && <button type="button" className="primary-button" onClick={() => setPayout(true)}><Plus size={18} />Record payout</button>}</div><div className="staff-horizontal-scroll"><table><thead><tr><th>Paid at</th><th>Staff</th><th>Branch</th><th>Period</th><th>Method</th><th>Amount</th></tr></thead><tbody>{workspace.payouts.map((row) => <tr key={row.id}><td>{staffDateTime(row.paid_at)}</td><td>{row.profiles?.full_name}</td><td>{row.branches?.name}</td><td>{row.period_start} → {row.period_end}</td><td>{row.payment_method}<small>{row.reference_number || "—"}</small></td><td><strong>{commissionMoney(row.amount, row.currency)}</strong></td></tr>)}{!workspace.payouts.length && <tr><td colSpan="6" className="empty-table">No commission payouts in this period.</td></tr>}</tbody></table></div></section>
         </div>
       )}
 
       {correction && <AttendanceCorrectionModal session={correction} busy={busy === "correction"} onClose={() => setCorrection(null)} onSave={saveCorrection} />}
       <ManualAttendanceModal open={manualAttendance} staff={workspace.staff} branches={workspace.branches} busy={busy === "manual-attendance"} onClose={() => setManualAttendance(false)} onSave={saveManual} />
+      <LeaveRequestModal open={leaveOpen} busy={busy === "leave"} onClose={() => setLeaveOpen(false)} onSave={saveLeave} />
       {plan !== undefined && <CommissionPlanModal plan={plan} staff={workspace.staff} branches={workspace.branches} busy={busy === "plan"} onClose={() => setPlan(undefined)} onSave={savePlan} />}
       {payout && <CommissionPayoutModal staff={workspace.staff} branches={workspace.branches} busy={busy === "payout"} onClose={() => setPayout(false)} onSave={savePayout} />}
     </div>

@@ -35,6 +35,7 @@ import {
 const preferenceFields = [
   ["stock_alerts", "Stock alerts", "Low-stock and out-of-stock products"],
   ["forecast_alerts", "Forecast alerts", "Daily demand risks and purchase suggestions"],
+  ["sale_alerts", "Completed sales", "Cashier sale receipts for the seller and relevant managers"],
   ["sales_summary", "Daily sales summary", "Daily transaction, refund, USD and KHR totals"],
   ["credit_alerts", "Customer credit", "Overdue credit invoices and balances"],
   ["supplier_alerts", "Supplier payables", "Due and overdue supplier balances"],
@@ -45,6 +46,7 @@ const preferenceFields = [
   ["online_order_alerts", "Online orders", "New customer web orders waiting for review"],
   ["cash_register_alerts", "Cash register", "Long-open registers and closing variances"],
   ["attendance_alerts", "Attendance", "Forgotten check-outs and long-open staff sessions"],
+  ["leave_alerts", "Take Leave", "New, approved, rejected and cancelled leave requests"],
   ["payroll_alerts", "Payroll alerts", "Pending payroll approvals and salary payments"],
   ["integration_alerts", "Integration alerts", "Dead webhooks and API server failures"],
   ["system_alerts", "System alerts", "Reserved for backup and service errors"]
