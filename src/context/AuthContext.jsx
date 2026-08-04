@@ -6,6 +6,7 @@ import {
   useState
 } from "react";
 import { getSupabase } from "../lib/supabase";
+import { resolveTelegramLinkedSession } from "../lib/telegramSession";
 import {
   accessAllows,
   accessAllowsAny,
@@ -195,6 +196,12 @@ export function AuthProvider({ children }) {
         if (!mounted) return;
 
         setSupabase(client);
+
+        // Telegram Mini App sessions are isolated by Telegram user ID. When a
+        // Telegram account is already linked, resolve its matching POS user
+        // before loading profile/permissions so two phones or two Telegram
+        // accounts never inherit the same browser POS session.
+        await resolveTelegramLinkedSession(client);
 
         const {
           data: { session: currentSession },
