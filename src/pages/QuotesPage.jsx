@@ -23,6 +23,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import QuotePrintModal from "../components/QuotePrintModal";
 import SalesOrderCreateModal from "../components/SalesOrderCreateModal";
+import ListViewControls, { defaultListView } from "../components/ListViewControls";
+import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { money } from "../lib/catalog";
 import {
   effectiveQuoteStatus,
@@ -91,6 +93,9 @@ export default function QuotesPage() {
     useState("");
   const [messageType, setMessageType] =
     useState("success");
+  const [viewMode, setViewMode] = useState(defaultListView);
+  const [pageSize, setPageSize] = useState(30);
+  const [page, setPage] = useState(1);
 
   const refresh = useCallback(async () => {
     if (
@@ -180,6 +185,52 @@ export default function QuotesPage() {
     search,
     status
   ]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, status, from, to, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedVisible = visible.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const reportColumns = [
+    { label: "Quotation", value: (row) => row.quote_number },
+    { label: "Customer", value: (row) => row.customers?.name || "Walk-in" },
+    { label: "Phone / Code", value: (row) => row.customers?.phone || row.customers?.customer_code || "—" },
+    { label: "Created", value: (row) => quoteDateTime(row.created_at) },
+    { label: "Valid until", value: (row) => quoteDate(row.valid_until) },
+    { label: "Status", value: (row) => quoteStatusLabel(effectiveQuoteStatus(row)) },
+    { label: "Items", value: (row) => (row.sales_quote_items || []).length },
+    { label: "Total", value: (row) => money(row.total_amount, row.currency) }
+  ];
+
+  function printQuotes() {
+    printListDocument({
+      title: "Quotations & Proforma",
+      subtitle: `${from} to ${to} · ${visible.length} quotation(s)`,
+      summary: [
+        { label: "Status", value: status || "All statuses" },
+        { label: "Search", value: search || "All quotations" }
+      ],
+      columns: reportColumns,
+      rows: visible
+    });
+  }
+
+  function exportQuotes() {
+    exportListExcel({
+      filename: `quotations-${from}-${to}.xls`,
+      title: "Quotations & Proforma",
+      subtitle: `${from} to ${to}`,
+      summary: [
+        { label: "Status", value: status || "All statuses" },
+        { label: "Rows", value: visible.length }
+      ],
+      columns: reportColumns,
+      rows: visible
+    });
+  }
 
   const metrics = useMemo(() => {
     const result = {
@@ -497,6 +548,19 @@ export default function QuotesPage() {
         </label>
       </section>
 
+      <ListViewControls
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        totalRows={visible.length}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onExport={exportQuotes}
+        onPrint={printQuotes}
+      />
+
       <section className="panel quote-list-panel">
         {loading ? (
           <div className="empty-state">
@@ -516,196 +580,60 @@ export default function QuotesPage() {
             </p>
           </div>
         ) : (
-          <div className="quote-table-wrap">
-            <table className="quote-table">
-              <thead>
-                <tr>
-                  <th>Quotation</th>
-                  <th>Customer</th>
-                  <th>Created</th>
-                  <th>Valid until</th>
-                  <th>Status</th>
-                  <th>Items</th>
-                  <th>Total</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {visible.map((quote) => {
-                  const effective =
-                    effectiveQuoteStatus(quote);
-
-                  return (
-                    <tr key={quote.id}>
-                      <td data-label="Quotation">
-                        <strong>
-                          {quote.quote_number}
-                        </strong>
-
-                        {quote.coupon_code && (
-                          <small>
-                            Coupon{" "}
-                            {quote.coupon_code}
-                          </small>
-                        )}
-                      </td>
-
-                      <td data-label="Customer">
-                        <strong>
-                          {quote.customers?.name
-                            || "Walk-in"}
-                        </strong>
-
-                        <small>
-                          {quote.customers?.phone
-                            || quote.customers
-                              ?.customer_code
-                            || "No customer contact"}
-                        </small>
-                      </td>
-
-                      <td data-label="Created">
-                        {quoteDateTime(
-                          quote.created_at
-                        )}
-                      </td>
-
-                      <td data-label="Valid until">
-                        {quoteDate(
-                          quote.valid_until
-                        )}
-                      </td>
-
-                      <td data-label="Status">
-                        <span
-                          className={`quote-status ${effective}`}
-                        >
-                          {quoteStatusLabel(
-                            effective
-                          )}
-                        </span>
-                      </td>
-
-                      <td data-label="Items">
-                        {(
-                          quote.sales_quote_items
-                          || []
-                        ).length}
-                      </td>
-
-                      <td data-label="Total">
-                        <strong>
-                          {money(
-                            quote.total_amount,
-                            quote.currency
-                          )}
-                        </strong>
-                      </td>
-
-                      <td data-label="Actions">
-                        <div className="quote-row-actions">
-                          <button
-                            type="button"
-                            className="icon-button"
-                            onClick={() =>
-                              setSelected(quote)
-                            }
-                            title="View and print"
-                          >
-                            <Eye size={18} />
-                          </button>
-
-                          {quoteCanConvert(quote) && (
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                openInSale(quote)
-                              }
-                              title={
-                                quoteCanEdit(quote)
-                                  ? "Edit or convert in New Sale"
-                                  : "Convert in New Sale"
-                              }
-                            >
-                              <ShoppingCart
-                                size={18}
-                              />
-                            </button>
-                          )}
-
-                          {effective === "draft" && (
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                changeStatus(
-                                  quote,
-                                  "sent"
-                                )
-                              }
-                              disabled={
-                                busy
-                                  === `sent-${quote.id}`
-                              }
-                              title="Mark sent"
-                            >
-                              <Send size={18} />
-                            </button>
-                          )}
-
-                          {["draft", "sent"]
-                            .includes(effective) && (
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                changeStatus(
-                                  quote,
-                                  "accepted"
-                                )
-                              }
-                              disabled={
-                                busy
-                                  === `accepted-${quote.id}`
-                              }
-                              title="Mark accepted"
-                            >
-                              <CheckCircle2
-                                size={18}
-                              />
-                            </button>
-                          )}
-
-                          {["draft", "sent", "accepted"]
-                            .includes(effective) && (
-                            <button
-                              type="button"
-                              className="icon-button danger-icon"
-                              onClick={() =>
-                                changeStatus(
-                                  quote,
-                                  "cancelled"
-                                )
-                              }
-                              disabled={
-                                busy
-                                  === `cancelled-${quote.id}`
-                              }
-                              title="Cancel quotation"
-                            >
-                              <XCircle size={18} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          viewMode === "cards" ? (
+            <div className="list-card-grid quote-card-grid">
+              {pagedVisible.map((quote) => {
+                const effective = effectiveQuoteStatus(quote);
+                return (
+                  <article className="list-record-card" key={quote.id}>
+                    <header><div><strong>{quote.quote_number}</strong><small>{quoteDateTime(quote.created_at)}</small></div><span className={`quote-status ${effective}`}>{quoteStatusLabel(effective)}</span></header>
+                    <div className="list-card-fields">
+                      <div><span>Customer</span><strong>{quote.customers?.name || "Walk-in"}</strong><small>{quote.customers?.phone || quote.customers?.customer_code || "No contact"}</small></div>
+                      <div><span>Valid until</span><strong>{quoteDate(quote.valid_until)}</strong></div>
+                      <div><span>Items</span><strong>{(quote.sales_quote_items || []).length}</strong></div>
+                      <div><span>Total</span><strong>{money(quote.total_amount, quote.currency)}</strong></div>
+                    </div>
+                    <div className="list-card-actions quote-row-actions">
+                      <button type="button" className="icon-button" onClick={() => setSelected(quote)} title="View and print"><Eye size={18} /></button>
+                      {quoteCanConvert(quote) && <button type="button" className="icon-button" onClick={() => openInSale(quote)} title="Open in New Sale"><ShoppingCart size={18} /></button>}
+                      {effective === "draft" && <button type="button" className="icon-button" onClick={() => changeStatus(quote, "sent")} disabled={busy === `sent-${quote.id}`} title="Mark sent"><Send size={18} /></button>}
+                      {["draft", "sent"].includes(effective) && <button type="button" className="icon-button" onClick={() => changeStatus(quote, "accepted")} disabled={busy === `accepted-${quote.id}`} title="Mark accepted"><CheckCircle2 size={18} /></button>}
+                      {["draft", "sent", "accepted"].includes(effective) && <button type="button" className="icon-button danger-icon" onClick={() => changeStatus(quote, "cancelled")} disabled={busy === `cancelled-${quote.id}`} title="Cancel quotation"><XCircle size={18} /></button>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="quote-table-wrap wide-list-scroll">
+              <table className="quote-table">
+                <thead><tr><th>Quotation</th><th>Customer</th><th>Created</th><th>Valid until</th><th>Status</th><th>Items</th><th>Total</th><th>Actions</th></tr></thead>
+                <tbody>
+                  {pagedVisible.map((quote) => {
+                    const effective = effectiveQuoteStatus(quote);
+                    return (
+                      <tr key={quote.id}>
+                        <td data-label="Quotation"><strong>{quote.quote_number}</strong>{quote.coupon_code && <small>Coupon {quote.coupon_code}</small>}</td>
+                        <td data-label="Customer"><strong>{quote.customers?.name || "Walk-in"}</strong><small>{quote.customers?.phone || quote.customers?.customer_code || "No customer contact"}</small></td>
+                        <td data-label="Created">{quoteDateTime(quote.created_at)}</td>
+                        <td data-label="Valid until">{quoteDate(quote.valid_until)}</td>
+                        <td data-label="Status"><span className={`quote-status ${effective}`}>{quoteStatusLabel(effective)}</span></td>
+                        <td data-label="Items">{(quote.sales_quote_items || []).length}</td>
+                        <td data-label="Total"><strong>{money(quote.total_amount, quote.currency)}</strong></td>
+                        <td data-label="Actions"><div className="quote-row-actions">
+                          <button type="button" className="icon-button" onClick={() => setSelected(quote)} title="View and print"><Eye size={18} /></button>
+                          {quoteCanConvert(quote) && <button type="button" className="icon-button" onClick={() => openInSale(quote)} title="Open in New Sale"><ShoppingCart size={18} /></button>}
+                          {effective === "draft" && <button type="button" className="icon-button" onClick={() => changeStatus(quote, "sent")} disabled={busy === `sent-${quote.id}`} title="Mark sent"><Send size={18} /></button>}
+                          {["draft", "sent"].includes(effective) && <button type="button" className="icon-button" onClick={() => changeStatus(quote, "accepted")} disabled={busy === `accepted-${quote.id}`} title="Mark accepted"><CheckCircle2 size={18} /></button>}
+                          {["draft", "sent", "accepted"].includes(effective) && <button type="button" className="icon-button danger-icon" onClick={() => changeStatus(quote, "cancelled")} disabled={busy === `cancelled-${quote.id}`} title="Cancel quotation"><XCircle size={18} /></button>}
+                        </div></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </section>
 

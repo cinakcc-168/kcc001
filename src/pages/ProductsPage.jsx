@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ArrowDownAZ,
   Boxes,
   Download,
   ImageOff,
@@ -17,6 +16,8 @@ import Modal from "../components/Modal";
 import ProductForm from "../components/ProductForm";
 import CategoryForm from "../components/CategoryForm";
 import ProductUnitsModal from "../components/ProductUnitsModal";
+import ListViewControls, { defaultListView } from "../components/ListViewControls";
+import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import {
   cloudinaryThumb,
   createCategory,
@@ -47,6 +48,9 @@ export default function ProductsPage() {
   const [categoryModal, setCategoryModal] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
   const [unitsProduct, setUnitsProduct] = useState(null);
+  const [viewMode, setViewMode] = useState(defaultListView);
+  const [pageSize, setPageSize] = useState(30);
+  const [page, setPage] = useState(1);
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;
@@ -98,32 +102,52 @@ export default function ProductsPage() {
     });
   }, [products, search, categoryFilter, statusFilter, sortOrder]);
 
-  function csvCell(value) {
-    const text = String(value ?? "");
-    return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-  }
+  useEffect(() => { setPage(1); }, [search, categoryFilter, statusFilter, sortOrder, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const productReportColumns = [
+    { label: "Code", value: (row) => row.sku || "—" },
+    { label: "Barcode", value: (row) => row.barcode || "—" },
+    { label: "Product", value: (row) => row.name },
+    { label: "Khmer name", value: (row) => row.name_km || "—" },
+    { label: "Category", value: (row) => row.categories?.name || "Uncategorized" },
+    { label: "Price", value: (row) => money(row.selling_price, row.currency) },
+    { label: "Cost", value: (row) => money(row.average_cost || row.default_cost, row.currency) },
+    { label: "Stock", value: (row) => row.track_stock ? `${stockNumber(row.stock_quantity)} ${row.unit_name}` : "Not tracked" },
+    { label: "Low-stock threshold", value: (row) => stockNumber(row.effective_low_stock_threshold) },
+    { label: "Stock status", value: (row) => String(row.stock_status || "").replaceAll("_", " ") },
+    { label: "Units", value: (row) => (row.product_units || []).filter((unit) => unit.is_active).map((unit) => unit.name).join(", ") || row.unit_name },
+    { label: "Product status", value: (row) => row.is_active ? "Active" : "Inactive" }
+  ];
 
   function exportProducts() {
-    const rows = [
-      ["Code", "Barcode", "Product", "Khmer name", "Category", "Price", "Cost", "Stock", "Unit", "Low-stock threshold", "Stock status", "Product status"],
-      ...filteredProducts.map((product) => [
-        product.sku, product.barcode, product.name, product.name_km,
-        product.categories?.name || "Uncategorized", product.selling_price,
-        product.average_cost || product.default_cost, product.stock_quantity, product.unit_name,
-        product.effective_low_stock_threshold, product.stock_status, product.is_active ? "active" : "inactive"
-      ])
-    ];
-    const blob = new Blob(["\uFEFF", rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `tiny-pos-products-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    exportListExcel({
+      filename: `tiny-pos-products-${new Date().toISOString().slice(0, 10)}.xls`,
+      title: "Products",
+      subtitle: `${filteredProducts.length} product(s)`,
+      summary: [
+        { label: "Category", value: categoryFilter === "all" ? "All categories" : categories.find((item) => item.id === categoryFilter)?.name || "Selected category" },
+        { label: "Status", value: statusFilter },
+        { label: "Search", value: search || "All products" }
+      ],
+      columns: productReportColumns,
+      rows: filteredProducts
+    });
   }
 
   function printProducts() {
-    window.print();
+    printListDocument({
+      title: "Products",
+      subtitle: `${filteredProducts.length} product(s)`,
+      summary: [
+        { label: "Category", value: categoryFilter === "all" ? "All categories" : categories.find((item) => item.id === categoryFilter)?.name || "Selected category" },
+        { label: "Status", value: statusFilter }
+      ],
+      columns: productReportColumns,
+      rows: filteredProducts
+    });
   }
 
   function openCategoryEditor(category = {}) {
@@ -228,16 +252,29 @@ export default function ProductsPage() {
           <option value="inactive">Inactive products</option>
           <option value="all">All status</option>
         </select>
-        <label className="catalog-sort-select"><ArrowDownAZ size={18} /><select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)}>
+        <select className="catalog-sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} aria-label="Sort products">
           <option value="name_az">Name A–Z</option>
           <option value="name_za">Name Z–A</option>
           <option value="km_az">Khmer ក–អ</option>
           <option value="km_za">Khmer អ–ក</option>
-        </select></label>
-        <button className="icon-button refresh-button" onClick={exportProducts} title="Export CSV"><Download size={20} /></button>
-        <button className="icon-button refresh-button" onClick={printProducts} title="Print"><Printer size={20} /></button>
-        <button className="icon-button refresh-button" onClick={refresh} title="Refresh"><RefreshCw size={20} /></button>
+        </select>
+        <div className="catalog-action-row">
+          <button className="icon-button refresh-button" onClick={exportProducts} title="Export fitted Excel"><Download size={20} /></button>
+          <button className="icon-button refresh-button" onClick={printProducts} title="Print"><Printer size={20} /></button>
+          <button className="icon-button refresh-button" onClick={refresh} title="Refresh"><RefreshCw size={20} /></button>
+        </div>
       </section>
+
+      <ListViewControls
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        totalRows={filteredProducts.length}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
 
       <section className="panel product-list-panel">
         <div className="list-summary"><strong>{filteredProducts.length}</strong><span>products shown</span></div>
@@ -246,41 +283,47 @@ export default function ProductsPage() {
         ) : filteredProducts.length === 0 ? (
           <div className="empty-state"><Boxes size={48} /><h2>No products found</h2><p>Add the first product or change the current filters.</p></div>
         ) : (
-          <div className="product-table-wrap">
-            <table className="product-table">
-              <thead><tr><th>Product</th><th>Barcode</th><th>Category</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th>Units</th><th></th></tr></thead>
-              <tbody>
-                {filteredProducts.map((product) => {
+          viewMode === "cards" ? (
+            <div className="list-card-grid product-directory-card-grid">
+              {pagedProducts.map((product) => {
+                const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
+                return (
+                  <article className="list-record-card product-directory-card" key={product.id}>
+                    <header><div className="product-cell"><div className="product-thumb">{product.image?.secure_url ? <img src={cloudinaryThumb(product.image.secure_url, 96, 96)} alt="" /> : <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />}</div><div><strong>{product.name}</strong>{product.name_km && <small>{product.name_km}</small>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
+                    <div className="list-card-fields">
+                      <div><span>Barcode</span><strong>{product.barcode || "—"}</strong></div>
+                      <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
+                      <div><span>Price</span><strong>{money(product.selling_price, product.currency)}</strong></div>
+                      <div><span>Cost</span><strong>{money(product.average_cost || product.default_cost, product.currency)}</strong></div>
+                      <div><span>Stock</span><strong className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</strong><small>Low at {stockNumber(product.effective_low_stock_threshold)}</small></div>
+                      <div><span>Units</span><strong>{(product.product_units || []).filter((unit) => unit.is_active).length}</strong></div>
+                    </div>
+                    <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setUnitsProduct(product)} disabled={!canManage}><PackageOpen size={17} /> Units</button><button className="secondary-button compact-button" onClick={() => setProductModal(product)} disabled={!canManage}><Pencil size={17} /> Edit</button></div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="product-table-wrap wide-list-scroll">
+              <table className="product-table">
+                <thead><tr><th>Product</th><th>Barcode</th><th>Category</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th>Units</th><th></th></tr></thead>
+                <tbody>{pagedProducts.map((product) => {
                   const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
                   return <tr key={product.id}>
-                    <td data-label="Product"><div className="product-cell">
-                      <div className="product-thumb">{product.image?.secure_url ? <img src={cloudinaryThumb(product.image.secure_url, 96, 96)} alt="" /> : <ImageOff size={24} />}</div>
-                      <div><strong>{product.name}</strong>{product.name_km && <span>{product.name_km}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></div>
-                    </div></td>
+                    <td data-label="Product"><div className="product-cell"><div className="product-thumb">{product.image?.secure_url ? <img src={cloudinaryThumb(product.image.secure_url, 96, 96)} alt="" /> : <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />}</div><div><strong>{product.name}</strong>{product.name_km && <span>{product.name_km}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div></td>
                     <td data-label="Barcode">{product.barcode || "—"}</td>
                     <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
                     <td data-label="Price"><strong>{money(product.selling_price, product.currency)}</strong></td>
                     <td data-label="Cost">{money(product.average_cost || product.default_cost, product.currency)}</td>
                     <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></td>
                     <td data-label="Status"><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></td>
-                    <td data-label="Units">
-                      <button
-                        type="button"
-                        className="secondary-button product-units-button"
-                        onClick={() => setUnitsProduct(product)}
-                        disabled={!canManage}
-                        title="Manage selling units"
-                      >
-                        <PackageOpen size={17} />
-                        {(product.product_units || []).filter((unit) => unit.is_active).length}
-                      </button>
-                    </td>
+                    <td data-label="Units"><button type="button" className="secondary-button product-units-button" onClick={() => setUnitsProduct(product)} disabled={!canManage} title="Manage selling units"><PackageOpen size={17} />{(product.product_units || []).filter((unit) => unit.is_active).length}</button></td>
                     <td><button className="icon-button table-action" onClick={() => setProductModal(product)} disabled={!canManage} title="Edit product"><Pencil size={18} /></button></td>
                   </tr>;
-                })}
-              </tbody>
-            </table>
-          </div>
+                })}</tbody>
+              </table>
+            </div>
+          )
         )}
       </section>
 

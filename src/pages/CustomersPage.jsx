@@ -16,6 +16,8 @@ import { useAuth } from "../context/AuthContext";
 import CustomerDetailModal from "../components/CustomerDetailModal";
 import CustomerFormModal from "../components/CustomerFormModal";
 import LoyaltyAdjustModal from "../components/LoyaltyAdjustModal";
+import ListViewControls, { defaultListView } from "../components/ListViewControls";
+import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { money } from "../lib/catalog";
 import {
   adjustCustomerLoyalty,
@@ -74,6 +76,9 @@ export default function CustomersPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
+  const [viewMode, setViewMode] = useState(defaultListView);
+  const [pageSize, setPageSize] = useState(30);
+  const [page, setPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
@@ -128,6 +133,50 @@ export default function CustomersPage() {
       return matchesSearch && matchesStatus && matchesType;
     });
   }, [customers, search, statusFilter, typeFilter]);
+
+  useEffect(() => { setPage(1); }, [search, statusFilter, typeFilter, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(visibleCustomers.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const pagedCustomers = visibleCustomers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const customerReportColumns = [
+    { label: "Code", value: (row) => row.customer_code },
+    { label: "Customer", value: (row) => row.name },
+    { label: "Company", value: (row) => row.company_name || "—" },
+    { label: "Phone", value: (row) => row.phone || "—" },
+    { label: "Email", value: (row) => row.email || "—" },
+    { label: "Type", value: (row) => row.customer_type },
+    { label: "Purchases", value: (row) => Number(row.sale_count || 0) },
+    { label: "Net spent", value: (row) => money(row.net_spent, row.summary_currency || shop?.base_currency || "USD") },
+    { label: "Points", value: (row) => Number(row.loyalty_points || 0) },
+    { label: "Last purchase", value: (row) => dateOnly(row.last_purchase_at) },
+    { label: "Status", value: (row) => row.is_active ? "Active" : "Inactive" }
+  ];
+
+  function printCustomers() {
+    printListDocument({
+      title: "Customer List",
+      subtitle: `${visibleCustomers.length} customer(s)`,
+      summary: [
+        { label: "Type", value: typeFilter === "all" ? "All types" : typeFilter },
+        { label: "Status", value: statusFilter === "all" ? "All statuses" : statusFilter },
+        { label: "Search", value: search || "All customers" }
+      ],
+      columns: customerReportColumns,
+      rows: visibleCustomers
+    });
+  }
+
+  function exportCustomers() {
+    exportListExcel({
+      filename: `customers-${new Date().toISOString().slice(0, 10)}.xls`,
+      title: "Customer List",
+      subtitle: `${visibleCustomers.length} customer(s)`,
+      summary: [{ label: "Search", value: search || "All customers" }],
+      columns: customerReportColumns,
+      rows: visibleCustomers
+    });
+  }
 
   const summary = useMemo(() => {
     return customers.reduce(
@@ -378,6 +427,19 @@ export default function CustomersPage() {
         </select>
       </section>
 
+      <ListViewControls
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        totalRows={visibleCustomers.length}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        onExport={exportCustomers}
+        onPrint={printCustomers}
+      />
+
       <section className="panel customers-table-panel">
         <div className="customer-table-summary">
           <strong>{visibleCustomers.length}</strong>
@@ -396,127 +458,48 @@ export default function CustomersPage() {
             <p>Change the filters or add your first customer.</p>
           </div>
         ) : (
-          <div className="customers-table-wrap">
-            <table className="customers-table">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Contact</th>
-                  <th>Type</th>
-                  <th>Purchases</th>
-                  <th>Net spent</th>
-                  <th>Points</th>
-                  <th>Last purchase</th>
-                  <th>Status</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {visibleCustomers.map((customer) => (
+          viewMode === "cards" ? (
+            <div className="list-card-grid customer-card-grid">
+              {pagedCustomers.map((customer) => (
+                <article className="list-record-card" key={customer.id}>
+                  <header><button type="button" className="customer-name-button" onClick={() => openDetails(customer)}><span className="customer-avatar-small">{customer.name.slice(0, 1).toUpperCase()}</span><span><strong>{customer.name}</strong><small>{customer.customer_code}{customer.company_name ? ` · ${customer.company_name}` : ""}</small></span></button><span className={`status-pill ${customer.is_active ? "active" : "inactive"}`}>{customer.is_active ? "Active" : "Inactive"}</span></header>
+                  <div className="list-card-fields">
+                    <div><span>Contact</span><strong>{customer.phone || "—"}</strong><small>{customer.email || "No email"}</small></div>
+                    <div><span>Type</span><strong>{customer.customer_type}</strong></div>
+                    <div><span>Purchases</span><strong>{Number(customer.sale_count || 0).toLocaleString("en-US")}</strong></div>
+                    <div><span>Net spent</span><strong>{money(customer.net_spent, customer.summary_currency || summaryCurrency)}</strong></div>
+                    <div><span>Points</span><strong>{Number(customer.loyalty_points || 0).toLocaleString("en-US")}</strong></div>
+                    <div><span>Last purchase</span><strong>{dateOnly(customer.last_purchase_at)}</strong></div>
+                  </div>
+                  <div className="list-card-actions customer-row-actions">
+                    <button type="button" className="icon-button" title="Edit customer" onClick={() => openEdit(customer)}><Edit3 size={17} /></button>
+                    <button type="button" className="icon-button" title="Adjust loyalty points" onClick={() => setLoyaltyCustomer(customer)}><Gift size={17} /></button>
+                    <button type="button" className="icon-button" title={customer.is_active ? "Deactivate" : "Reactivate"} onClick={() => handleToggleStatus(customer)} disabled={busy}>{customer.is_active ? <UserX size={17} /> : <UserCheck size={17} />}</button>
+                    <button type="button" className="icon-button" title="View details" onClick={() => openDetails(customer)}><MoreHorizontal size={18} /></button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="customers-table-wrap wide-list-scroll">
+              <table className="customers-table">
+                <thead><tr><th>Customer</th><th>Contact</th><th>Type</th><th>Purchases</th><th>Net spent</th><th>Points</th><th>Last purchase</th><th>Status</th><th /></tr></thead>
+                <tbody>{pagedCustomers.map((customer) => (
                   <tr key={customer.id}>
-                    <td data-label="Customer">
-                      <button
-                        type="button"
-                        className="customer-name-button"
-                        onClick={() => openDetails(customer)}
-                      >
-                        <span className="customer-avatar-small">
-                          {customer.name.slice(0, 1).toUpperCase()}
-                        </span>
-                        <span>
-                          <strong>{customer.name}</strong>
-                          <small>
-                            {customer.customer_code}
-                            {customer.company_name
-                              ? ` · ${customer.company_name}`
-                              : ""}
-                          </small>
-                        </span>
-                      </button>
-                    </td>
-                    <td data-label="Contact">
-                      <span className="customer-contact-cell">
-                        <strong>{customer.phone || "—"}</strong>
-                        <small>{customer.email || "No email"}</small>
-                      </span>
-                    </td>
-                    <td data-label="Type">
-                      <span
-                        className={`customer-type-badge ${customer.customer_type}`}
-                      >
-                        {customer.customer_type}
-                      </span>
-                    </td>
-                    <td data-label="Purchases">
-                      {Number(customer.sale_count || 0).toLocaleString("en-US")}
-                    </td>
-                    <td data-label="Net spent">
-                      <strong>
-                        {money(
-                          customer.net_spent,
-                          customer.summary_currency || summaryCurrency
-                        )}
-                      </strong>
-                    </td>
-                    <td data-label="Points">
-                      {Number(customer.loyalty_points || 0).toLocaleString("en-US")}
-                    </td>
-                    <td data-label="Last purchase">
-                      {dateOnly(customer.last_purchase_at)}
-                    </td>
-                    <td data-label="Status">
-                      <span
-                        className={`status-pill ${customer.is_active ? "active" : "inactive"}`}
-                      >
-                        {customer.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td data-label="Actions">
-                      <div className="customer-row-actions">
-                        <button
-                          type="button"
-                          className="icon-button"
-                          title="Edit customer"
-                          onClick={() => openEdit(customer)}
-                        >
-                          <Edit3 size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          title="Adjust loyalty points"
-                          onClick={() => setLoyaltyCustomer(customer)}
-                        >
-                          <Gift size={17} />
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          title={customer.is_active ? "Deactivate" : "Reactivate"}
-                          onClick={() => handleToggleStatus(customer)}
-                          disabled={busy}
-                        >
-                          {customer.is_active ? (
-                            <UserX size={17} />
-                          ) : (
-                            <UserCheck size={17} />
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-button"
-                          title="View details"
-                          onClick={() => openDetails(customer)}
-                        >
-                          <MoreHorizontal size={18} />
-                        </button>
-                      </div>
-                    </td>
+                    <td data-label="Customer"><button type="button" className="customer-name-button" onClick={() => openDetails(customer)}><span className="customer-avatar-small">{customer.name.slice(0, 1).toUpperCase()}</span><span><strong>{customer.name}</strong><small>{customer.customer_code}{customer.company_name ? ` · ${customer.company_name}` : ""}</small></span></button></td>
+                    <td data-label="Contact"><span className="customer-contact-cell"><strong>{customer.phone || "—"}</strong><small>{customer.email || "No email"}</small></span></td>
+                    <td data-label="Type"><span className={`customer-type-badge ${customer.customer_type}`}>{customer.customer_type}</span></td>
+                    <td data-label="Purchases">{Number(customer.sale_count || 0).toLocaleString("en-US")}</td>
+                    <td data-label="Net spent"><strong>{money(customer.net_spent, customer.summary_currency || summaryCurrency)}</strong></td>
+                    <td data-label="Points">{Number(customer.loyalty_points || 0).toLocaleString("en-US")}</td>
+                    <td data-label="Last purchase">{dateOnly(customer.last_purchase_at)}</td>
+                    <td data-label="Status"><span className={`status-pill ${customer.is_active ? "active" : "inactive"}`}>{customer.is_active ? "Active" : "Inactive"}</span></td>
+                    <td data-label="Actions"><div className="customer-row-actions"><button type="button" className="icon-button" title="Edit customer" onClick={() => openEdit(customer)}><Edit3 size={17} /></button><button type="button" className="icon-button" title="Adjust loyalty points" onClick={() => setLoyaltyCustomer(customer)}><Gift size={17} /></button><button type="button" className="icon-button" title={customer.is_active ? "Deactivate" : "Reactivate"} onClick={() => handleToggleStatus(customer)} disabled={busy}>{customer.is_active ? <UserX size={17} /> : <UserCheck size={17} />}</button><button type="button" className="icon-button" title="View details" onClick={() => openDetails(customer)}><MoreHorizontal size={18} /></button></div></td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))}</tbody>
+              </table>
+            </div>
+          )
         )}
       </section>
 

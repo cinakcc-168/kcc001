@@ -1,7 +1,4 @@
 import {
-  ChevronLeft,
-  ChevronRight,
-  Download,
   Eye,
   FileSearch,
   RefreshCw,
@@ -17,11 +14,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import InvoiceDetailModal from "../components/InvoiceDetailModal";
 import ReceiptModal from "../components/ReceiptModal";
+import ListViewControls, { defaultListView } from "../components/ListViewControls";
+import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { money } from "../lib/catalog";
 import {
   buildInvoiceReceipt,
   defaultInvoiceDateRange,
-  downloadInvoiceCsv,
   invoiceDateTime,
   invoiceStatusLabel,
   loadInvoiceCenter,
@@ -68,7 +66,7 @@ export default function InvoicesPage() {
     cashier_id: "",
     branch_id: profile?.branch_id || "",
     page: 1,
-    page_size: 25
+    page_size: 30
   });
 
   const [staffOptions, setStaffOptions] = useState([]);
@@ -95,6 +93,7 @@ export default function InvoicesPage() {
     useState("");
   const [messageType, setMessageType] =
     useState("success");
+  const [viewMode, setViewMode] = useState(defaultListView);
 
   const refresh = useCallback(async () => {
     if (
@@ -318,31 +317,69 @@ export default function InvoicesPage() {
     navigate(`/returns?${params.toString()}`);
   }
 
-  async function exportCsv() {
+  const invoiceReportColumns = [
+    { label: "Invoice", value: (row) => row.invoice_number },
+    { label: "Date", value: (row) => invoiceDateTime(row.completed_at || row.created_at) },
+    { label: "Customer", value: (row) => row.customer?.name || "Walk-in" },
+    { label: "Phone / Code", value: (row) => row.customer?.phone || row.customer?.customer_code || "—" },
+    { label: "Branch", value: (row) => row.branch_name || profile?.branches?.name || "—" },
+    { label: "Payment", value: (row) => paymentMethodLabel(row.payment_method) },
+    { label: "Payment status", value: (row) => invoiceStatusLabel(row.payment_status) },
+    { label: "Sale status", value: (row) => invoiceStatusLabel(row.status) },
+    { label: "Gross", value: (row) => money(row.total_amount, row.currency) },
+    { label: "Refund", value: (row) => money(row.refunded_amount, row.currency) },
+    { label: "Net", value: (row) => money(row.net_total, row.currency) },
+    { label: "Credit due", value: (row) => money(row.credit_outstanding, row.currency) }
+  ];
+
+  async function loadInvoiceReportRows() {
+    const exportResult = await loadInvoiceCenter(supabase, {
+      ...filters,
+      page: 1,
+      page_size: 1000
+    });
+    return exportResult;
+  }
+
+  async function exportInvoices() {
     try {
       setExporting(true);
+      const exportResult = await loadInvoiceReportRows();
+      exportListExcel({
+        filename: `invoices-${filters.from}-${filters.to}.xls`,
+        title: "Invoice Center",
+        subtitle: `${filters.from} to ${filters.to}`,
+        summary: [
+          { label: "Matching invoices", value: exportResult.meta.total_rows || exportResult.rows.length },
+          { label: "Sold by / User", value: filters.cashier_id || "All users" },
+          { label: "Payment", value: filters.payment_method || "All methods" }
+        ],
+        columns: invoiceReportColumns,
+        rows: exportResult.rows
+      });
+      announce("success", `Exported ${exportResult.rows.length} invoice${exportResult.rows.length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
-      const exportResult =
-        await loadInvoiceCenter(
-          supabase,
-          {
-            ...filters,
-            page: 1,
-            page_size: 1000
-          }
-        );
-
-      downloadInvoiceCsv(
-        exportResult.rows,
-        `tiny-pos-invoices-${filters.from}-to-${filters.to}.csv`
-      );
-
-      announce(
-        "success",
-        exportResult.meta.total_rows > 1000
-          ? "Exported the first 1,000 matching invoices. Narrow the filters for a complete file."
-          : `Exported ${exportResult.rows.length} invoice${exportResult.rows.length === 1 ? "" : "s"}.`
-      );
+  async function printInvoices() {
+    try {
+      setExporting(true);
+      const exportResult = await loadInvoiceReportRows();
+      printListDocument({
+        title: "Invoice Center",
+        subtitle: `${filters.from} to ${filters.to} · ${exportResult.rows.length} invoice(s)`,
+        summary: [
+          { label: "Payment", value: filters.payment_method || "All methods" },
+          { label: "Sale status", value: filters.sale_status || "All statuses" },
+          { label: "Currency", value: filters.currency || "USD and KHR" }
+        ],
+        columns: invoiceReportColumns,
+        rows: exportResult.rows
+      });
     } catch (error) {
       announce("error", error.message);
     } finally {
@@ -377,22 +414,6 @@ export default function InvoicesPage() {
         </div>
 
         <div className="page-heading-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={exportCsv}
-            disabled={
-              exporting
-              || loading
-              || totalRows === 0
-            }
-          >
-            <Download size={18} />
-            {exporting
-              ? "Exporting..."
-              : "Export CSV"}
-          </button>
-
           <button
             type="button"
             className="secondary-button"
@@ -682,6 +703,20 @@ export default function InvoicesPage() {
         </label>
       </section>
 
+      <ListViewControls
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        pageSize={filters.page_size}
+        onPageSizeChange={(size) => setFilters((current) => ({ ...current, page_size: size, page: 1 }))}
+        totalRows={totalRows}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={(nextPage) => setFilters((current) => ({ ...current, page: nextPage }))}
+        onExport={exportInvoices}
+        onPrint={printInvoices}
+        exporting={exporting}
+      />
+
       <section className="panel invoice-table-panel">
         {loading ? (
           <div className="empty-state">
@@ -701,211 +736,45 @@ export default function InvoicesPage() {
             </p>
           </div>
         ) : (
-          <div className="invoice-table-wrap">
-            <table className="invoice-table">
-              <thead>
-                <tr>
-                  <th>Invoice</th>
-                  <th>Date</th>
-                  <th>Customer</th>
-                  {result.meta?.all_branches && (
-                    <th>Branch</th>
-                  )}
-                  <th>Payment</th>
-                  <th>Status</th>
-                  <th>Gross</th>
-                  <th>Refund</th>
-                  <th>Net</th>
-                  <th />
-                </tr>
-              </thead>
-
-              <tbody>
-                {result.rows.map((invoice) => (
+          viewMode === "cards" ? (
+            <div className="list-card-grid invoice-card-grid">
+              {result.rows.map((invoice) => (
+                <article className="list-record-card" key={invoice.id}>
+                  <header><div><strong>{invoice.invoice_number}</strong><small>{invoiceDateTime(invoice.completed_at || invoice.created_at)}</small></div><span className={`invoice-status ${invoice.status}`}>{invoiceStatusLabel(invoice.status)}</span></header>
+                  <div className="list-card-fields">
+                    <div><span>Customer</span><strong>{invoice.customer?.name || "Walk-in"}</strong><small>{invoice.customer?.phone || invoice.customer?.customer_code || "No profile"}</small></div>
+                    <div><span>Payment</span><strong>{paymentMethodLabel(invoice.payment_method)}</strong><small>{invoiceStatusLabel(invoice.payment_status)}</small></div>
+                    <div><span>Gross</span><strong>{money(invoice.total_amount, invoice.currency)}</strong></div>
+                    <div><span>Refund</span><strong>{money(invoice.refunded_amount, invoice.currency)}</strong></div>
+                    <div><span>Net</span><strong>{money(invoice.net_total, invoice.currency)}</strong>{Number(invoice.credit_outstanding) > 0 && <small>{money(invoice.credit_outstanding, invoice.currency)} due</small>}</div>
+                  </div>
+                  <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setSelected(invoice)}><Eye size={17} /> View invoice</button></div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="invoice-table-wrap wide-list-scroll">
+              <table className="invoice-table">
+                <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th>{result.meta?.all_branches && <th>Branch</th>}<th>Payment</th><th>Status</th><th>Gross</th><th>Refund</th><th>Net</th><th /></tr></thead>
+                <tbody>{result.rows.map((invoice) => (
                   <tr key={invoice.id}>
-                    <td data-label="Invoice">
-                      <strong>
-                        {invoice.invoice_number}
-                      </strong>
-
-                      {invoice.source_quote_number && (
-                        <small>
-                          Quote {invoice.source_quote_number}
-                        </small>
-                      )}
-                    </td>
-
-                    <td data-label="Date">
-                      {invoiceDateTime(
-                        invoice.completed_at
-                        || invoice.created_at
-                      )}
-                    </td>
-
-                    <td data-label="Customer">
-                      <strong>
-                        {invoice.customer?.name
-                          || "Walk-in"}
-                      </strong>
-                      <small>
-                        {invoice.customer?.phone
-                          || invoice.customer
-                            ?.customer_code
-                          || "No profile"}
-                      </small>
-                    </td>
-
-                    {result.meta?.all_branches && (
-                      <td data-label="Branch">
-                        {invoice.branch_name}
-                      </td>
-                    )}
-
-                    <td data-label="Payment">
-                      <strong>
-                        {paymentMethodLabel(
-                          invoice.payment_method
-                        )}
-                      </strong>
-                      <small>
-                        {invoiceStatusLabel(
-                          invoice.payment_status
-                        )}
-                      </small>
-                    </td>
-
-                    <td data-label="Status">
-                      <span
-                        className={`invoice-status ${invoice.status}`}
-                      >
-                        {invoiceStatusLabel(
-                          invoice.status
-                        )}
-                      </span>
-                    </td>
-
-                    <td data-label="Gross">
-                      {money(
-                        invoice.total_amount,
-                        invoice.currency
-                      )}
-                    </td>
-
-                    <td data-label="Refund">
-                      {money(
-                        invoice.refunded_amount,
-                        invoice.currency
-                      )}
-                    </td>
-
-                    <td data-label="Net">
-                      <strong>
-                        {money(
-                          invoice.net_total,
-                          invoice.currency
-                        )}
-                      </strong>
-
-                      {Number(
-                        invoice.credit_outstanding
-                      ) > 0 && (
-                        <small>
-                          {money(
-                            invoice.credit_outstanding,
-                            invoice.currency
-                          )}
-                          {" due"}
-                        </small>
-                      )}
-                    </td>
-
-                    <td data-label="View">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() =>
-                          setSelected(invoice)
-                        }
-                        title="View invoice details"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </td>
+                    <td data-label="Invoice"><strong>{invoice.invoice_number}</strong>{invoice.source_quote_number && <small>Quote {invoice.source_quote_number}</small>}</td>
+                    <td data-label="Date">{invoiceDateTime(invoice.completed_at || invoice.created_at)}</td>
+                    <td data-label="Customer"><strong>{invoice.customer?.name || "Walk-in"}</strong><small>{invoice.customer?.phone || invoice.customer?.customer_code || "No profile"}</small></td>
+                    {result.meta?.all_branches && <td data-label="Branch">{invoice.branch_name}</td>}
+                    <td data-label="Payment"><strong>{paymentMethodLabel(invoice.payment_method)}</strong><small>{invoiceStatusLabel(invoice.payment_status)}</small></td>
+                    <td data-label="Status"><span className={`invoice-status ${invoice.status}`}>{invoiceStatusLabel(invoice.status)}</span></td>
+                    <td data-label="Gross">{money(invoice.total_amount, invoice.currency)}</td>
+                    <td data-label="Refund">{money(invoice.refunded_amount, invoice.currency)}</td>
+                    <td data-label="Net"><strong>{money(invoice.net_total, invoice.currency)}</strong>{Number(invoice.credit_outstanding) > 0 && <small>{money(invoice.credit_outstanding, invoice.currency)} due</small>}</td>
+                    <td data-label="View"><button type="button" className="icon-button" onClick={() => setSelected(invoice)} title="View invoice details"><Eye size={18} /></button></td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                ))}</tbody>
+              </table>
+            </div>
+          )
         )}
 
-        <div className="invoice-pagination">
-          <span>{rangeLabel}</span>
-
-          <label>
-            <span>Rows</span>
-            <select
-              value={filters.page_size}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  page_size: Number(
-                    event.target.value
-                  ),
-                  page: 1
-                }))
-              }
-            >
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-          </label>
-
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() =>
-              setFilters((current) => ({
-                ...current,
-                page: Math.max(
-                  1,
-                  current.page - 1
-                )
-              }))
-            }
-            disabled={
-              loading || currentPage <= 1
-            }
-            title="Previous page"
-          >
-            <ChevronLeft size={19} />
-          </button>
-
-          <strong>
-            Page {currentPage} of {totalPages}
-          </strong>
-
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() =>
-              setFilters((current) => ({
-                ...current,
-                page: Math.min(
-                  totalPages,
-                  current.page + 1
-                )
-              }))
-            }
-            disabled={
-              loading
-              || currentPage >= totalPages
-            }
-            title="Next page"
-          >
-            <ChevronRight size={19} />
-          </button>
-        </div>
       </section>
 
       <InvoiceDetailModal
