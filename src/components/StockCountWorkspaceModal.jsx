@@ -9,6 +9,8 @@ import {
   XCircle
 } from "lucide-react";
 import Modal from "./Modal";
+import ListViewControls from "./ListViewControls";
+import { useListViewState } from "../lib/listViewState";
 import StockCountRow from "./StockCountRow";
 import { money } from "../lib/catalog";
 
@@ -43,6 +45,8 @@ export default function StockCountWorkspaceModal({
   onPrint,
   onClose
 }) {
+  const listState = useListViewState(visibleItems || [], "stock-count-workspace", 30);
+
   if (!session) return null;
 
   return (
@@ -95,7 +99,7 @@ export default function StockCountWorkspaceModal({
             onClick={onExport}
           >
             <Download size={18} />
-            Export CSV
+            Export Excel
           </button>
 
           <button
@@ -207,6 +211,20 @@ export default function StockCountWorkspaceModal({
             </select>
           </section>
 
+          <ListViewControls
+            viewMode={listState.viewMode}
+            onViewModeChange={listState.setViewMode}
+            pageSize={listState.pageSize}
+            onPageSizeChange={listState.setPageSize}
+            totalRows={listState.totalRows}
+            currentPage={listState.currentPage}
+            totalPages={listState.totalPages}
+            onPageChange={listState.setCurrentPage}
+            onExport={onExport}
+            onPrint={onPrint}
+            className="stock-count-list-controls"
+          />
+
           <section className="stock-count-table-panel panel-like">
             {loading ? (
               <div className="empty-state"><p>Loading count products...</p></div>
@@ -216,9 +234,9 @@ export default function StockCountWorkspaceModal({
                 <h2>No matching count items</h2>
                 <p>Change the search or filters.</p>
               </div>
-            ) : (
-              <div className="stock-count-table-wrap">
-                <table className="stock-count-table">
+            ) : listState.viewMode === "table" ? (
+              <div className="stock-count-table-wrap responsive-wide-table-wrap">
+                <table className="stock-count-table responsive-wide-table">
                   <thead>
                     <tr>
                       <th>Product</th>
@@ -232,17 +250,17 @@ export default function StockCountWorkspaceModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleItems.map((item) => (
-                      <StockCountRow
-                        key={item.id}
-                        item={item}
-                        blind={session.blind_count}
-                        busy={busy === "save-all"}
-                        onDraftChange={onDraftChange}
-                      />
+                    {listState.pageRows.map((item) => (
+                      <StockCountRow key={item.id} item={item} blind={session.blind_count} busy={busy === "save-all"} onDraftChange={onDraftChange} />
                     ))}
                   </tbody>
                 </table>
+              </div>
+            ) : (
+              <div className="responsive-data-card-grid stock-count-card-grid">
+                {listState.pageRows.map((item) => (
+                  <StockCountRow key={item.id} item={item} blind={session.blind_count} busy={busy === "save-all"} onDraftChange={onDraftChange} asCard />
+                ))}
               </div>
             )}
           </section>

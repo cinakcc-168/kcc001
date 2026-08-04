@@ -6,6 +6,7 @@ import { money, stockNumber } from "../lib/catalog";
 function today() { return new Date().toISOString().slice(0, 10); }
 
 export default function BatchFormModal({ open, products, busy, onClose, onSubmit }) {
+  const [categoryId, setCategoryId] = useState("all");
   const [productId, setProductId] = useState("");
   const [batchNumber, setBatchNumber] = useState("");
   const [receivedDate, setReceivedDate] = useState(today());
@@ -17,13 +18,31 @@ export default function BatchFormModal({ open, products, busy, onClose, onSubmit
   const [error, setError] = useState("");
 
   const tracked = useMemo(() => products.filter((p) => p.batch_tracking), [products]);
-  const product = tracked.find((p) => p.id === productId) || null;
+  const categories = useMemo(() => {
+    const map = new Map();
+    for (const productRow of tracked) {
+      if (productRow.categories?.id) map.set(productRow.categories.id, productRow.categories.name);
+    }
+    return [...map.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  }, [tracked]);
+  const selectableProducts = useMemo(
+    () => tracked.filter((productRow) => categoryId === "all" || productRow.categories?.id === categoryId),
+    [tracked, categoryId]
+  );
+  const product = selectableProducts.find((p) => p.id === productId) || null;
 
   useEffect(() => {
     if (!open) return;
-    setProductId(tracked[0]?.id || ""); setBatchNumber(""); setReceivedDate(today());
+    setCategoryId("all"); setProductId(tracked[0]?.id || ""); setBatchNumber(""); setReceivedDate(today());
     setExpiryDate(""); setQuantity(""); setUnitCost(""); setAssignExisting(true); setNotes(""); setError("");
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (!selectableProducts.some((row) => row.id === productId)) {
+      setProductId(selectableProducts[0]?.id || "");
+    }
+  }, [open, categoryId, selectableProducts, productId]);
 
   useEffect(() => {
     if (!product) return;
@@ -47,9 +66,15 @@ export default function BatchFormModal({ open, products, busy, onClose, onSubmit
 
   return <Modal title="Add inventory batch" onClose={onClose}>
     <form className="batch-form" onSubmit={submit}>
-      <label><span>Product</span><select value={productId} onChange={(e) => setProductId(e.target.value)}>
-        {tracked.map((p) => <option key={p.id} value={p.id}>{p.name} · {stockNumber(p.stock_quantity)} {p.unit_name}</option>)}
-      </select></label>
+      <div className="form-grid two batch-product-picker">
+        <label><span>Category</span><select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <option value="all">All categories</option>
+          {categories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+        </select></label>
+        <label><span>Product</span><select value={productId} onChange={(e) => setProductId(e.target.value)}>
+          {selectableProducts.map((p) => <option key={p.id} value={p.id}>{p.name} · {stockNumber(p.stock_quantity)} {p.unit_name}</option>)}
+        </select></label>
+      </div>
       {tracked.length === 0 && <div className="notice warning">Enable Batch Tracking in Product Management first.</div>}
       <div className="form-grid two">
         <label><span>Batch / lot number</span><input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} /></label>
