@@ -2904,3 +2904,101 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
     grid-template-columns:30px minmax(290px,1fr) 145px 174px;
   }
 }
+
+/* ===== Step 46.4.8 - Responsive lists, card/table switch, print & fitted export ===== */
+.list-view-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:15px;background:var(--surface)}
+.list-view-mode{display:flex;gap:5px;padding:3px;border-radius:12px;background:var(--surface2)}
+.list-view-mode button{min-height:36px;border:0;border-radius:9px;background:transparent;color:var(--muted);padding:0 11px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:800}
+.list-view-mode button.active{background:var(--accent);color:#fff;box-shadow:0 6px 15px color-mix(in srgb,var(--accent) 24%,transparent)}
+.list-row-size{display:flex;align-items:center;gap:7px;margin-left:auto}
+.list-row-size>span{color:var(--muted);font-size:12px;font-weight:800}
+.list-row-size select{min-width:76px;min-height:38px;padding:0 24px 0 10px;text-align:center;text-align-last:center}
+.list-document-actions{display:flex;align-items:center;gap:7px}
+.list-pagination{display:flex;align-items:center;gap:7px;padding-left:4px}
+.list-pagination span{min-width:54px;text-align:center;color:var(--muted);font-size:12px;font-weight:800}
+.list-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:13px}
+.list-record-card{border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:14px;display:grid;gap:13px;min-width:0}
+.list-record-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.list-record-card>header>div,.list-record-card>header>button>span:last-child{display:grid;gap:3px;min-width:0}
+.list-record-card>header strong{overflow-wrap:anywhere}
+.list-record-card small{color:var(--muted)}
+.list-card-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.list-card-fields>div{display:grid;gap:3px;min-width:0;padding:9px;border:1px solid var(--border);border-radius:11px;background:var(--surface2)}
+.list-card-fields span{color:var(--muted);font-size:11px}
+.list-card-fields strong{font-size:13px;overflow-wrap:anywhere}
+.list-card-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.wide-list-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.wide-list-scroll table{min-width:980px;width:100%}
+.wide-list-scroll th,.wide-list-scroll td{white-space:normal;vertical-align:top}
+.returnable-sales-table{min-width:1040px!important}
+.compact-return-card .return-sale-items{display:none!important}
+.catalog-action-row{display:flex;align-items:center;gap:8px;justify-content:flex-start}
+.catalog-action-row .icon-button{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;margin:0}
+.catalog-sort-select{min-height:44px;text-align:center;text-align-last:center}
+.product-directory-card .product-cell{min-width:0}
+.product-directory-card .product-thumb img{width:100%;height:100%;object-fit:contain;padding:3px}
+.product-directory-card-grid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.customer-card-grid,.credit-card-grid,.invoice-card-grid,.quote-card-grid,.refund-history-card-grid{align-items:start}
+
+/* CRM mobile recovery */
+.crm-page{min-width:0}
+.crm-page .page-heading{min-width:0}
+.crm-page .page-heading>div{min-width:0}
+.crm-page .page-heading h1,.crm-page .page-heading p{overflow-wrap:anywhere}
+.crm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.crm-metrics .metric-card{min-width:0;padding:14px;display:grid;gap:5px}
+.crm-page .page-tabs{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:thin}
+.crm-page .page-tabs button{white-space:nowrap;flex:0 0 auto}
+.crm-page .toolbar{display:grid;grid-template-columns:minmax(260px,1fr) minmax(190px,260px);gap:10px}
+.crm-page .responsive-table{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.crm-page .responsive-table table{min-width:980px}
+.crm-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+
+#tiny-pos-list-print-root{display:none}
+@media print{
+  body:has(#tiny-pos-list-print-root)>*:not(#tiny-pos-list-print-root){display:none!important}
+  #tiny-pos-list-print-root{display:block!important;position:fixed;inset:0;z-index:2147483647;background:#fff;color:#111;padding:0;font-family:"Noto Sans Khmer",Arial,sans-serif}
+  #tiny-pos-list-print-root .print-report-header h1{margin:0 0 4px}
+  #tiny-pos-list-print-root .print-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:10px 0}
+  #tiny-pos-list-print-root .print-summary div{border:1px solid #ccd3dc;padding:6px;display:grid;gap:2px}
+  #tiny-pos-list-print-root .print-report-table{width:100%;border-collapse:collapse;table-layout:auto}
+  #tiny-pos-list-print-root .print-report-table th,#tiny-pos-list-print-root .print-report-table td{border:1px solid #ccd3dc;padding:4px;font-size:8px;overflow-wrap:anywhere}
+  #tiny-pos-list-print-root .print-report-table th{background:#2563eb!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #tiny-pos-list-print-root .print-report-table thead{display:table-header-group}
+  #tiny-pos-list-print-root .print-report-table tr{break-inside:avoid}
+  #tiny-pos-list-print-root footer{margin-top:8px;text-align:right;font-size:7px;color:#555}
+}
+
+@media(max-width:760px){
+  .list-view-controls{align-items:stretch;padding:9px}
+  .list-view-mode{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .list-view-mode button{width:100%}
+  .list-row-size{margin-left:0;flex:1;justify-content:flex-start}
+  .list-row-size select{flex:1}
+  .list-document-actions{flex:1;justify-content:flex-end}
+  .list-document-actions .secondary-button{font-size:0;min-width:42px;padding-inline:0;display:grid;place-items:center}
+  .list-document-actions .secondary-button svg{margin:0}
+  .list-pagination{width:100%;justify-content:center;border-top:1px solid var(--border);padding-top:8px}
+  .list-card-grid,.product-directory-card-grid{grid-template-columns:1fr}
+  .list-record-card{padding:12px}
+  .list-card-fields{grid-template-columns:1fr 1fr}
+  .wide-list-scroll table,.wide-list-scroll table tbody,.wide-list-scroll table tr,.wide-list-scroll table th,.wide-list-scroll table td{display:table-row-group!important}
+  .wide-list-scroll table{display:table!important;min-width:980px!important}
+  .wide-list-scroll thead{display:table-header-group!important}
+  .wide-list-scroll tbody{display:table-row-group!important}
+  .wide-list-scroll tr{display:table-row!important;width:auto!important;padding:0!important;border:0!important}
+  .wide-list-scroll th,.wide-list-scroll td{display:table-cell!important;width:auto!important;padding:9px 10px!important;border-bottom:1px solid var(--border)!important;text-align:left!important}
+  .wide-list-scroll td:before{display:none!important;content:none!important}
+  .catalog-toolbar{grid-template-columns:1fr!important}
+  .catalog-action-row{display:grid;grid-template-columns:repeat(3,44px);justify-content:start;width:100%}
+  .catalog-sort-select{width:100%}
+  .crm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .crm-page .toolbar{grid-template-columns:1fr}
+  .crm-page .section-heading{align-items:stretch;flex-direction:column}
+  .crm-page .section-heading .primary-button{width:100%}
+  .crm-card-grid{grid-template-columns:1fr}
+}
+@media(max-width:460px){
+  .list-card-fields{grid-template-columns:1fr}
+  .crm-metrics{grid-template-columns:1fr 1fr}
+}
