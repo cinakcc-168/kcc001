@@ -90,3 +90,35 @@ export function telegramDateTime(value) {
     timeStyle: "short"
   }).format(new Date(value));
 }
+
+export async function notifyTelegramEvent(
+  session,
+  eventType,
+  entityId
+) {
+  if (!session?.access_token || !eventType || !entityId) return null;
+
+  try {
+    const response = await fetch("/api/telegram-event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({
+        event_type: eventType,
+        entity_id: entityId
+      })
+    });
+
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error || "Telegram event dispatch failed.");
+    }
+    return body;
+  } catch (error) {
+    // The database outbox remains pending and the scheduled dispatcher retries.
+    console.warn("Tiny POS Telegram event queued for retry:", error.message);
+    return null;
+  }
+}

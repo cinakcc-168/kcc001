@@ -1,13 +1,25 @@
+function padDatePart(value) {
+  return String(value).padStart(2, "0");
+}
+
 export function isoDate(value = new Date()) {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
   const date = value instanceof Date ? value : new Date(value);
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
 }
 
 export function monthRange(value = new Date()) {
-  const date = value instanceof Date ? value : new Date(value);
-  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
-  return { start: isoDate(start), end: isoDate(end) };
+  const source = typeof value === "string" && /^\d{4}-\d{2}/.test(value)
+    ? value.slice(0, 7)
+    : `${new Date(value).getFullYear()}-${padDatePart(new Date(value).getMonth() + 1)}`;
+  const [year, month] = source.split("-").map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${year}-${padDatePart(month)}-01`,
+    end: `${year}-${padDatePart(month)}-${padDatePart(lastDay)}`
+  };
 }
 
 export function staffDateTime(value) {
@@ -52,10 +64,20 @@ export function attendanceStatusLabel(value) {
     absent: "Absent",
     day_off: "Day off",
     worked_day_off: "Worked on day off",
-    leave: "Leave",
+    leave: "Approved leave",
     scheduled: "Scheduled"
   };
   return labels[value] || String(value || "—").replaceAll("_", " ");
+}
+
+export function leaveStatusLabel(value) {
+  const labels = {
+    pending: "Pending",
+    approved: "Approved",
+    rejected: "Rejected",
+    cancelled: "Cancelled"
+  };
+  return labels[value] || String(value || "—");
 }
 
 export async function getMyAttendanceStatus(supabase) {
@@ -148,34 +170,82 @@ export async function recordCommissionPayout(supabase, values) {
   return data;
 }
 
-function csvCell(value) {
-  const text = value === null || value === undefined ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
+async function uploadLeaveImage(session, file) {
+  if (!file) return { image_url: null, image_public_id: null };
+  if (!session?.access_token) throw new Error("Authentication required for image upload.");
+
+  const signatureResponse = await fetch("/api/staff-file-signature", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({ purpose: "leave-request" })
+  });
+  const signed = await signatureResponse.json().catch(() => ({}));
+  if (!signatureResponse.ok || !signed.ok) {
+    throw new Error(signed.error || "Could not prepare the leave image upload.");
+  }
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("api_key", signed.apiKey);
+  form.append("timestamp", String(signed.timestamp));
+  form.append("folder", signed.folder);
+  form.append("public_id", signed.publicId);
+  form.append("signature", signed.signature);
+
+  const uploadResponse = await fetch(
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/image/upload`,
+    { method: "POST", body: form }
+  );
+  const uploaded = await uploadResponse.json().catch(() => ({}));
+  if (!uploadResponse.ok || !uploaded.secure_url) {
+    throw new Error(uploaded.error?.message || "Could not upload the leave image.");
+  }
+
+  return {
+    image_url: uploaded.secure_url,
+    image_public_id: uploaded.public_id
+  };
 }
 
-export function downloadStaffCsv(filename, columns, rows, summary = []) {
-  const lines = [];
-  for (const item of summary) {
-    lines.push([csvCell(item.label), csvCell(item.value)].join(","));
-  }
-  if (summary.length) lines.push("");
-  lines.push(columns.map((column) => csvCell(column.label)).join(","));
-  for (const row of rows) {
-    lines.push(columns.map((column) => csvCell(
-      typeof column.value === "function" ? column.value(row) : row[column.value]
-    )).join(","));
-  }
-  const blob = new Blob(["\ufeff", lines.join("\r\n")], {
-    type: "text/csv;charset=utf-8"
+export async function submitLeaveRequest(supabase, session, values) {
+  const image = await uploadLeaveImage(session, values.file);
+  const { data, error } = await supabase.rpc("submit_my_leave_request", {
+    p_date_from: values.date_from,
+    p_date_to: values.date_to,
+    p_leave_type: values.leave_type,
+    p_reason: values.reason,
+    p_image_url: image.image_url,
+    p_image_public_id: image.image_public_id
   });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  if (error) throw error;
+  return data;
+}
+
+export async function reviewLeaveRequest(supabase, requestId, status, reviewNote = "") {
+  const { data, error } = await supabase.rpc("review_leave_request", {
+    p_request_id: requestId,
+    p_status: status,
+    p_review_note: String(reviewNote || "").trim() || null
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function cancelLeaveRequest(supabase, requestId) {
+  const { data, error } = await supabase.rpc("cancel_my_leave_request", {
+    p_request_id: requestId
+  });
+  if (error) throw error;
+  return data;
+}
+
+function cellValue(column, row) {
+  return typeof column.value === "function"
+    ? column.value(row)
+    : row[column.value];
 }
 
 function escapeHtml(value) {
@@ -187,49 +257,162 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-export function printStaffReport({ title, subtitle = "", summary = [], columns, rows }) {
-  const frame = document.createElement("iframe");
-  frame.setAttribute("aria-hidden", "true");
-  frame.style.position = "fixed";
-  frame.style.right = "0";
-  frame.style.bottom = "0";
-  frame.style.width = "1px";
-  frame.style.height = "1px";
-  frame.style.opacity = "0";
-  frame.style.pointerEvents = "none";
-  document.body.appendChild(frame);
+function escapeXml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+export function printStaffReport({
+  title,
+  subtitle = "",
+  summary = [],
+  columns,
+  rows,
+  orientation = "landscape"
+}) {
+  document.getElementById("tiny-pos-print-root")?.remove();
+
+  const root = document.createElement("section");
+  root.id = "tiny-pos-print-root";
+  root.className = `tiny-pos-print-root print-${orientation}${columns.length > 18 ? " print-many-columns" : ""}`;
 
   const summaryHtml = summary.length
-    ? `<section class="summary">${summary.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}</section>`
+    ? `<section class="print-summary">${summary.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}</section>`
     : "";
   const head = columns.map((column) => `<th>${escapeHtml(column.label)}</th>`).join("");
   const body = rows.length
-    ? rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(typeof column.value === "function" ? column.value(row) : row[column.value])}</td>`).join("")}</tr>`).join("")
+    ? rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(cellValue(column, row))}</td>`).join("")}</tr>`).join("")
     : `<tr><td colspan="${columns.length}">No records in the selected period.</td></tr>`;
-  const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>
-    @page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,"Noto Sans Khmer",sans-serif;color:#162033;margin:0;font-size:11px}h1{font-size:22px;margin:0 0 4px}p{margin:0 0 14px;color:#5e6b80}.summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin:12px 0}.summary div{border:1px solid #cad3df;border-radius:6px;padding:7px}.summary span{display:block;color:#667085;font-size:9px}.summary strong{display:block;margin-top:3px;font-size:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #aeb9c8;padding:6px 7px;text-align:left;vertical-align:top}th{background:#edf3f8;font-weight:700}tbody tr:nth-child(even){background:#f8fafc}.footer{margin-top:10px;color:#667085;font-size:9px}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-  </style></head><body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p>${summaryHtml}<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><div class="footer">Printed ${escapeHtml(new Date().toLocaleString())}</div></body></html>`;
 
-  const printWindow = frame.contentWindow;
-  const printDocument = frame.contentDocument || printWindow?.document;
-  if (!printWindow || !printDocument) {
-    frame.remove();
-    throw new Error("This browser could not open the print document.");
+  root.innerHTML = `
+    <header class="print-report-header">
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(subtitle)}</p>
+    </header>
+    ${summaryHtml}
+    <table class="print-report-table">
+      <thead><tr>${head}</tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    <footer>Printed ${escapeHtml(new Date().toLocaleString())}</footer>
+  `;
+
+  document.body.appendChild(root);
+  void root.offsetHeight;
+
+  const cleanup = () => root.remove();
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.setTimeout(cleanup, 300000);
+  window.print();
+}
+
+function columnWidth(column, rows) {
+  if (Number(column.width) > 0) return Number(column.width);
+  let length = String(column.label || "").length;
+  for (const row of rows.slice(0, 300)) {
+    length = Math.max(length, String(cellValue(column, row) ?? "").length);
   }
-  printDocument.open();
-  printDocument.write(documentHtml);
-  printDocument.close();
-  window.setTimeout(() => {
-    printWindow.focus();
-    printWindow.print();
-    window.setTimeout(() => frame.remove(), 1200);
-  }, 250);
+  return Math.min(260, Math.max(70, length * 7.2 + 18));
+}
+
+export function downloadStaffExcel(filename, columns, rows, summary = [], title = "Tiny POS Report") {
+  const summaryRows = summary.map((item) => `
+    <Row>
+      <Cell ss:StyleID="SummaryLabel"><Data ss:Type="String">${escapeXml(item.label)}</Data></Cell>
+      <Cell ss:StyleID="SummaryValue"><Data ss:Type="String">${escapeXml(item.value)}</Data></Cell>
+    </Row>`).join("");
+  const columnsXml = columns.map((column) => `<Column ss:AutoFitWidth="0" ss:Width="${columnWidth(column, rows).toFixed(0)}"/>`).join("");
+  const header = columns.map((column) => `<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(column.label)}</Data></Cell>`).join("");
+  const body = rows.map((row) => `<Row>${columns.map((column) => `<Cell ss:StyleID="Body"><Data ss:Type="String">${escapeXml(cellValue(column, row))}</Data></Cell>`).join("")}</Row>`).join("");
+
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
+  <Style ss:ID="Title"><Font ss:Bold="1" ss:Size="16"/><Alignment ss:WrapText="1"/></Style>
+  <Style ss:ID="SummaryLabel"><Font ss:Bold="1"/><Interior ss:Color="#F2F4F7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="SummaryValue"><Alignment ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="Header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#2563EB" ss:Pattern="Solid"/><Alignment ss:WrapText="1" ss:Horizontal="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="Body"><Alignment ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D0D5DD"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D0D5DD"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D0D5DD"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#D0D5DD"/></Borders></Style>
+ </Styles>
+ <Worksheet ss:Name="Report">
+  <Table>
+   ${columnsXml}
+   <Row><Cell ss:MergeAcross="${Math.max(0, columns.length - 1)}" ss:StyleID="Title"><Data ss:Type="String">${escapeXml(title)}</Data></Cell></Row>
+   ${summaryRows}
+   ${summary.length ? "<Row/>" : ""}
+   <Row>${header}</Row>
+   ${body}
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane><ProtectObjects>False</ProtectObjects><ProtectScenarios>False</ProtectScenarios></WorksheetOptions>
+ </Worksheet>
+</Workbook>`;
+
+  const blob = new Blob(["\ufeff", xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename.endsWith(".xls") ? filename : `${filename}.xls`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function buildDayOffMatrix(attendanceRows, staffRows, dateFrom, dateTo) {
+  const dates = [];
+  const first = new Date(`${dateFrom}T00:00:00Z`);
+  const last = new Date(`${dateTo}T00:00:00Z`);
+  for (let value = first; value <= last; value.setUTCDate(value.getUTCDate() + 1)) {
+    dates.push(value.toISOString().slice(0, 10));
+  }
+  const byStaffDate = new Map(attendanceRows.map((row) => [`${row.user_id}:${row.business_date}`, row]));
+  const rows = staffRows.map((staff, index) => {
+    const row = {
+      number: index + 1,
+      system_id: String(staff.id || "").slice(0, 8),
+      full_name: staff.full_name,
+      position: staff.role
+    };
+    for (const date of dates) {
+      const attendance = byStaffDate.get(`${staff.id}:${date}`);
+      const status = attendance?.attendance_status;
+      row[date] = status === "day_off" || status === "worked_day_off"
+        ? "Day Off"
+        : status === "leave"
+          ? "Approved Leave"
+          : status === "absent"
+            ? "Absent"
+            : "Working day";
+    }
+    return row;
+  });
+  return {
+    columns: [
+      { label: "No", value: "number", width: 42 },
+      { label: "System ID", value: "system_id", width: 76 },
+      { label: "Employee Name", value: "full_name", width: 145 },
+      { label: "Position", value: "position", width: 105 },
+      ...dates.map((date) => ({ label: String(Number(date.slice(8, 10))), value: date, width: 50 }))
+    ],
+    rows
+  };
 }
 
 export async function loadStaffOperations(supabase, profile, access, filters) {
-  const canManageAttendance = Boolean(access?.permissions?.["*"] || access?.permissions?.["attendance.manage"]);
-  const canManageCommissions = Boolean(access?.permissions?.["*"] || access?.permissions?.["commissions.manage"]);
-  const userId = canManageAttendance || canManageCommissions
+  const permissions = access?.permissions || {};
+  const canManageAttendance = Boolean(permissions["*"] || permissions["attendance.manage"]);
+  const canManageCommissions = Boolean(permissions["*"] || permissions["commissions.manage"]);
+  const canManageLeave = Boolean(permissions["*"] || permissions["leave.manage"] || permissions["attendance.manage"]);
+  const userId = canManageAttendance || canManageCommissions || canManageLeave
     ? filters.user_id || null
     : profile.id;
   const branchId = filters.branch_id || null;
@@ -244,7 +427,7 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     .gte("business_date", filters.date_from)
     .lte("business_date", filters.date_to)
     .order("check_in_at", { ascending: false })
-    .limit(500);
+    .limit(1000);
   if (userId) attendanceQuery = attendanceQuery.eq("user_id", userId);
   if (branchId) attendanceQuery = attendanceQuery.eq("branch_id", branchId);
 
@@ -259,7 +442,7 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     .gte("sale_completed_at", `${filters.date_from}T00:00:00`)
     .lte("sale_completed_at", `${filters.date_to}T23:59:59.999`)
     .order("sale_completed_at", { ascending: false })
-    .limit(1000);
+    .limit(2000);
   if (userId) commissionQuery = commissionQuery.eq("cashier_id", userId);
   if (branchId) commissionQuery = commissionQuery.eq("branch_id", branchId);
 
@@ -273,9 +456,24 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     .gte("period_start", filters.date_from)
     .lte("period_end", filters.date_to)
     .order("paid_at", { ascending: false })
-    .limit(500);
+    .limit(1000);
   if (userId) payoutQuery = payoutQuery.eq("user_id", userId);
   if (branchId) payoutQuery = payoutQuery.eq("branch_id", branchId);
+
+  let leaveQuery = supabase
+    .from("staff_leave_requests")
+    .select(`
+      *,
+      profiles!staff_leave_requests_user_id_fkey(id,full_name,role,branch_id),
+      branches(id,name,code),
+      reviewer:profiles!staff_leave_requests_reviewed_by_fkey(id,full_name)
+    `)
+    .lte("date_from", filters.date_to)
+    .gte("date_to", filters.date_from)
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  if (userId) leaveQuery = leaveQuery.eq("user_id", userId);
+  if (branchId) leaveQuery = leaveQuery.eq("branch_id", branchId);
 
   const attendanceReportRequest = supabase.rpc("get_attendance_report", {
     p_date_from: filters.date_from,
@@ -292,7 +490,8 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     payoutResult,
     planResult,
     staffResult,
-    branchResult
+    branchResult,
+    leaveResult
   ] = await Promise.all([
     getMyAttendanceStatus(supabase),
     attendanceQuery,
@@ -302,10 +501,11 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     canManageCommissions
       ? supabase.from("commission_plans").select(`*,profiles!commission_plans_user_id_fkey(id,full_name,role),branches(id,name,code)`).order("created_at", { ascending: false })
       : supabase.from("commission_plans").select(`*,branches(id,name,code)`).eq("user_id", profile.id).order("created_at", { ascending: false }),
-    (canManageAttendance || canManageCommissions)
+    (canManageAttendance || canManageCommissions || canManageLeave)
       ? supabase.from("profiles").select("id,full_name,role,branch_id,is_active").eq("organization_id", profile.organization_id).eq("is_active", true).order("full_name")
       : Promise.resolve({ data: [profile], error: null }),
-    supabase.from("branches").select("id,name,code,is_active,latitude,longitude,attendance_radius_m,attendance_geofence_required").eq("organization_id", profile.organization_id).eq("is_active", true).order("name")
+    supabase.from("branches").select("id,name,code,is_active,latitude,longitude,attendance_radius_m,attendance_geofence_required").eq("organization_id", profile.organization_id).eq("is_active", true).order("name"),
+    leaveQuery
   ]);
 
   for (const result of [
@@ -315,7 +515,8 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     payoutResult,
     planResult,
     staffResult,
-    branchResult
+    branchResult,
+    leaveResult
   ]) {
     if (result.error) throw result.error;
   }
@@ -328,6 +529,7 @@ export async function loadStaffOperations(supabase, profile, access, filters) {
     payouts: payoutResult.data || [],
     plans: planResult.data || [],
     staff: staffResult.data || [],
-    branches: branchResult.data || []
+    branches: branchResult.data || [],
+    leaveRequests: leaveResult.data || []
   };
 }
