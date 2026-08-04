@@ -2394,3 +2394,187 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
   .side-new-sale-link{min-height:52px!important;font-size:17px}
   .shell.collapsed .side-submenu{display:grid!important}
 }
+
+/* ========================================================================== */
+/* Step 46.4.5 — Telegram role isolation, Take Leave, mobile staff reports    */
+/* ========================================================================== */
+.staff-horizontal-scroll{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-inline:contain;
+  border:1px solid var(--border);
+  border-radius:14px;
+}
+.staff-horizontal-scroll table{
+  width:100%;
+  min-width:1040px;
+  border-collapse:collapse;
+  background:var(--surface);
+}
+.staff-horizontal-scroll th,
+.staff-horizontal-scroll td{
+  padding:11px 12px;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  vertical-align:top;
+  white-space:nowrap;
+}
+.staff-horizontal-scroll th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:var(--surface2);
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+}
+.staff-horizontal-scroll td>small,
+.staff-horizontal-scroll td>strong{display:block}
+.staff-horizontal-scroll td>small{margin-top:3px;color:var(--muted)}
+.take-leave-table table{min-width:1480px}
+.leave-reason-cell{min-width:240px;max-width:380px;white-space:normal!important;overflow-wrap:anywhere;line-height:1.45}
+.leave-image-link{display:inline-flex;align-items:center;gap:6px;font-weight:800;color:var(--accent);white-space:nowrap}
+.leave-row-actions{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.success-icon-button,.danger-icon-button{
+  width:38px;height:38px;padding:0;border-radius:10px;background:var(--surface);display:grid;place-items:center;cursor:pointer
+}
+.success-icon-button{border:1px solid color-mix(in srgb,var(--success) 45%,var(--border));color:var(--success)}
+.danger-icon-button{border:1px solid color-mix(in srgb,var(--danger) 45%,var(--border));color:var(--danger)}
+.compact-button{min-height:38px!important;padding:0 10px!important}
+.staff-report-panel{min-width:0;overflow:hidden}
+.staff-table-tools{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+.staff-page-size{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;font-weight:800}
+.staff-page-size select{width:84px;min-height:38px;padding:0 30px 0 10px}
+.staff-pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding-top:14px}
+.staff-pagination span{color:var(--muted);font-size:13px}
+.staff-pagination button{min-width:92px}
+.status-pill.leave-pending{background:color-mix(in srgb,#d97706 12%,transparent);color:#b45309}
+.status-pill.leave-approved{background:color-mix(in srgb,var(--success) 12%,transparent);color:var(--success)}
+.status-pill.leave-rejected{background:color-mix(in srgb,var(--danger) 11%,transparent);color:var(--danger)}
+.status-pill.leave-cancelled{background:var(--surface2);color:var(--muted)}
+.leave-request-form{display:grid;gap:16px}
+.leave-request-intro{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid color-mix(in srgb,var(--accent) 25%,var(--border));border-radius:14px;background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.leave-request-intro>svg{flex:0 0 auto;color:var(--accent)}
+.leave-request-intro>div{display:grid;gap:4px}
+.leave-request-intro span{color:var(--muted);line-height:1.45}
+.leave-request-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.leave-request-grid label,.leave-request-form>label{display:grid;gap:6px}
+.leave-request-grid label>span:first-child,.leave-request-form>label>span:first-child{font-weight:800}
+.leave-picture-field input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.leave-file-button{width:100%;min-height:44px;justify-content:center;cursor:pointer}
+.leave-image-preview{display:grid;grid-template-columns:90px minmax(0,1fr);align-items:center;gap:12px;padding:10px;border:1px solid var(--border);border-radius:13px;background:var(--surface2);color:var(--text)}
+.leave-image-preview img{width:90px;height:70px;object-fit:cover;border-radius:9px}
+.leave-image-preview span{color:var(--muted);font-weight:700}
+
+.tiny-pos-print-root{display:none}
+.tiny-pos-print-root .print-report-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding-bottom:10px;border-bottom:2px solid #111}
+.tiny-pos-print-root .print-report-header h1{margin:0;font-size:24px}
+.tiny-pos-print-root .print-report-header p{margin:0;text-align:right;color:#444}
+.tiny-pos-print-root .print-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
+.tiny-pos-print-root .print-summary>div{padding:7px 9px;border:1px solid #bbb;display:grid;gap:2px;break-inside:avoid}
+.tiny-pos-print-root .print-summary span{font-size:9px;color:#555;text-transform:uppercase}
+.tiny-pos-print-root .print-report-table{width:100%;border-collapse:collapse;table-layout:auto}
+.tiny-pos-print-root .print-report-table th,.tiny-pos-print-root .print-report-table td{padding:5px 6px;border:1px solid #888;text-align:left;vertical-align:top;font-size:9px;overflow-wrap:anywhere}
+.tiny-pos-print-root .print-report-table th{background:#eaf2f8;font-weight:800}
+.tiny-pos-print-root footer{margin-top:8px;color:#555;text-align:right;font-size:8px}
+
+@media(max-width:800px){
+  .staff-operations-page{gap:12px;padding-bottom:90px}
+  .staff-operations-page .page-heading{align-items:flex-start}
+  .staff-operations-page .page-heading h1{font-size:25px;line-height:1.15}
+  .attendance-clock-card{grid-template-columns:48px minmax(0,1fr)!important;gap:10px;padding:14px;border-radius:16px}
+  .attendance-clock-icon{width:46px;height:46px}
+  .attendance-clock-copy{min-width:0}
+  .attendance-clock-copy strong{font-size:18px;overflow-wrap:anywhere}
+  .attendance-note,.attendance-clock-card>button{grid-column:1/-1!important;width:100%}
+  .attendance-clock-card>button{min-height:48px;justify-content:center}
+  .staff-tabs{
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    gap:7px;
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+    padding:2px 0 5px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  .staff-tabs button{flex:0 0 auto;min-height:44px;white-space:nowrap;padding:0 12px}
+  .staff-filter-panel{padding:12px}
+  .staff-filters{grid-template-columns:1fr!important;gap:10px}
+  .staff-report-toolbar{gap:10px}
+  .staff-report-toolbar>span{line-height:1.5;overflow-wrap:anywhere}
+  .staff-report-toolbar>div{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%;gap:8px}
+  .staff-report-toolbar>div button{width:100%;min-width:0;justify-content:center;padding-inline:8px}
+  .staff-report-toolbar>div button:first-child{grid-column:1/-1}
+  .staff-metric-grid,
+  .attendance-metric-grid,
+  .leave-metric-grid{
+    display:flex!important;
+    grid-template-columns:none!important;
+    gap:8px;
+    overflow-x:auto;
+    padding-bottom:4px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .staff-metric-grid article,
+  .attendance-metric-grid article,
+  .leave-metric-grid article{flex:0 0 145px;min-height:96px;padding:13px}
+  .staff-report-panel{padding:12px;border-radius:16px}
+  .staff-report-panel .panel-title-row{align-items:flex-start;gap:10px}
+  .staff-report-panel .panel-title-row h2{font-size:20px}
+  .staff-table-tools{justify-content:flex-start}
+  .staff-horizontal-scroll{border-radius:11px;scrollbar-width:thin}
+  .staff-horizontal-scroll::after{content:"Swipe left or right to view all columns";display:block;position:sticky;left:0;padding:7px 10px;background:var(--surface2);color:var(--muted);font-size:11px;text-align:center;border-top:1px solid var(--border)}
+  .staff-pagination{justify-content:space-between}
+  .staff-pagination button{min-width:0;flex:1}
+  .leave-request-grid{grid-template-columns:1fr}
+  .leave-image-preview{grid-template-columns:72px minmax(0,1fr)}
+  .leave-image-preview img{width:72px;height:60px}
+}
+
+@media(max-width:430px){
+  .staff-report-toolbar>div{grid-template-columns:1fr!important}
+  .staff-report-toolbar>div button:first-child{grid-column:auto}
+  .staff-page-size{width:100%;justify-content:space-between}
+  .staff-page-size select{width:110px}
+  .staff-pagination{gap:7px}
+}
+
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  html,body{background:#fff!important;width:100%!important;min-height:0!important;overflow:visible!important}
+  body *{visibility:hidden!important}
+  #tiny-pos-print-root,#tiny-pos-print-root *{visibility:visible!important}
+  #tiny-pos-print-root{
+    display:block!important;
+    position:absolute!important;
+    inset:0 auto auto 0!important;
+    width:100%!important;
+    min-height:0!important;
+    padding:0!important;
+    margin:0!important;
+    background:#fff!important;
+    color:#111!important;
+    font-family:"Noto Sans Khmer","Khmer OS System","Khmer UI",Arial,sans-serif!important;
+    z-index:2147483647!important;
+  }
+  #tiny-pos-print-root.print-portrait{width:100%!important}
+  #tiny-pos-print-root tr{break-inside:avoid}
+  #tiny-pos-print-root thead{display:table-header-group}
+  #tiny-pos-print-root footer{display:block!important}
+}
+@media print{
+  #tiny-pos-print-root.print-many-columns .print-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #tiny-pos-print-root.print-many-columns .print-report-table{table-layout:fixed}
+  #tiny-pos-print-root.print-many-columns .print-report-table th,
+  #tiny-pos-print-root.print-many-columns .print-report-table td{padding:2px;font-size:6px;text-align:center}
+  #tiny-pos-print-root.print-many-columns .print-report-table th:nth-child(3),
+  #tiny-pos-print-root.print-many-columns .print-report-table td:nth-child(3){width:28mm;text-align:left}
+  #tiny-pos-print-root.print-many-columns .print-report-table th:nth-child(4),
+  #tiny-pos-print-root.print-many-columns .print-report-table td:nth-child(4){width:20mm;text-align:left}
+}
