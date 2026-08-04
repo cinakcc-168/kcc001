@@ -6,6 +6,7 @@ import {
   miniAppUrl,
   sendTelegramMessage,
   serviceClient,
+  setTelegramCommandsForChat,
   telegramApi,
   validateTelegramInitData
 } from "./_telegram-shared.mjs";
@@ -143,6 +144,8 @@ async function linkMiniApp({ service, profile }, initData) {
     telegramUser.language_code
   );
 
+  await setTelegramCommandsForChat(telegramUser.id, profile.role);
+
   await sendTelegramMessage({
     chatId: telegramUser.id,
     text: [
@@ -221,6 +224,7 @@ async function setupBot(service, profile) {
       { command: "checkin", description: "Check in / ចុះវត្តមានចូល" },
       { command: "checkout", description: "Check out / ចុះវត្តមានចេញ" },
       { command: "attendance", description: "Attendance status / ស្ថានភាពវត្តមាន" },
+      { command: "takeleave", description: "Request leave / ស្នើសុំច្បាប់" },
       { command: "commission", description: "My commission / កម្រៃជើងសារ" },
       { command: "payslip", description: "My payslip / បង្កាន់ដៃប្រាក់ខែ" },
       { command: "join", description: "Customer link / ភ្ជាប់អតិថិជន" },
@@ -233,10 +237,29 @@ async function setupBot(service, profile) {
     ]
   });
 
+  const { data: activeLinks, error: activeLinksError } = await service
+    .from("telegram_user_links")
+    .select("chat_id,profiles!inner(role,is_active)")
+    .eq("organization_id", profile.organization_id)
+    .eq("is_active", true)
+    .eq("profiles.is_active", true);
+
+  if (activeLinksError) throw activeLinksError;
+  let roleCommandMenus = 0;
+  for (const link of activeLinks || []) {
+    try {
+      await setTelegramCommandsForChat(link.chat_id, link.profiles?.role);
+      roleCommandMenus += 1;
+    } catch (error) {
+      console.warn("Could not refresh Telegram role commands", link.chat_id, error.message);
+    }
+  }
+
   return {
     webhook,
     menu,
     commands,
+    role_command_menus: roleCommandMenus,
     webhook_url: webhookUrl,
     mini_app_url: appUrl
   };

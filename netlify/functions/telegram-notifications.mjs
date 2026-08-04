@@ -8,6 +8,7 @@ import {
   tg,
   telegramLanguage
 } from "./_telegram-i18n.mjs";
+import { dispatchPendingOperationalEvents } from "./_telegram-events.mjs";
 
 export const config = {
   schedule: "*/15 * * * *"
@@ -1084,6 +1085,14 @@ export default async () => {
   let considered = 0;
 
   try {
+    // Immediate sale/register/leave alerts use a durable outbox. Drain it here
+    // as a retry fallback in case the browser closed before the instant
+    // dispatch request completed.
+    const operational = await dispatchPendingOperationalEvents(service, 25);
+    sent += operational.sent || 0;
+    failed += operational.failed || 0;
+    considered += operational.considered || 0;
+
     const { data: links, error: linksError } = await service
       .from("telegram_user_links")
       .select(`

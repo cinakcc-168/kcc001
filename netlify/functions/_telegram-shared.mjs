@@ -182,6 +182,50 @@ export function appKeyboard(path = "/dashboard", text = "Open Tiny POS") {
   };
 }
 
+const commonStaffCommands = [
+  { command: "start", description: "Open Tiny POS / បើក Tiny POS" },
+  { command: "pos", description: "Open Mini App / បើក Mini App" },
+  { command: "status", description: "Linked POS account / គណនី POS" },
+  { command: "checkin", description: "Check in / ចុះវត្តមានចូល" },
+  { command: "checkout", description: "Check out / ចុះវត្តមានចេញ" },
+  { command: "attendance", description: "My attendance / វត្តមានរបស់ខ្ញុំ" },
+  { command: "takeleave", description: "Request leave / ស្នើសុំច្បាប់" },
+  { command: "commission", description: "My commission / កម្រៃជើងសារ" },
+  { command: "payslip", description: "My payslip / បង្កាន់ដៃប្រាក់ខែ" },
+  { command: "unlink", description: "Disconnect Telegram / ផ្តាច់ Telegram" },
+  { command: "help", description: "Help / ជំនួយ" }
+];
+
+export function telegramCommandsForRole(role) {
+  const normalized = String(role || "").toLowerCase();
+  const commands = [...commonStaffCommands];
+
+  if (["owner", "admin", "manager"].includes(normalized)) {
+    commands.splice(7, 0,
+      { command: "leaverequests", description: "Pending leave requests / សំណើច្បាប់" },
+      { command: "today", description: "Today sales / លក់ថ្ងៃនេះ" },
+      { command: "register", description: "Cash registers / កាសប្រាក់" }
+    );
+  }
+
+  return commands;
+}
+
+export async function setTelegramCommandsForChat(chatId, role) {
+  if (!chatId) return null;
+  return telegramApi("setMyCommands", {
+    scope: { type: "chat", chat_id: chatId },
+    commands: telegramCommandsForRole(role)
+  });
+}
+
+export async function clearTelegramCommandsForChat(chatId) {
+  if (!chatId) return null;
+  return telegramApi("deleteMyCommands", {
+    scope: { type: "chat", chat_id: chatId }
+  });
+}
+
 export async function sendTelegramMessage({
   chatId,
   text,

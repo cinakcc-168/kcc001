@@ -3,7 +3,9 @@ import {
   hashLinkCode,
   json,
   sendTelegramMessage,
-  serviceClient
+  serviceClient,
+  setTelegramCommandsForChat,
+  clearTelegramCommandsForChat
 } from "./_telegram-shared.mjs";
 import {
   tg,
@@ -234,6 +236,8 @@ async function claimCode(
       used_at: new Date().toISOString()
     })
     .eq("id", linkCode.id);
+
+  await setTelegramCommandsForChat(message.chat.id, profile.role);
 
   await service
     .from("audit_logs")
@@ -583,6 +587,14 @@ export default async (request) => {
       linked?.language || customerLinked?.language || fallbackLanguage
     );
 
+    if (linked && ["/start", "/status", "/help", "/menu", "/pos"].includes(command)) {
+      try {
+        await setTelegramCommandsForChat(message.chat.id, linked.profiles?.role);
+      } catch (commandError) {
+        console.warn("Could not update role Telegram commands", commandError.message);
+      }
+    }
+
     if (command === "/start") {
       const customerPayload = argument.match(/^customer_(.+)$/i)?.[1] || "";
       if (customerPayload) {
@@ -769,6 +781,8 @@ export default async (request) => {
         .update({ is_active: false })
         .eq("id", linked.id);
 
+      await clearTelegramCommandsForChat(message.chat.id).catch(() => null);
+
       await sendTelegramMessage({
         chatId: message.chat.id,
         text: `✅ ${tg(
@@ -814,6 +828,137 @@ export default async (request) => {
         )
       });
 
+      return json({ ok: true });
+    }
+
+
+    if (command === "/takeleave") {
+      if (!linked) {
+        await sendTelegramMessage({
+          chatId: message.chat.id,
+          text: tg(language, "connect_help"),
+          path: "/login",
+          buttonText: tg(language, "open_pos")
+        });
+        return json({ ok: true });
+      }
+
+      await sendTelegramMessage({
+        chatId: message.chat.id,
+        text: language === "km"
+          ? [
+              "🏖 <b>ស្នើសុំច្បាប់</b>",
+              "",
+              "ចុចប៊ូតុងខាងក្រោម ដើម្បីជ្រើសថ្ងៃចាប់ផ្តើម ថ្ងៃបញ្ចប់ ប្រភេទច្បាប់ មូលហេតុ និងរូបភាពភ្ជាប់ (ជាជម្រើស)។",
+              "សំណើរបស់អ្នកនឹងមានស្ថានភាព Pending រហូតដល់អ្នកគ្រប់គ្រងអនុម័ត ឬបដិសេធ។"
+            ].join("\n")
+          : [
+              "🏖 <b>Request leave</b>",
+              "",
+              "Open the form below to choose the start date, end date, leave type, reason and an optional picture.",
+              "Your request stays Pending until a manager approves or rejects it."
+            ].join("\n"),
+        path: "/staff-operations?tab=leave&new=1",
+        buttonText: language === "km" ? "បំពេញសំណើច្បាប់" : "Open leave form"
+      });
+      return json({ ok: true });
+    }
+
+    if (command === "/leaverequests") {
+      if (!linked) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: tg(language, "connect_help"), path: "/login", buttonText: tg(language, "open_pos") });
+        return json({ ok: true });
+      }
+
+      if (!["owner", "admin", "manager"].includes(String(linked.profiles?.role || "").toLowerCase())) {
+        await sendTelegramMessage({
+          chatId: message.chat.id,
+          text: language === "km" ? "❌ ពាក្យបញ្ជានេះសម្រាប់អ្នកគ្រប់គ្រងប៉ុណ្ណោះ។" : "❌ This command is for managers only.",
+          withoutButton: true
+        });
+        return json({ ok: true });
+      }
+
+      let query = service
+        .from("staff_leave_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", linked.organization_id)
+        .eq("status", "pending");
+      if (linked.profiles.role === "manager" && linked.profiles.branch_id) {
+        query = query.eq("branch_id", linked.profiles.branch_id);
+      }
+      const { count, error } = await query;
+      if (error) throw error;
+
+      await sendTelegramMessage({
+        chatId: message.chat.id,
+        text: language === "km"
+          ? `🏖 <b>សំណើច្បាប់កំពុងរង់ចាំ៖ ${Number(count || 0)}</b>\n\nបើក Tiny POS ដើម្បីពិនិត្យ អនុម័ត ឬបដិសេធ។`
+          : `🏖 <b>Pending leave requests: ${Number(count || 0)}</b>\n\nOpen Tiny POS to review, approve or reject them.`,
+        path: "/staff-operations?tab=leave",
+        buttonText: language === "km" ? "ពិនិត្យសំណើច្បាប់" : "Review leave requests"
+      });
+      return json({ ok: true });
+    }
+
+    if (command === "/today") {
+      if (!linked || !["owner", "admin", "manager"].includes(String(linked.profiles?.role || "").toLowerCase())) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: linked ? "❌ Manager permission required." : tg(language, "connect_help"), withoutButton: Boolean(linked), path: linked ? "/dashboard" : "/login", buttonText: tg(language, "open_pos") });
+        return json({ ok: true });
+      }
+      const now = new Date();
+      const local = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Phnom_Penh" }));
+      const startLocal = new Date(local.getFullYear(), local.getMonth(), local.getDate());
+      const offset = local.getTime() - now.getTime();
+      const startUtc = new Date(startLocal.getTime() - offset).toISOString();
+      let salesQuery = service
+        .from("sales")
+        .select("currency,total_amount")
+        .eq("organization_id", linked.organization_id)
+        .eq("status", "completed")
+        .gte("completed_at", startUtc);
+      if (linked.profiles.role === "manager" && linked.profiles.branch_id) salesQuery = salesQuery.eq("branch_id", linked.profiles.branch_id);
+      const { data: rows, error } = await salesQuery;
+      if (error) throw error;
+      const totals = (rows || []).reduce((value, row) => {
+        value.count += 1;
+        value[row.currency] = Number(value[row.currency] || 0) + Number(row.total_amount || 0);
+        return value;
+      }, { count: 0, USD: 0, KHR: 0 });
+      const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(totals.USD);
+      const khr = new Intl.NumberFormat("en-US", { style: "currency", currency: "KHR", maximumFractionDigits: 0 }).format(totals.KHR);
+      await sendTelegramMessage({
+        chatId: message.chat.id,
+        text: `📊 <b>${language === "km" ? "ការលក់ថ្ងៃនេះ" : "Today's sales"}</b>\n\n${language === "km" ? "វិក្កយបត្រ" : "Receipts"}: <b>${totals.count}</b>\nUSD: <b>${usd}</b>\nKHR: <b>${khr}</b>`,
+        path: "/dashboard",
+        buttonText: tg(language, "open_pos")
+      });
+      return json({ ok: true });
+    }
+
+    if (command === "/register") {
+      if (!linked || !["owner", "admin", "manager"].includes(String(linked.profiles?.role || "").toLowerCase())) {
+        await sendTelegramMessage({ chatId: message.chat.id, text: linked ? "❌ Manager permission required." : tg(language, "connect_help"), withoutButton: Boolean(linked), path: linked ? "/cash-register" : "/login", buttonText: tg(language, "open_pos") });
+        return json({ ok: true });
+      }
+      let registerQuery = service
+        .from("cash_register_sessions")
+        .select("id,session_number,register_name,opened_at,opened_by")
+        .eq("organization_id", linked.organization_id)
+        .eq("status", "open")
+        .order("opened_at", { ascending: true });
+      if (linked.profiles.role === "manager" && linked.profiles.branch_id) registerQuery = registerQuery.eq("branch_id", linked.profiles.branch_id);
+      const { data: registers, error } = await registerQuery;
+      if (error) throw error;
+      const openerIds = [...new Set((registers || []).map((row) => row.opened_by).filter(Boolean))];
+      const { data: openerRows, error: openerError } = openerIds.length
+        ? await service.from("profiles").select("id,full_name").in("id", openerIds)
+        : { data: [], error: null };
+      if (openerError) throw openerError;
+      const openerMap = new Map((openerRows || []).map((row) => [row.id, row.full_name]));
+      const lines = [`💵 <b>${language === "km" ? "កាសប្រាក់កំពុងបើក" : "Open cash registers"}: ${(registers || []).length}</b>`];
+      for (const row of registers || []) lines.push(`\n• ${escapeHtml(row.register_name)} · ${escapeHtml(openerMap.get(row.opened_by) || "—")}\n<code>${escapeHtml(row.session_number)}</code>`);
+      await sendTelegramMessage({ chatId: message.chat.id, text: lines.join("\n"), path: "/cash-register", buttonText: tg(language, "open_pos") });
       return json({ ok: true });
     }
 
