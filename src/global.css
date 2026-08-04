@@ -3002,3 +3002,294 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
   .list-card-fields{grid-template-columns:1fr}
   .crm-metrics{grid-template-columns:1fr 1fr}
 }
+
+/* ========================================================================== */
+/* Step 46.4.9 — inventory, purchasing, cash and report list consistency      */
+/* ========================================================================== */
+.responsive-data-list{
+  display:grid;
+  gap:14px;
+  min-width:0;
+  overflow:hidden;
+}
+.responsive-data-list-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  min-width:0;
+}
+.responsive-data-list-heading>div:first-child{min-width:0}
+.responsive-data-list-heading h2{margin:0 0 4px;overflow-wrap:anywhere}
+.responsive-data-list-heading p{margin:0;color:var(--muted);overflow-wrap:anywhere}
+.responsive-data-list-heading-right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+.responsive-wide-table-wrap{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:visible;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-inline:contain;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+}
+.responsive-wide-table{
+  width:100%;
+  min-width:980px;
+  border-collapse:collapse;
+  table-layout:auto;
+}
+.responsive-wide-table th,
+.responsive-wide-table td{
+  padding:10px 11px;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  vertical-align:top;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+.responsive-wide-table th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:var(--surface2);
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+}
+.responsive-wide-table tbody tr:last-child td{border-bottom:0}
+.responsive-wide-table td>strong{display:block}
+.responsive-wide-table td>small{display:block;color:var(--muted);margin-top:3px}
+.responsive-data-card-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  gap:12px;
+  align-items:start;
+}
+.responsive-data-card{
+  min-width:0;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  display:grid;
+  gap:10px;
+  box-shadow:0 8px 24px #00000008;
+}
+.responsive-data-card>header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+}
+.responsive-data-card>header>div{min-width:0;display:grid;gap:3px}
+.responsive-data-card>header strong{overflow-wrap:anywhere}
+.responsive-data-card>header small,
+.responsive-data-card>small{color:var(--muted)}
+.responsive-data-card>div:not(.transfer-route):not(.transfer-items-preview){
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(105px,.72fr) minmax(0,1fr);
+  gap:10px;
+  align-items:start;
+}
+.responsive-data-card>div>span{color:var(--muted);font-size:12px}
+.responsive-data-card>div>strong{min-width:0;overflow-wrap:anywhere;text-align:right}
+.responsive-data-card>div>small{grid-column:2;color:var(--muted);text-align:right}
+.responsive-data-card>label{display:grid;gap:6px}
+.responsive-data-card>label>span{color:var(--muted);font-size:12px;font-weight:700}
+.responsive-data-card>footer{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+  padding-top:9px;
+  border-top:1px solid var(--border);
+}
+.compact-empty-state{min-height:180px}
+
+/* Stock-count modal: prevent the count number/title from becoming an oversized column on phones. */
+.modal-card:has(.stock-count-workspace){min-width:0}
+.modal-card:has(.stock-count-workspace) .modal-header{align-items:flex-start}
+.modal-card:has(.stock-count-workspace) .modal-header h2{
+  min-width:0;
+  max-width:calc(100% - 48px);
+  margin:0;
+  font-size:clamp(20px,3vw,28px);
+  line-height:1.22;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.stock-count-workspace,
+.stock-count-print-document{min-width:0}
+.stock-count-print-header>div{min-width:0}
+.stock-count-print-header h2{
+  max-width:100%;
+  margin:3px 0 5px;
+  font-size:clamp(20px,2.4vw,30px);
+  line-height:1.2;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.stock-count-print-header>strong{flex:0 0 auto;font-size:clamp(22px,3vw,32px)}
+.stock-count-workspace-actions{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+}
+.stock-count-workspace-actions button{
+  width:100%;
+  min-width:0;
+  justify-content:center;
+  text-align:center;
+  line-height:1.25;
+}
+.stock-count-list-controls{margin:0}
+.stock-count-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stock-count-table{min-width:1050px}
+.stock-count-card-grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.stock-count-item-card input{width:100%}
+.stock-count-item-card.stock-count-short{border-color:color-mix(in srgb,var(--danger) 40%,var(--border))}
+.stock-count-item-card.stock-count-over{border-color:color-mix(in srgb,var(--success) 40%,var(--border))}
+
+/* Dedicated fallback roots used when an embedded mobile browser blocks popups. */
+.tiny-pos-label-print-root,
+.tiny-pos-html-print-root{display:none}
+@media print{
+  body:has(.tiny-pos-label-print-root)>*:not(.tiny-pos-label-print-root),
+  body:has(.tiny-pos-html-print-root)>*:not(.tiny-pos-html-print-root){display:none!important;visibility:hidden!important}
+  .tiny-pos-label-print-root,
+  .tiny-pos-label-print-root *,
+  .tiny-pos-html-print-root,
+  .tiny-pos-html-print-root *{display:revert;visibility:visible!important}
+  .tiny-pos-label-print-root,
+  .tiny-pos-html-print-root{
+    display:block!important;
+    position:absolute!important;
+    inset:0 auto auto 0!important;
+    width:100%!important;
+    max-width:none!important;
+    height:auto!important;
+    overflow:visible!important;
+    background:#fff!important;
+    color:#111!important;
+    z-index:2147483647!important;
+  }
+  .tiny-pos-label-print-root .label-print-area{
+    position:static!important;
+    width:100%!important;
+    max-height:none!important;
+    overflow:visible!important;
+    padding:0!important;
+    background:#fff!important;
+  }
+}
+
+@media(max-width:900px){
+  .responsive-data-card-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+  .stock-count-workspace-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:760px){
+  .responsive-data-list{padding:13px}
+  .responsive-data-list-heading{align-items:stretch;flex-direction:column}
+  .responsive-data-list-heading-right{justify-content:flex-start}
+  .responsive-wide-table-wrap{
+    margin-inline:0;
+    border-radius:12px;
+    touch-action:pan-x pan-y;
+  }
+  .responsive-wide-table{
+    display:table!important;
+    width:max-content!important;
+    min-width:960px!important;
+  }
+  .responsive-wide-table thead{display:table-header-group!important}
+  .responsive-wide-table tbody{display:table-row-group!important}
+  .responsive-wide-table tr{display:table-row!important;width:auto!important;padding:0!important;border:0!important}
+  .responsive-wide-table th,
+  .responsive-wide-table td{
+    display:table-cell!important;
+    width:auto!important;
+    padding:9px 10px!important;
+    border-bottom:1px solid var(--border)!important;
+    text-align:left!important;
+    white-space:normal!important;
+  }
+  .responsive-wide-table td:before{display:none!important;content:none!important}
+  .responsive-data-card-grid,.stock-count-card-grid{grid-template-columns:1fr}
+  .responsive-data-card{padding:12px}
+  .responsive-data-card>div:not(.transfer-route):not(.transfer-items-preview){grid-template-columns:minmax(92px,.65fr) minmax(0,1fr)}
+  .list-view-controls{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+  .list-view-mode{grid-column:1/-1}
+  .list-row-size{margin:0;min-width:0}
+  .list-row-size select{min-width:0;width:100%}
+  .list-document-actions{justify-content:flex-end;min-width:0}
+  .list-document-actions .secondary-button{
+    min-width:44px;
+    min-height:42px;
+    display:inline-grid;
+    place-items:center;
+    padding:0 11px;
+    font-size:0;
+  }
+  .list-document-actions .secondary-button svg{margin:0}
+  .list-pagination{grid-column:1/-1}
+
+  .modal-card:has(.stock-count-workspace) .modal-header{
+    min-height:auto;
+    padding:15px 16px;
+  }
+  .modal-card:has(.stock-count-workspace) .modal-header h2{
+    font-size:21px!important;
+    line-height:1.2!important;
+  }
+  .stock-count-workspace{gap:12px}
+  .stock-count-workspace-actions{
+    position:static;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    padding:10px;
+  }
+  .stock-count-workspace-actions button{min-height:52px;padding:8px;font-size:14px}
+  .stock-count-print-header{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:10px;
+    align-items:start;
+    padding:5px 0;
+  }
+  .stock-count-print-header h2{font-size:20px!important;line-height:1.2!important}
+  .stock-count-print-header>strong{font-size:23px}
+  .stock-count-progress-panel{min-width:0}
+  .stock-count-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .stock-count-metrics article{min-width:0;padding:13px}
+  .stock-count-metrics article strong{font-size:21px;overflow-wrap:anywhere}
+  .stock-count-toolbar{grid-template-columns:1fr!important}
+  .stock-count-table-panel{overflow:visible!important}
+}
+
+@media(max-width:440px){
+  .stock-count-workspace-actions{grid-template-columns:1fr 1fr}
+  .stock-count-workspace-actions button{font-size:13px}
+  .stock-count-metrics{grid-template-columns:1fr!important}
+  .responsive-data-card>div:not(.transfer-route):not(.transfer-items-preview){grid-template-columns:1fr}
+  .responsive-data-card>div>strong,
+  .responsive-data-card>div>small{text-align:left;grid-column:1}
+}
+.responsive-data-card .responsive-card-value{min-width:0;overflow-wrap:anywhere;text-align:right;font-weight:800}
+.responsive-data-card .responsive-card-value small{display:block;color:var(--muted);font-weight:400;margin-top:3px}
+@media(max-width:440px){.responsive-data-card .responsive-card-value{text-align:left}}
