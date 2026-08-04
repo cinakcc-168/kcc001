@@ -14,47 +14,158 @@ import {
 } from "lucide-react";
 import { money, stockNumber } from "../lib/catalog";
 
-export default function SaleCart({
+function lineId(item, index = 0) {
+  return item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}:${index}`;
+}
+
+function CartLineList({
   cart,
-  customers,
-  customerId,
-  creditAccount,
-  onCustomerChange,
-  onAddCustomer,
-  discountType,
-  discountValue,
-  onDiscountTypeChange,
-  onDiscountValueChange,
-  couponCode,
-  appliedCoupon,
-  couponBusy,
-  onCouponCodeChange,
-  onApplyCoupon,
-  onRemoveCoupon,
-  notes,
-  onNotesChange,
-  totals,
-  currency,
-  exchangeRate = 4100,
-  taxPercent,
   onQuantityChange,
   onUnitChange,
   onRemove,
-  onClear,
-  parkedCount = 0,
-  onOpenParked,
-  onPark,
-  onSaveQuote,
-  onPay,
-  canSell,
-  canDiscount = true,
-  online = true,
-  activeParkLabel,
-  activeQuoteNumber,
-  quoteEditable = true,
-  priceListName = "",
   fulfillmentLocked = false,
-  fulfillmentLabel = ""
+  compact = false
+}) {
+  return (
+    <div className={`sale-cart-lines ${compact ? "compact-layout" : ""}`}>
+      {cart.length === 0 ? (
+        <div className="cart-empty">
+          <Wallet size={42} />
+          <strong>No products in this bill</strong>
+          <span>Tap a product or scan a barcode.</span>
+        </div>
+      ) : (
+        cart.map((item, index) => {
+          const units = (item.product_units || item.units || [])
+            .filter((unit) => unit.is_active || unit.is_base)
+            .sort(
+              (a, b) =>
+                Number(b.is_base) - Number(a.is_base)
+                || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+            );
+
+          const factor = Number(item.selected_unit_factor || 1);
+          const selectedPrice = Number(
+            item.selected_unit_price ?? item.selling_price ?? 0
+          );
+          const standardPrice = Number(
+            item.standard_unit_price ?? selectedPrice
+          );
+          const availableSelectedUnits = factor > 0
+            ? Number(item.stock_quantity || 0) / factor
+            : Number(item.stock_quantity || 0);
+          const currentLineId = lineId(item, index);
+
+          return (
+            <article
+              className={`sale-cart-line ${compact ? "compact" : ""}`}
+              key={currentLineId}
+            >
+              <div className="cart-line-main">
+                <div className="cart-line-number">{index + 1}</div>
+
+                <div className="cart-line-text">
+                  <strong className="cart-line-name" title={item.name}>
+                    {item.name}
+                  </strong>
+
+                  <span className="cart-line-math">
+                    {standardPrice !== selectedPrice && (
+                      <del>{money(standardPrice, item.currency)}</del>
+                    )}
+                    {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} = {" "}
+                    <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
+                  </span>
+                </div>
+
+                <div className="cart-line-unit-control">
+                  {units.length > 1 ? (
+                    <select
+                      value={item.selected_unit_id || ""}
+                      onChange={(event) => onUnitChange(currentLineId, event.target.value)}
+                      aria-label={`${item.name} selling unit`}
+                      disabled={fulfillmentLocked}
+                    >
+                      {units.map((unit) => (
+                        <option value={unit.id} key={unit.id}>
+                          {unit.name} · {money(unit.selling_price, item.currency)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="single-unit-label">
+                      {item.selected_unit_name || item.unit_name}
+                    </span>
+                  )}
+                </div>
+
+                <div className="cart-quantity-controls">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => onQuantityChange(currentLineId, Number(item.quantity) - 1)}
+                    disabled={fulfillmentLocked}
+                    aria-label={`Reduce ${item.name}`}
+                  >
+                    <Minus size={17} />
+                  </button>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={item.quantity}
+                    onChange={(event) => onQuantityChange(currentLineId, event.target.value)}
+                    disabled={fulfillmentLocked}
+                    aria-label={`${item.name} quantity`}
+                  />
+                  <button
+                    type="button"
+                    className="icon-button"
+                    onClick={() => onQuantityChange(currentLineId, Number(item.quantity) + 1)}
+                    disabled={fulfillmentLocked}
+                    aria-label={`Add ${item.name}`}
+                  >
+                    <Plus size={17} />
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-button danger-icon"
+                    onClick={() => onRemove(currentLineId)}
+                    disabled={fulfillmentLocked}
+                    aria-label={`Remove ${item.name}`}
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="cart-line-stock">
+                <small>
+                  Available: {item.track_stock
+                    ? `${stockNumber(availableSelectedUnits)} ${item.selected_unit_name || item.unit_name}`
+                    : "Not tracked"}
+                </small>
+                {factor !== 1 && (
+                  <small>
+                    1 {item.selected_unit_name || item.unit_name} = {stockNumber(factor)} {item.unit_name}
+                  </small>
+                )}
+              </div>
+            </article>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function CustomerPicker({
+  customers,
+  customerId,
+  onCustomerChange,
+  onAddCustomer,
+  fulfillmentLocked = false,
+  online = true
 }) {
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === customerId) || null,
@@ -94,99 +205,115 @@ export default function SaleCart({
   }
 
   return (
-    <aside className="sale-cart panel">
-      <div className="sale-cart-heading">
-        <div>
-          <p className="eyebrow">CURRENT BILL</p>
-          <h2>
-            {fulfillmentLabel
-              || activeParkLabel
-              || activeQuoteNumber
-              || "New sale"}
-          </h2>
-        </div>
-
-        <div className="sale-cart-heading-actions">
-          <button
-            type="button"
-            className="secondary-button compact-button"
-            onClick={onOpenParked}
-            disabled={!online || fulfillmentLocked}
-          >
-            <CirclePause size={17} />
-            Parked ({parkedCount})
-          </button>
-
-          {cart.length > 0 && !fulfillmentLocked && (
-            <button
-              type="button"
-              className="text-button danger-text"
-              onClick={onClear}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="customer-select-row">
-        <label
-          className="customer-search-picker"
-          onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-              setCustomerPickerOpen(false);
-              if (!selectedCustomer) setCustomerSearch("");
+    <div className="customer-select-row">
+      <label
+        className="customer-search-picker"
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            setCustomerPickerOpen(false);
+            if (!selectedCustomer) setCustomerSearch("");
+          }
+        }}
+      >
+        <span>Customer</span>
+        <input
+          value={customerSearch}
+          onFocus={() => setCustomerPickerOpen(true)}
+          onChange={(event) => {
+            const value = event.target.value;
+            setCustomerSearch(value);
+            setCustomerPickerOpen(true);
+            if (customerId) onCustomerChange("");
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setCustomerPickerOpen(false);
+            if (event.key === "Enter" && customerMatches[0]) {
+              event.preventDefault();
+              selectCustomer(customerMatches[0]);
             }
           }}
-        >
-          <span>Customer</span>
-          <input
-            value={customerSearch}
-            onFocus={() => setCustomerPickerOpen(true)}
-            onChange={(event) => {
-              const value = event.target.value;
-              setCustomerSearch(value);
-              setCustomerPickerOpen(true);
-              if (customerId) onCustomerChange("");
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") setCustomerPickerOpen(false);
-              if (event.key === "Enter" && customerMatches[0]) {
-                event.preventDefault();
-                selectCustomer(customerMatches[0]);
-              }
-            }}
-            disabled={fulfillmentLocked}
-            placeholder="Walk-in or type customer name / phone"
-            autoComplete="off"
-          />
-          {customerPickerOpen && !fulfillmentLocked && (
-            <div className="customer-search-results">
-              <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(null)}>
-                <strong>Walk-in customer</strong><small>No customer account</small>
+          disabled={fulfillmentLocked}
+          placeholder="Walk-in or type customer name / phone"
+          autoComplete="off"
+        />
+        {customerPickerOpen && !fulfillmentLocked && (
+          <div className="customer-search-results">
+            <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(null)}>
+              <strong>Walk-in customer</strong><small>No customer account</small>
+            </button>
+            {customerMatches.map((customer) => (
+              <button type="button" key={customer.id} onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(customer)}>
+                <strong>{customer.name}</strong>
+                <small>{[customer.phone, customer.email, customer.customer_code].filter(Boolean).join(" · ") || "Customer"}</small>
               </button>
-              {customerMatches.map((customer) => (
-                <button type="button" key={customer.id} onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(customer)}>
-                  <strong>{customer.name}</strong>
-                  <small>{[customer.phone, customer.email, customer.customer_code].filter(Boolean).join(" · ") || "Customer"}</small>
-                </button>
-              ))}
-              {customerMatches.length === 0 && <span>No matching customer</span>}
-            </div>
-          )}
-        </label>
-        <button
-          type="button"
-          className="icon-button customer-add-button"
-          onClick={onAddCustomer}
-          disabled={!online || fulfillmentLocked}
-          aria-label="Add customer"
-          title="Add customer"
-        >
-          <UserPlus size={20} />
-        </button>
+            ))}
+            {customerMatches.length === 0 && <span>No matching customer</span>}
+          </div>
+        )}
+      </label>
+      <button
+        type="button"
+        className="icon-button customer-add-button"
+        onClick={onAddCustomer}
+        disabled={!online || fulfillmentLocked}
+        aria-label="Add customer"
+        title="Add customer"
+      >
+        <UserPlus size={20} />
+      </button>
+    </div>
+  );
+}
+
+function SaleCartHeader({
+  cart,
+  parkedCount,
+  onOpenParked,
+  onClear,
+  online,
+  fulfillmentLocked,
+  title
+}) {
+  return (
+    <div className="sale-cart-heading">
+      <div>
+        <p className="eyebrow">CURRENT BILL</p>
+        <h2>{title || "New sale"}</h2>
       </div>
 
+      <div className="sale-cart-heading-actions">
+        <button
+          type="button"
+          className="secondary-button compact-button"
+          onClick={onOpenParked}
+          disabled={!online || fulfillmentLocked}
+        >
+          <CirclePause size={17} />
+          Parked ({parkedCount})
+        </button>
+
+        {cart.length > 0 && !fulfillmentLocked && (
+          <button
+            type="button"
+            className="text-button danger-text"
+            onClick={onClear}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CreditAndPriceInfo({
+  creditAccount,
+  customerId,
+  currency,
+  priceListName
+}) {
+  return (
+    <>
       {customerId && creditAccount && (
         <div className={`sale-customer-credit-strip ${creditAccount.is_on_hold ? "hold" : ""}`}>
           <span>
@@ -204,7 +331,7 @@ export default function SaleCart({
                     Number(creditAccount.credit_limit || 0)
                       - Number(creditAccount.balance_due || 0)
                   ),
-                  creditAccount.currency
+                  creditAccount.currency || currency
                 )}
           </strong>
           {creditAccount.is_on_hold && <b>ON HOLD</b>}
@@ -218,134 +345,40 @@ export default function SaleCart({
           <strong>{priceListName}</strong>
         </div>
       )}
+    </>
+  );
+}
 
-      <div className="sale-cart-lines">
-        {cart.length === 0 ? (
-          <div className="cart-empty">
-            <Wallet size={42} />
-            <strong>No products in this bill</strong>
-            <span>Tap a product or scan a barcode.</span>
-          </div>
-        ) : (
-          cart.map((item, index) => {
-            const units = (item.product_units || item.units || [])
-              .filter((unit) => unit.is_active || unit.is_base)
-              .sort(
-                (a, b) =>
-                  Number(b.is_base) - Number(a.is_base)
-                  || Number(a.sort_order || 0) - Number(b.sort_order || 0)
-              );
-            const factor = Number(item.selected_unit_factor || 1);
-            const selectedPrice = Number(
-              item.selected_unit_price ?? item.selling_price ?? 0
-            );
-            const standardPrice = Number(
-              item.standard_unit_price
-              ?? selectedPrice
-            );
-            const availableSelectedUnits = factor > 0
-              ? Number(item.stock_quantity || 0) / factor
-              : Number(item.stock_quantity || 0);
-
-            return (
-              <article
-                className="sale-cart-line"
-                key={item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}:${index}`}
-              >
-                <div className="cart-line-main">
-                  <div className="cart-line-number">{index + 1}</div>
-
-                  <strong className="cart-line-name" title={item.name}>
-                    {item.name}
-                  </strong>
-
-                  <span className="cart-line-math">
-                    {standardPrice !== selectedPrice && (
-                      <del>{money(standardPrice, item.currency)}</del>
-                    )}
-                    {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} ={" "}
-                    <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
-                  </span>
-
-                  <div className="cart-line-unit-control">
-                    {units.length > 1 ? (
-                      <select
-                        value={item.selected_unit_id || ""}
-                        onChange={(event) => onUnitChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, event.target.value)}
-                        aria-label={`${item.name} selling unit`}
-                        disabled={fulfillmentLocked}
-                      >
-                        {units.map((unit) => (
-                          <option value={unit.id} key={unit.id}>
-                            {unit.name} · {money(unit.selling_price, item.currency)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className="single-unit-label">
-                        {item.selected_unit_name || item.unit_name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="cart-quantity-controls">
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => onQuantityChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, Number(item.quantity) - 1)}
-                      disabled={fulfillmentLocked}
-                      aria-label={`Reduce ${item.name}`}
-                    >
-                      <Minus size={17} />
-                    </button>
-                    <input
-                      type="number"
-                      min="0.001"
-                      step="0.001"
-                      value={item.quantity}
-                      onChange={(event) => onQuantityChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, event.target.value)}
-                      disabled={fulfillmentLocked}
-                      aria-label={`${item.name} quantity`}
-                    />
-                    <button
-                      type="button"
-                      className="icon-button"
-                      onClick={() => onQuantityChange(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`, Number(item.quantity) + 1)}
-                      disabled={fulfillmentLocked}
-                      aria-label={`Add ${item.name}`}
-                    >
-                      <Plus size={17} />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-button danger-icon"
-                      onClick={() => onRemove(item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`)}
-                      disabled={fulfillmentLocked}
-                      aria-label={`Remove ${item.name}`}
-                    >
-                      <Trash2 size={17} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="cart-line-stock">
-                  <small>
-                    Available: {item.track_stock
-                      ? `${stockNumber(availableSelectedUnits)} ${item.selected_unit_name || item.unit_name}`
-                      : "Not tracked"}
-                  </small>
-                  {factor !== 1 && (
-                    <small>
-                      1 {item.selected_unit_name || item.unit_name} = {stockNumber(factor)} {item.unit_name}
-                    </small>
-                  )}
-                </div>
-              </article>
-            );
-          })
-        )}
-      </div>
-
+function CheckoutControls({
+  cart,
+  discountType,
+  discountValue,
+  onDiscountTypeChange,
+  onDiscountValueChange,
+  couponCode,
+  appliedCoupon,
+  couponBusy,
+  onCouponCodeChange,
+  onApplyCoupon,
+  onRemoveCoupon,
+  notes,
+  onNotesChange,
+  totals,
+  currency,
+  exchangeRate = 4100,
+  taxPercent,
+  canDiscount = true,
+  online = true,
+  canSell = true,
+  onPark,
+  onSaveQuote,
+  onPay,
+  quoteEditable = true,
+  activeQuoteNumber,
+  fulfillmentLocked = false
+}) {
+  return (
+    <>
       <div className="sale-cart-options">
         <div className="discount-row">
           <label>
@@ -552,6 +585,127 @@ export default function SaleCart({
           Pay {money(totals.total, currency)}
         </button>
       </div>
+    </>
+  );
+}
+
+export function SaleCartLinesPanel({
+  cart,
+  onQuantityChange,
+  onUnitChange,
+  onRemove,
+  onClear,
+  onOpenParked,
+  parkedCount = 0,
+  online = true,
+  fulfillmentLocked = false,
+  activeParkLabel,
+  activeQuoteNumber,
+  fulfillmentLabel
+}) {
+  const title = fulfillmentLabel || activeParkLabel || activeQuoteNumber || "New sale";
+
+  return (
+    <section className="sale-cart-lines-panel panel">
+      <SaleCartHeader
+        cart={cart}
+        parkedCount={parkedCount}
+        onOpenParked={onOpenParked}
+        onClear={onClear}
+        online={online}
+        fulfillmentLocked={fulfillmentLocked}
+        title={title}
+      />
+
+      <div className="sale-cart-lines-count">
+        <span>{cart.length} item{cart.length === 1 ? "" : "s"}</span>
+        {cart.length > 0 && <small>Keep the whole selected bill visible in one area.</small>}
+      </div>
+
+      <CartLineList
+        cart={cart}
+        onQuantityChange={onQuantityChange}
+        onUnitChange={onUnitChange}
+        onRemove={onRemove}
+        fulfillmentLocked={fulfillmentLocked}
+        compact
+      />
+    </section>
+  );
+}
+
+export function SaleCheckoutPanel(props) {
+  return (
+    <aside className="sale-checkout-panel panel">
+      <div className="sale-checkout-heading">
+        <div>
+          <p className="eyebrow">CHECKOUT</p>
+          <h2>Customer & payment</h2>
+        </div>
+        <strong>{props.cart.length} item{props.cart.length === 1 ? "" : "s"}</strong>
+      </div>
+
+      <CustomerPicker
+        customers={props.customers}
+        customerId={props.customerId}
+        onCustomerChange={props.onCustomerChange}
+        onAddCustomer={props.onAddCustomer}
+        fulfillmentLocked={props.fulfillmentLocked}
+        online={props.online}
+      />
+
+      <CreditAndPriceInfo
+        creditAccount={props.creditAccount}
+        customerId={props.customerId}
+        currency={props.currency}
+        priceListName={props.priceListName}
+      />
+
+      <CheckoutControls {...props} />
+    </aside>
+  );
+}
+
+export default function SaleCart(props) {
+  const title = props.fulfillmentLabel || props.activeParkLabel || props.activeQuoteNumber || "New sale";
+
+  return (
+    <aside className="sale-cart panel">
+      <SaleCartHeader
+        cart={props.cart}
+        parkedCount={props.parkedCount}
+        onOpenParked={props.onOpenParked}
+        onClear={props.onClear}
+        online={props.online}
+        fulfillmentLocked={props.fulfillmentLocked}
+        title={title}
+      />
+
+      <CustomerPicker
+        customers={props.customers}
+        customerId={props.customerId}
+        onCustomerChange={props.onCustomerChange}
+        onAddCustomer={props.onAddCustomer}
+        fulfillmentLocked={props.fulfillmentLocked}
+        online={props.online}
+      />
+
+      <CreditAndPriceInfo
+        creditAccount={props.creditAccount}
+        customerId={props.customerId}
+        currency={props.currency}
+        priceListName={props.priceListName}
+      />
+
+      <CartLineList
+        cart={props.cart}
+        onQuantityChange={props.onQuantityChange}
+        onUnitChange={props.onUnitChange}
+        onRemove={props.onRemove}
+        fulfillmentLocked={props.fulfillmentLocked}
+      />
+
+      <CheckoutControls {...props} />
     </aside>
   );
 }

@@ -12,29 +12,37 @@ export default function LanguageSwitcher({
   } = useLanguage();
 
   return (
-    <label
+    <div
       className={`language-switcher ${compact ? "compact" : ""} ${className}`.trim()}
       data-i18n-skip
+      role="group"
+      aria-label={t("Language")}
     >
-      <Languages size={18} aria-hidden="true" />
       {!compact && (
-        <span>{t("Language")}</span>
+        <span className="language-switcher-label">
+          <Languages size={18} aria-hidden="true" />
+          {t("Language")}
+        </span>
       )}
 
-      <select
-        value={language}
-        onChange={(event) =>
-          setLanguage(event.target.value)
-        }
-        aria-label={t("Language")}
-      >
-        <option value="en">
-          English
-        </option>
-        <option value="km">
-          ខ្មែរ
-        </option>
-      </select>
-    </label>
+      <div className="language-toggle" aria-label={t("Choose language") }>
+        <button
+          type="button"
+          className={language === "en" ? "active" : ""}
+          onClick={() => setLanguage("en")}
+          aria-pressed={language === "en"}
+        >
+          EN
+        </button>
+        <button
+          type="button"
+          className={language === "km" ? "active" : ""}
+          onClick={() => setLanguage("km")}
+          aria-pressed={language === "km"}
+        >
+          KH
+        </button>
+      </div>
+    </div>
   );
 }
