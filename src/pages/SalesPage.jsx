@@ -21,7 +21,7 @@ import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import QuoteSaveModal from "../components/QuoteSaveModal";
 import ApprovalRequestModal from "../components/ApprovalRequestModal";
-import SaleCart from "../components/SaleCart";
+import SaleCart, { SaleCartLinesPanel, SaleCheckoutPanel } from "../components/SaleCart";
 import { cloudinaryThumb, money, stockNumber } from "../lib/catalog";
 import {
   buildSaleCartItem,
@@ -633,6 +633,20 @@ export default function SalesPage() {
     selectedCustomer,
     currency
   );
+  const saleLayoutMode = preferences?.new_sale_layout === "layout2" ? "layout2" : "layout1";
+  const saleProductCardScale = Math.min(1.45, Math.max(0.8, Number(preferences?.sale_product_card_scale || 1)));
+  const saleShowProductCode = preferences?.sale_show_product_code !== false;
+  const saleStockDisplay = preferences?.sale_stock_display === "status" ? "status" : "exact";
+  const saleWorkspaceStyle = {
+    "--sale-card-scale": saleProductCardScale
+  };
+
+  function productStockLabel(product) {
+    const stockValue = Number(product.stock_quantity || 0);
+    if (!product.track_stock) return saleStockDisplay === "status" ? "In stock" : "Stock: ∞";
+    if (saleStockDisplay === "status") return stockValue > 0 ? "In stock" : "Out";
+    return `Stock: ${stockNumber(stockValue)} ${product.unit_name}`;
+  }
 
   function announce(type, text) {
     setMessageType(type);
@@ -1491,205 +1505,424 @@ export default function SalesPage() {
         </div>
       )}
 
-      <div className="sale-layout">
-        <section className="sale-products-panel panel">
-          <form className="sale-toolbar" onSubmit={submitSearch}>
-            <label className="search-box sale-product-search">
-              <Search size={19} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search product, code or barcode"
+      <div className={`sale-layout ${saleLayoutMode === "layout2" ? "sale-layout-alt" : ""}`} style={saleWorkspaceStyle}>
+        {saleLayoutMode === "layout2" ? (
+          <>
+            <div className="sale-layout-alt-main">
+              <SaleCartLinesPanel
+                cart={cart}
+                onQuantityChange={changeQuantity}
+                onUnitChange={changeUnit}
+                onRemove={(cartLineId) => {
+                  invalidateCoupon();
+                  setCart((current) => current.filter((item) =>
+                    lineKey(item) !== cartLineId
+                  ));
+                }}
+                onClear={clearSale}
+                parkedCount={parkedSales.length}
+                onOpenParked={() => setParkedOpen(true)}
+                online={isOnline}
+                activeParkLabel={activeParkLabel}
+                activeQuoteNumber={activeQuote?.quote_number || ""}
+                fulfillmentLocked={Boolean(activeOrderDelivery)}
+                fulfillmentLabel={
+                  activeOrderDelivery
+                    ? `${activeOrderDelivery.delivery.delivery_number} · ${activeOrderDelivery.order.order_number}`
+                    : ""
+                }
               />
-            </label>
 
-            <button
-              type="button"
-              className="primary-button sale-scan-button"
-              onClick={async () => {
-                await primeScannerFeedback();
-                setScannerOpen(true);
-              }}
-              disabled={!canSell || Boolean(activeOrderDelivery)}
-            >
-              <Camera size={18} /> Scan
-            </button>
+              <section className="sale-products-panel panel layout-two-products-panel">
+                <form className="sale-toolbar" onSubmit={submitSearch}>
+                  <label className="search-box sale-product-search">
+                    <Search size={19} />
+                    <input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Search product, name, code or barcode"
+                    />
+                  </label>
 
-            <select
-              className="sale-category-select"
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              aria-label="Filter products by category"
-            >
-              <option value="all">All categories</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </select>
-
-            <label className="sale-sort-select">
-              <select
-                value={productSort}
-                onChange={(event) => setProductSort(event.target.value)}
-                aria-label="Sort products"
-              >
-                <option value="name_az">A–Z</option>
-                <option value="name_za">Z–A</option>
-                <option value="km_az">ក–អ</option>
-                <option value="km_za">អ–ក</option>
-              </select>
-            </label>
-          </form>
-
-          <div className="sale-product-summary">
-            <span><strong>{visibleProducts.length}</strong> products available</span>
-            <div>
-              <small>Tap a product to add one unit.</small>
-              <button
-                type="button"
-                className="icon-button refresh-button"
-                onClick={refresh}
-                title="Refresh products"
-              >
-                <RefreshCw className={loading ? "spin" : ""} size={19} />
-              </button>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
-          ) : visibleProducts.length === 0 ? (
-            <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
-          ) : (
-            <div className="sale-products-grid">
-              {visibleProducts.map((product) => {
-                const outOfStock = product.track_stock && Number(product.stock_quantity) <= 0;
-                return (
                   <button
                     type="button"
-                    className="sale-product-card"
-                    key={product.id}
-                    onClick={() => addProduct(product)}
-                    disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
+                    className="primary-button sale-scan-button"
+                    onClick={async () => {
+                      await primeScannerFeedback();
+                      setScannerOpen(true);
+                    }}
+                    disabled={!canSell || Boolean(activeOrderDelivery)}
                   >
-                    <div className="sale-product-image">
-                      {product.image?.secure_url ? (
-                        <img src={cloudinaryThumb(product.image.secure_url, 240, 180)} alt="" />
-                      ) : (
-                        <ImageOff size={28} />
-                      )}
-                    </div>
-                    <div className="sale-product-content">
-                      <strong>{product.name}</strong>
-                      {product.name_km && <span>{product.name_km}</span>}
-                      <small>{product.sku || product.barcode || "No code"}</small>
-                      <div>
-                        <b>{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                        <em className={outOfStock ? "out" : ""}>
-                          Stock: {product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "∞"}
-                        </em>
-                      </div>
-                    </div>
+                    <Camera size={18} /> Scan
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
 
-        <SaleCart
-          cart={cart}
-          customers={customers}
-          customerId={customerId}
-          creditAccount={selectedCreditAccount}
-          onCustomerChange={(value) => {
-            invalidateCoupon();
-            setCustomerId(value);
-          }}
-          onAddCustomer={() => setCustomerOpen(true)}
-          discountType={discountType}
-          discountValue={discountValue}
-          onDiscountTypeChange={(value) => {
-            setDiscountType(value);
-            if (value === "none") setDiscountValue("0");
-          }}
-          onDiscountValueChange={setDiscountValue}
-          couponCode={couponCode}
-          appliedCoupon={appliedCoupon}
-          couponBusy={couponBusy}
-          onCouponCodeChange={(value) => {
-            setCouponCode(value);
-            if (appliedCoupon) invalidateCoupon();
-          }}
-          onApplyCoupon={applyCoupon}
-          onRemoveCoupon={removeCoupon}
-          notes={notes}
-          onNotesChange={setNotes}
-          totals={totals}
-          currency={currency}
-          exchangeRate={Number(shop?.usd_to_khr_rate || 4100)}
-          taxPercent={shop?.tax_percent || 0}
-          onQuantityChange={changeQuantity}
-          onUnitChange={changeUnit}
-          onRemove={(cartLineId) => {
-            invalidateCoupon();
-            setCart((current) => current.filter((item) =>
-              lineKey(item) !== cartLineId
-            ));
-          }}
-          onClear={clearSale}
-          parkedCount={parkedSales.length}
-          onOpenParked={() => setParkedOpen(true)}
-          onPark={handlePark}
-          onSaveQuote={() => {
-            if (activeOrderDelivery) {
-              announce("error", "A prepared delivery cannot be saved as a quotation.");
-              return;
-            }
-            if (!isOnline) {
-              announce(
-                "error",
-                "Reconnect before saving a quotation."
-              );
-              return;
-            }
-            setQuoteOpen(true);
-          }}
-          onPay={() => {
-            if (!isOnline) {
-              announce(
-                "error",
-                "Reconnect before completing payment."
-              );
-              return;
-            }
-            setPaymentOpen(true);
-          }}
-          canSell={canSell && !busy}
-          canDiscount={canDiscount}
-          online={isOnline}
-          activeParkLabel={activeParkLabel}
-          activeQuoteNumber={
-            activeQuote?.quote_number || ""
-          }
-          quoteEditable={
-            !activeQuote
-            || ["draft", "sent"].includes(
-              activeQuote.status
-            )
-          }
-          priceListName={
-            activeOrderDelivery?.order?.price_list_name
-            || priceCatalogs[currency]?.price_list_name
-            || ""
-          }
-          fulfillmentLocked={Boolean(activeOrderDelivery)}
-          fulfillmentLabel={
-            activeOrderDelivery
-              ? `${activeOrderDelivery.delivery.delivery_number} · ${activeOrderDelivery.order.order_number}`
-              : ""
-          }
-        />
+                  <select
+                    className="sale-category-select"
+                    value={categoryFilter}
+                    onChange={(event) => setCategoryFilter(event.target.value)}
+                    aria-label="Filter products by category"
+                  >
+                    <option value="all">All categories</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+
+                  <label className="sale-sort-select">
+                    <select
+                      value={productSort}
+                      onChange={(event) => setProductSort(event.target.value)}
+                      aria-label="Sort products"
+                    >
+                      <option value="name_az">A–Z</option>
+                      <option value="name_za">Z–A</option>
+                      <option value="km_az">ក–អ</option>
+                      <option value="km_za">អ–ក</option>
+                    </select>
+                  </label>
+                </form>
+
+                <div className="sale-product-summary">
+                  <span><strong>{visibleProducts.length}</strong> products available</span>
+                  <div>
+                    <small>Tap a product to add one unit.</small>
+                    <button
+                      type="button"
+                      className="icon-button refresh-button"
+                      onClick={refresh}
+                      title="Refresh products"
+                    >
+                      <RefreshCw className={loading ? "spin" : ""} size={19} />
+                    </button>
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
+                ) : visibleProducts.length === 0 ? (
+                  <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
+                ) : (
+                  <div className="sale-products-grid layout-two-grid">
+                    {visibleProducts.map((product) => {
+                      const outOfStock = product.track_stock && Number(product.stock_quantity) <= 0;
+                      return (
+                        <button
+                          type="button"
+                          className="sale-product-card"
+                          key={product.id}
+                          onClick={() => addProduct(product)}
+                          disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
+                        >
+                          <div className="sale-product-image">
+                            {product.image?.secure_url ? (
+                              <img src={cloudinaryThumb(product.image.secure_url, 240, 180)} alt="" />
+                            ) : (
+                              <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" className="sale-product-placeholder" />
+                            )}
+                          </div>
+                          <div className="sale-product-content">
+                            <strong>{product.name}</strong>
+                            {product.name_km && <span>{product.name_km}</span>}
+                            {saleShowProductCode && (
+                              <small>{product.sku || product.barcode || "No code"}</small>
+                            )}
+                            <div>
+                              <b>{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
+                              <em className={outOfStock ? "out" : ""}>
+                                {productStockLabel(product)}
+                              </em>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <SaleCheckoutPanel
+              cart={cart}
+              customers={customers}
+              customerId={customerId}
+              creditAccount={selectedCreditAccount}
+              onCustomerChange={(value) => {
+                invalidateCoupon();
+                setCustomerId(value);
+              }}
+              onAddCustomer={() => setCustomerOpen(true)}
+              discountType={discountType}
+              discountValue={discountValue}
+              onDiscountTypeChange={(value) => {
+                setDiscountType(value);
+                if (value === "none") setDiscountValue("0");
+              }}
+              onDiscountValueChange={setDiscountValue}
+              couponCode={couponCode}
+              appliedCoupon={appliedCoupon}
+              couponBusy={couponBusy}
+              onCouponCodeChange={(value) => {
+                setCouponCode(value);
+                if (appliedCoupon) invalidateCoupon();
+              }}
+              onApplyCoupon={applyCoupon}
+              onRemoveCoupon={removeCoupon}
+              notes={notes}
+              onNotesChange={setNotes}
+              totals={totals}
+              currency={currency}
+              exchangeRate={Number(shop?.usd_to_khr_rate || 4100)}
+              taxPercent={shop?.tax_percent || 0}
+              onPark={handlePark}
+              onSaveQuote={() => {
+                if (activeOrderDelivery) {
+                  announce("error", "A prepared delivery cannot be saved as a quotation.");
+                  return;
+                }
+                if (!isOnline) {
+                  announce(
+                    "error",
+                    "Reconnect before saving a quotation."
+                  );
+                  return;
+                }
+                setQuoteOpen(true);
+              }}
+              onPay={() => {
+                if (!isOnline) {
+                  announce(
+                    "error",
+                    "Reconnect before completing payment."
+                  );
+                  return;
+                }
+                setPaymentOpen(true);
+              }}
+              canSell={canSell && !busy}
+              canDiscount={canDiscount}
+              online={isOnline}
+              activeParkLabel={activeParkLabel}
+              activeQuoteNumber={
+                activeQuote?.quote_number || ""
+              }
+              quoteEditable={
+                !activeQuote
+                || ["draft", "sent"].includes(
+                  activeQuote.status
+                )
+              }
+              priceListName={
+                activeOrderDelivery?.order?.price_list_name
+                || priceCatalogs[currency]?.price_list_name
+                || ""
+              }
+              fulfillmentLocked={Boolean(activeOrderDelivery)}
+            />
+          </>
+        ) : (
+          <>
+            <section className="sale-products-panel panel">
+              <form className="sale-toolbar" onSubmit={submitSearch}>
+                <label className="search-box sale-product-search">
+                  <Search size={19} />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search product, name, code or barcode"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  className="primary-button sale-scan-button"
+                  onClick={async () => {
+                    await primeScannerFeedback();
+                    setScannerOpen(true);
+                  }}
+                  disabled={!canSell || Boolean(activeOrderDelivery)}
+                >
+                  <Camera size={18} /> Scan
+                </button>
+
+                <select
+                  className="sale-category-select"
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                  aria-label="Filter products by category"
+                >
+                  <option value="all">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+
+                <label className="sale-sort-select">
+                  <select
+                    value={productSort}
+                    onChange={(event) => setProductSort(event.target.value)}
+                    aria-label="Sort products"
+                  >
+                    <option value="name_az">A–Z</option>
+                    <option value="name_za">Z–A</option>
+                    <option value="km_az">ក–អ</option>
+                    <option value="km_za">អ–ក</option>
+                  </select>
+                </label>
+              </form>
+
+              <div className="sale-product-summary">
+                <span><strong>{visibleProducts.length}</strong> products available</span>
+                <div>
+                  <small>Tap a product to add one unit.</small>
+                  <button
+                    type="button"
+                    className="icon-button refresh-button"
+                    onClick={refresh}
+                    title="Refresh products"
+                  >
+                    <RefreshCw className={loading ? "spin" : ""} size={19} />
+                  </button>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
+              ) : visibleProducts.length === 0 ? (
+                <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
+              ) : (
+                <div className="sale-products-grid">
+                  {visibleProducts.map((product) => {
+                    const outOfStock = product.track_stock && Number(product.stock_quantity) <= 0;
+                    return (
+                      <button
+                        type="button"
+                        className="sale-product-card"
+                        key={product.id}
+                        onClick={() => addProduct(product)}
+                        disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
+                      >
+                        <div className="sale-product-image">
+                          {product.image?.secure_url ? (
+                            <img src={cloudinaryThumb(product.image.secure_url, 240, 180)} alt="" />
+                          ) : (
+                            <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" className="sale-product-placeholder" />
+                          )}
+                        </div>
+                        <div className="sale-product-content">
+                          <strong>{product.name}</strong>
+                          {product.name_km && <span>{product.name_km}</span>}
+                          {saleShowProductCode && (
+                            <small>{product.sku || product.barcode || "No code"}</small>
+                          )}
+                          <div>
+                            <b>{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
+                            <em className={outOfStock ? "out" : ""}>
+                              {productStockLabel(product)}
+                            </em>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <SaleCart
+              cart={cart}
+              customers={customers}
+              customerId={customerId}
+              creditAccount={selectedCreditAccount}
+              onCustomerChange={(value) => {
+                invalidateCoupon();
+                setCustomerId(value);
+              }}
+              onAddCustomer={() => setCustomerOpen(true)}
+              discountType={discountType}
+              discountValue={discountValue}
+              onDiscountTypeChange={(value) => {
+                setDiscountType(value);
+                if (value === "none") setDiscountValue("0");
+              }}
+              onDiscountValueChange={setDiscountValue}
+              couponCode={couponCode}
+              appliedCoupon={appliedCoupon}
+              couponBusy={couponBusy}
+              onCouponCodeChange={(value) => {
+                setCouponCode(value);
+                if (appliedCoupon) invalidateCoupon();
+              }}
+              onApplyCoupon={applyCoupon}
+              onRemoveCoupon={removeCoupon}
+              notes={notes}
+              onNotesChange={setNotes}
+              totals={totals}
+              currency={currency}
+              exchangeRate={Number(shop?.usd_to_khr_rate || 4100)}
+              taxPercent={shop?.tax_percent || 0}
+              onQuantityChange={changeQuantity}
+              onUnitChange={changeUnit}
+              onRemove={(cartLineId) => {
+                invalidateCoupon();
+                setCart((current) => current.filter((item) =>
+                  lineKey(item) !== cartLineId
+                ));
+              }}
+              onClear={clearSale}
+              parkedCount={parkedSales.length}
+              onOpenParked={() => setParkedOpen(true)}
+              onPark={handlePark}
+              onSaveQuote={() => {
+                if (activeOrderDelivery) {
+                  announce("error", "A prepared delivery cannot be saved as a quotation.");
+                  return;
+                }
+                if (!isOnline) {
+                  announce(
+                    "error",
+                    "Reconnect before saving a quotation."
+                  );
+                  return;
+                }
+                setQuoteOpen(true);
+              }}
+              onPay={() => {
+                if (!isOnline) {
+                  announce(
+                    "error",
+                    "Reconnect before completing payment."
+                  );
+                  return;
+                }
+                setPaymentOpen(true);
+              }}
+              canSell={canSell && !busy}
+              canDiscount={canDiscount}
+              online={isOnline}
+              activeParkLabel={activeParkLabel}
+              activeQuoteNumber={
+                activeQuote?.quote_number || ""
+              }
+              quoteEditable={
+                !activeQuote
+                || ["draft", "sent"].includes(
+                  activeQuote.status
+                )
+              }
+              priceListName={
+                activeOrderDelivery?.order?.price_list_name
+                || priceCatalogs[currency]?.price_list_name
+                || ""
+              }
+              fulfillmentLocked={Boolean(activeOrderDelivery)}
+              fulfillmentLabel={
+                activeOrderDelivery
+                  ? `${activeOrderDelivery.delivery.delivery_number} · ${activeOrderDelivery.order.order_number}`
+                  : ""
+              }
+            />
+          </>
+        )}
       </div>
 
       <BarcodeScanner

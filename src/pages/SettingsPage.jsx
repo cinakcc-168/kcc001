@@ -1,167 +1,205 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Barcode,
-  ImagePlus,
-  Palette,
-  ReceiptText,
-  Save,
-  Store,
-  Trash2,
-  UserRound
-} from "lucide-react";
+import { CreditCard, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { useLanguage } from "../context/LanguageContext";
-import {
-  removeShopLogo,
-  saveShopSettings,
-  shopFormFromSettings,
-  uploadShopLogo
-} from "../lib/settings";
+import { uploadImage } from "../lib/cloudinary";
+
+const tabs = [
+  ["shop", "Shop Identity", Store],
+  ["receipt", "Receipt", ReceiptText],
+  ["preferences", "My Preferences", SlidersHorizontal],
+  ["payment", "Payment & Tax", CreditCard]
+];
+
+const emptyShop = {
+  shop_name: "",
+  shop_phone: "",
+  shop_email: "",
+  shop_address: "",
+  tax_id: "",
+  receipt_footer: "",
+  receipt_header: "",
+  shop_logo_url: "",
+  receipt_width_mm: 80,
+  receipt_show_logo: true,
+  receipt_show_address: true,
+  receipt_show_phone: true,
+  receipt_show_customer: true,
+  receipt_show_cashier: true,
+  receipt_show_barcode: true,
+  default_language: "en",
+  default_theme: "light",
+  tax_percent: 0,
+  usd_to_khr_rate: 4100
+};
+
+const emptyPersonal = {
+  language: "en",
+  theme_mode: "light",
+  compact_mode: false,
+  scanner_sound: true,
+  scanner_vibration: true,
+  new_sale_layout: "layout1",
+  sale_product_card_scale: 1,
+  sale_show_product_code: true,
+  sale_stock_display: "exact"
+};
+
+function clampProductScale(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 1;
+  return Math.min(1.45, Math.max(0.8, number));
+}
+
+function NewSaleLayoutPreview({ active, title, description, layout }) {
+  return (
+    <div className={`new-sale-layout-preview ${active ? "active" : ""}`}>
+      <div className={`new-sale-layout-sample ${layout}`} aria-hidden="true">
+        {layout === "layout1" ? (
+          <>
+            <div className="sample-products-area">
+              <div className="sample-toolbar-row" />
+              <div className="sample-card-grid">
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+            </div>
+            <div className="sample-cart-area">
+              <div className="sample-cart-head" />
+              <div className="sample-cart-lines">
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="sample-cart-footer" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="sample-layout2-left">
+              <div className="sample-bill-wide">
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="sample-products-area layout2">
+                <div className="sample-toolbar-row" />
+                <div className="sample-card-grid two-rows">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
+            </div>
+            <div className="sample-layout2-right">
+              <div className="sample-checkout-card" />
+              <div className="sample-checkout-card tall" />
+              <div className="sample-cart-footer" />
+            </div>
+          </>
+        )}
+      </div>
+      <div className="new-sale-layout-copy">
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
-  const { language, setLanguage, t } = useLanguage();
-
-  const {
-    supabase,
-    session,
-    profile,
-    preferences,
-    shop,
-    can,
-    savePreferences
-  } = useAuth();
-
-  const canEditShop = can("settings.manage");
-  const [tab, setTab] = useState("personal");
-  const [personal, setPersonal] = useState({
-    language: "en",
-    theme: "system",
-    accent_color: "#2563eb",
-    compact_mode: false,
-    sound_enabled: true,
-    scanner_vibration: true
-  });
-  const [shopForm, setShopForm] = useState(shopFormFromSettings(shop));
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { shop, profile, preferences, saveShopSettings, savePreferences, loading } = useAuth();
+  const [tab, setTab] = useState("shop");
+  const [shopForm, setShopForm] = useState(emptyShop);
+  const [personal, setPersonal] = useState(emptyPersonal);
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("success");
+  const [savingShop, setSavingShop] = useState(false);
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  useEffect(() => {
+    if (shop) setShopForm({ ...emptyShop, ...shop });
+  }, [shop]);
 
   useEffect(() => {
     if (preferences) {
       setPersonal({
-        language: preferences.language,
-        theme: preferences.theme,
-        accent_color: preferences.accent_color,
-        compact_mode: preferences.compact_mode,
-        sound_enabled: preferences.sound_enabled,
-        scanner_vibration: preferences.scanner_vibration
+        ...emptyPersonal,
+        ...preferences,
+        sale_product_card_scale: clampProductScale(
+          preferences.sale_product_card_scale ?? 1
+        ),
+        new_sale_layout: preferences.new_sale_layout || "layout1",
+        sale_show_product_code: preferences.sale_show_product_code !== false,
+        sale_stock_display: preferences.sale_stock_display || "exact"
       });
     }
   }, [preferences]);
 
-  useEffect(() => {
-    setShopForm(shopFormFromSettings(shop));
-    setLogoPreview(shop?.shop_logo_url || "");
-  }, [shop]);
-
-  useEffect(() => {
-    if (!logoFile) return undefined;
-
-    const objectUrl = URL.createObjectURL(logoFile);
-    setLogoPreview(objectUrl);
-
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [logoFile]);
-
-  const receiptPreviewStyle = useMemo(
-    () => ({ "--receipt-preview-width": `${shopForm.receipt_width_mm}mm` }),
+  const receiptPreviewWidth = useMemo(
+    () => `${Math.max(58, Number(shopForm.receipt_width_mm || 80))}mm`,
     [shopForm.receipt_width_mm]
   );
 
-  function updatePersonal(field, value) {
-    setPersonal((current) => ({ ...current, [field]: value }));
+  if (loading) return <div className="panel">Loading settings...</div>;
 
-    if (field === "language") {
-      setLanguage(value);
-    }
-
-    setMessage("");
+  function updateShop(key, value) {
+    setShopForm((current) => ({ ...current, [key]: value }));
   }
 
-  function updateShop(field, value) {
-    setShopForm((current) => ({ ...current, [field]: value }));
-    setMessage("");
+  function updatePersonal(key, value) {
+    setPersonal((current) => ({ ...current, [key]: value }));
   }
 
-  async function submitPersonal(event) {
+  async function handleShopSave(event) {
     event.preventDefault();
-
+    setSavingShop(true);
+    setMessage("");
     try {
-      setBusy(true);
-      await savePreferences(personal);
-      setMessageType("success");
-      setMessage(t("Personal preferences saved."));
+      await saveShopSettings(shopForm);
+      setMessage("Shop settings saved.");
     } catch (error) {
-      setMessageType("error");
-      setMessage(error.message);
+      setMessage(error.message || "Unable to save shop settings.");
     } finally {
-      setBusy(false);
+      setSavingShop(false);
     }
   }
 
-  async function submitShop(event) {
+  async function handlePersonalSave(event) {
     event.preventDefault();
-
-    if (!canEditShop) return;
-
+    setSavingPersonal(true);
+    setMessage("");
     try {
-      setBusy(true);
-      await saveShopSettings(supabase, shopForm);
-      setMessageType("success");
-      setMessage("Shop settings saved. Reloading the POS...");
-      window.setTimeout(() => window.location.reload(), 700);
-    } catch (error) {
-      setMessageType("error");
-      setMessage(error.message);
-      setBusy(false);
-    }
-  }
-
-  async function uploadLogo() {
-    if (!logoFile || !canEditShop) return;
-
-    try {
-      setBusy(true);
-      await uploadShopLogo({ supabase, session, file: logoFile });
-      setMessageType("success");
-      setMessage("Shop logo uploaded. Reloading the POS...");
-      window.setTimeout(() => window.location.reload(), 700);
-    } catch (error) {
-      setMessageType("error");
-      setMessage(error.message);
-      setBusy(false);
-    }
-  }
-
-  async function deleteLogo() {
-    if (!canEditShop) return;
-
-    try {
-      setBusy(true);
-      await removeShopLogo({
-        supabase,
-        session,
-        publicId: shop?.shop_logo_public_id
+      await savePreferences({
+        ...personal,
+        sale_product_card_scale: clampProductScale(personal.sale_product_card_scale)
       });
-      setMessageType("success");
-      setMessage("Shop logo removed. Reloading the POS...");
-      window.setTimeout(() => window.location.reload(), 700);
+      setMessage("Your preferences were updated.");
     } catch (error) {
-      setMessageType("error");
-      setMessage(error.message);
-      setBusy(false);
+      setMessage(error.message || "Unable to save preferences.");
+    } finally {
+      setSavingPersonal(false);
+    }
+  }
+
+  async function onLogoChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoUploading(true);
+    setMessage("");
+    try {
+      const result = await uploadImage(file, "shop-branding");
+      updateShop("shop_logo_url", result.secure_url);
+      setMessage("Logo uploaded. Save shop settings to apply it.");
+    } catch (error) {
+      setMessage(error.message || "Unable to upload logo.");
+    } finally {
+      setLogoUploading(false);
+      event.target.value = "";
     }
   }
 
@@ -169,489 +207,294 @@ export default function SettingsPage() {
     <div className="page-stack settings-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CONFIGURATION</p>
+          <p className="eyebrow">SYSTEM</p>
           <h1>Settings</h1>
-          <p className="muted">
-            Every staff member controls their own display. Shop settings are shared.
-          </p>
         </div>
+        {message && <div className="notice info">{message}</div>}
       </div>
-
-      {message && <div className={`notice ${messageType}`}>{message}</div>}
 
       <div className="settings-tabs">
-        <button
-          type="button"
-          className={tab === "personal" ? "active" : ""}
-          onClick={() => setTab("personal")}
-        >
-          <UserRound size={18} />
-          My preferences
-        </button>
-        <button
-          type="button"
-          className={tab === "shop" ? "active" : ""}
-          onClick={() => setTab("shop")}
-        >
-          <Store size={18} />
-          Shop & receipt
-        </button>
+        {tabs.map(([key, label, Icon]) => (
+          <button
+            key={key}
+            type="button"
+            className={tab === key ? "active" : ""}
+            onClick={() => setTab(key)}
+          >
+            <Icon size={18} /> {label}
+          </button>
+        ))}
       </div>
 
-      {tab === "personal" ? (
-        <form className="settings-layout" onSubmit={submitPersonal}>
-          <section className="panel settings-section">
-            <div className="panel-heading">
-              <div>
-                <h2>Appearance</h2>
-                <p className="muted">These choices apply only to your account.</p>
-              </div>
-              <Palette size={23} />
-            </div>
-
-            <div className="form-grid three">
-              <label>
-                <span>Language</span>
-                <select
-                  value={language || personal.language}
-                  onChange={(event) => updatePersonal("language", event.target.value)}
-                >
-                  <option value="en">English</option>
-                  <option value="km">ខ្មែរ</option>
-                </select>
-                <small className="field-help">
-                  {t("Language changes immediately and is saved to your account.")}
-                </small>
-              </label>
-
-              <label>
-                <span>Theme</span>
-                <select
-                  value={personal.theme}
-                  onChange={(event) => updatePersonal("theme", event.target.value)}
-                >
-                  <option value="system">Device setting</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Accent color</span>
-                <input
-                  type="color"
-                  value={personal.accent_color}
-                  onChange={(event) => updatePersonal("accent_color", event.target.value)}
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="panel settings-section">
-            <h2>POS behavior</h2>
-            <div className="settings-toggle-list">
-              {[
-                ["compact_mode", "Compact layout", "Reduce spacing on large screens."],
-                ["sound_enabled", "Confirmation sounds", "Play supported checkout and scanner sounds."],
-                ["scanner_vibration", "Scanner vibration", "Vibrate supported phones after a successful scan."]
-              ].map(([field, label, detail]) => (
-                <label className="settings-toggle" key={field}>
-                  <span>
-                    <strong>{label}</strong>
-                    <small>{detail}</small>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(personal[field])}
-                    onChange={(event) => updatePersonal(field, event.target.checked)}
-                  />
-                </label>
-              ))}
-            </div>
-          </section>
-
-          <div className="settings-save-row">
-            <button className="primary-button" disabled={busy}>
-              <Save size={18} />
-              {busy ? "Saving..." : "Save my preferences"}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <form className="settings-layout" onSubmit={submitShop}>
-          {!canEditShop && (
-            <div className="notice warning">
-              Shop settings are visible to all staff. Only an owner or admin can edit them.
-            </div>
-          )}
-
-          <section className="panel settings-section">
-            <div className="panel-heading">
-              <div>
-                <h2>Shop identity</h2>
-                <p className="muted">Used on receipts and printed documents.</p>
-              </div>
-              <Store size={23} />
-            </div>
-
-            <div className="shop-identity-layout">
-              <div className="form-grid two">
-                <label>
-                  <span>Shop name</span>
-                  <input
-                    value={shopForm.shop_name}
-                    disabled={!canEditShop}
-                    onChange={(event) => updateShop("shop_name", event.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Phone</span>
-                  <input
-                    value={shopForm.shop_phone}
-                    disabled={!canEditShop}
-                    onChange={(event) => updateShop("shop_phone", event.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={shopForm.shop_email}
-                    disabled={!canEditShop}
-                    onChange={(event) => updateShop("shop_email", event.target.value)}
-                  />
-                </label>
-                <label>
-                  <span>Tax or registration ID</span>
-                  <input
-                    value={shopForm.tax_id}
-                    disabled={!canEditShop}
-                    onChange={(event) => updateShop("tax_id", event.target.value)}
-                  />
-                </label>
-                <label className="settings-wide-field">
-                  <span>Address</span>
-                  <textarea
-                    rows="3"
-                    value={shopForm.shop_address}
-                    disabled={!canEditShop}
-                    onChange={(event) => updateShop("shop_address", event.target.value)}
-                  />
-                </label>
+      <div className="settings-layout">
+        {tab === "shop" && (
+          <form className="settings-section" onSubmit={handleShopSave}>
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>Shop identity</h2>
+                  <p>These details appear across the POS, invoices and receipts.</p>
+                </div>
               </div>
 
-              <div className="shop-logo-editor">
-                <span className="field-title">Shop logo</span>
-                <div className="shop-logo-preview">
-                  {logoPreview ? <img src={logoPreview} alt="Shop logo preview" /> : <Store size={42} />}
+              <div className="shop-identity-layout">
+                <div className="form-grid two">
+                  <label><span>Shop name</span><input value={shopForm.shop_name || ""} onChange={(event) => updateShop("shop_name", event.target.value)} /></label>
+                  <label><span>Phone</span><input value={shopForm.shop_phone || ""} onChange={(event) => updateShop("shop_phone", event.target.value)} /></label>
+                  <label><span>Email</span><input value={shopForm.shop_email || ""} onChange={(event) => updateShop("shop_email", event.target.value)} /></label>
+                  <label><span>Tax ID</span><input value={shopForm.tax_id || ""} onChange={(event) => updateShop("tax_id", event.target.value)} /></label>
+                  <label className="settings-wide-field"><span>Address</span><textarea rows="3" value={shopForm.shop_address || ""} onChange={(event) => updateShop("shop_address", event.target.value)} /></label>
+                  <label className="settings-wide-field"><span>Receipt header</span><textarea rows="2" value={shopForm.receipt_header || ""} onChange={(event) => updateShop("receipt_header", event.target.value)} /></label>
+                  <label className="settings-wide-field"><span>Receipt footer</span><textarea rows="2" value={shopForm.receipt_footer || ""} onChange={(event) => updateShop("receipt_footer", event.target.value)} /></label>
+                  <label><span>Default language</span><select value={shopForm.default_language || "en"} onChange={(event) => updateShop("default_language", event.target.value)}><option value="en">English</option><option value="km">Khmer</option></select></label>
+                  <label><span>Default theme</span><select value={shopForm.default_theme || "light"} onChange={(event) => updateShop("default_theme", event.target.value)}><option value="light">Light</option><option value="dark">Dark</option></select></label>
                 </div>
 
-                {canEditShop && (
-                  <>
-                    <label className="secondary-button file-button">
-                      <ImagePlus size={18} />
-                      Choose logo
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        onChange={(event) => setLogoFile(event.target.files?.[0] || null)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      className="primary-button"
-                      disabled={!logoFile || busy}
-                      onClick={uploadLogo}
-                    >
-                      Upload logo
-                    </button>
-                    {shop?.shop_logo_url && (
-                      <button
-                        type="button"
-                        className="danger-button"
-                        disabled={busy}
-                        onClick={deleteLogo}
-                      >
-                        <Trash2 size={18} />
-                        Remove logo
-                      </button>
-                    )}
-                  </>
-                )}
+                <div className="shop-logo-editor">
+                  <div className="shop-logo-preview">
+                    {shopForm.shop_logo_url ? <img src={shopForm.shop_logo_url} alt="Shop logo" /> : <span>No logo uploaded</span>}
+                  </div>
+                  <label className="secondary-button" style={{ justifyContent: "center", cursor: logoUploading ? "wait" : "pointer" }}>
+                    {logoUploading ? "Uploading..." : "Upload logo"}
+                    <input type="file" accept="image/*" onChange={onLogoChange} hidden disabled={logoUploading} />
+                  </label>
+                </div>
               </div>
+            </section>
+
+            <div className="settings-save-row">
+              <button type="submit" className="primary-button" disabled={savingShop || logoUploading}>
+                <Save size={18} /> {savingShop ? "Saving..." : "Save shop settings"}
+              </button>
             </div>
-          </section>
+          </form>
+        )}
 
-          <section className="panel settings-section">
-            <div className="panel-heading">
-              <div>
-                <h2>Business defaults</h2>
-                <p className="muted">Shared defaults used by products and sales.</p>
-              </div>
-            </div>
-
-            <div className="form-grid three">
-              <label>
-                <span>Base currency</span>
-                <select
-                  value={shopForm.base_currency}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("base_currency", event.target.value)}
-                >
-                  <option value="USD">USD</option>
-                  <option value="KHR">KHR</option>
-                </select>
-              </label>
-              <label>
-                <span>USD to KHR rate</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  value={shopForm.usd_to_khr_rate}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("usd_to_khr_rate", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Default tax (%)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={shopForm.tax_percent}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("tax_percent", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Low-stock threshold</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  value={shopForm.low_stock_threshold}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("low_stock_threshold", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Invoice prefix</span>
-                <input
-                  maxLength="12"
-                  value={shopForm.invoice_prefix}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("invoice_prefix", event.target.value.toUpperCase())}
-                />
-              </label>
-              <label>
-                <span>Default language</span>
-                <select
-                  value={shopForm.default_language}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("default_language", event.target.value)}
-                >
-                  <option value="en">English</option>
-                  <option value="km">ខ្មែរ</option>
-                </select>
-              </label>
-              <label>
-                <span>Default theme</span>
-                <select
-                  value={shopForm.default_theme}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("default_theme", event.target.value)}
-                >
-                  <option value="system">Device setting</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
-            </div>
-
-            <label className="settings-toggle standalone-toggle">
-              <span>
-                <strong>Allow negative stock</strong>
-                <small>Use only when sales must continue without confirmed stock.</small>
-              </span>
-              <input
-                type="checkbox"
-                checked={shopForm.allow_negative_stock}
-                disabled={!canEditShop}
-                onChange={(event) => updateShop("allow_negative_stock", event.target.checked)}
-              />
-            </label>
-          </section>
-
-          <section className="panel settings-section">
-            <div className="panel-heading">
-              <div>
-                <h2>Receipt design</h2>
-                <p className="muted">Control thermal receipt content.</p>
-              </div>
-              <ReceiptText size={23} />
-            </div>
-
-            <div className="receipt-settings-layout">
+        {tab === "receipt" && (
+          <form className="settings-section" onSubmit={handleShopSave}>
+            <section className="panel receipt-settings-layout">
               <div className="receipt-settings-fields">
+                <div>
+                  <h2>Receipt setup</h2>
+                  <p>Control the default receipt width and what prints for every sale.</p>
+                </div>
+
                 <div className="form-grid two">
                   <label>
-                    <span>Receipt width</span>
-                    <select
-                      value={shopForm.receipt_width_mm}
-                      disabled={!canEditShop}
-                      onChange={(event) => updateShop("receipt_width_mm", Number(event.target.value))}
-                    >
-                      <option value="58">58 mm</option>
-                      <option value="80">80 mm</option>
-                    </select>
+                    <span>Receipt width (mm)</span>
+                    <input type="number" min="58" max="120" value={shopForm.receipt_width_mm || 80} onChange={(event) => updateShop("receipt_width_mm", Number(event.target.value || 80))} />
                   </label>
                   <label>
-                    <span>Header message</span>
-                    <input
-                      value={shopForm.receipt_header}
-                      disabled={!canEditShop}
-                      onChange={(event) => updateShop("receipt_header", event.target.value)}
-                      placeholder="Optional message above invoice details"
-                    />
-                  </label>
-                  <label className="settings-wide-field">
-                    <span>Receipt footer</span>
-                    <textarea
-                      rows="3"
-                      value={shopForm.receipt_footer}
-                      disabled={!canEditShop}
-                      onChange={(event) => updateShop("receipt_footer", event.target.value)}
-                    />
+                    <span>Cashier name on receipt</span>
+                    <select value={shopForm.receipt_show_cashier !== false ? "yes" : "no"} onChange={(event) => updateShop("receipt_show_cashier", event.target.value === "yes")}>
+                      <option value="yes">Show</option>
+                      <option value="no">Hide</option>
+                    </select>
                   </label>
                 </div>
 
                 <div className="settings-toggle-list compact-toggles">
                   {[
-                    ["receipt_show_logo", "Show logo"],
-                    ["receipt_show_address", "Show address"],
-                    ["receipt_show_phone", "Show phone and email"],
-                    ["receipt_show_customer", "Show customer"],
-                    ["receipt_show_cashier", "Show cashier"],
-                    ["receipt_show_barcode", "Show invoice barcode"]
-                  ].map(([field, label]) => (
-                    <label className="settings-toggle" key={field}>
-                      <span><strong>{label}</strong></span>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(shopForm[field])}
-                        disabled={!canEditShop}
-                        onChange={(event) => updateShop(field, event.target.checked)}
-                      />
+                    ["receipt_show_logo", "Shop logo", "Display the shop logo at the top of each receipt."],
+                    ["receipt_show_address", "Shop address", "Show the shop address block."],
+                    ["receipt_show_phone", "Phone and email", "Show phone number and email if available."],
+                    ["receipt_show_customer", "Customer details", "Include customer name and profile details."],
+                    ["receipt_show_barcode", "Invoice barcode", "Render a scannable barcode on the printed receipt."]
+                  ].map(([key, title, note]) => (
+                    <label key={key} className="settings-toggle">
+                      <span><strong>{title}</strong><small>{note}</small></span>
+                      <input type="checkbox" checked={shopForm[key] !== false} onChange={(event) => updateShop(key, event.target.checked)} />
                     </label>
                   ))}
                 </div>
               </div>
 
-              <div className="receipt-settings-preview" style={receiptPreviewStyle}>
-                {shopForm.receipt_show_logo && logoPreview && (
-                  <img src={logoPreview} alt="" />
-                )}
-                <strong>{shopForm.shop_name || "Tiny POS"}</strong>
+              <div className="receipt-settings-preview" style={{ "--receipt-preview-width": receiptPreviewWidth }}>
+                {shopForm.shop_logo_url && shopForm.receipt_show_logo !== false && <img src={shopForm.shop_logo_url} alt="Preview logo" />}
+                <b>{shopForm.shop_name || "Tiny POS"}</b>
                 {shopForm.receipt_header && <span>{shopForm.receipt_header}</span>}
+                {shopForm.receipt_show_address !== false && <span>{shopForm.shop_address || "Shop address"}</span>}
+                {shopForm.receipt_show_phone !== false && <span>{shopForm.shop_phone || "+855 xx xxx xxx"}</span>}
                 <hr />
-                <span>INV-MAIN-00001</span>
-                <span>Sample product × 1</span>
-                <b>$10.00</b>
+                <div>Invoice · INV-00001</div>
+                <div>Cashier · {profile?.full_name || "Cashier"}</div>
+                {shopForm.receipt_show_customer !== false && <div>Customer · Walk-in</div>}
                 <hr />
-                <strong>Total $10.00</strong>
-                <span>{shopForm.receipt_footer}</span>
+                <div>1 × Sample product — $1.50</div>
+                <div>Subtotal — $1.50</div>
+                <div>Total — $1.50</div>
+                {shopForm.receipt_show_barcode !== false && <div>[ barcode ]</div>}
+                <hr />
+                <span>{shopForm.receipt_footer || "Thank you for your purchase."}</span>
               </div>
-            </div>
-          </section>
+            </section>
 
-          <section className="panel settings-section">
-            <div className="panel-heading">
-              <div>
-                <h2>Barcode label defaults</h2>
-                <p className="muted">Used when opening Barcode & Price Labels.</p>
-              </div>
-              <Barcode size={23} />
-            </div>
-
-            <div className="form-grid four">
-              <label>
-                <span>Width (mm)</span>
-                <input
-                  type="number"
-                  min="20"
-                  max="120"
-                  value={shopForm.label_width_mm}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("label_width_mm", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Height (mm)</span>
-                <input
-                  type="number"
-                  min="15"
-                  max="100"
-                  value={shopForm.label_height_mm}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("label_height_mm", event.target.value)}
-                />
-              </label>
-              <label>
-                <span>Columns</span>
-                <select
-                  value={shopForm.label_columns}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("label_columns", Number(event.target.value))}
-                >
-                  {[1, 2, 3, 4, 5, 6].map((number) => (
-                    <option value={number} key={number}>{number}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Barcode format</span>
-                <select
-                  value={shopForm.label_barcode_format}
-                  disabled={!canEditShop}
-                  onChange={(event) => updateShop("label_barcode_format", event.target.value)}
-                >
-                  <option value="CODE128">CODE128</option>
-                  <option value="EAN13">EAN-13</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="label-toggle-row">
-              {[
-                ["label_show_name", "Show product name"],
-                ["label_show_price", "Show selling price"],
-                ["label_show_sku", "Show product code"]
-              ].map(([field, label]) => (
-                <label className="check-row" key={field}>
-                  <input
-                    type="checkbox"
-                    checked={Boolean(shopForm[field])}
-                    disabled={!canEditShop}
-                    onChange={(event) => updateShop(field, event.target.checked)}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </section>
-
-          {canEditShop && (
             <div className="settings-save-row">
-              <button className="primary-button" disabled={busy}>
-                <Save size={18} />
-                {busy ? "Saving..." : "Save shop settings"}
+              <button type="submit" className="primary-button" disabled={savingShop}>
+                <Save size={18} /> {savingShop ? "Saving..." : "Save receipt settings"}
               </button>
             </div>
-          )}
-        </form>
-      )}
+          </form>
+        )}
+
+        {tab === "preferences" && (
+          <form className="settings-section" onSubmit={handlePersonalSave}>
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>My preferences</h2>
+                  <p>These settings are saved per user, so each staff member can keep a comfortable New Sale view.</p>
+                </div>
+              </div>
+
+              <div className="form-grid two">
+                <label>
+                  <span>Language</span>
+                  <select value={personal.language || "en"} onChange={(event) => updatePersonal("language", event.target.value)}>
+                    <option value="en">English</option>
+                    <option value="km">Khmer</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Theme mode</span>
+                  <select value={personal.theme_mode || "light"} onChange={(event) => updatePersonal("theme_mode", event.target.value)}>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="settings-toggle-list">
+                <label className="settings-toggle">
+                  <span><strong>Compact mode</strong><small>Use a denser interface when you want to fit more content on screen.</small></span>
+                  <input type="checkbox" checked={Boolean(personal.compact_mode)} onChange={(event) => updatePersonal("compact_mode", event.target.checked)} />
+                </label>
+                <label className="settings-toggle">
+                  <span><strong>Scanner sound</strong><small>Play a sound after a successful barcode scan.</small></span>
+                  <input type="checkbox" checked={personal.scanner_sound !== false} onChange={(event) => updatePersonal("scanner_sound", event.target.checked)} />
+                </label>
+                <label className="settings-toggle">
+                  <span><strong>Scanner vibration</strong><small>Vibrate supported devices after a successful scan.</small></span>
+                  <input type="checkbox" checked={personal.scanner_vibration !== false} onChange={(event) => updatePersonal("scanner_vibration", event.target.checked)} />
+                </label>
+              </div>
+            </section>
+
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>New Sale workspace</h2>
+                  <p>Choose your preferred layout and how products appear in the New Sale screen.</p>
+                </div>
+              </div>
+
+              <div className="new-sale-layout-grid">
+                <label className={`new-sale-layout-card ${personal.new_sale_layout === "layout1" ? "active" : ""}`}>
+                  <input
+                    type="radio"
+                    name="new-sale-layout"
+                    value="layout1"
+                    checked={personal.new_sale_layout === "layout1"}
+                    onChange={(event) => updatePersonal("new_sale_layout", event.target.value)}
+                  />
+                  <NewSaleLayoutPreview
+                    active={personal.new_sale_layout === "layout1"}
+                    title="Layout 1 · Classic"
+                    description="Products on the left and the full bill on the right."
+                    layout="layout1"
+                  />
+                </label>
+
+                <label className={`new-sale-layout-card ${personal.new_sale_layout === "layout2" ? "active" : ""}`}>
+                  <input
+                    type="radio"
+                    name="new-sale-layout"
+                    value="layout2"
+                    checked={personal.new_sale_layout === "layout2"}
+                    onChange={(event) => updatePersonal("new_sale_layout", event.target.value)}
+                  />
+                  <NewSaleLayoutPreview
+                    active={personal.new_sale_layout === "layout2"}
+                    title="Layout 2 · Wide bill + right checkout"
+                    description="Current bill above, product search below, and checkout tools on the right."
+                    layout="layout2"
+                  />
+                </label>
+              </div>
+
+              <div className="new-sale-preference-grid">
+                <label className="settings-wide-field">
+                  <span>Product card size</span>
+                  <div className="preference-range-row">
+                    <input
+                      type="range"
+                      min="0.8"
+                      max="1.45"
+                      step="0.05"
+                      value={clampProductScale(personal.sale_product_card_scale)}
+                      onChange={(event) => updatePersonal("sale_product_card_scale", clampProductScale(event.target.value))}
+                    />
+                    <strong>{Math.round(clampProductScale(personal.sale_product_card_scale) * 100)}%</strong>
+                  </div>
+                  <small className="field-help">Default is 100%. Increase the size when products feel too small, or reduce it to fit more products.</small>
+                </label>
+
+                <label>
+                  <span>Product code display</span>
+                  <select value={personal.sale_show_product_code !== false ? "show" : "hide"} onChange={(event) => updatePersonal("sale_show_product_code", event.target.value === "show")}>
+                    <option value="show">Show code / barcode</option>
+                    <option value="hide">Hide code / barcode</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Stock display style</span>
+                  <select value={personal.sale_stock_display || "exact"} onChange={(event) => updatePersonal("sale_stock_display", event.target.value)}>
+                    <option value="exact">Show exact units</option>
+                    <option value="status">Show only In stock / Out</option>
+                  </select>
+                </label>
+              </div>
+            </section>
+
+            <div className="settings-save-row">
+              <button type="submit" className="primary-button" disabled={savingPersonal}>
+                <Save size={18} /> {savingPersonal ? "Saving..." : "Save my preferences"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {tab === "payment" && (
+          <form className="settings-section" onSubmit={handleShopSave}>
+            <section className="panel">
+              <div className="panel-heading">
+                <div>
+                  <h2>Payment & tax</h2>
+                  <p>Control the default rate used for USD/KHR conversion and tax calculation.</p>
+                </div>
+              </div>
+
+              <div className="form-grid two">
+                <label>
+                  <span>Tax percent (%)</span>
+                  <input type="number" min="0" max="100" step="0.01" value={shopForm.tax_percent || 0} onChange={(event) => updateShop("tax_percent", Number(event.target.value || 0))} />
+                </label>
+                <label>
+                  <span>USD → KHR rate</span>
+                  <input type="number" min="1" step="1" value={shopForm.usd_to_khr_rate || 4100} onChange={(event) => updateShop("usd_to_khr_rate", Number(event.target.value || 4100))} />
+                </label>
+              </div>
+            </section>
+
+            <div className="settings-save-row">
+              <button type="submit" className="primary-button" disabled={savingShop}>
+                <Save size={18} /> {savingShop ? "Saving..." : "Save payment settings"}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
