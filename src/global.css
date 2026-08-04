@@ -2687,3 +2687,220 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
 @media(max-width:1180px){.sale-layout,.sale-layout.sale-layout-alt{grid-template-columns:1fr}.sale-layout-alt-main{order:1}.sale-checkout-panel{order:2}.sale-layout-alt .sale-cart-lines{max-height:none}.new-sale-layout-grid,.new-sale-preference-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.sale-products-panel,.sale-cart,.sale-cart-lines-panel,.sale-checkout-panel{padding:14px}.sale-toolbar{grid-template-columns:minmax(0,1fr) 56px;grid-template-areas:"search scan" "category sort";align-items:stretch}.sale-scan-button{min-width:56px;padding-inline:0}.sale-scan-button svg{margin:0}.sale-scan-button{font-size:0}.sale-scan-button svg+*{display:none}.sale-category-select,.sale-sort-select select,.search-box,.sale-scan-button{min-height:48px}.sale-category-select,.sale-sort-select select{text-align:center;text-align-last:center}.sale-product-summary{align-items:flex-start;flex-direction:row}.sale-product-summary>div small{display:none}.sale-products-grid,.layout-two-products-panel .sale-products-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.sale-product-image{height:calc(104px * var(--sale-card-scale))}.cart-line-main{grid-template-columns:30px minmax(0,1fr);grid-template-areas:"num text" "unit unit" "qty qty";align-items:start}.cart-line-number{grid-area:num}.cart-line-text{grid-area:text}.cart-line-unit-control{grid-area:unit}.cart-quantity-controls{grid-area:qty;grid-template-columns:36px minmax(0,1fr) 36px 36px}.sale-cart-lines-count,.sale-cart-heading,.sale-checkout-heading{align-items:flex-start;flex-direction:column}.sale-cart-heading-actions{width:100%;justify-content:space-between}.sale-product-content>div{flex-direction:column;align-items:flex-start}.sale-product-content em{text-align:left}.receipt-actions{position:sticky;bottom:0;background:var(--surface);padding-top:10px}}
 @media print{.receipt-language-toolbar,[data-print-hide]{display:none!important}.modal .receipt-wrapper{padding:0}.receipt-actions{display:none!important}}
+
+/* ===== Step 46.4.7 - Product-card sizing & Layout 2 one-line bill rows ===== */
+.sales-page{
+  --sale-card-width:clamp(148px,calc(182px * var(--sale-card-scale)),258px);
+  --sale-card-height:clamp(205px,calc(242px * var(--sale-card-scale)),340px);
+  --sale-card-image-height:clamp(92px,calc(116px * var(--sale-card-scale)),170px);
+  --sale-card-gap:clamp(9px,calc(12px * var(--sale-card-scale)),16px);
+  --sale-product-grid-height:clamp(520px,64vh,760px);
+  --sale-bill-list-height:clamp(520px,60vh,780px);
+}
+
+/* Keep product cards predictable instead of stretching very wide when a row is not full. */
+.sale-products-grid,
+.layout-two-products-panel .sale-products-grid{
+  grid-template-columns:repeat(auto-fill,var(--sale-card-width));
+  grid-auto-rows:var(--sale-card-height);
+  gap:var(--sale-card-gap);
+  justify-content:start;
+  align-items:stretch;
+}
+
+.sale-product-card{
+  width:var(--sale-card-width);
+  height:var(--sale-card-height);
+  min-width:0;
+  min-height:0;
+  grid-template-rows:var(--sale-card-image-height) minmax(0,1fr);
+}
+
+.sale-product-image{
+  width:100%;
+  height:var(--sale-card-image-height);
+  min-height:0;
+}
+
+.sale-product-content{
+  min-height:0;
+  grid-template-rows:auto auto auto minmax(0,1fr);
+  align-content:start;
+  overflow:hidden;
+}
+
+.sale-product-content>strong{
+  min-height:calc(2.4em);
+  -webkit-line-clamp:2;
+}
+
+.sale-product-content>span{
+  min-height:1.3em;
+  -webkit-line-clamp:1;
+}
+
+.sale-product-content>small{
+  min-height:1.2em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.sale-product-content>div{
+  align-self:end;
+  margin-top:auto;
+  width:100%;
+}
+
+/* Layout 2 product browser uses a stable viewport. The user card-size slider decides whether roughly two or three rows fit before scrolling. */
+.layout-two-grid{
+  height:var(--sale-product-grid-height);
+  max-height:var(--sale-product-grid-height);
+  min-height:520px;
+  overflow:auto;
+  align-content:start;
+  grid-auto-flow:row;
+}
+
+/* Layout 2: every selected product remains one horizontal bill row. */
+.sale-cart-lines.compact-layout{
+  display:block;
+  width:100%;
+  max-height:var(--sale-bill-list-height);
+  overflow:auto;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+
+.sale-cart-lines.compact-layout .sale-cart-line.compact{
+  min-width:960px;
+  width:100%;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(150px,auto);
+  align-items:center;
+  gap:14px;
+  padding:8px 10px;
+  margin-bottom:8px;
+}
+
+.sale-cart-lines.compact-layout .sale-cart-line.compact:last-child{
+  margin-bottom:0;
+}
+
+.sale-cart-lines.compact-layout .sale-cart-line.compact .cart-line-main{
+  min-width:0;
+  display:grid;
+  grid-template-columns:32px minmax(320px,1fr) minmax(145px,190px) 184px;
+  align-items:center;
+  gap:10px;
+}
+
+.sale-cart-lines.compact-layout .cart-line-number{
+  width:30px;
+  height:30px;
+}
+
+.sale-cart-lines.compact-layout .cart-line-text{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) auto;
+  align-items:center;
+  gap:12px;
+}
+
+.sale-cart-lines.compact-layout .cart-line-name{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.sale-cart-lines.compact-layout .cart-line-math{
+  display:block;
+  white-space:nowrap;
+  text-align:right;
+}
+
+.sale-cart-lines.compact-layout .cart-line-unit-control,
+.sale-cart-lines.compact-layout .cart-line-unit-control select,
+.sale-cart-lines.compact-layout .single-unit-label{
+  width:100%;
+  min-width:0;
+}
+
+.sale-cart-lines.compact-layout .cart-line-unit-control select{
+  min-width:145px;
+  padding-right:30px;
+  cursor:pointer;
+}
+
+.sale-cart-lines.compact-layout .cart-quantity-controls{
+  grid-template-columns:34px 62px 34px 34px;
+  gap:5px;
+  justify-self:end;
+}
+
+.sale-cart-lines.compact-layout .cart-quantity-controls .icon-button,
+.sale-cart-lines.compact-layout .cart-quantity-controls input{
+  width:34px;
+  height:34px;
+  min-height:34px;
+}
+
+.sale-cart-lines.compact-layout .cart-quantity-controls input{
+  width:62px;
+}
+
+.sale-cart-lines.compact-layout .cart-line-stock{
+  min-width:150px;
+  display:grid;
+  justify-items:end;
+  align-content:center;
+  gap:2px;
+  white-space:nowrap;
+  text-align:right;
+}
+
+.sale-cart-lines.compact-layout .cart-line-stock small{
+  max-width:190px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+@media(max-width:760px){
+  .sales-page{
+    --sale-card-width:100%;
+    --sale-card-height:clamp(205px,calc(232px * var(--sale-card-scale)),310px);
+    --sale-card-image-height:clamp(94px,calc(112px * var(--sale-card-scale)),158px);
+    --sale-product-grid-height:clamp(500px,68vh,720px);
+    --sale-bill-list-height:none;
+  }
+
+  .sale-products-grid,
+  .layout-two-products-panel .sale-products-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-auto-rows:var(--sale-card-height);
+    justify-content:stretch;
+  }
+
+  .sale-product-card{
+    width:100%;
+    height:var(--sale-card-height);
+  }
+
+  /* Layout 2 keeps one-line bill rows on phones. It scrolls horizontally for columns, while the page grows vertically so many items appear before any internal vertical scrollbar. */
+  .sale-cart-lines.compact-layout{
+    max-height:none;
+    overflow-x:auto;
+    overflow-y:visible;
+    padding-bottom:4px;
+  }
+
+  .sale-cart-lines.compact-layout .sale-cart-line.compact{
+    min-width:880px;
+  }
+
+  .sale-cart-lines.compact-layout .sale-cart-line.compact .cart-line-main{
+    grid-template-columns:30px minmax(290px,1fr) 145px 174px;
+  }
+}
