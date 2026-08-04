@@ -31,6 +31,15 @@ function widthFor(column, rows) {
   return Math.min(260, Math.max(72, length * 7.2 + 20));
 }
 
+function preferCurrentWindowPrint() {
+  try {
+    return window.matchMedia("(max-width: 900px)").matches
+      || Boolean(window.Telegram?.WebApp?.initData);
+  } catch {
+    return false;
+  }
+}
+
 export function printListDocument({
   title,
   subtitle = "",
@@ -59,7 +68,9 @@ export function printListDocument({
     <footer>Printed ${escapeHtml(new Date().toLocaleString())}</footer>
   `;
 
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1100,height=800");
+  const printWindow = preferCurrentWindowPrint()
+    ? null
+    : window.open("", "_blank", "width=1100,height=800");
   if (printWindow) {
     printWindow.document.open();
     printWindow.document.write(`<!doctype html>
@@ -145,4 +156,51 @@ export function exportListExcel({
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+
+export function printHtmlDocument({
+  title = "Tiny POS",
+  html = "",
+  styles = "",
+  page = "auto",
+  fallbackClassName = "tiny-pos-html-print-root",
+  preferCurrentWindow = false
+}) {
+  const fullDocument = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>${escapeHtml(title)}</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#111;font-family:"Noto Sans Khmer",Arial,sans-serif}${styles}
+@page{size:${page};margin:6mm}
+@media print{html,body{width:100%;overflow:visible!important}}
+</style>
+</head>
+<body>${html}<script>window.addEventListener('load',function(){setTimeout(function(){window.focus();window.print()},300)});<\/script></body>
+</html>`;
+
+  const printWindow = (preferCurrentWindow || preferCurrentWindowPrint())
+    ? null
+    : window.open("", "_blank", "width=900,height=800");
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(fullDocument);
+    printWindow.document.close();
+    return;
+  }
+
+  document.getElementById(fallbackClassName)?.remove();
+  const root = document.createElement("section");
+  root.id = fallbackClassName;
+  root.className = fallbackClassName;
+  root.innerHTML = `<style>${styles}</style>${html}`;
+  document.body.appendChild(root);
+  void root.offsetHeight;
+  const cleanup = () => root.remove();
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.setTimeout(cleanup, 300000);
+  window.print();
 }
