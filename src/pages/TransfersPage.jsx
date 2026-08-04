@@ -13,6 +13,7 @@ import { useAuth } from "../context/AuthContext";
 import TransferFormModal from "../components/TransferFormModal";
 import TransferActionModal from "../components/TransferActionModal";
 import SupplierReturnModal from "../components/SupplierReturnModal";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import { money, stockNumber } from "../lib/catalog";
 import {
   cancelStockTransfer,
@@ -348,145 +349,62 @@ export default function TransfersPage() {
           />
         </label>
 
-        {tab === "transfers" ? (
-          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+        {tab === "transfers" && (
+          <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter transfers by status">
             <option value="all">All statuses</option>
             <option value="pending">Pending</option>
             <option value="received">Received</option>
             <option value="cancelled">Cancelled</option>
           </select>
-        ) : (
-          <button
-            type="button"
-            className="danger-button"
-            onClick={() => setSupplierReturnOpen(true)}
-            disabled={purchases.every((purchase) =>
-              (purchase.purchase_items || []).every(
-                (item) => Number(item.returnable_quantity || 0) <= 0
-              )
-            )}
-          >
-            <RotateCcw size={18} />
-            Return to supplier
-          </button>
         )}
       </section>
 
       {tab === "transfers" ? (
-        <section className="panel transfer-list-panel">
-          {loading ? (
-            <div className="empty-state">
-              <RefreshCw className="spin" size={34} />
-              <p>Loading transfers...</p>
-            </div>
-          ) : visibleTransfers.length === 0 ? (
-            <div className="empty-state">
-              <ArrowLeftRight size={46} />
-              <h2>No matching stock transfers</h2>
-              <p>Create a transfer or change the current search and status filters.</p>
-            </div>
-          ) : (
-            <div className="transfer-list">
-              {visibleTransfers.map((transfer) => {
-                const outgoing =
-                  transfer.source_branch_id === profile.branch_id;
-                const canReceive =
-                  transfer.status === "pending" &&
-                  transfer.destination_branch_id === profile.branch_id;
-                const canCancel =
-                  transfer.status === "pending" && outgoing;
-                const totalUnits = (transfer.stock_transfer_items || []).reduce(
-                  (sum, item) => sum + Number(item.quantity || 0),
-                  0
-                );
-
-                return (
-                  <article className="transfer-card" key={transfer.id}>
-                    <div className="transfer-card-heading">
-                      <div>
-                        <strong>{transfer.transfer_number}</strong>
-                        <span>{dateTime(transfer.created_at)}</span>
-                      </div>
-                      <span className={`status-pill ${statusClass(transfer.status)}`}>
-                        {transfer.status}
-                      </span>
-                    </div>
-
-                    <div className="transfer-route">
-                      <div>
-                        <span>From</span>
-                        <strong>{transfer.source_branch?.name || "Source"}</strong>
-                      </div>
-                      <ArrowLeftRight size={22} />
-                      <div>
-                        <span>To</span>
-                        <strong>
-                          {transfer.destination_branch?.name || "Destination"}
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div className="transfer-items-preview">
-                      {(transfer.stock_transfer_items || []).map((item) => (
-                        <div key={item.id}>
-                          <span>
-                            <strong>{item.products?.name || "Product"}</strong>
-                            <small>
-                              {item.products?.sku || item.products?.barcode || "No code"}
-                            </small>
-                          </span>
-                          <strong>
-                            {stockNumber(item.quantity)} {item.products?.unit_name || "pcs"}
-                          </strong>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="transfer-card-footer">
-                      <div>
-                        <span>{stockNumber(totalUnits)} total units</span>
-                        {transfer.notes && <small>{transfer.notes}</small>}
-                        {transfer.receive_notes && (
-                          <small>Received: {transfer.receive_notes}</small>
-                        )}
-                        {transfer.cancel_reason && (
-                          <small>Cancelled: {transfer.cancel_reason}</small>
-                        )}
-                      </div>
-
-                      <div className="transfer-card-actions">
-                        {canCancel && (
-                          <button
-                            type="button"
-                            className="secondary-button"
-                            onClick={() =>
-                              setTransferAction({ transfer, action: "cancel" })
-                            }
-                          >
-                            <Ban size={17} />
-                            Cancel
-                          </button>
-                        )}
-                        {canReceive && (
-                          <button
-                            type="button"
-                            className="primary-button"
-                            onClick={() =>
-                              setTransferAction({ transfer, action: "receive" })
-                            }
-                          >
-                            <PackageCheck size={17} />
-                            Receive
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <ResponsiveDataList
+          storageKey="stock-transfers"
+          title="Branch transfer list"
+          subtitle={`${profile?.branches?.name || "Current branch"} · Current search and status filters`}
+          rows={visibleTransfers}
+          filename={`tiny-pos-stock-transfers-${new Date().toISOString().slice(0, 10)}.xls`}
+          summary={[
+            { label: "Outgoing pending", value: metrics.pendingOutgoing },
+            { label: "Waiting to receive", value: metrics.pendingIncoming },
+            { label: "Units in transit", value: stockNumber(metrics.inTransitUnits) }
+          ]}
+          emptyTitle={loading ? "Loading transfers..." : "No matching stock transfers"}
+          emptyText="Create a transfer or change the current search and status filters."
+          columns={[
+            { label: "Transfer", width: 170, documentValue: (transfer) => transfer.transfer_number, render: (transfer) => <><strong>{transfer.transfer_number}</strong><small>{dateTime(transfer.created_at)}</small></> },
+            { label: "From", width: 150, value: (transfer) => transfer.source_branch?.name || "Source" },
+            { label: "To", width: 150, value: (transfer) => transfer.destination_branch?.name || "Destination" },
+            { label: "Products", width: 300, documentValue: (transfer) => (transfer.stock_transfer_items || []).map((item) => `${item.products?.name || "Product"}: ${stockNumber(item.quantity)} ${item.products?.unit_name || "pcs"}`).join("; "), render: (transfer) => <div className="compact-list transfer-table-lines">{(transfer.stock_transfer_items || []).map((item) => <div key={item.id}><span><strong>{item.products?.name || "Product"}</strong><small>{item.products?.sku || item.products?.barcode || "No code"}</small></span><strong>{stockNumber(item.quantity)} {item.products?.unit_name || "pcs"}</strong></div>)}</div> },
+            { label: "Total units", width: 100, value: (transfer) => stockNumber((transfer.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)) },
+            { label: "Status", width: 100, documentValue: (transfer) => transfer.status, render: (transfer) => <span className={`status-pill ${statusClass(transfer.status)}`}>{transfer.status}</span> },
+            { label: "Notes", width: 220, value: (transfer) => transfer.receive_notes || transfer.cancel_reason || transfer.notes || "—" },
+            { label: "Actions", actionsOnly: true, excludeDocument: true, render: (transfer) => {
+              const outgoing = transfer.source_branch_id === profile.branch_id;
+              const canReceive = transfer.status === "pending" && transfer.destination_branch_id === profile.branch_id;
+              const canCancel = transfer.status === "pending" && outgoing;
+              return <div className="transfer-card-actions">{canCancel && <button type="button" className="secondary-button compact-button" onClick={() => setTransferAction({ transfer, action: "cancel" })}><Ban size={17} />Cancel</button>}{canReceive && <button type="button" className="primary-button compact-button" onClick={() => setTransferAction({ transfer, action: "receive" })}><PackageCheck size={17} />Receive</button>}</div>;
+            } }
+          ]}
+          renderCard={(transfer) => {
+            const outgoing = transfer.source_branch_id === profile.branch_id;
+            const canReceive = transfer.status === "pending" && transfer.destination_branch_id === profile.branch_id;
+            const canCancel = transfer.status === "pending" && outgoing;
+            const totalUnits = (transfer.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+            return (
+              <article className="responsive-data-card transfer-card">
+                <header><div><strong>{transfer.transfer_number}</strong><small>{dateTime(transfer.created_at)}</small></div><span className={`status-pill ${statusClass(transfer.status)}`}>{transfer.status}</span></header>
+                <div className="transfer-route"><div><span>From</span><strong>{transfer.source_branch?.name || "Source"}</strong></div><ArrowLeftRight size={20} /><div><span>To</span><strong>{transfer.destination_branch?.name || "Destination"}</strong></div></div>
+                <div className="transfer-items-preview">{(transfer.stock_transfer_items || []).map((item) => <div key={item.id}><span><strong>{item.products?.name || "Product"}</strong><small>{item.products?.sku || item.products?.barcode || "No code"}</small></span><strong>{stockNumber(item.quantity)} {item.products?.unit_name || "pcs"}</strong></div>)}</div>
+                <div><span>Total units</span><strong>{stockNumber(totalUnits)}</strong></div>
+                {(transfer.notes || transfer.receive_notes || transfer.cancel_reason) && <p>{transfer.receive_notes || transfer.cancel_reason || transfer.notes}</p>}
+                <footer>{canCancel && <button type="button" className="secondary-button compact-button" onClick={() => setTransferAction({ transfer, action: "cancel" })}><Ban size={17} />Cancel</button>}{canReceive && <button type="button" className="primary-button compact-button" onClick={() => setTransferAction({ transfer, action: "receive" })}><PackageCheck size={17} />Receive</button>}</footer>
+              </article>
+            );
+          }}
+        />
       ) : (
         <section className="panel supplier-return-history">
           {loading ? (

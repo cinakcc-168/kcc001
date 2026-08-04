@@ -36,6 +36,7 @@ import PurchaseOrderPrintModal from "../components/PurchaseOrderPrintModal";
 import PurchaseReceiptModal from "../components/PurchaseReceiptModal";
 import PurchaseReceiptPrintModal from "../components/PurchaseReceiptPrintModal";
 import SupplierFormModal from "../components/SupplierFormModal";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 
 function defaultFilters() {
   const today = new Date();
@@ -528,322 +529,102 @@ export default function PurchaseOrdersPage() {
       </section>
 
       {tab === "orders" ? (
-        <section className="panel po-list-panel">
-          {loading ? (
-            <div className="empty-state"><RefreshCw className="spin" /><p>Loading purchase orders...</p></div>
-          ) : filteredPurchases.length === 0 ? (
-            <div className="empty-state"><ClipboardList size={44} /><h2>No purchase orders found</h2><p>Create a new order or change the filters.</p></div>
-          ) : (
-            <div className="po-card-list">
-              {filteredPurchases.map((purchase) => {
-                const paymentStatus =
-                  purchasePaymentStatus(purchase);
-
-                const receivingStatus =
-                  purchaseReceivingStatus(purchase);
-
-                const receivingTotals =
-                  purchaseReceivingTotals(purchase);
-
-                const hasReceived =
-                  receivingTotals.receivedBaseUnits > 0;
-
-                const remainingBase = Math.max(
-                  0,
-                  receivingTotals.orderedBaseUnits
-                    - receivingTotals.receivedBaseUnits
-                );
-
-                const receivingProgress =
-                  receivingTotals.orderedBaseUnits > 0
-                    ? Math.min(
-                        100,
-                        receivingTotals.receivedBaseUnits
-                          / receivingTotals.orderedBaseUnits
-                          * 100
-                      )
-                    : 0;
-
-                const editable =
-                  ["draft", "ordered"].includes(
-                    purchase.status
-                  )
-                  && !hasReceived
-                  && Number(
-                    purchase.amount_paid || 0
-                  ) === 0;
-
-                const receivable =
-                  ["draft", "ordered"].includes(
-                    purchase.status
-                  )
-                  && remainingBase > 0;
-
-                const payable =
-                  purchase.status !== "cancelled"
-                  && purchaseBalance(purchase) > 0;
-
-                const cancelable =
-                  receivable
-                  && !hasReceived
-                  && Number(
-                    purchase.amount_paid || 0
-                  ) === 0;
-
-                return (
-                  <article className="po-card" key={purchase.id}>
-                    <div className="po-card-heading">
-                      <div>
-                        <strong>{purchase.purchase_number}</strong>
-                        <span>{dateTime(purchase.created_at)} · {purchase.suppliers?.name || "No supplier"}</span>
-                      </div>
-                      <div className="po-status-group">
-                        <span
-                          className={`status-pill ${receivingStatus}`}
-                        >
-                          {purchaseReceivingStatusLabel(purchase)}
-                        </span>
-                        <span className={`payment-pill ${paymentStatus}`}>{paymentStatus}</span>
-                      </div>
-                    </div>
-
-                    <div className="po-card-info partial">
-                      <div>
-                        <span>Expected</span>
-                        <strong>
-                          {dateOnly(purchase.expected_date)}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>Items</span>
-                        <strong>
-                          {purchase.purchase_items?.length || 0}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>Received value</span>
-                        <strong>
-                          {money(
-                            receivingTotals.receivedValue,
-                            purchase.currency
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>Total</span>
-                        <strong>
-                          {money(
-                            purchase.total_amount,
-                            purchase.currency
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>Balance</span>
-                        <strong>
-                          {money(
-                            purchaseBalance(purchase),
-                            purchase.currency
-                          )}
-                        </strong>
-                      </div>
-                    </div>
-
-                    <div className="po-receiving-progress">
-                      <div>
-                        <span>
-                          Received {receivingProgress.toLocaleString(
-                            "en-US",
-                            { maximumFractionDigits: 0 }
-                          )}%
-                        </span>
-                        <strong>
-                          {receivingTotals.receivedBaseUnits.toLocaleString(
-                            "en-US",
-                            { maximumFractionDigits: 3 }
-                          )}
-                          {" / "}
-                          {receivingTotals.orderedBaseUnits.toLocaleString(
-                            "en-US",
-                            { maximumFractionDigits: 3 }
-                          )}
-                          {" base units"}
-                        </strong>
-                      </div>
-
-                      <div className="po-receiving-track">
-                        <div
-                          style={{
-                            width: `${receivingProgress}%`
-                          }}
-                        />
-                      </div>
-
-                      <small>
-                        {(purchase.purchase_receipts || []).length}
-                        {" goods-received note"}
-                        {(purchase.purchase_receipts || []).length === 1
-                          ? ""
-                          : "s"}
-                      </small>
-                    </div>
-
-                    <div className="po-card-items">
-                      {(purchase.purchase_items || []).slice(0, 4).map((item) => (
-                        <span key={item.id}>
-                          {item.products?.name || "Product"}
-                          {" · Ordered "}
-                          {Number(item.quantity || 0).toLocaleString(
-                            "en-US",
-                            { maximumFractionDigits: 3 }
-                          )}
-                          {" · Received "}
-                          {Number(item.received_quantity || 0).toLocaleString(
-                            "en-US",
-                            { maximumFractionDigits: 3 }
-                          )}
-                          {" · Remaining "}
-                          {Math.max(
-                            0,
-                            Number(item.quantity || 0)
-                              - Number(item.received_quantity || 0)
-                          ).toLocaleString(
-                            "en-US",
-                            { maximumFractionDigits: 3 }
-                          )}
-                          {" "}
-                          {item.purchase_unit_name || item.products?.unit_name || "pcs"}
-                        </span>
-                      ))}
-                      {(purchase.purchase_items || []).length > 4 && (
-                        <span>+{purchase.purchase_items.length - 4} more products</span>
-                      )}
-                    </div>
-
-                    {purchase.status === "cancelled" && purchase.cancel_reason && (
-                      <div className="notice warning">Cancelled: {purchase.cancel_reason}</div>
-                    )}
-
-                    <div className="po-card-actions">
-                      <button type="button" className="secondary-button" onClick={() => setPrintPurchase(purchase)}>
-                        <Eye size={17} /> View / Print
-                      </button>
-                      {editable && (
-                        <button type="button" className="secondary-button" onClick={() => openEditOrder(purchase)}>
-                          <Edit3 size={17} /> Edit
-                        </button>
-                      )}
-                      {payable && (
-                        <button type="button" className="secondary-button" onClick={() => openAction(purchase, "payment")}>
-                          <WalletCards size={17} /> Pay
-                        </button>
-                      )}
-                      {receivable && (
-                        <button
-                          type="button"
-                          className="primary-button compact"
-                          onClick={() =>
-                            setReceivingPurchase(purchase)
-                          }
-                        >
-                          <PackageCheck size={17} />
-                          {hasReceived
-                            ? "Receive more"
-                            : "Receive"}
-                        </button>
-                      )}
-                      {cancelable && (
-                        <button type="button" className="danger-button" onClick={() => openAction(purchase, "cancel")}>
-                          <Ban size={17} /> Cancel
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <ResponsiveDataList
+          storageKey="purchase-orders-list"
+          title="Purchase orders"
+          subtitle={`${filters.from} to ${filters.to} · Current supplier and status filters`}
+          rows={filteredPurchases}
+          filename={`tiny-pos-purchase-orders-${filters.from}-to-${filters.to}.xls`}
+          summary={[
+            { label: "Open orders", value: metrics.openCount },
+            { label: "Partially received", value: metrics.partialCount },
+            { label: "Fully received", value: metrics.receivedCount },
+            { label: "Outstanding", value: money(metrics.outstanding, baseCurrency) }
+          ]}
+          emptyTitle={loading ? "Loading purchase orders..." : "No purchase orders found"}
+          emptyText="Create a new order or change the filters."
+          columns={[
+            { label: "Order", width: 170, documentValue: (purchase) => purchase.purchase_number, render: (purchase) => <><strong>{purchase.purchase_number}</strong><small>{dateTime(purchase.created_at)}</small></> },
+            { label: "Supplier", width: 170, value: (purchase) => purchase.suppliers?.name || "No supplier" },
+            { label: "Expected", width: 105, documentValue: (purchase) => dateOnly(purchase.expected_date), render: (purchase) => dateOnly(purchase.expected_date) },
+            { label: "Items", width: 75, value: (purchase) => purchase.purchase_items?.length || 0 },
+            { label: "Products", width: 300, documentValue: (purchase) => (purchase.purchase_items || []).map((item) => `${item.products?.name || "Product"}: ${Number(item.quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} ${item.purchase_unit_name || item.products?.unit_name || "pcs"}`).join("; "), render: (purchase) => <div className="compact-list purchase-table-lines">{(purchase.purchase_items || []).slice(0, 4).map((item) => <div key={item.id}><span><strong>{item.products?.name || "Product"}</strong><small>{item.products?.sku || item.products?.barcode || "No code"}</small></span><strong>{Number(item.quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} {item.purchase_unit_name || item.products?.unit_name || "pcs"}</strong></div>)}{(purchase.purchase_items || []).length > 4 && <small>+{purchase.purchase_items.length - 4} more products</small>}</div> },
+            { label: "Receiving", width: 140, documentValue: (purchase) => purchaseReceivingStatusLabel(purchase), render: (purchase) => <span className={`status-pill ${purchaseReceivingStatus(purchase)}`}>{purchaseReceivingStatusLabel(purchase)}</span> },
+            { label: "Payment", width: 100, documentValue: (purchase) => purchasePaymentStatus(purchase), render: (purchase) => <span className={`payment-pill ${purchasePaymentStatus(purchase)}`}>{purchasePaymentStatus(purchase)}</span> },
+            { label: "Total", width: 110, documentValue: (purchase) => money(purchase.total_amount, purchase.currency), render: (purchase) => <strong>{money(purchase.total_amount, purchase.currency)}</strong> },
+            { label: "Received value", width: 120, documentValue: (purchase) => money(purchaseReceivingTotals(purchase).receivedValue, purchase.currency), render: (purchase) => money(purchaseReceivingTotals(purchase).receivedValue, purchase.currency) },
+            { label: "Balance", width: 110, documentValue: (purchase) => money(purchaseBalance(purchase), purchase.currency), render: (purchase) => <strong>{money(purchaseBalance(purchase), purchase.currency)}</strong> },
+            { label: "Actions", actionsOnly: true, excludeDocument: true, render: (purchase) => {
+              const receivingTotals = purchaseReceivingTotals(purchase);
+              const hasReceived = receivingTotals.receivedBaseUnits > 0;
+              const remainingBase = Math.max(0, receivingTotals.orderedBaseUnits - receivingTotals.receivedBaseUnits);
+              const editable = ["draft", "ordered"].includes(purchase.status) && !hasReceived && Number(purchase.amount_paid || 0) === 0;
+              const receivable = ["draft", "ordered"].includes(purchase.status) && remainingBase > 0;
+              const payable = purchase.status !== "cancelled" && purchaseBalance(purchase) > 0;
+              const cancelable = receivable && !hasReceived && Number(purchase.amount_paid || 0) === 0;
+              return <div className="po-card-actions table-actions"><button type="button" className="secondary-button compact-button" onClick={() => setPrintPurchase(purchase)}><Eye size={17} />View</button>{editable && <button type="button" className="secondary-button compact-button" onClick={() => openEditOrder(purchase)}><Edit3 size={17} />Edit</button>}{payable && <button type="button" className="secondary-button compact-button" onClick={() => openAction(purchase, "payment")}><WalletCards size={17} />Pay</button>}{receivable && <button type="button" className="primary-button compact-button" onClick={() => setReceivingPurchase(purchase)}><PackageCheck size={17} />{hasReceived ? "Receive more" : "Receive"}</button>}{cancelable && <button type="button" className="danger-button compact-button" onClick={() => openAction(purchase, "cancel")}><Ban size={17} />Cancel</button>}</div>;
+            } }
+          ]}
+          renderCard={(purchase) => {
+            const paymentStatus = purchasePaymentStatus(purchase);
+            const receivingStatus = purchaseReceivingStatus(purchase);
+            const receivingTotals = purchaseReceivingTotals(purchase);
+            const hasReceived = receivingTotals.receivedBaseUnits > 0;
+            const remainingBase = Math.max(0, receivingTotals.orderedBaseUnits - receivingTotals.receivedBaseUnits);
+            const receivingProgress = receivingTotals.orderedBaseUnits > 0 ? Math.min(100, receivingTotals.receivedBaseUnits / receivingTotals.orderedBaseUnits * 100) : 0;
+            const editable = ["draft", "ordered"].includes(purchase.status) && !hasReceived && Number(purchase.amount_paid || 0) === 0;
+            const receivable = ["draft", "ordered"].includes(purchase.status) && remainingBase > 0;
+            const payable = purchase.status !== "cancelled" && purchaseBalance(purchase) > 0;
+            const cancelable = receivable && !hasReceived && Number(purchase.amount_paid || 0) === 0;
+            return (
+              <article className="responsive-data-card po-card">
+                <header><div><strong>{purchase.purchase_number}</strong><small>{dateTime(purchase.created_at)} · {purchase.suppliers?.name || "No supplier"}</small></div><div className="po-status-group"><span className={`status-pill ${receivingStatus}`}>{purchaseReceivingStatusLabel(purchase)}</span><span className={`payment-pill ${paymentStatus}`}>{paymentStatus}</span></div></header>
+                <div><span>Expected</span><strong>{dateOnly(purchase.expected_date)}</strong></div>
+                <div><span>Items</span><strong>{purchase.purchase_items?.length || 0}</strong></div>
+                <div><span>Received value</span><strong>{money(receivingTotals.receivedValue, purchase.currency)}</strong></div>
+                <div><span>Total</span><strong>{money(purchase.total_amount, purchase.currency)}</strong></div>
+                <div><span>Balance</span><strong>{money(purchaseBalance(purchase), purchase.currency)}</strong></div>
+                <div className="po-receiving-progress"><div><span>Received {receivingProgress.toLocaleString("en-US", { maximumFractionDigits: 0 })}%</span><strong>{receivingTotals.receivedBaseUnits.toLocaleString("en-US", { maximumFractionDigits: 3 })} / {receivingTotals.orderedBaseUnits.toLocaleString("en-US", { maximumFractionDigits: 3 })} base units</strong></div><div className="po-receiving-track"><div style={{ width: `${receivingProgress}%` }} /></div></div>
+                <div className="po-card-items">{(purchase.purchase_items || []).slice(0, 4).map((item) => <span key={item.id}>{item.products?.name || "Product"} · Ordered {Number(item.quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} · Received {Number(item.received_quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} · Remaining {Math.max(0, Number(item.quantity || 0) - Number(item.received_quantity || 0)).toLocaleString("en-US", { maximumFractionDigits: 3 })} {item.purchase_unit_name || item.products?.unit_name || "pcs"}</span>)}</div>
+                <footer className="po-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setPrintPurchase(purchase)}><Eye size={17} />View / Print</button>{editable && <button type="button" className="secondary-button compact-button" onClick={() => openEditOrder(purchase)}><Edit3 size={17} />Edit</button>}{payable && <button type="button" className="secondary-button compact-button" onClick={() => openAction(purchase, "payment")}><WalletCards size={17} />Pay</button>}{receivable && <button type="button" className="primary-button compact-button" onClick={() => setReceivingPurchase(purchase)}><PackageCheck size={17} />{hasReceived ? "Receive more" : "Receive"}</button>}{cancelable && <button type="button" className="danger-button compact-button" onClick={() => openAction(purchase, "cancel")}><Ban size={17} />Cancel</button>}</footer>
+              </article>
+            );
+          }}
+        />
       ) : (
-        <section className="panel supplier-list-panel">
-          {loading ? (
-            <div className="empty-state"><RefreshCw className="spin" /><p>Loading suppliers...</p></div>
-          ) : filteredSuppliers.length === 0 ? (
-            <div className="empty-state"><Building2 size={44} /><h2>No suppliers found</h2><p>Add your first supplier.</p></div>
-          ) : (
-            <div className="supplier-card-grid">
-              {filteredSuppliers.map((supplier) => {
-                const supplierPurchases = purchases.filter((purchase) => purchase.supplier_id === supplier.id);
-                const totalPurchased = supplierPurchases
-                  .reduce(
-                    (sum, purchase) =>
-                      sum
-                      + convertToBase(
-                          purchaseReceivingTotals(
-                            purchase
-                          ).receivedValue,
-                          purchase.currency,
-                          baseCurrency,
-                          usdToKhrRate
-                        ),
-                    0
-                  );
-                const balanceDue = supplierPurchases
-                  .filter((purchase) => purchase.status !== "cancelled")
-                  .reduce(
-                    (sum, purchase) =>
-                      sum +
-                      convertToBase(
-                        purchaseBalance(purchase),
-                        purchase.currency,
-                        baseCurrency,
-                        usdToKhrRate
-                      ),
-                    0
-                  );
-
-                return (
-                  <article className={`supplier-card ${supplier.is_active ? "" : "inactive"}`} key={supplier.id}>
-                    <div className="supplier-card-heading">
-                      <div>
-                        <span>{supplier.supplier_code}</span>
-                        <strong>{supplier.name}</strong>
-                      </div>
-                      <span className={`status-pill ${supplier.is_active ? "active" : "inactive"}`}>
-                        {supplier.is_active ? "active" : "inactive"}
-                      </span>
-                    </div>
-                    <div className="supplier-contact-list">
-                      {supplier.contact_name && <span>{supplier.contact_name}</span>}
-                      {supplier.phone && <span>{supplier.phone}</span>}
-                      {supplier.email && <span>{supplier.email}</span>}
-                      {supplier.address && <span>{supplier.address}</span>}
-                    </div>
-                    <div className="supplier-stats">
-                      <div><span>Orders</span><strong>{supplierPurchases.length}</strong></div>
-                      <div><span>Received value</span><strong>{money(totalPurchased, baseCurrency)}</strong></div>
-                      <div><span>Balance due</span><strong>{money(balanceDue, baseCurrency)}</strong></div>
-                    </div>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => {
-                        setEditingSupplier(supplier);
-                        setSupplierFormOpen(true);
-                      }}
-                    >
-                      <Edit3 size={17} /> Edit supplier
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <ResponsiveDataList
+          storageKey="purchase-suppliers-list"
+          title="Suppliers"
+          subtitle="Supplier directory and purchasing balances"
+          rows={filteredSuppliers}
+          filename={`tiny-pos-suppliers-${new Date().toISOString().slice(0, 10)}.xls`}
+          emptyTitle={loading ? "Loading suppliers..." : "No suppliers found"}
+          emptyText="Add your first supplier or change the search."
+          columns={[
+            { label: "Code", width: 100, value: (supplier) => supplier.supplier_code },
+            { label: "Supplier", width: 190, documentValue: (supplier) => supplier.name, render: (supplier) => <><strong>{supplier.name}</strong><small>{supplier.contact_name || "No contact person"}</small></> },
+            { label: "Phone", width: 120, value: (supplier) => supplier.phone || "—" },
+            { label: "Email", width: 180, value: (supplier) => supplier.email || "—" },
+            { label: "Address", width: 220, value: (supplier) => supplier.address || "—" },
+            { label: "Orders", width: 80, value: (supplier) => purchases.filter((purchase) => purchase.supplier_id === supplier.id).length },
+            { label: "Received value", width: 120, documentValue: (supplier) => {
+              const amount = purchases.filter((purchase) => purchase.supplier_id === supplier.id).reduce((sum, purchase) => sum + convertToBase(purchaseReceivingTotals(purchase).receivedValue, purchase.currency, baseCurrency, usdToKhrRate), 0);
+              return money(amount, baseCurrency);
+            } },
+            { label: "Balance due", width: 120, documentValue: (supplier) => {
+              const balance = purchases.filter((purchase) => purchase.supplier_id === supplier.id && purchase.status !== "cancelled").reduce((sum, purchase) => sum + convertToBase(purchaseBalance(purchase), purchase.currency, baseCurrency, usdToKhrRate), 0);
+              return money(balance, baseCurrency);
+            } },
+            { label: "Status", width: 90, documentValue: (supplier) => supplier.is_active ? "Active" : "Inactive", render: (supplier) => <span className={`status-pill ${supplier.is_active ? "active" : "inactive"}`}>{supplier.is_active ? "active" : "inactive"}</span> },
+            { label: "Actions", actionsOnly: true, excludeDocument: true, render: (supplier) => <button type="button" className="secondary-button compact-button" onClick={() => { setEditingSupplier(supplier); setSupplierFormOpen(true); }}><Edit3 size={17} />Edit</button> }
+          ]}
+          renderCard={(supplier) => {
+            const supplierPurchases = purchases.filter((purchase) => purchase.supplier_id === supplier.id);
+            const totalPurchased = supplierPurchases.reduce((sum, purchase) => sum + convertToBase(purchaseReceivingTotals(purchase).receivedValue, purchase.currency, baseCurrency, usdToKhrRate), 0);
+            const balanceDue = supplierPurchases.filter((purchase) => purchase.status !== "cancelled").reduce((sum, purchase) => sum + convertToBase(purchaseBalance(purchase), purchase.currency, baseCurrency, usdToKhrRate), 0);
+            return <article className={`responsive-data-card supplier-card ${supplier.is_active ? "" : "inactive"}`}><header><div><small>{supplier.supplier_code}</small><strong>{supplier.name}</strong></div><span className={`status-pill ${supplier.is_active ? "active" : "inactive"}`}>{supplier.is_active ? "active" : "inactive"}</span></header><div><span>Contact</span><strong>{supplier.contact_name || supplier.phone || "—"}</strong><small>{supplier.email || ""}</small></div><div><span>Orders</span><strong>{supplierPurchases.length}</strong></div><div><span>Received value</span><strong>{money(totalPurchased, baseCurrency)}</strong></div><div><span>Balance due</span><strong>{money(balanceDue, baseCurrency)}</strong></div><footer><button type="button" className="secondary-button compact-button" onClick={() => { setEditingSupplier(supplier); setSupplierFormOpen(true); }}><Edit3 size={17} />Edit supplier</button></footer></article>;
+          }}
+        />
       )}
 
       <PurchaseOrderFormModal

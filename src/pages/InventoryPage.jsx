@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Camera,
   ClipboardCheck,
-  Download,
   History,
   PackagePlus,
   PencilLine,
-  Printer,
   RefreshCw,
   Search,
   Truck,
@@ -18,6 +16,7 @@ import BarcodeScanner from "../components/BarcodeScanner";
 import InventoryAdjustmentForm from "../components/InventoryAdjustmentForm";
 import PurchaseReceiveForm from "../components/PurchaseReceiveForm";
 import SupplierForm from "../components/SupplierForm";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import { money, stockNumber } from "../lib/catalog";
 import {
   adjustInventory,
@@ -128,37 +127,6 @@ export default function InventoryPage() {
     };
   }, [products]);
 
-  function csvCell(value) {
-    const text = String(value ?? "");
-    return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-  }
-
-  function exportInventory() {
-    const rows = [
-      ["Product", "Code", "Barcode", "Category", "Stock", "Unit", "Low-stock threshold", "Stock status", "Average cost", "Stock value", "Currency"],
-      ...visibleProducts.map((product) => [
-        product.name, product.sku, product.barcode, product.categories?.name || "Uncategorized",
-        product.stock_quantity, product.unit_name, product.effective_low_stock_threshold, product.stock_status,
-        product.average_cost, product.stock_quantity * product.average_cost, product.currency
-      ])
-    ];
-    const blob = new Blob(["\uFEFF", rows.map((row) => row.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `tiny-pos-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function printInventory() {
-    const win = window.open("", "_blank", "noopener,noreferrer");
-    if (!win) { setMessageType("error"); setMessage("Allow pop-ups to print inventory."); return; }
-    const rows = visibleProducts.map((product) => `<tr><td>${product.name}</td><td>${product.sku || product.barcode || "—"}</td><td>${product.categories?.name || "Uncategorized"}</td><td>${stockNumber(product.stock_quantity)} ${product.unit_name}</td><td>${stockNumber(product.effective_low_stock_threshold)}</td><td>${product.stock_status.replaceAll("_", " ")}</td><td>${money(product.stock_quantity * product.average_cost, product.currency)}</td></tr>`).join("");
-    win.document.write(`<!doctype html><html><head><title>Inventory</title><style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap');body{font-family:'Noto Sans Khmer','Khmer OS System',Arial,sans-serif;padding:24px;color:#111}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:#eee}</style></head><body><h1>Inventory</h1><p>${visibleProducts.length} items · ${new Date().toLocaleString()}</p><table><thead><tr><th>Product</th><th>Code</th><th>Category</th><th>Stock</th><th>Low at</th><th>Status</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`);
-    win.document.close();
-  }
-
   async function saveAdjustment(values) {
     try {
       setBusy(true);
@@ -256,41 +224,42 @@ export default function InventoryPage() {
           <option value="out">Out of stock</option>
           <option value="healthy">Healthy stock</option>
         </select>
-        <button className="icon-button refresh-button" onClick={exportInventory} title="Export CSV"><Download size={20} /></button>
-        <button className="icon-button refresh-button" onClick={printInventory} title="Print"><Printer size={20} /></button>
         <button className="icon-button refresh-button" onClick={refresh} title="Refresh"><RefreshCw className={loading ? "spin" : ""} size={20} /></button>
       </section>
 
-      <section className="panel inventory-table-panel">
-        <div className="list-summary"><strong>{visibleProducts.length}</strong><span>stock items shown</span></div>
-        {loading ? (
-          <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading inventory...</p></div>
-        ) : visibleProducts.length === 0 ? (
-          <div className="empty-state"><Warehouse size={46} /><h2>No matching stock items</h2><p>Change the filters or create products first.</p></div>
-        ) : (
-          <div className="product-table-wrap">
-            <table className="product-table inventory-table">
-              <thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>Average cost</th><th>Stock value</th><th>Updated</th><th /></tr></thead>
-              <tbody>
-                {visibleProducts.map((product) => {
-                  const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
-                  return (
-                    <tr key={product.id}>
-                      <td data-label="Product"><div className="inventory-product"><strong>{product.name}</strong><span>{product.sku} · {product.barcode || "No barcode"}</span></div></td>
-                      <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
-                      <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></td>
-                      <td data-label="Average cost">{money(product.average_cost, product.currency)}</td>
-                      <td data-label="Stock value"><strong>{money(product.stock_quantity * product.average_cost, product.currency)}</strong></td>
-                      <td data-label="Updated">{dateTime(product.balance_updated_at)}</td>
-                      <td><button className="secondary-button table-button" onClick={() => setAdjustment({ product, mode: "add" })} disabled={!canManage}>Adjust</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+      <ResponsiveDataList
+        storageKey="inventory-products"
+        title="Inventory list"
+        subtitle={`${profile?.branches?.name || "Current branch"} · Current filtered inventory`}
+        rows={visibleProducts}
+        filename={`tiny-pos-inventory-${new Date().toISOString().slice(0, 10)}.xls`}
+        summary={[
+          { label: "Tracked products", value: visibleProducts.length },
+          { label: "Total units", value: stockNumber(visibleProducts.reduce((sum, product) => sum + Number(product.stock_quantity || 0), 0)) },
+          { label: "Stock value", value: money(visibleProducts.reduce((sum, product) => sum + Number(product.stock_quantity || 0) * Number(product.average_cost || 0), 0), currency) }
+        ]}
+        emptyTitle={loading ? "Loading inventory..." : "No matching stock items"}
+        emptyText="Change the filters or create products first."
+        columns={[
+          { label: "Product", width: 220, documentValue: (product) => product.name, render: (product) => <div className="inventory-product"><strong>{product.name}</strong><span>{product.sku || "No code"} · {product.barcode || "No barcode"}</span></div> },
+          { label: "Category", width: 140, value: (product) => product.categories?.name || "Uncategorized" },
+          { label: "Stock", width: 130, documentValue: (product) => `${stockNumber(product.stock_quantity)} ${product.unit_name}`, render: (product) => <><span className={["low_stock", "out_of_stock"].includes(product.stock_status) ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></> },
+          { label: "Average cost", width: 110, documentValue: (product) => money(product.average_cost, product.currency), render: (product) => money(product.average_cost, product.currency) },
+          { label: "Stock value", width: 120, documentValue: (product) => money(product.stock_quantity * product.average_cost, product.currency), render: (product) => <strong>{money(product.stock_quantity * product.average_cost, product.currency)}</strong> },
+          { label: "Status", width: 100, value: (product) => String(product.stock_status || "").replaceAll("_", " ") },
+          { label: "Updated", width: 150, documentValue: (product) => dateTime(product.balance_updated_at), render: (product) => dateTime(product.balance_updated_at) },
+          { label: "Actions", actionsOnly: true, excludeDocument: true, render: (product) => <button className="secondary-button table-button" onClick={() => setAdjustment({ product, mode: "add" })} disabled={!canManage}>Adjust</button> }
+        ]}
+        renderCard={(product) => (
+          <article className="responsive-data-card inventory-list-card">
+            <header><div><strong>{product.name}</strong><small>{product.sku || product.barcode || "No code"}</small></div><span className={["low_stock", "out_of_stock"].includes(product.stock_status) ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span></header>
+            <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
+            <div><span>Average cost</span><strong>{money(product.average_cost, product.currency)}</strong></div>
+            <div><span>Stock value</span><strong>{money(product.stock_quantity * product.average_cost, product.currency)}</strong></div>
+            <footer><small>{dateTime(product.balance_updated_at)}</small><button className="secondary-button compact-button" onClick={() => setAdjustment({ product, mode: "add" })} disabled={!canManage}>Adjust</button></footer>
+          </article>
         )}
-      </section>
+      />
 
       <div className="inventory-bottom-grid">
         <section className="panel">

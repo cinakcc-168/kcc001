@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import CashRegisterCloseModal from "../components/CashRegisterCloseModal";
 import CashRegisterReportModal from "../components/CashRegisterReportModal";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import { money } from "../lib/catalog";
 import {
   closeCashRegister,
@@ -450,148 +451,45 @@ export default function CashRegisterPage() {
         </section>
       )}
 
-      <section className="panel register-history-panel">
-        <div className="panel-title-row">
-          <div>
-            <p className="eyebrow">SHIFT HISTORY</p>
-            <h2>Cash register sessions</h2>
-          </div>
-          <CalendarDays size={22} />
-        </div>
-
+      <section className="panel register-history-filters-panel">
         <div className="register-history-summary">
-          <div>
-            <span>Closed sessions</span>
-            <strong>{historyTotals.sessions}</strong>
-          </div>
-          <div>
-            <span>Total USD variance</span>
-            <strong>{money(historyTotals.varianceUsd, "USD")}</strong>
-          </div>
-          <div>
-            <span>Total KHR variance</span>
-            <strong>{money(historyTotals.varianceKhr, "KHR")}</strong>
-          </div>
+          <div><span>Closed sessions</span><strong>{historyTotals.sessions}</strong></div>
+          <div><span>Total USD variance</span><strong>{money(historyTotals.varianceUsd, "USD")}</strong></div>
+          <div><span>Total KHR variance</span><strong>{money(historyTotals.varianceKhr, "KHR")}</strong></div>
         </div>
-
         <div className="register-history-filters">
-          <label>
-            <span>From</span>
-            <input
-              type="date"
-              value={filters.from}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  from: event.target.value
-                }))
-              }
-            />
-          </label>
-          <label>
-            <span>To</span>
-            <input
-              type="date"
-              value={filters.to}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  to: event.target.value
-                }))
-              }
-            />
-          </label>
+          <label><span>From</span><input type="date" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></label>
+          <label><span>To</span><input type="date" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></label>
         </div>
-
-        {loading ? (
-          <div className="empty-state">
-            <RefreshCw className="spin" />
-            <p>Loading register history...</p>
-          </div>
-        ) : sessions.length === 0 ? (
-          <div className="empty-state">
-            <WalletCards size={44} />
-            <h2>No register sessions</h2>
-            <p>Open the first cash register to begin shift tracking.</p>
-          </div>
-        ) : (
-          <div className="register-history-table-wrap">
-            <table className="register-history-table">
-              <thead>
-                <tr>
-                  <th>Session</th>
-                  <th>Opened</th>
-                  <th>Closed</th>
-                  <th>Opened by</th>
-                  <th>Status</th>
-                  <th>Expected USD</th>
-                  <th>Variance USD</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((session) => (
-                  <tr key={session.id}>
-                    <td data-label="Session">
-                      <strong>{session.session_number}</strong>
-                      <small>{session.register_name}</small>
-                    </td>
-                    <td data-label="Opened">
-                      {dateTime(session.opened_at)}
-                    </td>
-                    <td data-label="Closed">
-                      {dateTime(session.closed_at)}
-                    </td>
-                    <td data-label="Opened by">
-                      {session.opened_by_profile?.full_name || "POS Staff"}
-                    </td>
-                    <td data-label="Status">
-                      <span
-                        className={`status-pill ${
-                          session.status === "open"
-                            ? "active"
-                            : "inactive"
-                        }`}
-                      >
-                        {session.status}
-                      </span>
-                    </td>
-                    <td data-label="Expected USD">
-                      {money(session.expected_cash_usd || 0, "USD")}
-                    </td>
-                    <td data-label="Variance USD">
-                      <strong
-                        className={
-                          Number(session.variance_usd || 0) === 0
-                            ? "variance-balanced"
-                            : Number(session.variance_usd || 0) > 0
-                              ? "variance-over"
-                              : "variance-short"
-                        }
-                      >
-                        {session.status === "closed"
-                          ? money(session.variance_usd || 0, "USD")
-                          : "—"}
-                      </strong>
-                    </td>
-                    <td data-label="Report">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() => viewSession(session.id)}
-                        disabled={busy === `view-${session.id}`}
-                        title="View report"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </section>
+
+      <ResponsiveDataList
+        storageKey="cash-register-sessions"
+        title="Cash register sessions"
+        subtitle={`${filters.from} to ${filters.to} · ${profile?.branches?.name || "Current branch"}`}
+        rows={sessions}
+        filename={`tiny-pos-cash-register-${filters.from}-to-${filters.to}.xls`}
+        summary={[
+          { label: "Closed sessions", value: historyTotals.sessions },
+          { label: "Total USD variance", value: money(historyTotals.varianceUsd, "USD") },
+          { label: "Total KHR variance", value: money(historyTotals.varianceKhr, "KHR") }
+        ]}
+        emptyTitle={loading ? "Loading register history..." : "No register sessions"}
+        emptyText="Open the first cash register to begin shift tracking."
+        columns={[
+          { label: "Session", width: 170, documentValue: (row) => row.session_number, render: (row) => <><strong>{row.session_number}</strong><small>{row.register_name}</small></> },
+          { label: "Opened", width: 150, documentValue: (row) => dateTime(row.opened_at), render: (row) => dateTime(row.opened_at) },
+          { label: "Closed", width: 150, documentValue: (row) => dateTime(row.closed_at), render: (row) => dateTime(row.closed_at) },
+          { label: "Opened by", width: 150, value: (row) => row.opened_by_profile?.full_name || "POS Staff" },
+          { label: "Status", width: 90, documentValue: (row) => row.status, render: (row) => <span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{row.status}</span> },
+          { label: "Expected USD", width: 110, documentValue: (row) => money(row.expected_cash_usd || 0, "USD"), render: (row) => money(row.expected_cash_usd || 0, "USD") },
+          { label: "Expected KHR", width: 120, documentValue: (row) => money(row.expected_cash_khr || 0, "KHR"), render: (row) => money(row.expected_cash_khr || 0, "KHR") },
+          { label: "Variance USD", width: 110, documentValue: (row) => row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—", render: (row) => <strong className={Number(row.variance_usd || 0) === 0 ? "variance-balanced" : Number(row.variance_usd || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong> },
+          { label: "Variance KHR", width: 120, documentValue: (row) => row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—", render: (row) => <strong className={Number(row.variance_khr || 0) === 0 ? "variance-balanced" : Number(row.variance_khr || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</strong> },
+          { label: "Report", actionsOnly: true, excludeDocument: true, render: (row) => <button type="button" className="icon-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`} title="View report"><Eye size={18} /></button> }
+        ]}
+        renderCard={(row) => <article className="responsive-data-card register-session-card"><header><div><strong>{row.session_number}</strong><small>{row.register_name}</small></div><span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{row.status}</span></header><div><span>Opened</span><strong>{dateTime(row.opened_at)}</strong></div><div><span>Closed</span><strong>{dateTime(row.closed_at)}</strong></div><div><span>Opened by</span><strong>{row.opened_by_profile?.full_name || "POS Staff"}</strong></div><div><span>Expected</span><strong>{money(row.expected_cash_usd || 0, "USD")}</strong><small>{money(row.expected_cash_khr || 0, "KHR")}</small></div><div><span>Variance</span><strong>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong><small>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</small></div><footer><button type="button" className="secondary-button compact-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`}><Eye size={18} />View report</button></footer></article>}
+      />
 
       <CashRegisterCloseModal
         summary={closeOpen ? openSummary : null}

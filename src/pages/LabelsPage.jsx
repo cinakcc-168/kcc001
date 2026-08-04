@@ -12,6 +12,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import ProductBarcode, { isValidBarcodeValue } from "../components/ProductBarcode";
 import { loadCatalog, money } from "../lib/catalog";
+import { printHtmlDocument } from "../lib/listDocuments";
 
 function copiesValue(value) {
   const number = Math.floor(Number(value || 0));
@@ -154,8 +155,54 @@ export default function LabelsPage() {
       return;
     }
 
+    const area = document.querySelector(".label-print-area");
+    if (!area) {
+      setMessage("The label preview is not ready yet.");
+      return;
+    }
+
     setMessage("");
-    window.print();
+    printHtmlDocument({
+      title: `${shop?.shop_name || "Tiny POS"} Price Labels`,
+      html: area.outerHTML,
+      page: "auto",
+      fallbackClassName: "tiny-pos-label-print-root",
+      preferCurrentWindow: true,
+      styles: `
+        body{padding:0}
+        .label-print-area{
+          width:100%;
+          padding:0;
+          display:grid;
+          grid-template-columns:repeat(${Math.max(1, Number(settings.columns || 1))},${Number(settings.width || 50)}mm);
+          grid-auto-rows:${Number(settings.height || 30)}mm;
+          gap:0;
+          justify-content:start;
+          background:#fff;
+          overflow:visible;
+        }
+        .product-print-label{
+          width:${Number(settings.width || 50)}mm;
+          height:${Number(settings.height || 30)}mm;
+          padding:2.2mm;
+          border:1px solid #999;
+          background:#fff;
+          color:#111;
+          overflow:hidden;
+          display:grid;
+          grid-template-rows:auto 1fr auto;
+          align-items:center;
+          text-align:center;
+          gap:1mm;
+          break-inside:avoid;
+          font-family:Arial,sans-serif;
+        }
+        .print-label-name{font-size:10px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .product-print-label svg{width:100%;max-width:100%;height:auto;max-height:12mm}
+        .print-label-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:4px;font-size:8px}
+        .print-label-footer strong{font-size:12px}
+      `
+    });
   }
 
   if (!canUse) {

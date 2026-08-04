@@ -1,14 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgeDollarSign,
   BarChart3,
   Boxes,
   CalendarRange,
   CircleDollarSign,
-  Download,
   PackageSearch,
   Percent,
-  Printer,
   ReceiptText,
   RefreshCw,
   RotateCcw,
@@ -26,15 +24,15 @@ import { useAuth } from "../context/AuthContext";
 import { money, stockNumber } from "../lib/catalog";
 import {
   defaultReportRange,
-  exportCsv,
   formatPercent,
   formatReportDate,
   loadReports
 } from "../lib/reports";
 import ReportMetricCard from "../components/ReportMetricCard";
 import ReportBarChart from "../components/ReportBarChart";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import EndOfDayReport from "../components/EndOfDayReport";
-import { exportEndOfDayCsv, loadEndOfDay } from "../lib/endOfDay";
+import { loadEndOfDay } from "../lib/endOfDay";
 
 const tabs = [
   ["sales", "Sales Summary", ReceiptText],
@@ -59,6 +57,28 @@ function titlePeriod(data) {
   return `${formatReportDate(data.from, { short: true })} – ${formatReportDate(data.to, { short: true })}`;
 }
 
+function reportDateKey(value) {
+  if (!value) return "";
+  const text = String(value);
+  const direct = text.match(/^(\d{4}-\d{2}-\d{2})$/);
+  if (direct) return direct[1];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function inSelectedRange(value, from, to) {
+  const key = reportDateKey(value);
+  return Boolean(key && key >= from && key <= to);
+}
+
 export default function ReportsPage() {
   const { supabase, profile, shop, can } = useAuth();
   const [filters, setFilters] = useState(() => ({
@@ -75,6 +95,7 @@ export default function ReportsPage() {
   const [endOfDay, setEndOfDay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const reportRequestRef = useRef(0);
 
   const canAllBranches = can("branches.all");
   const currency = data?.base_currency || shop?.base_currency || "USD";
@@ -178,20 +199,26 @@ export default function ReportsPage() {
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.branch_id) return;
 
+    const requestId = reportRequestRef.current + 1;
+    reportRequestRef.current = requestId;
     try {
       setLoading(true);
       setMessage("");
+      // Never leave the previous date range available for print/export while a new range loads.
+      setData(null);
+      setEndOfDay(null);
       const resolvedFilters = { ...filters, branchId: filters.branchId || profile.branch_id };
       const [report, eod] = await Promise.all([
         loadReports(supabase, resolvedFilters),
         loadEndOfDay(supabase, resolvedFilters)
       ]);
+      if (reportRequestRef.current !== requestId) return;
       setData(report);
       setEndOfDay(eod);
     } catch (error) {
-      setMessage(error.message);
+      if (reportRequestRef.current === requestId) setMessage(error.message);
     } finally {
-      setLoading(false);
+      if (reportRequestRef.current === requestId) setLoading(false);
     }
   }, [supabase, profile?.branch_id, filters]);
 
@@ -209,106 +236,24 @@ export default function ReportsPage() {
     [data]
   );
 
+  const salesDetailRows = useMemo(
+    () => (data?.sales_rows || []).filter((row) => inSelectedRange(row.completed_at, filters.from, filters.to)),
+    [data?.sales_rows, filters.from, filters.to]
+  );
+  const expenseDetailRows = useMemo(
+    () => (cashReport?.entries || []).filter((row) => row.direction === "expense" && inSelectedRange(row.entry_at, filters.from, filters.to)),
+    [cashReport?.entries, filters.from, filters.to]
+  );
+  const purchaseDetailRows = useMemo(
+    () => (data?.purchase_rows || []).filter((row) => inSelectedRange(row.received_at, filters.from, filters.to)),
+    [data?.purchase_rows, filters.from, filters.to]
+  );
+
   function updateFilter(name, value) {
     setFilters((current) => ({
       ...current,
       [name]: value
     }));
-  }
-
-  function exportCurrentTab() {
-    if (activeTab === "endofday") {
-      exportEndOfDayCsv(endOfDay || {}, `tiny-pos-end-of-day-${filters.from}-to-${filters.to}.csv`);
-      return;
-    }
-    const scope = data?.scope?.all_branches
-      ? "all-branches"
-      : String(data?.scope?.branch_name || "branch").toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
-    const period = `${filters.from}-to-${filters.to}`;
-
-    if (activeTab === "sales") {
-      exportCsv(
-        `tiny-pos-sales-${scope}-${period}.csv`,
-        [
-          { label: "Invoice", value: "invoice_number" },
-          { label: "Date", value: (row) => formatReportDate(row.completed_at, { time: true }) },
-          { label: "Branch", value: "branch_name" },
-          { label: "Customer", value: "customer_name" },
-          { label: "Cashier", value: "cashier_name" },
-          { label: "Payment", value: "payment_methods" },
-          { label: `Gross (${currency})`, value: "gross_total" },
-          { label: `Refund (${currency})`, value: "refund_total" },
-          { label: `Net (${currency})`, value: "net_total" },
-          { label: `COGS (${currency})`, value: "cost" },
-          { label: `Gross Profit (${currency})`, value: "gross_profit" },
-          { label: "Status", value: "status" }
-        ],
-        data?.sales_rows || []
-      );
-      return;
-    }
-
-    if (activeTab === "profit") {
-      exportCsv(
-        `tiny-pos-expenses-${scope}-${period}.csv`,
-        [
-          { label: "Code", value: "entry_number" },
-          { label: "Date", value: (row) => formatReportDate(row.entry_at, { time: true }) },
-          { label: "Branch", value: "branch_name" },
-          { label: "Category", value: "category_name" },
-          { label: "Payment", value: "method" },
-          { label: "Currency", value: "currency" },
-          { label: "Original Amount", value: "amount" },
-          { label: `Base Amount (${currency})`, value: "base_amount" },
-          { label: "Affects Profit", value: (row) => row.affects_profit ? "Yes" : "No" },
-          { label: "User", value: "created_by_name" },
-          { label: "Reference", value: "reference_number" },
-          { label: "Remark", value: "remark" }
-        ],
-        (cashReport?.entries || []).filter((row) => row.direction === "expense")
-      );
-      return;
-    }
-
-    if (activeTab === "stock") {
-      exportCsv(
-        `tiny-pos-stock-${scope}.csv`,
-        [
-          { label: "Product", value: "product_name" },
-          { label: "Product Code", value: "sku" },
-          { label: "Barcode", value: "barcode" },
-          { label: "Category", value: "category_name" },
-          { label: "Quantity", value: "quantity" },
-          { label: `Cost Value (${currency})`, value: "cost_value" },
-          { label: `Retail Value (${currency})`, value: "retail_value" },
-          { label: `Potential Margin (${currency})`, value: "potential_margin" },
-          { label: "Last Stock In", value: (row) => formatReportDate(row.last_inbound_at) },
-          { label: "Age Days", value: "age_days" },
-          { label: "Status", value: "stock_status" }
-        ],
-        data?.stock_rows || []
-      );
-      return;
-    }
-
-    exportCsv(
-      `tiny-pos-customers-${scope}-${period}.csv`,
-      [
-        { label: "Customer Code", value: "customer_code" },
-        { label: "Customer", value: "customer_name" },
-        { label: "Type", value: "customer_type" },
-        { label: "Phone", value: "phone" },
-        { label: "Sales", value: "sale_count" },
-        { label: "Refunds", value: "refund_count" },
-        { label: `Gross Spend (${currency})`, value: "gross_spend" },
-        { label: `Refunded (${currency})`, value: "refunds" },
-        { label: `Net Spend (${currency})`, value: "net_spend" },
-        { label: `Average Sale (${currency})`, value: "average_sale" },
-        { label: "Loyalty Points", value: "loyalty_points" },
-        { label: "Last Purchase", value: (row) => formatReportDate(row.last_purchase) }
-      ],
-      data?.top_customers || []
-    );
   }
 
   function SalesReport() {
@@ -349,10 +294,32 @@ export default function ReportsPage() {
           </section>
         </div>
 
-        <section className="panel report-panel report-detail-panel">
-          <div className="report-panel-heading"><div><h2>Sales detail</h2><p>Latest 500 invoices in this period</p></div><span>{number(data?.sales_rows?.length, 0)} rows</span></div>
-          <div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Cashier</th><th>Payment</th><th>Gross</th><th>Refund</th><th>Net</th><th>Profit</th><th>Status</th></tr></thead><tbody>{(data?.sales_rows || []).map((row) => <tr key={row.invoice_number}><td><strong>{row.invoice_number}</strong><small>{row.branch_name}</small></td><td>{formatReportDate(row.completed_at, { time: true })}</td><td>{row.customer_name}</td><td>{row.cashier_name}</td><td>{row.payment_methods}</td><td>{reportMoney(row.gross_total, currency)}</td><td>{reportMoney(row.refund_total, currency)}</td><td><strong>{reportMoney(row.net_total, currency)}</strong></td><td>{reportMoney(row.gross_profit, currency)}</td><td><span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{String(row.status).replaceAll("_", " ")}</span></td></tr>)}</tbody></table></div>
-        </section>
+        <ResponsiveDataList
+          storageKey="report-sales-detail"
+          title="Sales detail"
+          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          rows={salesDetailRows}
+          filename={`report-sales-detail-${filters.from}-to-${filters.to}.xls`}
+          summary={[
+            { label: "Gross sales", value: reportMoney(summary.gross_sales, currency) },
+            { label: "Refunds", value: reportMoney(summary.refunds, currency) },
+            { label: "Net sales", value: reportMoney(summary.net_sales, currency) },
+            { label: "Gross profit", value: reportMoney(summary.gross_profit, currency) }
+          ]}
+          columns={[
+            { label: "Invoice", width: 175, documentValue: (row) => row.invoice_number, render: (row) => <><strong>{row.invoice_number}</strong><small>{row.branch_name}</small></> },
+            { label: "Date", width: 150, documentValue: (row) => formatReportDate(row.completed_at, { time: true }), render: (row) => formatReportDate(row.completed_at, { time: true }) },
+            { label: "Customer", width: 160, value: "customer_name" },
+            { label: "Cashier", width: 140, value: "cashier_name" },
+            { label: "Payment", width: 130, value: "payment_methods" },
+            { label: "Gross", width: 100, documentValue: (row) => reportMoney(row.gross_total, currency), render: (row) => reportMoney(row.gross_total, currency) },
+            { label: "Refund", width: 100, documentValue: (row) => reportMoney(row.refund_total, currency), render: (row) => reportMoney(row.refund_total, currency) },
+            { label: "Net", width: 100, documentValue: (row) => reportMoney(row.net_total, currency), render: (row) => <strong>{reportMoney(row.net_total, currency)}</strong> },
+            { label: "Profit", width: 100, documentValue: (row) => reportMoney(row.gross_profit, currency), render: (row) => reportMoney(row.gross_profit, currency) },
+            { label: "Status", width: 95, documentValue: (row) => String(row.status).replaceAll("_", " "), render: (row) => <span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{String(row.status).replaceAll("_", " ")}</span> }
+          ]}
+          renderCard={(row) => <article className="responsive-data-card report-sale-card"><header><div><strong>{row.invoice_number}</strong><small>{formatReportDate(row.completed_at, { time: true })} · {row.branch_name}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{String(row.status).replaceAll("_", " ")}</span></header><div><span>Customer</span><strong>{row.customer_name}</strong></div><div><span>Cashier / Payment</span><strong>{row.cashier_name}</strong><small>{row.payment_methods}</small></div><div><span>Gross / Refund</span><strong>{reportMoney(row.gross_total, currency)} / {reportMoney(row.refund_total, currency)}</strong></div><div><span>Net</span><strong>{reportMoney(row.net_total, currency)}</strong></div><div><span>Profit</span><strong>{reportMoney(row.gross_profit, currency)}</strong></div></article>}
+        />
       </div>
     );
   }
@@ -390,9 +357,44 @@ export default function ReportsPage() {
           <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Profit bridge</h2><p>How net profit is calculated</p></div></div><div className="report-bridge"><div><span>Gross sales</span><strong>{reportMoney(summary.gross_sales, currency)}</strong></div><div className="minus"><span>Customer refunds</span><strong>-{reportMoney(summary.refunds, currency)}</strong></div><div><span>Net sales</span><strong>{reportMoney(summary.net_sales, currency)}</strong></div><div className="minus"><span>Net cost of goods</span><strong>-{reportMoney(summary.net_cogs, currency)}</strong></div><div><span>Gross profit</span><strong>{reportMoney(summary.gross_profit, currency)}</strong></div><div><span>Other income</span><strong>+{reportMoney(cashSummary.other_income, currency)}</strong></div><div className="minus"><span>Operating expenses</span><strong>-{reportMoney(cashSummary.operating_expenses, currency)}</strong></div><div className="total"><span>Net profit</span><strong>{reportMoney(netProfit, currency)}</strong></div></div></section>
         </div>
 
-        <section className="panel report-panel report-detail-panel"><div className="report-panel-heading"><div><h2>Expense detail</h2><p>Active cash-out records in this period</p></div><span>{number(expenses.length, 0)} rows</span></div><div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Code</th><th>Date</th><th>Branch</th><th>Category</th><th>Payment</th><th>Amount</th><th>Profit & Loss</th><th>User</th><th>Remark</th></tr></thead><tbody>{expenses.map((row) => <tr key={row.id}><td><strong>{row.entry_number}</strong><small>{row.reference_number || "No reference"}</small></td><td>{formatReportDate(row.entry_at, { time: true })}</td><td>{row.branch_name}</td><td>{row.category_name}</td><td>{String(row.method).toUpperCase()}</td><td><strong>{reportMoney(row.base_amount, currency)}</strong><small>{row.currency !== currency ? reportMoney(row.amount, row.currency) : ""}</small></td><td>{row.affects_profit ? "Included" : "Cash only"}</td><td>{row.created_by_name}</td><td>{row.remark || "—"}</td></tr>)}</tbody></table></div></section>
+        <ResponsiveDataList
+          storageKey="report-expense-detail"
+          title="Expense detail"
+          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          rows={expenseDetailRows}
+          filename={`report-expenses-${filters.from}-to-${filters.to}.xls`}
+          columns={[
+            { label: "Code", width: 150, documentValue: (row) => row.entry_number, render: (row) => <><strong>{row.entry_number}</strong><small>{row.reference_number || "No reference"}</small></> },
+            { label: "Date", width: 150, documentValue: (row) => formatReportDate(row.entry_at, { time: true }), render: (row) => formatReportDate(row.entry_at, { time: true }) },
+            { label: "Branch", width: 130, value: "branch_name" },
+            { label: "Category", width: 160, value: "category_name" },
+            { label: "Payment", width: 95, value: (row) => String(row.method).toUpperCase() },
+            { label: "Amount", width: 120, documentValue: (row) => reportMoney(row.base_amount, currency), render: (row) => <><strong>{reportMoney(row.base_amount, currency)}</strong>{row.currency !== currency && <small>{reportMoney(row.amount, row.currency)}</small>}</> },
+            { label: "Profit & Loss", width: 105, value: (row) => row.affects_profit ? "Included" : "Cash only" },
+            { label: "User", width: 140, value: "created_by_name" },
+            { label: "Remark", width: 240, value: (row) => row.remark || "—" }
+          ]}
+          renderCard={(row) => <article className="responsive-data-card report-expense-card"><header><div><strong>{row.entry_number}</strong><small>{formatReportDate(row.entry_at, { time: true })}</small></div><span className="cash-direction-pill expense">Expense</span></header><div><span>Category</span><strong>{row.category_name}</strong></div><div><span>Branch / User</span><strong>{row.branch_name}</strong><small>{row.created_by_name}</small></div><div><span>Payment</span><strong>{String(row.method).toUpperCase()}</strong></div><div><span>Amount</span><strong>{reportMoney(row.base_amount, currency)}</strong></div><div><span>Remark</span><strong>{row.remark || "—"}</strong></div></article>}
+        />
 
-        <section className="panel report-panel report-detail-panel"><div className="report-panel-heading"><div><h2>Purchase detail</h2><p>Latest 500 received purchases</p></div><span>{number(data?.purchase_rows?.length, 0)} rows</span></div><div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Purchase</th><th>Date</th><th>Supplier</th><th>Supplier invoice</th><th>Total</th><th>Paid</th><th>Balance</th><th>Status</th></tr></thead><tbody>{(data?.purchase_rows || []).map((row) => <tr key={row.purchase_number}><td><strong>{row.purchase_number}</strong><small>{row.branch_name}</small></td><td>{formatReportDate(row.received_at, { time: true })}</td><td>{row.supplier_name}</td><td>{row.supplier_invoice_number || "—"}</td><td>{reportMoney(row.total, currency)}</td><td>{reportMoney(row.amount_paid, currency)}</td><td>{reportMoney(row.balance, currency)}</td><td>{row.status}</td></tr>)}</tbody></table></div></section>
+        <ResponsiveDataList
+          storageKey="report-purchase-detail"
+          title="Purchase detail"
+          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          rows={purchaseDetailRows}
+          filename={`report-purchases-${filters.from}-to-${filters.to}.xls`}
+          columns={[
+            { label: "Purchase", width: 170, documentValue: (row) => row.purchase_number, render: (row) => <><strong>{row.purchase_number}</strong><small>{row.branch_name}</small></> },
+            { label: "Date", width: 150, documentValue: (row) => formatReportDate(row.received_at, { time: true }), render: (row) => formatReportDate(row.received_at, { time: true }) },
+            { label: "Supplier", width: 170, value: "supplier_name" },
+            { label: "Supplier invoice", width: 150, value: (row) => row.supplier_invoice_number || "—" },
+            { label: "Total", width: 110, documentValue: (row) => reportMoney(row.total, currency), render: (row) => reportMoney(row.total, currency) },
+            { label: "Paid", width: 110, documentValue: (row) => reportMoney(row.amount_paid, currency), render: (row) => reportMoney(row.amount_paid, currency) },
+            { label: "Balance", width: 110, documentValue: (row) => reportMoney(row.balance, currency), render: (row) => <strong>{reportMoney(row.balance, currency)}</strong> },
+            { label: "Status", width: 100, value: "status" }
+          ]}
+          renderCard={(row) => <article className="responsive-data-card report-purchase-card"><header><div><strong>{row.purchase_number}</strong><small>{formatReportDate(row.received_at, { time: true })} · {row.branch_name}</small></div><span className="status-pill active">{row.status}</span></header><div><span>Supplier</span><strong>{row.supplier_name}</strong><small>{row.supplier_invoice_number || "No supplier invoice"}</small></div><div><span>Total</span><strong>{reportMoney(row.total, currency)}</strong></div><div><span>Paid</span><strong>{reportMoney(row.amount_paid, currency)}</strong></div><div><span>Balance</span><strong>{reportMoney(row.balance, currency)}</strong></div></article>}
+        />
       </div>
     );
   }
@@ -413,7 +415,25 @@ export default function ReportsPage() {
 
         <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Stock age by cost value</h2><p>Current stock grouped by the latest positive stock movement</p></div></div><ReportBarChart data={data?.stock_age || []} labelKey="bucket" valueKey="stock_value" valueFormatter={(value) => reportMoney(value, currency)} /></section>
 
-        <section className="panel report-panel report-detail-panel"><div className="report-panel-heading"><div><h2>Current stock analysis</h2><p>Up to 1,000 active tracked products</p></div><span>{number(data?.stock_rows?.length, 0)} rows</span></div><div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Product</th><th>Category</th><th>Quantity</th><th>Cost value</th><th>Retail value</th><th>Margin</th><th>Last stock in</th><th>Age</th><th>Status</th></tr></thead><tbody>{(data?.stock_rows || []).map((row) => <tr key={row.product_id}><td><strong>{row.product_name}</strong><small>{row.sku || row.barcode || "No code"}</small></td><td>{row.category_name}</td><td>{stockNumber(row.quantity)}</td><td>{reportMoney(row.cost_value, currency)}</td><td>{reportMoney(row.retail_value, currency)}</td><td>{reportMoney(row.potential_margin, currency)}</td><td>{formatReportDate(row.last_inbound_at)}</td><td>{number(row.age_days, 0)} days</td><td><span className={`report-stock-status ${row.stock_status}`}>{row.stock_status}</span></td></tr>)}</tbody></table></div></section>
+        <ResponsiveDataList
+          storageKey="report-stock-analysis-detail"
+          title="Current stock analysis"
+          subtitle={`${data?.scope?.branch_name || profile?.branches?.name || "Current branch"} · Report selected ${filters.from} to ${filters.to}`}
+          rows={data?.stock_rows || []}
+          filename={`report-stock-analysis-${filters.from}-to-${filters.to}.xls`}
+          columns={[
+            { label: "Product", width: 210, documentValue: (row) => row.product_name, render: (row) => <><strong>{row.product_name}</strong><small>{row.sku || row.barcode || "No code"}</small></> },
+            { label: "Category", width: 140, value: "category_name" },
+            { label: "Quantity", width: 95, value: (row) => stockNumber(row.quantity) },
+            { label: "Cost value", width: 110, documentValue: (row) => reportMoney(row.cost_value, currency), render: (row) => reportMoney(row.cost_value, currency) },
+            { label: "Retail value", width: 110, documentValue: (row) => reportMoney(row.retail_value, currency), render: (row) => reportMoney(row.retail_value, currency) },
+            { label: "Margin", width: 110, documentValue: (row) => reportMoney(row.potential_margin, currency), render: (row) => reportMoney(row.potential_margin, currency) },
+            { label: "Last stock in", width: 120, documentValue: (row) => formatReportDate(row.last_inbound_at), render: (row) => formatReportDate(row.last_inbound_at) },
+            { label: "Age", width: 80, value: (row) => `${number(row.age_days, 0)} days` },
+            { label: "Status", width: 105, documentValue: (row) => row.stock_status, render: (row) => <span className={`report-stock-status ${row.stock_status}`}>{row.stock_status}</span> }
+          ]}
+          renderCard={(row) => <article className="responsive-data-card report-stock-card"><header><div><strong>{row.product_name}</strong><small>{row.sku || row.barcode || "No code"}</small></div><span className={`report-stock-status ${row.stock_status}`}>{row.stock_status}</span></header><div><span>Category</span><strong>{row.category_name}</strong></div><div><span>Quantity</span><strong>{stockNumber(row.quantity)}</strong></div><div><span>Cost / Retail</span><strong>{reportMoney(row.cost_value, currency)} / {reportMoney(row.retail_value, currency)}</strong></div><div><span>Margin</span><strong>{reportMoney(row.potential_margin, currency)}</strong></div><div><span>Last stock in / Age</span><strong>{formatReportDate(row.last_inbound_at)}</strong><small>{number(row.age_days, 0)} days</small></div></article>}
+        />
       </div>
     );
   }
@@ -435,7 +455,25 @@ export default function ReportsPage() {
           <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Customer types</h2><p>Active profiles by type</p></div></div><ReportBarChart data={(data?.customer_types || []).map((row) => ({ ...row, label: String(row.customer_type).replaceAll("_", " ") }))} labelKey="label" valueKey="customer_count" valueFormatter={(value) => number(value, 0)} /></section>
         </div>
 
-        <section className="panel report-panel report-detail-panel"><div className="report-panel-heading"><div><h2>Customer performance</h2><p>Top 20 customers in this period</p></div><span>{number(data?.top_customers?.length, 0)} rows</span></div><div className="report-table-wrap"><table className="report-table wide"><thead><tr><th>Customer</th><th>Type</th><th>Sales</th><th>Refunds</th><th>Gross spend</th><th>Net spend</th><th>Average sale</th><th>Points</th><th>Last purchase</th></tr></thead><tbody>{(data?.top_customers || []).map((row) => <tr key={row.customer_id}><td><strong>{row.customer_name}</strong><small>{row.customer_code}{row.phone ? ` · ${row.phone}` : ""}</small></td><td>{row.customer_type}</td><td>{number(row.sale_count, 0)}</td><td>{number(row.refund_count, 0)}</td><td>{reportMoney(row.gross_spend, currency)}</td><td><strong>{reportMoney(row.net_spend, currency)}</strong></td><td>{reportMoney(row.average_sale, currency)}</td><td>{number(row.loyalty_points)}</td><td>{formatReportDate(row.last_purchase)}</td></tr>)}</tbody></table></div></section>
+        <ResponsiveDataList
+          storageKey="report-customer-performance"
+          title="Customer performance"
+          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          rows={data?.top_customers || []}
+          filename={`report-customer-performance-${filters.from}-to-${filters.to}.xls`}
+          columns={[
+            { label: "Customer", width: 210, documentValue: (row) => row.customer_name, render: (row) => <><strong>{row.customer_name}</strong><small>{row.customer_code}{row.phone ? ` · ${row.phone}` : ""}</small></> },
+            { label: "Type", width: 100, value: "customer_type" },
+            { label: "Sales", width: 70, value: (row) => number(row.sale_count, 0) },
+            { label: "Refunds", width: 70, value: (row) => number(row.refund_count, 0) },
+            { label: "Gross spend", width: 110, documentValue: (row) => reportMoney(row.gross_spend, currency), render: (row) => reportMoney(row.gross_spend, currency) },
+            { label: "Net spend", width: 110, documentValue: (row) => reportMoney(row.net_spend, currency), render: (row) => <strong>{reportMoney(row.net_spend, currency)}</strong> },
+            { label: "Average sale", width: 110, documentValue: (row) => reportMoney(row.average_sale, currency), render: (row) => reportMoney(row.average_sale, currency) },
+            { label: "Points", width: 80, value: (row) => number(row.loyalty_points) },
+            { label: "Last purchase", width: 120, documentValue: (row) => formatReportDate(row.last_purchase), render: (row) => formatReportDate(row.last_purchase) }
+          ]}
+          renderCard={(row) => <article className="responsive-data-card report-customer-card"><header><div><strong>{row.customer_name}</strong><small>{row.customer_code}{row.phone ? ` · ${row.phone}` : ""}</small></div><span className="status-pill active">{row.customer_type}</span></header><div><span>Sales / Refunds</span><strong>{number(row.sale_count, 0)} / {number(row.refund_count, 0)}</strong></div><div><span>Gross spend</span><strong>{reportMoney(row.gross_spend, currency)}</strong></div><div><span>Net spend</span><strong>{reportMoney(row.net_spend, currency)}</strong></div><div><span>Average sale</span><strong>{reportMoney(row.average_sale, currency)}</strong></div><div><span>Points / Last purchase</span><strong>{number(row.loyalty_points)}</strong><small>{formatReportDate(row.last_purchase)}</small></div></article>}
+        />
       </div>
     );
   }
@@ -448,7 +486,7 @@ export default function ReportsPage() {
     <div className="page-stack reports-page">
       <div className="page-heading reports-heading">
         <div><p className="eyebrow">BUSINESS INTELLIGENCE</p><h1>Reports</h1><p className="muted">Sales, net profit, expenses, purchases, stock, and customer performance.</p></div>
-        <div className="heading-actions report-heading-actions"><button type="button" className="secondary-button" onClick={() => window.print()} disabled={!data}><Printer size={18} />Print</button><button type="button" className="secondary-button" onClick={exportCurrentTab} disabled={!data}><Download size={18} />Export CSV</button><button type="button" className="primary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button></div>
+        <div className="heading-actions report-heading-actions"><button type="button" className="primary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button></div>
       </div>
 
       {message && <div className="notice error">{message}</div>}

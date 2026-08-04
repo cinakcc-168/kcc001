@@ -2,7 +2,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Eye,
-  History,
   PackageSearch,
   RefreshCw,
   XCircle
@@ -19,10 +18,12 @@ import StockCountCompleteModal from "../components/StockCountCompleteModal";
 import StockCountHistoryModal from "../components/StockCountHistoryModal";
 import StockCountStartModal from "../components/StockCountStartModal";
 import StockCountWorkspaceModal from "../components/StockCountWorkspaceModal";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import {
   money,
   stockNumber
 } from "../lib/catalog";
+import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import {
   cancelStockCount,
   completeStockCount,
@@ -374,105 +375,57 @@ export default function StockCountsPage() {
     }
   }
 
+  const stockCountDocumentColumns = [
+    { label: "Product", width: 210, value: (item) => item.products?.name || "" },
+    { label: "Khmer name", width: 160, value: (item) => item.products?.name_km || "" },
+    { label: "Code", width: 110, value: (item) => item.products?.sku || item.products?.barcode || "" },
+    { label: "Unit", width: 80, value: (item) => item.products?.unit_name || "pcs" },
+    { label: "System stock", width: 100, value: (item) => activeSession?.blind_count ? "Hidden" : stockNumber(item.expected_quantity) },
+    { label: "Counted", width: 100, value: (item) => item.counted_quantity === null ? "" : stockNumber(item.counted_quantity) },
+    { label: "Variance", width: 100, value: (item) => {
+      if (activeSession?.blind_count || item.counted_quantity === null) return "";
+      return stockNumber(Number(item.counted_quantity) - Number(item.expected_quantity));
+    } },
+    { label: "Value variance", width: 120, value: (item) => {
+      if (activeSession?.blind_count || item.counted_quantity === null) return "";
+      const variance = Number(item.counted_quantity) - Number(item.expected_quantity);
+      return money(variance * Number(item.unit_cost_snapshot || 0), item.products?.currency || "USD");
+    } },
+    { label: "Note", width: 220, value: (item) => item.note || "" }
+  ];
+
+  function stockCountDocumentSummary() {
+    return [
+      { label: "Stock count", value: activeSession?.count_number || "" },
+      { label: "Name", value: activeSession?.name || "" },
+      { label: "Started", value: dateTime(activeSession?.started_at) },
+      { label: "Counted", value: `${metrics.counted}/${metrics.total}` },
+      { label: "Discrepancies", value: activeSession?.blind_count ? "Hidden" : metrics.discrepancies }
+    ];
+  }
+
   function exportActiveCount() {
     if (!activeSession) return;
-    const rows = [
-      ["Stock count", activeSession.count_number],
-      ["Name", activeSession.name],
-      ["Started", dateTime(activeSession.started_at)],
-      ["Progress", `${metrics.counted}/${metrics.total}`],
-      [],
-      [
-        "Product",
-        "Khmer name",
-        "Code",
-        "Unit",
-        "System stock",
-        "Counted",
-        "Variance",
-        "Value variance",
-        "Note"
-      ],
-      ...items.map((item) => {
-        const product = item.products || {};
-        const variance = item.counted_quantity === null
-          ? ""
-          : Number(item.counted_quantity) - Number(item.expected_quantity);
-        const value = variance === ""
-          ? ""
-          : Number(variance) * Number(item.unit_cost_snapshot || 0);
-        return [
-          product.name || "",
-          product.name_km || "",
-          product.sku || product.barcode || "",
-          product.unit_name || "pcs",
-          activeSession.blind_count ? "Hidden" : stockNumber(item.expected_quantity),
-          item.counted_quantity === null ? "" : stockNumber(item.counted_quantity),
-          activeSession.blind_count || variance === "" ? "" : stockNumber(variance),
-          activeSession.blind_count || value === ""
-            ? ""
-            : money(value, product.currency || "USD"),
-          item.note || ""
-        ];
-      })
-    ];
-    const content = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
-    const blob = new Blob(["\uFEFF", content], {
-      type: "text/csv;charset=utf-8"
+    exportListExcel({
+      filename: `${activeSession.count_number}.xls`,
+      title: `${activeSession.count_number} · ${activeSession.name}`,
+      subtitle: `${profile?.branches?.name || "Current branch"} · Started ${dateTime(activeSession.started_at)}`,
+      summary: stockCountDocumentSummary(),
+      columns: stockCountDocumentColumns,
+      rows: visibleItems
     });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${activeSession.count_number}.csv`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
   }
 
   function printActiveCount() {
     if (!activeSession) return;
-    const printWindow = window.open("", "_blank", "width=1100,height=800");
-    if (!printWindow) {
-      announce("error", "Allow pop-ups to print this stock count.");
-      return;
-    }
-
-    const rows = items.map((item, index) => {
-      const product = item.products || {};
-      const variance = item.counted_quantity === null
-        ? null
-        : Number(item.counted_quantity) - Number(item.expected_quantity);
-      return `
-        <tr>
-          <td>${index + 1}</td>
-          <td><strong>${escapeHtml(product.name)}</strong>${product.name_km ? `<small>${escapeHtml(product.name_km)}</small>` : ""}</td>
-          <td>${escapeHtml(product.sku || product.barcode || "—")}</td>
-          <td>${escapeHtml(product.unit_name || "pcs")}</td>
-          <td>${activeSession.blind_count ? "Hidden" : escapeHtml(stockNumber(item.expected_quantity))}</td>
-          <td>${item.counted_quantity === null ? "—" : escapeHtml(stockNumber(item.counted_quantity))}</td>
-          <td>${activeSession.blind_count || variance === null ? "—" : escapeHtml(`${variance > 0 ? "+" : ""}${stockNumber(variance)}`)}</td>
-          <td>${escapeHtml(item.note || "")}</td>
-        </tr>`;
-    }).join("");
-
-    printWindow.document.write(`<!doctype html>
-      <html><head><meta charset="utf-8"><title>${escapeHtml(activeSession.count_number)}</title>
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;600;700&display=swap');
-        body{font-family:'Noto Sans Khmer',Arial,sans-serif;color:#111;padding:24px}
-        h1{margin:0 0 6px}p{margin:3px 0;color:#555}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}
-        th,td{border:1px solid #bbb;padding:8px;text-align:left;vertical-align:top}th{background:#f3f4f6}small{display:block;color:#555;margin-top:3px}
-        .summary{display:flex;gap:20px;margin-top:14px}.summary b{font-size:18px}
-        @media print{body{padding:0}}
-      </style></head><body>
-      <h1>${escapeHtml(activeSession.count_number)} · ${escapeHtml(activeSession.name)}</h1>
-      <p>Started ${escapeHtml(dateTime(activeSession.started_at))}</p>
-      <div class="summary"><span>Counted <b>${metrics.counted}/${metrics.total}</b></span><span>Differences <b>${metrics.discrepancies}</b></span></div>
-      <table><thead><tr><th>#</th><th>Product</th><th>Code</th><th>Unit</th><th>System stock</th><th>Counted</th><th>Variance</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>
-      <script>window.addEventListener('load',()=>setTimeout(()=>window.print(),400));<\/script>
-      </body></html>`);
-    printWindow.document.close();
+    printListDocument({
+      title: `${activeSession.count_number} · ${activeSession.name}`,
+      subtitle: `${profile?.branches?.name || "Current branch"} · Started ${dateTime(activeSession.started_at)}`,
+      summary: stockCountDocumentSummary(),
+      columns: stockCountDocumentColumns,
+      rows: visibleItems,
+      orientation: "landscape"
+    });
   }
 
   if (!canManage) {
@@ -574,57 +527,35 @@ export default function StockCountsPage() {
         </section>
       )}
 
-      <section className="panel stock-count-history-panel">
-        <div className="panel-title-row">
-          <div>
-            <p className="eyebrow">STOCK COUNTS</p>
-            <h2>Previous counts</h2>
-          </div>
-          <History size={22} />
-        </div>
-
-        {historySessions.length === 0 ? (
-          <p className="muted">No stock count history yet.</p>
-        ) : (
-          <div className="stock-count-history-list compact-cards">
-            {historySessions.map((session, index) => (
-              <article key={session.id}>
-                <div className="stock-count-session-index">{index + (activeSession ? 2 : 1)}</div>
-                <div>
-                  <strong>{session.count_number} · {session.name}</strong>
-                  <span>
-                    {dateTime(session.started_at)} · {session.expected_items} products · {session.scope}
-                  </span>
-                </div>
-                <div>
-                  <span className={`status-pill ${
-                    session.status === "completed"
-                      ? "active"
-                      : session.status === "cancelled"
-                        ? "inactive"
-                        : "pending"
-                  }`}>
-                    {session.status}
-                  </span>
-                  <small>{session.discrepancy_items} differences</small>
-                </div>
-                <div>
-                  <strong>{money(session.value_variance_usd, "USD")}</strong>
-                  <small>{money(session.value_variance_khr, "KHR")}</small>
-                </div>
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={() => viewHistory(session)}
-                  title="View stock count details"
-                >
-                  <Eye size={18} />
-                </button>
-              </article>
-            ))}
-          </div>
+      <ResponsiveDataList
+        storageKey="stock-count-history"
+        title="Previous stock counts"
+        subtitle={`${profile?.branches?.name || "Current branch"} · Completed, cancelled and earlier count sessions`}
+        rows={historySessions}
+        filename={`stock-count-history-${new Date().toISOString().slice(0, 10)}.xls`}
+        emptyTitle="No stock count history yet"
+        emptyText="Completed or cancelled stock counts will appear here."
+        columns={[
+          { label: "Count", width: 190, documentValue: (row) => row.count_number, render: (row) => <><strong>{row.count_number}</strong><small>{row.name}</small></> },
+          { label: "Started", width: 150, documentValue: (row) => dateTime(row.started_at), render: (row) => dateTime(row.started_at) },
+          { label: "Scope", width: 120, value: (row) => row.scope || "full" },
+          { label: "Products", width: 85, value: (row) => row.expected_items || 0 },
+          { label: "Differences", width: 95, value: (row) => row.discrepancy_items || 0 },
+          { label: "Variance USD", width: 115, documentValue: (row) => money(row.value_variance_usd, "USD"), render: (row) => money(row.value_variance_usd, "USD") },
+          { label: "Variance KHR", width: 115, documentValue: (row) => money(row.value_variance_khr, "KHR"), render: (row) => money(row.value_variance_khr, "KHR") },
+          { label: "Status", width: 95, documentValue: (row) => row.status, render: (row) => <span className={`status-pill ${row.status === "completed" ? "active" : row.status === "cancelled" ? "inactive" : "pending"}`}>{row.status}</span> },
+          { label: "View", actionsOnly: true, excludeDocument: true, render: (row) => <button type="button" className="icon-button" onClick={() => viewHistory(row)} title="View stock count details"><Eye size={18} /></button> }
+        ]}
+        renderCard={(row) => (
+          <article className="responsive-data-card stock-count-history-card">
+            <header><div><strong>{row.count_number}</strong><small>{row.name} · {dateTime(row.started_at)}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : row.status === "cancelled" ? "inactive" : "pending"}`}>{row.status}</span></header>
+            <div><span>Scope</span><strong>{row.scope || "full"}</strong></div>
+            <div><span>Products / differences</span><strong>{row.expected_items || 0} / {row.discrepancy_items || 0}</strong></div>
+            <div><span>Variance</span><strong>{money(row.value_variance_usd, "USD")}</strong><small>{money(row.value_variance_khr, "KHR")}</small></div>
+            <footer><button type="button" className="secondary-button compact-button" onClick={() => viewHistory(row)}><Eye size={18} />View details</button></footer>
+          </article>
         )}
-      </section>
+      />
 
       <StockCountStartModal
         open={startOpen}

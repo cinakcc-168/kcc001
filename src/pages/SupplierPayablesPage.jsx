@@ -1,6 +1,5 @@
 import {
   CalendarClock,
-  Download,
   Eye,
   HandCoins,
   Landmark,
@@ -19,11 +18,11 @@ import { useAuth } from "../context/AuthContext";
 import SupplierPaymentModal from "../components/SupplierPaymentModal";
 import SupplierStatementModal from "../components/SupplierStatementModal";
 import SupplierTermsModal from "../components/SupplierTermsModal";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import { money } from "../lib/catalog";
 import {
   agingClass,
   agingLabel,
-  downloadSupplierPayablesCsv,
   loadSupplierPayables,
   loadSupplierStatement,
   payableDate,
@@ -456,23 +455,6 @@ export default function SupplierPayablesPage() {
           <button
             type="button"
             className="secondary-button"
-            onClick={() =>
-              downloadSupplierPayablesCsv(
-                visibleInvoices,
-                `supplier-payables-${asOf}.csv`
-              )
-            }
-            disabled={
-              visibleInvoices.length === 0
-            }
-          >
-            <Download size={18} />
-            Export CSV
-          </button>
-
-          <button
-            type="button"
-            className="secondary-button"
             onClick={refresh}
             disabled={loading}
           >
@@ -727,359 +709,57 @@ export default function SupplierPayablesPage() {
         </label>
       </section>
 
-      <section className="panel supplier-balance-panel">
-        <div className="panel-title-row">
-          <div>
-            <p className="eyebrow">
-              SUPPLIERS
-            </p>
-            <h2>Outstanding balances</h2>
-            <span className="muted">
-              {visibleSuppliers.length}
-              {" supplier"}
-              {visibleSuppliers.length === 1
-                ? ""
-                : "s"}
-            </span>
-          </div>
-          <HandCoins size={22} />
-        </div>
+      <ResponsiveDataList
+        storageKey="supplier-payable-balances"
+        title="Outstanding supplier balances"
+        subtitle={`${allBranches ? "All branches" : profile?.branches?.name || "Current branch"} · As of ${asOf}`}
+        rows={visibleSuppliers}
+        filename={`supplier-balances-${asOf}.xls`}
+        summary={[
+          { label: "USD outstanding", value: money(usd.total || 0, "USD") },
+          { label: "USD overdue", value: money(usd.overdue || 0, "USD") },
+          { label: "KHR outstanding", value: money(khr.total || 0, "KHR") },
+          { label: "KHR overdue", value: money(khr.overdue || 0, "KHR") }
+        ]}
+        emptyTitle={loading ? "Loading supplier balances..." : "No matching supplier balance"}
+        emptyText="Change the search or filters."
+        columns={[
+          { label: "Supplier", width: 210, documentValue: (supplier) => supplier.name, render: (supplier) => <><strong>{supplier.name}</strong><small>{[supplier.supplier_code, supplier.phone, supplier.contact_name].filter(Boolean).join(" · ")}</small></> },
+          { label: "Terms", width: 85, documentValue: (supplier) => `${supplier.default_payment_terms_days} days`, render: (supplier) => <strong>{supplier.default_payment_terms_days} days</strong> },
+          { label: "Open", width: 65, value: (supplier) => Number(supplier.open_invoice_count || 0) },
+          { label: "Oldest due", width: 105, documentValue: (supplier) => payableDate(supplier.oldest_due_date), render: (supplier) => payableDate(supplier.oldest_due_date) },
+          { label: "USD balance", width: 135, documentValue: (supplier) => money(supplier.usd_balance, "USD"), render: (supplier) => <><strong>{money(supplier.usd_balance, "USD")}</strong><small>{money(supplier.usd_overdue, "USD")} overdue</small></> },
+          { label: "KHR balance", width: 135, documentValue: (supplier) => money(supplier.khr_balance, "KHR"), render: (supplier) => <><strong>{money(supplier.khr_balance, "KHR")}</strong><small>{money(supplier.khr_overdue, "KHR")} overdue</small></> },
+          { label: "Overdue invoices", width: 95, value: (supplier) => Number(supplier.overdue_invoice_count || 0), render: (supplier) => <span className={`payable-overdue-count ${Number(supplier.overdue_invoice_count || 0) > 0 ? "active" : ""}`}>{Number(supplier.overdue_invoice_count || 0)}</span> },
+          { label: "Actions", actionsOnly: true, excludeDocument: true, render: (supplier) => { const currentBalance = currentBranchBalance(supplier); return <div className="supplier-payable-actions"><button type="button" className="icon-button" onClick={() => setPaymentSupplier(supplier)} disabled={currentBalance <= 0} title={currentBalance > 0 ? "Record payment for the current branch" : "No unpaid balance in your current branch"}><HandCoins size={18} /></button><button type="button" className="icon-button" onClick={() => openStatement(supplier)} title="View supplier statement"><Eye size={18} /></button><button type="button" className="icon-button" onClick={() => setTermsSupplier(supplier)} title="Edit payment terms"><Settings2 size={18} /></button></div>; } }
+        ]}
+        renderCard={(supplier) => {
+          const currentBalance = currentBranchBalance(supplier);
+          return <article className="responsive-data-card supplier-payable-card"><header><div><strong>{supplier.name}</strong><small>{[supplier.supplier_code, supplier.phone, supplier.contact_name].filter(Boolean).join(" · ")}</small></div><span className={`payable-overdue-count ${Number(supplier.overdue_invoice_count || 0) > 0 ? "active" : ""}`}>{Number(supplier.overdue_invoice_count || 0)} overdue</span></header><div><span>Terms</span><strong>{supplier.default_payment_terms_days} days</strong></div><div><span>Oldest due</span><strong>{payableDate(supplier.oldest_due_date)}</strong></div><div><span>USD balance</span><strong>{money(supplier.usd_balance, "USD")}</strong><small>{money(supplier.usd_overdue, "USD")} overdue</small></div><div><span>KHR balance</span><strong>{money(supplier.khr_balance, "KHR")}</strong><small>{money(supplier.khr_overdue, "KHR")} overdue</small></div><footer><button type="button" className="secondary-button compact-button" onClick={() => setPaymentSupplier(supplier)} disabled={currentBalance <= 0}><HandCoins size={17} />Pay</button><button type="button" className="secondary-button compact-button" onClick={() => openStatement(supplier)}><Eye size={17} />Statement</button><button type="button" className="secondary-button compact-button" onClick={() => setTermsSupplier(supplier)}><Settings2 size={17} />Terms</button></footer></article>;
+        }}
+      />
 
-        {loading ? (
-          <div className="empty-state">
-            <RefreshCw
-              className="spin"
-              size={34}
-            />
-            <p>
-              Loading supplier balances...
-            </p>
-          </div>
-        ) : visibleSuppliers.length === 0 ? (
-          <div className="empty-state">
-            <Landmark size={46} />
-            <h2>
-              No matching supplier balance
-            </h2>
-            <p>
-              Change the search or filters.
-            </p>
-          </div>
-        ) : (
-          <div className="supplier-balance-table-wrap">
-            <table className="supplier-balance-table">
-              <thead>
-                <tr>
-                  <th>Supplier</th>
-                  <th>Terms</th>
-                  <th>Open</th>
-                  <th>Oldest due</th>
-                  <th>USD balance</th>
-                  <th>KHR balance</th>
-                  <th>Overdue</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {visibleSuppliers.map(
-                  (supplier) => {
-                    const currentBalance =
-                      currentBranchBalance(
-                        supplier
-                      );
-
-                    return (
-                      <tr
-                        key={
-                          supplier.supplier_id
-                        }
-                      >
-                        <td data-label="Supplier">
-                          <strong>
-                            {supplier.name}
-                          </strong>
-                          <small>
-                            {[
-                              supplier.supplier_code,
-                              supplier.phone,
-                              supplier.contact_name
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </small>
-                        </td>
-
-                        <td data-label="Terms">
-                          <strong>
-                            {
-                              supplier
-                                .default_payment_terms_days
-                            }
-                            {" days"}
-                          </strong>
-                        </td>
-
-                        <td data-label="Open">
-                          {Number(
-                            supplier.open_invoice_count
-                            || 0
-                          )}
-                        </td>
-
-                        <td data-label="Oldest due">
-                          {payableDate(
-                            supplier.oldest_due_date
-                          )}
-                        </td>
-
-                        <td data-label="USD balance">
-                          <strong>
-                            {money(
-                              supplier.usd_balance,
-                              "USD"
-                            )}
-                          </strong>
-                          <small>
-                            {money(
-                              supplier.usd_overdue,
-                              "USD"
-                            )}
-                            {" overdue"}
-                          </small>
-                        </td>
-
-                        <td data-label="KHR balance">
-                          <strong>
-                            {money(
-                              supplier.khr_balance,
-                              "KHR"
-                            )}
-                          </strong>
-                          <small>
-                            {money(
-                              supplier.khr_overdue,
-                              "KHR"
-                            )}
-                            {" overdue"}
-                          </small>
-                        </td>
-
-                        <td data-label="Overdue">
-                          <span
-                            className={`payable-overdue-count ${
-                              Number(
-                                supplier.overdue_invoice_count
-                                || 0
-                              ) > 0
-                                ? "active"
-                                : ""
-                            }`}
-                          >
-                            {Number(
-                              supplier.overdue_invoice_count
-                              || 0
-                            )}
-                          </span>
-                        </td>
-
-                        <td data-label="Actions">
-                          <div className="supplier-payable-actions">
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                setPaymentSupplier(
-                                  supplier
-                                )
-                              }
-                              disabled={
-                                currentBalance <= 0
-                              }
-                              title={
-                                currentBalance > 0
-                                  ? "Record payment for the current branch"
-                                  : "No unpaid balance in your current branch"
-                              }
-                            >
-                              <HandCoins
-                                size={18}
-                              />
-                            </button>
-
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                openStatement(
-                                  supplier
-                                )
-                              }
-                              title="View supplier statement"
-                            >
-                              <Eye size={18} />
-                            </button>
-
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                setTermsSupplier(
-                                  supplier
-                                )
-                              }
-                              title="Edit payment terms"
-                            >
-                              <Settings2
-                                size={18}
-                              />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className="panel supplier-open-invoices-panel">
-        <div className="panel-title-row">
-          <div>
-            <p className="eyebrow">
-              AGING DETAIL
-            </p>
-            <h2>Open purchases</h2>
-            <span className="muted">
-              {visibleInvoices.length}
-              {" record"}
-              {visibleInvoices.length === 1
-                ? ""
-                : "s"}
-            </span>
-          </div>
-          <CalendarClock size={22} />
-        </div>
-
-        {visibleInvoices.length === 0 ? (
-          <p className="muted">
-            No open purchases match the
-            current filters.
-          </p>
-        ) : (
-          <div className="supplier-invoice-table-wrap">
-            <table className="supplier-invoice-table">
-              <thead>
-                <tr>
-                  <th>Purchase</th>
-                  <th>Supplier</th>
-                  {allBranches && <th>Branch</th>}
-                  <th>Due date</th>
-                  <th>Aging</th>
-                  <th>Total</th>
-                  <th>Paid</th>
-                  <th>Return credit</th>
-                  <th>Balance</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {visibleInvoices.map(
-                  (invoice) => (
-                    <tr key={invoice.id}>
-                      <td data-label="Purchase">
-                        <strong>
-                          {
-                            invoice.purchase_number
-                          }
-                        </strong>
-                        <small>
-                          {invoice
-                            .supplier_invoice_number
-                            || "No supplier invoice"}
-                        </small>
-                      </td>
-
-                      <td data-label="Supplier">
-                        {
-                          invoice.supplier_name
-                        }
-                      </td>
-
-                      {allBranches && (
-                        <td data-label="Branch">
-                          {invoice.branch_name}
-                        </td>
-                      )}
-
-                      <td data-label="Due date">
-                        {payableDate(
-                          invoice.due_date
-                        )}
-                      </td>
-
-                      <td data-label="Aging">
-                        <span
-                          className={`payable-aging ${agingClass(
-                            invoice.aging_bucket
-                          )}`}
-                        >
-                          {agingLabel(
-                            invoice.aging_bucket
-                          )}
-                        </span>
-
-                        {Number(
-                          invoice.days_overdue
-                          || 0
-                        ) > 0 && (
-                          <small>
-                            {invoice.days_overdue}
-                            {" days overdue"}
-                          </small>
-                        )}
-                      </td>
-
-                      <td data-label="Total">
-                        {money(
-                          invoice.total_amount,
-                          invoice.currency
-                        )}
-                      </td>
-
-                      <td data-label="Paid">
-                        {money(
-                          invoice.amount_paid,
-                          invoice.currency
-                        )}
-                      </td>
-
-                      <td data-label="Return credit">
-                        {money(
-                          invoice.return_credit,
-                          invoice.currency
-                        )}
-                      </td>
-
-                      <td data-label="Balance">
-                        <strong>
-                          {money(
-                            invoice.balance_due,
-                            invoice.currency
-                          )}
-                        </strong>
-                      </td>
-                    </tr>
-                  )
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <ResponsiveDataList
+        storageKey="supplier-open-invoices"
+        title="Open purchases"
+        subtitle={`${allBranches ? "All branches" : profile?.branches?.name || "Current branch"} · Aging as of ${asOf}`}
+        rows={visibleInvoices}
+        filename={`supplier-open-purchases-${asOf}.xls`}
+        emptyTitle="No open purchases"
+        emptyText="No open purchases match the current filters."
+        columns={[
+          { label: "Purchase", width: 160, documentValue: (invoice) => invoice.purchase_number, render: (invoice) => <><strong>{invoice.purchase_number}</strong><small>{invoice.supplier_invoice_number || "No supplier invoice"}</small></> },
+          { label: "Supplier", width: 170, value: (invoice) => invoice.supplier_name },
+          ...(allBranches ? [{ label: "Branch", width: 120, value: (invoice) => invoice.branch_name }] : []),
+          { label: "Due date", width: 105, documentValue: (invoice) => payableDate(invoice.due_date), render: (invoice) => payableDate(invoice.due_date) },
+          { label: "Aging", width: 115, documentValue: (invoice) => agingLabel(invoice.aging_bucket), render: (invoice) => <><span className={`payable-aging ${agingClass(invoice.aging_bucket)}`}>{agingLabel(invoice.aging_bucket)}</span>{Number(invoice.days_overdue || 0) > 0 && <small>{invoice.days_overdue} days overdue</small>}</> },
+          { label: "Total", width: 105, documentValue: (invoice) => money(invoice.total_amount, invoice.currency), render: (invoice) => money(invoice.total_amount, invoice.currency) },
+          { label: "Paid", width: 105, documentValue: (invoice) => money(invoice.amount_paid, invoice.currency), render: (invoice) => money(invoice.amount_paid, invoice.currency) },
+          { label: "Return credit", width: 110, documentValue: (invoice) => money(invoice.return_credit, invoice.currency), render: (invoice) => money(invoice.return_credit, invoice.currency) },
+          { label: "Balance", width: 110, documentValue: (invoice) => money(invoice.balance_due, invoice.currency), render: (invoice) => <strong>{money(invoice.balance_due, invoice.currency)}</strong> }
+        ]}
+        renderCard={(invoice) => <article className="responsive-data-card supplier-invoice-card"><header><div><strong>{invoice.purchase_number}</strong><small>{invoice.supplier_invoice_number || "No supplier invoice"}</small></div><span className={`payable-aging ${agingClass(invoice.aging_bucket)}`}>{agingLabel(invoice.aging_bucket)}</span></header><div><span>Supplier</span><strong>{invoice.supplier_name}</strong></div>{allBranches && <div><span>Branch</span><strong>{invoice.branch_name}</strong></div>}<div><span>Due date</span><strong>{payableDate(invoice.due_date)}</strong><small>{Number(invoice.days_overdue || 0) > 0 ? `${invoice.days_overdue} days overdue` : "Current"}</small></div><div><span>Total</span><strong>{money(invoice.total_amount, invoice.currency)}</strong></div><div><span>Paid / credit</span><strong>{money(invoice.amount_paid, invoice.currency)} / {money(invoice.return_credit, invoice.currency)}</strong></div><div><span>Balance</span><strong>{money(invoice.balance_due, invoice.currency)}</strong></div></article>}
+      />
 
       <section className="panel supplier-recent-payments-panel">
         <div className="panel-title-row">

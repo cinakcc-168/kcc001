@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CreditCard, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { uploadImage } from "../lib/cloudinary";
+import { uploadShopLogo } from "../lib/settings";
 
 const tabs = [
   ["shop", "Shop Identity", Store],
@@ -112,7 +112,7 @@ function NewSaleLayoutPreview({ active, title, description, layout }) {
 }
 
 export default function SettingsPage() {
-  const { shop, profile, preferences, saveShopSettings, savePreferences, loading } = useAuth();
+  const { supabase, session, shop, profile, preferences, saveShopSettings, savePreferences, loading } = useAuth();
   const [tab, setTab] = useState("shop");
   const [shopForm, setShopForm] = useState(emptyShop);
   const [personal, setPersonal] = useState(emptyPersonal);
@@ -192,9 +192,9 @@ export default function SettingsPage() {
     setLogoUploading(true);
     setMessage("");
     try {
-      const result = await uploadImage(file, "shop-branding");
-      updateShop("shop_logo_url", result.secure_url);
-      setMessage("Logo uploaded. Save shop settings to apply it.");
+      await uploadShopLogo({ supabase, session, file });
+      setMessage("Logo uploaded. Reloading Tiny POS...");
+      window.setTimeout(() => window.location.reload(), 600);
     } catch (error) {
       setMessage(error.message || "Unable to upload logo.");
     } finally {
