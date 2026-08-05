@@ -52,41 +52,52 @@ export function shopFormFromSettings(shop) {
 }
 
 export async function saveShopSettings(supabase, values) {
-  const { data, error } = await supabase.rpc("update_shop_settings", {
-    p_shop_name: values.shop_name.trim(),
-    p_shop_phone: values.shop_phone.trim(),
-    p_shop_email: values.shop_email.trim(),
-    p_shop_address: values.shop_address.trim(),
-    p_tax_id: values.tax_id.trim(),
-    p_receipt_header: values.receipt_header.trim(),
-    p_receipt_footer: values.receipt_footer.trim(),
-    p_default_language: values.default_language,
-    p_default_theme: values.default_theme,
-    p_base_currency: values.base_currency,
-    p_usd_to_khr_rate: Number(values.usd_to_khr_rate),
-    p_tax_percent: Number(values.tax_percent),
-    p_low_stock_threshold: Number(values.low_stock_threshold),
+  const text = (value, fallback = "") => String(value ?? fallback).trim();
+  const number = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const payload = {
+    p_shop_name: text(values.shop_name, "Tiny POS"),
+    p_shop_phone: text(values.shop_phone),
+    p_shop_email: text(values.shop_email),
+    p_shop_address: text(values.shop_address),
+    p_tax_id: text(values.tax_id),
+    p_receipt_header: text(values.receipt_header),
+    p_receipt_footer: text(values.receipt_footer, "Thank you for your purchase."),
+    p_default_language: values.default_language === "km" ? "km" : "en",
+    p_default_theme: ["light", "dark", "system"].includes(values.default_theme)
+      ? values.default_theme
+      : "system",
+    p_base_currency: values.base_currency === "KHR" ? "KHR" : "USD",
+    p_usd_to_khr_rate: Math.max(1, number(values.usd_to_khr_rate, 4100)),
+    p_tax_percent: Math.min(100, Math.max(0, number(values.tax_percent, 0))),
+    p_low_stock_threshold: Math.max(0, number(values.low_stock_threshold, 5)),
     p_allow_negative_stock: Boolean(values.allow_negative_stock),
-    p_receipt_width_mm: Number(values.receipt_width_mm),
-    p_invoice_prefix: values.invoice_prefix.trim().toUpperCase(),
-    p_receipt_show_logo: Boolean(values.receipt_show_logo),
-    p_receipt_show_address: Boolean(values.receipt_show_address),
-    p_receipt_show_phone: Boolean(values.receipt_show_phone),
-    p_receipt_show_customer: Boolean(values.receipt_show_customer),
-    p_receipt_show_cashier: Boolean(values.receipt_show_cashier),
-    p_receipt_show_barcode: Boolean(values.receipt_show_barcode),
-    p_label_width_mm: Number(values.label_width_mm),
-    p_label_height_mm: Number(values.label_height_mm),
-    p_label_columns: Number(values.label_columns),
-    p_label_show_name: Boolean(values.label_show_name),
-    p_label_show_price: Boolean(values.label_show_price),
-    p_label_show_sku: Boolean(values.label_show_sku),
-    p_label_barcode_format: values.label_barcode_format
-  });
+    p_receipt_width_mm: Number(values.receipt_width_mm) === 58 ? 58 : 80,
+    p_invoice_prefix: text(values.invoice_prefix, "INV").toUpperCase(),
+    p_receipt_show_logo: values.receipt_show_logo !== false,
+    p_receipt_show_address: values.receipt_show_address !== false,
+    p_receipt_show_phone: values.receipt_show_phone !== false,
+    p_receipt_show_customer: values.receipt_show_customer !== false,
+    p_receipt_show_cashier: values.receipt_show_cashier !== false,
+    p_receipt_show_barcode: values.receipt_show_barcode !== false,
+    p_label_width_mm: Math.min(120, Math.max(20, number(values.label_width_mm, 50))),
+    p_label_height_mm: Math.min(100, Math.max(15, number(values.label_height_mm, 30))),
+    p_label_columns: Math.min(6, Math.max(1, Math.round(number(values.label_columns, 3)))),
+    p_label_show_name: values.label_show_name !== false,
+    p_label_show_price: values.label_show_price !== false,
+    p_label_show_sku: values.label_show_sku !== false,
+    p_label_barcode_format: values.label_barcode_format === "EAN13" ? "EAN13" : "CODE128"
+  };
+
+  const { data, error } = await supabase.rpc("update_shop_settings", payload);
 
   if (error) throw error;
   return data;
 }
+
 
 export async function uploadShopLogo({ supabase, session, file }) {
   if (!file?.type?.startsWith("image/")) {
