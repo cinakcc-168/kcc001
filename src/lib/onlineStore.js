@@ -134,6 +134,23 @@ export async function trackPublicOrder(
   return parseResponse(response);
 }
 
+export async function findPublicOrdersByPhone(
+  slug,
+  phone
+) {
+  const query = new URLSearchParams({
+    slug,
+    action: "phone-orders",
+    phone: String(phone || "").trim()
+  });
+
+  const response = await fetch(
+    `${API_PATH}?${query.toString()}`
+  );
+
+  return parseResponse(response);
+}
+
 export async function loadOnlineStoreAdmin(
   supabase,
   profile,

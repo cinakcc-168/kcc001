@@ -307,6 +307,13 @@ export async function deleteOfflineSale(offlineSaleId) {
   emit();
 }
 
+function isRetryableSyncError(error) {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true;
+  const message = String(error?.message || error || "").toLowerCase();
+  return ["failed to fetch", "network", "timeout", "timed out", "connection", "offline"]
+    .some((term) => message.includes(term));
+}
+
 export async function synchronizeOfflineSale(supabase, sale) {
   await updateOfflineSale(sale.offline_sale_id, {
     status: "syncing",
@@ -321,9 +328,10 @@ export async function synchronizeOfflineSale(supabase, sale) {
   });
 
   if (error) {
+    const retryable = isRetryableSyncError(error);
     await updateOfflineSale(sale.offline_sale_id, {
-      status: "conflict",
-      error_code: error.code || "NETWORK_OR_RPC",
+      status: retryable ? "pending" : "conflict",
+      error_code: error.code || (retryable ? "NETWORK_RETRY" : "RPC_CONFLICT"),
       error_message: error.message
     });
     throw error;
