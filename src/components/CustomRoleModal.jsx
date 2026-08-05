@@ -1,4 +1,4 @@
-import { Save, ShieldCheck } from "lucide-react";
+import { ChevronDown, Save, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { roleLabel } from "../lib/staff";
@@ -6,9 +6,15 @@ import { roleLabel } from "../lib/staff";
 const baseRoles = ["admin", "manager", "cashier", "viewer"];
 
 function roleDefaults(definitions, baseRole) {
-  return definitions
+  return (definitions || [])
     .filter((definition) => (definition.default_roles || []).includes(baseRole))
     .map((definition) => definition.permission_key);
+}
+
+function readableModule(value) {
+  return String(value || "Other")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default function CustomRoleModal({
@@ -26,6 +32,7 @@ export default function CustomRoleModal({
   const [permissionKeys, setPermissionKeys] = useState([]);
   const [isActive, setIsActive] = useState(true);
   const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState({});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -41,6 +48,7 @@ export default function CustomRoleModal({
     );
     setIsActive(role?.is_active !== false);
     setSearch("");
+    setExpanded({});
     setError("");
   }, [open, role, definitions]);
 
@@ -55,19 +63,26 @@ export default function CustomRoleModal({
 
     for (const definition of definitions || []) {
       if (definition.approval_action || !definition.permission_key) continue;
+      const label = definition.label || definition.permission_key;
+      const descriptionText = definition.description || definition.permission_key;
       const haystack = [
         definition.permission_key,
         definition.module_key,
-        definition.label,
-        definition.description
+        label,
+        descriptionText
       ].filter(Boolean).join(" ").toLowerCase();
       if (needle && !haystack.includes(needle)) continue;
       const key = definition.module_key || "Other";
       if (!map.has(key)) map.set(key, []);
-      map.get(key).push(definition);
+      map.get(key).push({ ...definition, label, description: descriptionText });
     }
 
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return [...map.entries()]
+      .map(([moduleKey, rows]) => [
+        moduleKey,
+        rows.sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+      ])
+      .sort(([a], [b]) => a.localeCompare(b));
   }, [definitions, search]);
 
   if (!open) return null;
@@ -93,6 +108,13 @@ export default function CustomRoleModal({
       keys.forEach((key) => checked ? next.add(key) : next.delete(key));
       return [...next];
     });
+  }
+
+  function toggleExpanded(moduleKey) {
+    setExpanded((current) => ({
+      ...current,
+      [moduleKey]: current[moduleKey] === false
+    }));
   }
 
   async function submit(event) {
@@ -129,8 +151,8 @@ export default function CustomRoleModal({
       onClose={() => !busy && onClose()}
       wide
     >
-      <form className="custom-role-form" onSubmit={submit}>
-        <div className="form-grid two">
+      <form className="custom-role-form custom-role-form-recovered" onSubmit={submit}>
+        <div className="form-grid two custom-role-basic-grid">
           <label>
             <span>Role name *</span>
             <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Example: Stock Controller" autoFocus />
@@ -148,37 +170,77 @@ export default function CustomRoleModal({
           <textarea rows="3" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What this role is responsible for" />
         </label>
 
-        <label className="custom-role-active">
-          <span><strong>Active role</strong><small>Inactive roles stay on existing users but cannot be newly assigned.</small></span>
+        <label className="custom-role-active recovered">
+          <span>
+            <strong>Active role</strong>
+            <small>Inactive roles stay on existing users but cannot be newly assigned.</small>
+          </span>
           <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
         </label>
 
-        <section className="custom-role-permissions">
-          <div className="custom-role-permission-heading">
-            <div><ShieldCheck size={20} /><span><strong>Permissions</strong><small>{permissionKeys.length} selected</small></span></div>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search permissions" />
+        <section className="custom-role-permissions recovered">
+          <div className="custom-role-permission-heading recovered">
+            <div className="custom-role-permission-summary">
+              <ShieldCheck size={21} />
+              <span>
+                <strong>Permissions</strong>
+                <small>{permissionKeys.length} selected</small>
+              </span>
+            </div>
+            <label className="custom-role-search">
+              <Search size={18} />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search permission name, module or key" />
+            </label>
           </div>
 
-          <div className="custom-role-groups">
+          <div className="custom-role-groups recovered">
             {groups.map(([moduleKey, rows]) => {
               const selectedCount = rows.filter((row) => permissionKeys.includes(row.permission_key)).length;
               const allSelected = rows.length > 0 && selectedCount === rows.length;
+              const isOpen = search.trim() ? true : expanded[moduleKey] !== false;
+
               return (
-                <section className="custom-role-group" key={moduleKey}>
+                <section className="custom-role-group recovered" key={moduleKey}>
                   <header>
-                    <label>
-                      <input type="checkbox" checked={allSelected} onChange={(event) => toggleGroup(rows, event.target.checked)} />
-                      <span><strong>{moduleKey.replaceAll("_", " ")}</strong><small>{selectedCount}/{rows.length}</small></span>
+                    <label className="custom-role-group-select">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(event) => toggleGroup(rows, event.target.checked)}
+                      />
+                      <span>
+                        <strong>{readableModule(moduleKey)}</strong>
+                        <small>{selectedCount} of {rows.length} selected</small>
+                      </span>
                     </label>
+                    <button
+                      type="button"
+                      className="icon-button custom-role-group-toggle"
+                      onClick={() => toggleExpanded(moduleKey)}
+                      aria-label={`${isOpen ? "Collapse" : "Expand"} ${readableModule(moduleKey)}`}
+                    >
+                      <ChevronDown size={18} className={isOpen ? "" : "collapsed"} />
+                    </button>
                   </header>
-                  <div>
-                    {rows.map((definition) => (
-                      <label className="custom-role-permission" key={definition.permission_key}>
-                        <input type="checkbox" checked={permissionKeys.includes(definition.permission_key)} onChange={() => togglePermission(definition.permission_key)} />
-                        <span><strong>{definition.label}</strong><small>{definition.description || definition.permission_key}</small></span>
-                      </label>
-                    ))}
-                  </div>
+
+                  {isOpen && (
+                    <div className="custom-role-permission-list">
+                      {rows.map((definition) => (
+                        <label className="custom-role-permission recovered" key={definition.permission_key}>
+                          <input
+                            type="checkbox"
+                            checked={permissionKeys.includes(definition.permission_key)}
+                            onChange={() => togglePermission(definition.permission_key)}
+                          />
+                          <span>
+                            <strong>{definition.label}</strong>
+                            <small>{definition.description}</small>
+                            <code>{definition.permission_key}</code>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </section>
               );
             })}
@@ -188,7 +250,7 @@ export default function CustomRoleModal({
 
         {error && <div className="notice error">{error}</div>}
 
-        <div className="modal-actions">
+        <div className="modal-actions custom-role-actions">
           <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="primary-button" disabled={busy}><Save size={18} />{busy ? "Saving..." : "Save custom role"}</button>
         </div>

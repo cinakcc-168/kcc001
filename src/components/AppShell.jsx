@@ -71,7 +71,7 @@ const navigationItems = {
   inventory: { to: "/inventory", label: "Inventory", icon: Warehouse, any: ["inventory.view", "inventory.adjust"] },
   batches: { to: "/batches", label: "Batch & Expiry", icon: CalendarClock, any: ["inventory.view", "inventory.adjust"] },
   stockCounts: { to: "/stock-counts", label: "Stock Count", icon: ClipboardCheck, permission: "stock_counts.manage" },
-  transfers: { to: "/transfers", label: "Stock Transfers", icon: ArrowLeftRight, any: ["transfers.create", "transfers.receive", "transfers.cancel"] },
+  transfers: { to: "/transfers", label: "Stock Transfers", icon: ArrowLeftRight, any: ["transfers.create", "transfers.receive", "transfers.cancel", "transfers.edit", "transfers.count", "transfers.approve"] },
   purchaseOrders: { to: "/purchase-orders", label: "Purchase Orders", icon: ClipboardList, any: ["purchases.manage", "purchases.receive", "purchases.cancel", "purchases.supplier_return"] },
   supplierPayables: { to: "/supplier-payables", label: "Supplier Payables", icon: HandCoins, any: ["supplier_payables.view", "supplier_payables.pay"] },
   reorder: { to: "/reorder", label: "Reorder Planner", icon: ListChecks, permission: "reorder.manage" },

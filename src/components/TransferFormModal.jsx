@@ -1,16 +1,14 @@
-import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { stockNumber } from "../lib/catalog";
 
 function emptyItem() {
-  return {
-    product_id: "",
-    quantity: 1
-  };
+  return { product_id: "", quantity: 1 };
 }
 
 export default function TransferFormModal({
+  transfer = null,
   branches,
   products,
   currentBranchId,
@@ -23,17 +21,29 @@ export default function TransferFormModal({
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (transfer) {
+      setDestinationBranchId(transfer.destination_branch_id || "");
+      setItems((transfer.stock_transfer_items || []).map((item) => ({
+        product_id: item.product_id,
+        quantity: Number(item.quantity || 0)
+      })) || [emptyItem()]);
+      setNotes(transfer.notes || "");
+    } else {
+      setDestinationBranchId("");
+      setItems([emptyItem()]);
+      setNotes("");
+    }
+    setError("");
+  }, [transfer]);
+
   const destinations = useMemo(
     () => branches.filter((branch) => branch.id !== currentBranchId),
     [branches, currentBranchId]
   );
 
   function updateItem(index, field, value) {
-    setItems((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [field]: value } : item
-      )
-    );
+    setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
     setError("");
   }
 
@@ -52,10 +62,7 @@ export default function TransferFormModal({
 
     const prepared = items
       .filter((item) => item.product_id)
-      .map((item) => ({
-        product_id: item.product_id,
-        quantity: Number(item.quantity)
-      }));
+      .map((item) => ({ product_id: item.product_id, quantity: Number(item.quantity) }));
 
     if (prepared.length === 0) {
       setError("Add at least one product.");
@@ -63,36 +70,29 @@ export default function TransferFormModal({
     }
 
     const seen = new Set();
-
     for (const item of prepared) {
       const product = products.find((row) => row.id === item.product_id);
-
       if (!product) {
         setError("One selected product no longer exists.");
         return;
       }
-
       if (seen.has(item.product_id)) {
         setError(`${product.name} was selected more than once.`);
         return;
       }
-
       seen.add(item.product_id);
-
       if (!Number.isFinite(item.quantity) || item.quantity <= 0) {
         setError(`Enter a valid quantity for ${product.name}.`);
         return;
       }
-
       if (item.quantity > Number(product.stock_quantity || 0)) {
-        setError(
-          `${product.name} has only ${stockNumber(product.stock_quantity)} available.`
-        );
+        setError(`${product.name} has only ${stockNumber(product.stock_quantity)} available.`);
         return;
       }
     }
 
     await onSubmit({
+      transfer_id: transfer?.id || null,
       destination_branch_id: destinationBranchId,
       items: prepared,
       notes
@@ -100,39 +100,24 @@ export default function TransferFormModal({
   }
 
   return (
-    <Modal title="Create stock transfer" onClose={onClose} wide>
+    <Modal title={transfer ? `Edit ${transfer.transfer_number}` : "Create stock transfer"} onClose={onClose} wide>
       <form className="transfer-form" onSubmit={submit}>
         <label>
           <span>Destination branch</span>
-          <select
-            value={destinationBranchId}
-            onChange={(event) => setDestinationBranchId(event.target.value)}
-          >
+          <select value={destinationBranchId} onChange={(event) => setDestinationBranchId(event.target.value)}>
             <option value="">Choose destination</option>
-            {destinations.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name} ({branch.code})
-              </option>
-            ))}
+            {destinations.map((branch) => <option key={branch.id} value={branch.id}>{branch.name} ({branch.code})</option>)}
           </select>
         </label>
 
         <div className="transfer-item-list">
           {items.map((item, index) => {
-            const selected = products.find(
-              (product) => product.id === item.product_id
-            );
-
+            const selected = products.find((product) => product.id === item.product_id);
             return (
               <div className="transfer-item-row" key={`${index}-${item.product_id}`}>
                 <label>
                   <span>Product</span>
-                  <select
-                    value={item.product_id}
-                    onChange={(event) =>
-                      updateItem(index, "product_id", event.target.value)
-                    }
-                  >
+                  <select value={item.product_id} onChange={(event) => updateItem(index, "product_id", event.target.value)}>
                     <option value="">Choose product</option>
                     {products.map((product) => (
                       <option key={product.id} value={product.id}>
@@ -141,28 +126,11 @@ export default function TransferFormModal({
                     ))}
                   </select>
                 </label>
-
                 <label>
                   <span>Quantity</span>
-                  <input
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    max={selected?.stock_quantity || undefined}
-                    value={item.quantity}
-                    onChange={(event) =>
-                      updateItem(index, "quantity", event.target.value)
-                    }
-                  />
+                  <input type="number" min="0.001" step="0.001" max={selected?.stock_quantity || undefined} value={item.quantity} onChange={(event) => updateItem(index, "quantity", event.target.value)} />
                 </label>
-
-                <button
-                  type="button"
-                  className="icon-button danger-icon"
-                  onClick={() => removeItem(index)}
-                  disabled={items.length === 1}
-                  title="Remove product"
-                >
+                <button type="button" className="icon-button danger-icon" onClick={() => removeItem(index)} disabled={items.length === 1} title="Remove product">
                   <Trash2 size={19} />
                 </button>
               </div>
@@ -170,38 +138,21 @@ export default function TransferFormModal({
           })}
         </div>
 
-        <button
-          type="button"
-          className="secondary-button transfer-add-item"
-          onClick={() => setItems((current) => [...current, emptyItem()])}
-        >
-          <Plus size={17} />
-          Add another product
+        <button type="button" className="secondary-button transfer-add-item" onClick={() => setItems((current) => [...current, emptyItem()])}>
+          <Plus size={17} /> Add another product
         </button>
 
         <label>
           <span>Transfer notes</span>
-          <textarea
-            rows="3"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            placeholder="Optional packing, delivery, or handling notes"
-          />
+          <textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional packing, delivery, or handling notes" />
         </label>
 
         {error && <div className="notice error">{error}</div>}
 
         <div className="modal-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onClose}
-            disabled={busy}
-          >
-            Cancel
-          </button>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="primary-button" disabled={busy}>
-            {busy ? "Creating transfer..." : "Send stock transfer"}
+            {busy ? "Saving transfer..." : transfer ? "Save transfer" : "Create pending transfer"}
           </button>
         </div>
       </form>

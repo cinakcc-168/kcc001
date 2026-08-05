@@ -12,6 +12,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import { notifyTelegramEvent } from "../lib/telegram";
 import Modal from "./Modal";
 import { money } from "../lib/catalog";
 import {
@@ -25,7 +26,7 @@ export default function ApprovalRequestModal({
   onClose,
   onApproved
 }) {
-  const { supabase } = useAuth();
+  const { supabase, session } = useAuth();
 
   const [record, setRecord] =
     useState(null);
@@ -78,6 +79,7 @@ export default function ApprovalRequestModal({
 
         if (active) {
           setRecord(result);
+          void notifyTelegramEvent(session, "approval_requested", result.id);
         }
       } catch (createError) {
         if (active) {
@@ -96,7 +98,8 @@ export default function ApprovalRequestModal({
   }, [
     request,
     requestKey,
-    supabase
+    supabase,
+    session
   ]);
 
   useEffect(() => {
