@@ -2,10 +2,14 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
   ImageUp,
+  Link2,
   Minus,
   PackageSearch,
+  Phone,
   Plus,
+  ReceiptText,
   Search,
   ShoppingBag,
   Store,
@@ -15,6 +19,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
+  findPublicOrdersByPhone,
   loadPublicStorefront,
   onlineMoney,
   onlineStatusLabel,
@@ -55,6 +60,55 @@ function unitFor(product, unitId) {
     || null;
 }
 
+function recentOrdersKey(slug) {
+  return `tiny-pos-online-recent:${slug}`;
+}
+
+function loadRecentOrders(slug) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(recentOrdersKey(slug)) || "[]");
+    const indexed = Array.isArray(parsed) ? parsed : [];
+    const legacyPrefix = `tiny-pos-online-order:${slug}:`;
+    const legacy = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key?.startsWith(legacyPrefix)) continue;
+      const orderNumber = key.slice(legacyPrefix.length);
+      const trackingToken = localStorage.getItem(key);
+      if (orderNumber && trackingToken) {
+        legacy.push({
+          order_number: orderNumber,
+          tracking_token: trackingToken,
+          total_amount: 0,
+          currency: "USD",
+          status: "pending",
+          created_at: null
+        });
+      }
+    }
+    const merged = [...indexed, ...legacy]
+      .filter((item, position, all) => all.findIndex((row) => row.order_number === item.order_number) === position)
+      .slice(0, 10);
+    return merged;
+  } catch {
+    return [];
+  }
+}
+
+function rememberRecentOrder(slug, order) {
+  const next = [order, ...loadRecentOrders(slug).filter((item) => item.order_number !== order.order_number)].slice(0, 10);
+  try { localStorage.setItem(recentOrdersKey(slug), JSON.stringify(next)); } catch { /* optional */ }
+  return next;
+}
+
+function secureTrackingUrl(slug, orderNumber, token) {
+  const url = new URL(window.location.href);
+  url.pathname = `/shop/${encodeURIComponent(slug)}`;
+  url.search = new URLSearchParams({ order: orderNumber, token }).toString();
+  url.hash = "public-order-tracking";
+  return url.toString();
+}
+
 export default function PublicStorefrontPage() {
   const { slug } = useParams();
   const [data, setData] = useState(null);
@@ -80,6 +134,11 @@ export default function PublicStorefrontPage() {
   const [tracking, setTracking] = useState({ order: "", token: "" });
   const [trackedOrder, setTrackedOrder] = useState(null);
   const [trackingBusy, setTrackingBusy] = useState(false);
+  const [recentOrders, setRecentOrders] = useState(() => loadRecentOrders(slug));
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [phoneOrders, setPhoneOrders] = useState([]);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [copyNotice, setCopyNotice] = useState("");
   const [bannerIndex, setBannerIndex] = useState(0);
 
   function label(en, km) {
@@ -90,6 +149,10 @@ export default function PublicStorefrontPage() {
     try { localStorage.setItem("tiny-pos-public-language", language); } catch { /* optional */ }
     document.documentElement.lang = language === "km" ? "km" : "en";
   }, [language]);
+
+  useEffect(() => {
+    setRecentOrders(loadRecentOrders(slug));
+  }, [slug]);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +187,18 @@ export default function PublicStorefrontPage() {
     }, seconds * 1000);
     return () => window.clearInterval(timer);
   }, [banners, data?.store?.banner_interval_seconds]);
+
+  useEffect(() => {
+    if (!data) return;
+    const params = new URLSearchParams(window.location.search);
+    const orderNumber = params.get("order") || "";
+    const token = params.get("token") || "";
+    if (orderNumber && token.length >= 20) {
+      runTrack(orderNumber, token);
+    }
+  // Run only when the storefront is loaded or changed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.store?.slug]);
 
   const products = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -241,6 +316,15 @@ export default function PublicStorefrontPage() {
           result.tracking_token
         );
       } catch { /* token is still shown */ }
+      setRecentOrders(rememberRecentOrder(slug, {
+        order_number: result.order_number,
+        tracking_token: result.tracking_token,
+        total_amount: result.total_amount,
+        currency: result.currency,
+        status: result.status || "pending",
+        created_at: new Date().toISOString(),
+        customer_phone: orderValues.customer_phone
+      }));
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -248,19 +332,63 @@ export default function PublicStorefrontPage() {
     }
   }
 
-  async function track(event) {
-    event.preventDefault();
+  async function runTrack(orderNumber, token) {
     try {
       setTrackingBusy(true);
       setError("");
-      const result = await trackPublicOrder(slug, tracking.order, tracking.token);
+      const result = await trackPublicOrder(slug, orderNumber, token);
+      setTracking({ order: orderNumber, token });
       setTrackedOrder(result.order);
+      setRecentOrders((current) => {
+        const next = current.map((item) => item.order_number === orderNumber
+          ? { ...item, status: result.order.status, updated_at: result.order.updated_at }
+          : item);
+        try { localStorage.setItem(recentOrdersKey(slug), JSON.stringify(next)); } catch { /* optional */ }
+        return next;
+      });
+      window.setTimeout(() => document.getElementById("public-order-tracking")?.scrollIntoView({ behavior: "smooth", block: "start" }), 20);
+      return result.order;
     } catch (requestError) {
       setTrackedOrder(null);
       setError(requestError.message);
+      return null;
     } finally {
       setTrackingBusy(false);
     }
+  }
+
+  async function track(event) {
+    event.preventDefault();
+    await runTrack(tracking.order, tracking.token);
+  }
+
+  async function findByPhone(event) {
+    event.preventDefault();
+    try {
+      setPhoneBusy(true);
+      setError("");
+      const result = await findPublicOrdersByPhone(slug, phoneSearch);
+      setPhoneOrders(result.orders || []);
+    } catch (requestError) {
+      setPhoneOrders([]);
+      setError(requestError.message);
+    } finally {
+      setPhoneBusy(false);
+    }
+  }
+
+  async function copyValue(value, message) {
+    try {
+      await navigator.clipboard.writeText(String(value || ""));
+      setCopyNotice(message);
+      window.setTimeout(() => setCopyNotice(""), 2200);
+    } catch {
+      window.prompt(label("Copy this value", "ចម្លងតម្លៃនេះ"), String(value || ""));
+    }
+  }
+
+  function openRecentOrder(order) {
+    runTrack(order.order_number, order.tracking_token);
   }
 
   if (loading) {
@@ -326,9 +454,16 @@ export default function PublicStorefrontPage() {
             <p>{success.customer_message || label("The shop will review stock and contact you.", "ហាងនឹងពិនិត្យស្តុក ហើយទាក់ទងទៅអ្នក។")}</p>
             {success.bank_slip_url && <p className="public-slip-confirmed">✓ {label("Bank slip submitted for review.", "បានផ្ញើសន្លឹកបង់ប្រាក់សម្រាប់ពិនិត្យ។")}</p>}
             <div className="tracking-token-box">
-              <small>{label("Keep this tracking token private", "សូមរក្សាកូដតាមដាននេះជាសម្ងាត់")}</small>
+              <small>{label("Keep this tracking code private", "សូមរក្សាកូដតាមដាននេះជាសម្ងាត់")}</small>
               <code>{success.tracking_token}</code>
             </div>
+            <div className="public-order-success-actions">
+              <button type="button" onClick={() => copyValue(success.order_number, label("Order number copied", "បានចម្លងលេខបញ្ជាទិញ"))}><Copy size={17} />{label("Copy Order Number", "ចម្លងលេខបញ្ជាទិញ")}</button>
+              <button type="button" onClick={() => copyValue(success.tracking_token, label("Tracking code copied", "បានចម្លងកូដតាមដាន"))}><Copy size={17} />{label("Copy Tracking Code", "ចម្លងកូដតាមដាន")}</button>
+              <button type="button" onClick={() => copyValue(secureTrackingUrl(slug, success.order_number, success.tracking_token), label("Tracking link copied", "បានចម្លងតំណតាមដាន"))}><Link2 size={17} />{label("Copy Tracking Link", "ចម្លងតំណតាមដាន")}</button>
+              <button type="button" className="primary" onClick={() => runTrack(success.order_number, success.tracking_token)}><Search size={17} />{label("Check Order Status", "ពិនិត្យស្ថានភាព")}</button>
+            </div>
+            {copyNotice && <small className="public-copy-notice">{copyNotice}</small>}
           </div>
         </section>
       )}
@@ -371,7 +506,7 @@ export default function PublicStorefrontPage() {
                       {(product.units || []).map((unit) => <option value={unit.id} key={unit.id}>{unit.short_name || unit.name}</option>)}
                     </select>
                   </div>
-                  <button type="button" onClick={() => addProduct(product)} disabled={soldOut}><Plus size={18} />{label("Add to order", "បន្ថែមទៅការបញ្ជាទិញ")}</button>
+                  <button type="button" onClick={() => addProduct(product)} disabled={soldOut}><Plus size={18} />{label("Add to Cart", "បន្ថែមទៅកន្ត្រក")}</button>
                 </div>
               </article>
             );
@@ -380,9 +515,31 @@ export default function PublicStorefrontPage() {
 
         {!products.length && <div className="empty-state"><PackageSearch size={38} /><strong>{label("No products found", "រកមិនឃើញផលិតផល")}</strong></div>}
 
-        <section className="public-track-section">
+        <section className="public-track-section" id="public-order-tracking">
           <h2>{label("Track an order", "តាមដានការបញ្ជាទិញ")}</h2>
-          <form onSubmit={track}>
+
+          {recentOrders.length > 0 && (
+            <div className="public-recent-orders">
+              <div className="public-track-subheading"><ReceiptText size={20} /><div><strong>{label("My recent orders", "ការបញ្ជាទិញថ្មីៗរបស់ខ្ញុំ")}</strong><small>{label("Saved on this browser", "បានរក្សាទុកលើកម្មវិធីរុករកនេះ")}</small></div></div>
+              <div className="public-recent-order-list">
+                {recentOrders.map((order) => (
+                  <button type="button" key={order.order_number} onClick={() => openRecentOrder(order)}>
+                    <span><strong>{order.order_number}</strong><small>{order.created_at ? new Intl.DateTimeFormat(language === "km" ? "km-KH" : "en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(order.created_at)) : label("Saved order", "ការបញ្ជាទិញដែលបានរក្សា")}</small></span>
+                    <span>{Number(order.total_amount || 0) > 0 && <b>{onlineMoney(order.total_amount, order.currency)}</b>}<small>{onlineStatusLabel(order.status || "pending", language)}</small></span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form className="public-phone-order-search" onSubmit={findByPhone}>
+            <div className="public-track-subheading"><Phone size={20} /><div><strong>{label("Find orders by phone", "ស្វែងរកតាមលេខទូរស័ព្ទ")}</strong><small>{label("Shows limited order summaries only", "បង្ហាញតែព័ត៌មានសង្ខេប")}</small></div></div>
+            <div><input value={phoneSearch} onChange={(event) => setPhoneSearch(event.target.value)} placeholder={label("Phone number", "លេខទូរស័ព្ទ")} required /><button type="submit" disabled={phoneBusy}>{phoneBusy ? label("Searching…", "កំពុងស្វែងរក…") : label("Find orders", "ស្វែងរក")}</button></div>
+            {phoneOrders.length > 0 && <div className="public-phone-order-results">{phoneOrders.map((order, index) => <article key={`${order.masked_order_number}-${index}`}><strong>{order.masked_order_number}</strong><span>{onlineStatusLabel(order.status, language)}</span><small>{new Intl.DateTimeFormat(language === "km" ? "km-KH" : "en-US", { dateStyle: "medium" }).format(new Date(order.created_at))} · {onlineMoney(order.total_amount, order.currency)}</small></article>)}</div>}
+            {!phoneBusy && phoneSearch && phoneOrders.length === 0 && <small>{label("Enter the phone used at checkout. Full details still require the private tracking code.", "សូមបញ្ចូលលេខទូរស័ព្ទដែលប្រើពេលបញ្ជាទិញ។ ព័ត៌មានពេញលេញត្រូវការកូដតាមដានសម្ងាត់។")}</small>}
+          </form>
+
+          <form className="public-private-track-form" onSubmit={track}>
             <input value={tracking.order} onChange={(event) => setTracking((current) => ({ ...current, order: event.target.value }))} placeholder={label("Order number", "លេខបញ្ជាទិញ")} required />
             <input value={tracking.token} onChange={(event) => setTracking((current) => ({ ...current, token: event.target.value }))} placeholder={label("Private tracking token", "កូដតាមដានសម្ងាត់")} required />
             <button type="submit" disabled={trackingBusy}>{trackingBusy ? label("Checking…", "កំពុងពិនិត្យ…") : label("Track order", "តាមដាន")}</button>
@@ -392,6 +549,9 @@ export default function PublicStorefrontPage() {
               <strong>{trackedOrder.order_number}</strong>
               <span className={`status-badge ${trackedOrder.status}`}>{onlineStatusLabel(trackedOrder.status, language)}</span>
               <p>{label("Total", "សរុប")}: {onlineMoney(trackedOrder.total_amount, trackedOrder.currency)}</p>
+              {trackedOrder.sales_order_number && <p>{label("Sales Order", "បញ្ជាទិញលក់")}: <strong>{trackedOrder.sales_order_number}</strong></p>}
+              {trackedOrder.invoice_number && <p className="public-final-invoice">{label("Final invoice", "វិក្កយបត្រចុងក្រោយ")}: <strong>{trackedOrder.invoice_number}</strong></p>}
+              {!trackedOrder.invoice_number && trackedOrder.sales_order_number && <small>{label("The invoice will appear after staff completes checkout.", "វិក្កយបត្រនឹងបង្ហាញបន្ទាប់ពីបុគ្គលិកបញ្ចប់ការទូទាត់។")}</small>}
               <div className="public-status-timeline">
                 {(trackedOrder.history || []).map((item, index) => (
                   <div key={`${item.status}-${index}`}><span /><div><strong>{onlineStatusLabel(item.status, language)}</strong>{item.note && <p>{item.note}</p>}</div></div>
