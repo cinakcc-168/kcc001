@@ -20,7 +20,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ReorderRuleModal from "../components/ReorderRuleModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
-import { money, stockNumber } from "../lib/catalog";
+import { cloudinaryThumb, money, stockNumber } from "../lib/catalog";
 import {
   createDraftPurchaseOrders,
   loadReorderWorkspace,
@@ -582,7 +582,7 @@ export default function ReorderPage() {
         emptyText="Change the filters or search phrase."
         columns={[
           { label: "Select", actionsOnly: true, excludeDocument: true, render: (item) => <input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} title={item.can_create_order ? "Select product" : item.draft_base_quantity > 0 ? "A draft purchase order already exists" : "Configure a preferred supplier first"} /> },
-          { label: "Product", width: 220, documentValue: (item) => item.product_name, render: (item) => <><strong>{item.product_name}</strong><small>{[item.sku, item.barcode, item.category_name].filter(Boolean).join(" · ") || "No product code"}</small></> },
+          { label: "Product", width: 260, documentValue: (item) => item.product_name, render: (item) => <div className="reorder-product-cell"><div className="reorder-product-thumb">{item.product_image_url ? <img src={cloudinaryThumb(item.product_image_url, 96, 96)} alt="" /> : <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />}</div><div><strong>{item.product_name}</strong><small>{[item.sku, item.barcode, item.category_name].filter(Boolean).join(" · ") || "No product code"}</small></div></div> },
           { label: "Status", width: 120, documentValue: (item) => reorderStatusLabel(item.reorder_status), render: (item) => <span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{reorderStatusLabel(item.reorder_status)}</span> },
           { label: "Stock", width: 160, documentValue: (item) => `${stockNumber(item.current_stock)} ${item.base_unit_name}`, render: (item) => <><strong>{stockNumber(item.current_stock)} {item.base_unit_name}</strong><small>Ordered {stockNumber(item.ordered_base_quantity)} · Projected {stockNumber(item.projected_stock)}</small></> },
           { label: "Rule", width: 140, documentValue: (item) => `Reorder at ${stockNumber(item.reorder_point)}; Target ${stockNumber(item.target_stock)} ${item.base_unit_name}`, render: (item) => <><strong>Reorder at {stockNumber(item.reorder_point)}</strong><small>Target {stockNumber(item.target_stock)} {item.base_unit_name}</small></> },
@@ -593,7 +593,7 @@ export default function ReorderPage() {
         ]}
         renderCard={(item) => (
           <article className="responsive-data-card reorder-list-card">
-            <header><label className="check-row"><input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} /><span><strong>{item.product_name}</strong><small>{item.sku || item.barcode || "No code"}</small></span></label><span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{reorderStatusLabel(item.reorder_status)}</span></header>
+            <header><div className="reorder-card-product"><label className="check-row"><input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} /><span className="reorder-product-thumb">{item.product_image_url ? <img src={cloudinaryThumb(item.product_image_url, 96, 96)} alt="" /> : <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />}</span></label><div><strong>{item.product_name}</strong><small>{item.sku || item.barcode || "No code"}</small></div></div><span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{reorderStatusLabel(item.reorder_status)}</span></header>
             <div><span>Stock</span><strong>{stockNumber(item.current_stock)} {item.base_unit_name}</strong><small>Projected {stockNumber(item.projected_stock)}</small></div>
             <div><span>Reorder rule</span><strong>{stockNumber(item.reorder_point)} → {stockNumber(item.target_stock)} {item.base_unit_name}</strong></div>
             <div><span>Supplier</span><strong>{item.preferred_supplier_name || "Not configured"}</strong></div>
