@@ -123,7 +123,7 @@ export default function StockCountWorkspaceModal({
         </div>
 
         <section className="stock-count-print-document">
-          <header className="stock-count-print-header">
+          <header className="stock-count-print-header stock-count-print-only-header">
             <div>
               <p className="eyebrow">ACTIVE STOCK COUNT</p>
               <h2>{session.count_number} · {session.name}</h2>

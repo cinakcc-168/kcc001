@@ -9,16 +9,39 @@ function valueFor(column, row) {
   return "";
 }
 
+function CardValue({ column, row }) {
+  return (
+    <div className="responsive-card-value">
+      {column.render
+        ? column.render(row)
+        : String(valueFor(column, row) ?? "—")}
+    </div>
+  );
+}
+
 function GenericCard({ row, columns }) {
   const visible = columns.filter((column) => !column.actionsOnly);
+  const [primary, ...details] = visible;
+
   return (
-    <article className="responsive-data-card">
-      {visible.map((column) => (
-        <div key={column.label}>
-          <span>{column.label}</span>
-          <div className="responsive-card-value">{column.render ? column.render(row) : String(valueFor(column, row) ?? "—")}</div>
-        </div>
-      ))}
+    <article className="responsive-data-card responsive-generic-card">
+      {primary && (
+        <header className="responsive-generic-card-header">
+          <div>
+            <span className="responsive-card-label">{primary.label}</span>
+            <CardValue column={primary} row={row} />
+          </div>
+        </header>
+      )}
+
+      <div className="responsive-card-field-list">
+        {details.map((column) => (
+          <div className="responsive-card-field" key={column.label}>
+            <span className="responsive-card-label">{column.label}</span>
+            <CardValue column={column} row={row} />
+          </div>
+        ))}
+      </div>
     </article>
   );
 }
@@ -133,7 +156,7 @@ export default function ResponsiveDataList({
         <div className="responsive-data-card-grid">
           {state.pageRows.map((row, index) => (
             renderCard
-              ? <div key={rowKey(row, index)}>{renderCard(row, index)}</div>
+              ? <div className="responsive-card-grid-item" key={rowKey(row, index)}>{renderCard(row, index)}</div>
               : <GenericCard key={rowKey(row, index)} row={row} columns={columns} />
           ))}
         </div>

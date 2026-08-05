@@ -55,19 +55,61 @@ export default function StockCountRow({
   if (asCard) {
     return (
       <article className={`responsive-data-card stock-count-item-card ${tone}`}>
-        <header>
+        <header className="stock-count-card-header">
           <div>
             <strong>{product.name}</strong>
             <small>{[product.sku, product.barcode, product.categories?.name].filter(Boolean).join(" · ") || "No product code"}</small>
           </div>
           <span className={`status-pill ${changed ? "pending" : "active"}`}>{changed ? "Unsaved" : "Saved"}</span>
         </header>
-        <div><span>Base unit</span><strong>{product.unit_name || "pcs"}</strong></div>
-        <div><span>System stock</span><strong>{blind ? "Hidden" : stockNumber(item.expected_quantity)}</strong></div>
-        <label><span>Counted</span><input className="stock-count-input" type="number" min="0" step="0.001" value={quantity} onChange={(event) => updateQuantity(event.target.value)} disabled={busy} placeholder="Not counted" /></label>
-        <div><span>Variance</span><strong>{blind ? "Hidden" : variance === null ? "—" : `${variance > 0 ? "+" : ""}${stockNumber(variance)}`}</strong></div>
-        <div><span>Value variance</span><strong>{blind ? "Hidden" : valueVariance === null ? "—" : money(valueVariance, product.currency || "USD")}</strong></div>
-        <label className="stock-count-card-note"><span>Note</span><input className="stock-count-note-input" value={note} onChange={(event) => updateNote(event.target.value)} disabled={busy} placeholder="Optional note" /></label>
+
+        <div className="stock-count-card-meta">
+          <div>
+            <span>Base unit</span>
+            <strong>{product.unit_name || "pcs"}</strong>
+          </div>
+          <div>
+            <span>System stock</span>
+            <strong>{blind ? "Hidden" : stockNumber(item.expected_quantity)}</strong>
+          </div>
+        </div>
+
+        <label className="stock-count-card-counted">
+          <span>Counted quantity</span>
+          <input
+            className="stock-count-input"
+            type="number"
+            min="0"
+            step="0.001"
+            value={quantity}
+            onChange={(event) => updateQuantity(event.target.value)}
+            disabled={busy}
+            placeholder="Not counted"
+            inputMode="decimal"
+          />
+        </label>
+
+        <div className="stock-count-card-results">
+          <div>
+            <span>Variance</span>
+            <strong>{blind ? "Hidden" : variance === null ? "—" : `${variance > 0 ? "+" : ""}${stockNumber(variance)}`}</strong>
+          </div>
+          <div>
+            <span>Value variance</span>
+            <strong>{blind ? "Hidden" : valueVariance === null ? "—" : money(valueVariance, product.currency || "USD")}</strong>
+          </div>
+        </div>
+
+        <label className="stock-count-card-note">
+          <span>Note</span>
+          <input
+            className="stock-count-note-input"
+            value={note}
+            onChange={(event) => updateNote(event.target.value)}
+            disabled={busy}
+            placeholder="Optional note"
+          />
+        </label>
       </article>
     );
   }
@@ -77,7 +119,7 @@ export default function StockCountRow({
       <td data-label="Product"><strong>{product.name}</strong><small>{[product.sku, product.barcode, product.categories?.name].filter(Boolean).join(" · ") || "No product code"}</small></td>
       <td data-label="Base unit">{product.unit_name || "pcs"}</td>
       <td data-label="System stock">{blind ? <span className="stock-count-hidden">Hidden</span> : <strong>{stockNumber(item.expected_quantity)}</strong>}</td>
-      <td data-label="Counted"><input className="stock-count-input" type="number" min="0" step="0.001" value={quantity} onChange={(event) => updateQuantity(event.target.value)} disabled={busy} placeholder="Not counted" /></td>
+      <td data-label="Counted"><input className="stock-count-input" type="number" min="0" step="0.001" value={quantity} onChange={(event) => updateQuantity(event.target.value)} disabled={busy} placeholder="Not counted" inputMode="decimal" /></td>
       <td data-label="Variance">{blind ? <span className="stock-count-hidden">Hidden</span> : variance === null ? <span className="muted">—</span> : <strong>{variance > 0 ? "+" : ""}{stockNumber(variance)}</strong>}</td>
       <td data-label="Value variance">{blind ? <span className="stock-count-hidden">Hidden</span> : valueVariance === null ? <span className="muted">—</span> : <strong>{money(valueVariance, product.currency || "USD")}</strong>}</td>
       <td data-label="Note"><input className="stock-count-note-input" value={note} onChange={(event) => updateNote(event.target.value)} disabled={busy} placeholder="Optional note" /></td>
