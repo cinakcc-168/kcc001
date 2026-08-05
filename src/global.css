@@ -3697,3 +3697,162 @@ body.tiny-pos-printing .tiny-pos-label-print-root{
     z-index:2147483647!important;
   }
 }
+
+/* ========================================================================== */
+/* Step 46.4.11 — Card view polish, stock-count workspace and reorder images */
+/* ========================================================================== */
+
+/* Shared card-view structure used by all responsive lists from 46.4.8/46.4.9. */
+.responsive-data-card-grid{align-items:stretch}
+.responsive-card-grid-item{min-width:0;height:100%}
+.responsive-card-grid-item>.responsive-data-card{height:100%}
+.responsive-data-card,
+.list-record-card{word-break:normal!important;overflow-wrap:normal!important}
+.responsive-data-card strong,
+.responsive-data-card small,
+.responsive-data-card span,
+.list-record-card strong,
+.list-record-card small,
+.list-record-card span{min-width:0;max-width:100%}
+.responsive-data-card>header,
+.list-record-card>header{min-width:0;align-items:flex-start}
+.responsive-data-card>header>div,
+.list-record-card>header>div{min-width:0}
+.responsive-data-card>header strong,
+.list-record-card>header strong{display:block;line-height:1.25;overflow-wrap:anywhere;word-break:normal}
+.responsive-data-card>header small,
+.list-record-card>header small{display:block;line-height:1.35;margin-top:3px;overflow-wrap:anywhere;word-break:normal}
+.responsive-data-card>header>.status-pill,
+.responsive-data-card>header>[class*="status"],
+.list-record-card>header>.status-pill{flex:0 0 auto;align-self:flex-start}
+
+.responsive-generic-card{gap:0;padding:0;overflow:hidden}
+.responsive-generic-card-header{padding:14px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface2) 45%,var(--surface))}
+.responsive-generic-card-header>div{width:100%;display:grid;gap:5px}
+.responsive-card-label{color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.035em;line-height:1.25}
+.responsive-card-field-list{display:grid;gap:0}
+.responsive-card-field{display:grid;grid-template-columns:minmax(105px,.68fr) minmax(0,1fr);gap:12px;align-items:start;padding:11px 14px;border-bottom:1px solid var(--border)}
+.responsive-card-field:last-child{border-bottom:0}
+.responsive-card-value{min-width:0;display:grid;gap:3px;justify-items:end;text-align:right;font-weight:800;line-height:1.3;overflow-wrap:anywhere;word-break:normal}
+.responsive-card-value>strong,.responsive-card-value>small,.responsive-card-value>span{display:block;min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal}
+.responsive-card-value small{color:var(--muted);font-weight:400;margin:0}
+.responsive-generic-card-header .responsive-card-value{justify-items:start;text-align:left;font-size:15px}
+.responsive-generic-card-header .responsive-card-value strong{font-size:16px}
+
+/* Custom cards: preserve a clear label/value grid without overlapping text. */
+.responsive-data-card:not(.responsive-generic-card)>div:not(.transfer-route):not(.transfer-items-preview):not(.stock-count-card-meta):not(.stock-count-card-results):not(.reorder-card-product){
+  grid-template-columns:minmax(105px,.7fr) minmax(0,1fr)!important;
+  gap:12px!important;
+  align-items:start!important;
+}
+.responsive-data-card:not(.responsive-generic-card)>div>strong,
+.responsive-data-card:not(.responsive-generic-card)>div>small{text-align:right;line-height:1.35;overflow-wrap:anywhere;word-break:normal}
+
+/* Products card view: image, product name and status never collide on phones. */
+.product-directory-card>header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:12px!important}
+.product-directory-card .product-cell{display:grid!important;grid-template-columns:68px minmax(0,1fr)!important;align-items:start!important;gap:12px!important;min-width:0!important}
+.product-directory-card .product-thumb{width:68px!important;height:68px!important;min-width:68px!important;flex:0 0 68px!important}
+.product-directory-card .product-cell>div:last-child{min-width:0!important;display:grid!important;gap:3px!important;align-content:start!important}
+.product-directory-card .product-cell strong{font-size:15px;line-height:1.25;overflow-wrap:anywhere;word-break:normal}
+.product-directory-card .product-cell small{line-height:1.3;overflow-wrap:anywhere;word-break:normal}
+.product-directory-card .list-card-fields>div{align-content:start;min-height:72px}
+.product-directory-card .list-card-actions{margin-top:auto}
+
+/* Batch and expiry generic cards now keep product/lot as the clean card header. */
+.batch-status{white-space:nowrap}
+.responsive-generic-card .batch-row-actions{display:flex;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+
+/* Stock-count: remove the duplicate foreground summary after opening a count. */
+.stock-count-print-only-header{display:none!important}
+.stock-count-workspace .stock-count-print-document{gap:12px}
+.stock-count-workspace .stock-count-progress-panel{margin-top:0}
+
+/* Stock-count table always remains one horizontal record per row. */
+.stock-count-table-wrap{width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
+.stock-count-table-wrap .stock-count-table{display:table!important;width:max-content!important;min-width:1050px!important;border-collapse:collapse!important}
+.stock-count-table-wrap .stock-count-table thead{display:table-header-group!important}
+.stock-count-table-wrap .stock-count-table tbody{display:table-row-group!important}
+.stock-count-table-wrap .stock-count-table tr{display:table-row!important;width:auto!important;padding:0!important;border:0!important}
+.stock-count-table-wrap .stock-count-table th,
+.stock-count-table-wrap .stock-count-table td{display:table-cell!important;width:auto!important;min-width:105px;padding:10px 11px!important;border-bottom:1px solid var(--border)!important;vertical-align:middle!important;text-align:left!important;white-space:normal!important}
+.stock-count-table-wrap .stock-count-table th:first-child,
+.stock-count-table-wrap .stock-count-table td:first-child{min-width:230px!important}
+.stock-count-table-wrap .stock-count-table td::before{display:none!important;content:none!important}
+.stock-count-table-wrap .stock-count-input{width:120px!important;min-width:120px!important}
+.stock-count-table-wrap .stock-count-note-input{width:190px!important;min-width:190px!important}
+
+/* Stock-count cards are purpose-built for fast phone entry. */
+.stock-count-item-card{padding:14px!important;gap:13px!important}
+.stock-count-card-header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;padding-bottom:11px!important}
+.stock-count-card-header>div{min-width:0;display:grid;gap:3px}
+.stock-count-card-header strong{font-size:16px}
+.stock-count-card-meta,
+.stock-count-card-results{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.stock-count-card-meta>div,
+.stock-count-card-results>div{min-width:0;display:grid;gap:4px;padding:11px;border:1px solid var(--border);border-radius:11px;background:var(--surface2)}
+.stock-count-card-meta span,
+.stock-count-card-results span{color:var(--muted);font-size:12px;font-weight:700}
+.stock-count-card-meta strong,
+.stock-count-card-results strong{text-align:left!important;font-size:16px;overflow-wrap:anywhere;word-break:normal}
+.stock-count-card-counted,
+.stock-count-card-note{display:grid!important;gap:7px!important}
+.stock-count-card-counted>span,
+.stock-count-card-note>span{color:var(--muted);font-size:12px;font-weight:800}
+.stock-count-item-card .stock-count-input,
+.stock-count-item-card .stock-count-note-input{width:100%!important;min-width:0!important;min-height:48px!important;font-size:16px!important}
+
+/* Reorder Planner: show each product image in table and card views. */
+.reorder-product-cell{display:grid;grid-template-columns:54px minmax(0,1fr);gap:11px;align-items:center;min-width:220px}
+.reorder-product-cell>div:last-child{min-width:0;display:grid;gap:3px}
+.reorder-product-cell strong,.reorder-product-cell small{display:block;overflow-wrap:anywhere;word-break:normal}
+.reorder-product-thumb{width:54px;height:54px;min-width:54px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);display:grid;place-items:center;overflow:hidden}
+.reorder-product-thumb img{width:100%;height:100%;object-fit:contain;object-position:center;padding:3px}
+.reorder-card-product{min-width:0;display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;gap:11px!important;align-items:start!important}
+.reorder-card-product>.check-row{display:grid;grid-template-columns:20px 54px;gap:8px;align-items:start}
+.reorder-card-product>.check-row input{margin-top:17px}
+.reorder-card-product>div:last-child{min-width:0;display:grid;gap:3px}
+.reorder-card-product strong,.reorder-card-product small{display:block;overflow-wrap:anywhere;word-break:normal}
+
+@media(max-width:760px){
+  .responsive-data-card-grid{grid-template-columns:1fr!important}
+  .responsive-data-card{width:100%;max-width:100%}
+  .responsive-card-field{grid-template-columns:minmax(102px,.66fr) minmax(0,1fr)}
+  .responsive-card-value{justify-items:end;text-align:right}
+  .responsive-data-card:not(.responsive-generic-card)>div:not(.transfer-route):not(.transfer-items-preview):not(.stock-count-card-meta):not(.stock-count-card-results):not(.reorder-card-product){
+    grid-template-columns:minmax(102px,.66fr) minmax(0,1fr)!important;
+  }
+  .product-directory-card .product-cell{grid-template-columns:64px minmax(0,1fr)!important}
+  .product-directory-card .product-thumb{width:64px!important;height:64px!important;min-width:64px!important}
+  .list-card-fields{grid-template-columns:1fr!important}
+  .list-card-fields>div{min-height:0!important;grid-template-columns:minmax(95px,.65fr) minmax(0,1fr)!important;align-items:start!important}
+  .list-card-fields>div>strong,.list-card-fields>div>small{text-align:right}
+  .stock-count-workspace-actions{position:static!important;top:auto!important;z-index:auto!important}
+  .stock-count-table-panel{overflow:visible!important}
+  .stock-count-card-meta,.stock-count-card-results{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .reorder-product-cell{min-width:235px}
+  .reorder-list-card>header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important}
+}
+
+@media(max-width:440px){
+  .responsive-card-field{grid-template-columns:1fr;gap:5px}
+  .responsive-card-value{justify-items:start;text-align:left}
+  .responsive-data-card:not(.responsive-generic-card)>div:not(.transfer-route):not(.transfer-items-preview):not(.stock-count-card-meta):not(.stock-count-card-results):not(.reorder-card-product){
+    grid-template-columns:1fr!important;gap:5px!important;
+  }
+  .responsive-data-card:not(.responsive-generic-card)>div>strong,
+  .responsive-data-card:not(.responsive-generic-card)>div>small{text-align:left!important;grid-column:1!important}
+  .product-directory-card>header{grid-template-columns:minmax(0,1fr) auto!important}
+  .product-directory-card .product-cell{grid-template-columns:58px minmax(0,1fr)!important;gap:9px!important}
+  .product-directory-card .product-thumb{width:58px!important;height:58px!important;min-width:58px!important}
+  .list-card-fields>div{grid-template-columns:1fr!important;gap:4px!important}
+  .list-card-fields>div>strong,.list-card-fields>div>small{text-align:left!important}
+  .stock-count-card-meta,.stock-count-card-results{grid-template-columns:1fr 1fr!important}
+  .stock-count-card-meta>div,.stock-count-card-results>div{padding:9px}
+  .reorder-card-product{grid-template-columns:1fr!important}
+  .reorder-card-product>.check-row{grid-template-columns:20px 50px}
+  .reorder-product-thumb{width:50px;height:50px;min-width:50px}
+}
+
+@media print{
+  .stock-count-print-only-header{display:flex!important}
+}
