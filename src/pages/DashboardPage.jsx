@@ -153,7 +153,11 @@ export default function DashboardPage() {
           {
             profile,
             canReviewApprovals: can("approvals.review"),
-            canManageAttendance: can("attendance.manage")
+            canManageAttendance: can("attendance.manage"),
+            canReceiveOnlineOrders: canAny([
+              "online_orders.manage",
+              "online_orders.fulfill"
+            ])
           }
         );
 
@@ -172,7 +176,8 @@ export default function DashboardPage() {
     profile?.branch_id,
     allBranches,
     profile,
-    can
+    can,
+    canAny
   ]);
 
   useEffect(() => {

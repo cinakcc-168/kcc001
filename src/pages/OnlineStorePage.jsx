@@ -1,5 +1,6 @@
 import {
   CheckCircle2,
+  Download,
   ExternalLink,
   Eye,
   Globe2,
@@ -7,7 +8,8 @@ import {
   RefreshCw,
   Search,
   Settings2,
-  ShoppingBag
+  ShoppingBag,
+  SlidersHorizontal
 } from "lucide-react";
 import {
   useCallback,
@@ -17,7 +19,12 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import ResponsiveDataList from "../components/ResponsiveDataList";
+import OnlineOrderDetailModal from "../components/OnlineOrderDetailModal";
+import OnlineProductModal from "../components/OnlineProductModal";
+import OnlineStoreSettingsModal from "../components/OnlineStoreSettingsModal";
 import {
+  cloudinaryDownloadUrl,
   confirmOnlineOrder,
   loadOnlineStoreAdmin,
   onlineDateTime,
@@ -27,14 +34,15 @@ import {
   saveOnlineStoreSettings,
   setOnlineOrderStatus
 } from "../lib/onlineStore";
-import OnlineOrderDetailModal from "../components/OnlineOrderDetailModal";
-import OnlineProductModal from "../components/OnlineProductModal";
-import OnlineStoreSettingsModal from "../components/OnlineStoreSettingsModal";
 
-function todayOffset(days) {
+function todayOffset(days = 0) {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
 }
 
 function imageFor(product) {
@@ -48,15 +56,49 @@ function imageFor(product) {
     )[0]?.secure_url;
 }
 
+function publicUnitCount(product) {
+  return (product.product_units || []).filter((unit) => unit.is_active).length;
+}
+
+function textIncludes(product, term) {
+  if (!term) return true;
+  return [
+    product.name,
+    product.name_km,
+    product.sku,
+    product.barcode,
+    product.categories?.name,
+    product.online_description
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(term);
+}
+
+function paymentLabel(value) {
+  return String(value || "—")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default function OnlineStorePage() {
   const navigate = useNavigate();
   const {
     supabase,
+    session,
     profile,
-    can
+    can,
+    canAny
   } = useAuth();
 
-  const [tab, setTab] = useState("orders");
+  const initialQuery = useMemo(
+    () => new URLSearchParams(window.location.search),
+    []
+  );
+  const [tab, setTab] = useState(
+    initialQuery.get("tab") === "products" ? "products" : "orders"
+  );
   const [workspace, setWorkspace] = useState({
     settings: null,
     products: [],
@@ -64,112 +106,100 @@ export default function OnlineStorePage() {
   });
   const [filters, setFilters] = useState({
     from: todayOffset(-30),
-    to: todayOffset(1),
-    status: "all",
+    to: todayOffset(0),
+    status: initialQuery.get("status") || "current",
+    payment: "all",
+    fulfilment: "all",
     search: ""
+  });
+  const [productFilters, setProductFilters] = useState({
+    search: "",
+    category: "all",
+    publication: "all"
   });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] =
-    useState("success");
-  const [settingsOpen, setSettingsOpen] =
-    useState(false);
-  const [selectedProduct, setSelectedProduct] =
-    useState(null);
-  const [selectedOrder, setSelectedOrder] =
-    useState(null);
+  const [messageType, setMessageType] = useState("success");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const canManageStore = can(
-    "online_store.manage"
-  );
-  const canManageOrders = can(
-    "online_orders.manage"
-  );
-  const canFulfillOrders = can(
+  const canManageStore = can("online_store.manage");
+  const canManageOrders = can("online_orders.manage");
+  const canFulfillOrders = can("online_orders.fulfill");
+  const canReceiveOrders = canAny([
+    "online_orders.manage",
     "online_orders.fulfill"
-  );
+  ]);
 
   const refresh = useCallback(async () => {
-    if (!supabase || !profile?.organization_id) {
-      return;
-    }
+    if (!supabase || !profile?.organization_id) return;
 
     try {
       setLoading(true);
-      const data = await loadOnlineStoreAdmin(
-        supabase,
-        profile,
-        filters
-      );
+      const data = await loadOnlineStoreAdmin(supabase, profile, filters);
       setWorkspace(data);
-
       setSelectedOrder((current) => {
         if (!current) return null;
-        return (
-          data.orders.find(
-            (row) => row.id === current.id
-          ) || null
-        );
+        return data.orders.find((row) => row.id === current.id) || null;
       });
     } catch (error) {
       setMessageType("error");
-      setMessage(error.message);
+      setMessage(error.message || "Unable to load the Online Store workspace.");
     } finally {
       setLoading(false);
     }
-  }, [
-    supabase,
-    profile,
-    filters
-  ]);
+  }, [supabase, profile, filters]);
 
   useEffect(() => {
-    const timer = window.setTimeout(
-      refresh,
-      filters.search ? 350 : 0
-    );
+    const timer = window.setTimeout(refresh, filters.search ? 320 : 0);
     return () => window.clearTimeout(timer);
   }, [refresh, filters.search]);
 
   const stats = useMemo(() => {
-    const result = {
-      pending: 0,
-      active: 0,
-      usd: 0,
-      khr: 0
-    };
-
+    const result = { pending: 0, active: 0, usd: 0, khr: 0 };
     for (const order of workspace.orders) {
-      if (order.status === "pending") {
-        result.pending += 1;
-      }
-
-      if (
-        ![
-          "fulfilled",
-          "cancelled",
-          "rejected"
-        ].includes(order.status)
-      ) {
+      if (order.status === "pending") result.pending += 1;
+      if (!["fulfilled", "cancelled", "rejected"].includes(order.status)) {
         result.active += 1;
       }
-
-      if (
-        !["cancelled", "rejected"].includes(
-          order.status
-        )
-      ) {
-        if (order.currency === "KHR") {
-          result.khr += order.total_amount;
-        } else {
-          result.usd += order.total_amount;
-        }
+      if (!["cancelled", "rejected"].includes(order.status)) {
+        if (order.currency === "KHR") result.khr += Number(order.total_amount || 0);
+        else result.usd += Number(order.total_amount || 0);
       }
     }
-
     return result;
   }, [workspace.orders]);
+
+  const categories = useMemo(() => {
+    const map = new Map();
+    for (const product of workspace.products) {
+      if (product.categories?.id) {
+        map.set(product.categories.id, product.categories.name);
+      }
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [workspace.products]);
+
+  const filteredProducts = useMemo(() => {
+    const term = productFilters.search.trim().toLowerCase();
+    return workspace.products.filter((product) => {
+      if (
+        productFilters.category !== "all"
+        && product.categories?.id !== productFilters.category
+      ) return false;
+      if (
+        productFilters.publication === "published"
+        && !product.online_enabled
+      ) return false;
+      if (
+        productFilters.publication === "unpublished"
+        && product.online_enabled
+      ) return false;
+      return textIncludes(product, term);
+    });
+  }, [workspace.products, productFilters]);
 
   const publicUrl = workspace.settings?.slug
     ? `${window.location.origin}/shop/${workspace.settings.slug}`
@@ -183,15 +213,9 @@ export default function OnlineStorePage() {
   async function saveSettings(values) {
     try {
       setBusy("settings");
-      await saveOnlineStoreSettings(
-        supabase,
-        values
-      );
+      await saveOnlineStoreSettings(supabase, values);
       setSettingsOpen(false);
-      announce(
-        "success",
-        "Online store settings saved."
-      );
+      announce("success", "Online Store settings saved.");
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -200,22 +224,12 @@ export default function OnlineStorePage() {
     }
   }
 
-  async function saveProduct(
-    productId,
-    values
-  ) {
+  async function saveProduct(productId, values) {
     try {
       setBusy(`product:${productId}`);
-      await saveOnlineProduct(
-        supabase,
-        productId,
-        values
-      );
+      await saveOnlineProduct(supabase, productId, values);
       setSelectedProduct(null);
-      announce(
-        "success",
-        "Online product settings saved."
-      );
+      announce("success", "Public product settings saved.");
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -225,20 +239,16 @@ export default function OnlineStorePage() {
   }
 
   async function confirmOrder(orderId) {
-    const confirmed = window.confirm(
-      "Confirm this web order and reserve stock?"
-    );
-    if (!confirmed) return;
+    if (!window.confirm(
+      "Receive this online order and create a reserved Sales Order?"
+    )) return;
 
     try {
       setBusy(`order:${orderId}`);
-      const result = await confirmOnlineOrder(
-        supabase,
-        orderId
-      );
+      const result = await confirmOnlineOrder(supabase, orderId);
       announce(
         "success",
-        `Reserved Sales Order ${result.sales_order_number} created.`
+        `Online order received. Reserved Sales Order ${result.sales_order_number} is ready for preparation and receipt processing.`
       );
       await refresh();
     } catch (error) {
@@ -248,37 +258,16 @@ export default function OnlineStorePage() {
     }
   }
 
-  async function changeStatus(
-    orderId,
-    status,
-    note
-  ) {
-    const destructive = [
-      "cancelled",
-      "rejected"
-    ].includes(status);
-
+  async function changeStatus(orderId, status, note) {
     if (
-      destructive
-      && !window.confirm(
-        `Change this order to ${status}?`
-      )
-    ) {
-      return;
-    }
+      ["cancelled", "rejected"].includes(status)
+      && !window.confirm(`Change this order to ${status}?`)
+    ) return;
 
     try {
       setBusy(`order:${orderId}`);
-      await setOnlineOrderStatus(
-        supabase,
-        orderId,
-        status,
-        note
-      );
-      announce(
-        "success",
-        "Online order status updated."
-      );
+      await setOnlineOrderStatus(supabase, orderId, status, note);
+      announce("success", "Online order status updated.");
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -289,426 +278,353 @@ export default function OnlineStorePage() {
 
   async function copyStoreLink() {
     if (!publicUrl) return;
-
     try {
-      await navigator.clipboard.writeText(
-        publicUrl
-      );
-      announce(
-        "success",
-        "Online store link copied."
-      );
+      await navigator.clipboard.writeText(publicUrl);
+      announce("success", "Online Store link copied.");
     } catch {
-      window.prompt(
-        "Copy the online store link:",
-        publicUrl
-      );
+      window.prompt("Copy the Online Store link:", publicUrl);
     }
   }
 
+  const orderColumns = useMemo(() => [
+    {
+      label: "Order",
+      width: 190,
+      documentValue: (order) => order.order_number,
+      render: (order) => (
+        <div className="online-order-number-cell">
+          <strong>{order.order_number}</strong>
+          {order.sales_orders?.order_number && (
+            <small>SO: {order.sales_orders.order_number}</small>
+          )}
+        </div>
+      )
+    },
+    {
+      label: "Customer",
+      width: 190,
+      documentValue: (order) => `${order.customer_name} · ${order.customer_phone}`,
+      render: (order) => (
+        <div className="online-order-customer-cell">
+          <strong>{order.customer_name}</strong>
+          <small>{order.customer_phone}</small>
+        </div>
+      )
+    },
+    {
+      label: "Status",
+      width: 130,
+      value: (order) => onlineStatusLabel(order.status),
+      render: (order) => (
+        <span className={`status-badge ${order.status}`}>
+          {onlineStatusLabel(order.status)}
+        </span>
+      )
+    },
+    {
+      label: "Payment",
+      width: 170,
+      documentValue: (order) => `${paymentLabel(order.payment_method)} · ${paymentLabel(order.payment_status)}`,
+      render: (order) => (
+        <div className="online-order-payment-cell">
+          <strong>{paymentLabel(order.payment_method)}</strong>
+          <small>{paymentLabel(order.payment_status)}</small>
+        </div>
+      )
+    },
+    {
+      label: "Fulfilment",
+      width: 120,
+      value: (order) => order.fulfilment_type === "delivery" ? "Delivery" : "Pickup"
+    },
+    {
+      label: "Created",
+      width: 170,
+      value: (order) => onlineDateTime(order.created_at)
+    },
+    {
+      label: "Total",
+      width: 120,
+      className: "right",
+      value: (order) => onlineMoney(order.total_amount, order.currency)
+    },
+    {
+      label: "Bank slip",
+      width: 120,
+      documentValue: (order) => order.bank_slip_url ? "Attached" : "—",
+      render: (order) => order.bank_slip_url ? (
+        <div className="online-order-slip-actions">
+          <a href={order.bank_slip_url} target="_blank" rel="noreferrer" title="View bank slip">
+            <img src={order.bank_slip_url} alt="Bank slip" />
+          </a>
+          <a href={cloudinaryDownloadUrl(order.bank_slip_url)} target="_blank" rel="noreferrer" className="icon-button" title="Download bank slip">
+            <Download size={16} />
+          </a>
+        </div>
+      ) : <span className="muted">—</span>
+    },
+    {
+      label: "View",
+      width: 74,
+      actionsOnly: true,
+      excludeDocument: true,
+      render: (order) => (
+        <button
+          type="button"
+          className="icon-button"
+          onClick={() => setSelectedOrder(order)}
+          aria-label={`View ${order.order_number}`}
+        >
+          <Eye size={18} />
+        </button>
+      )
+    }
+  ], []);
+
+  const productColumns = useMemo(() => [
+    {
+      label: "Product",
+      width: 260,
+      documentValue: (product) => [product.name, product.sku || product.barcode].filter(Boolean).join(" · "),
+      render: (product) => (
+        <div className="online-admin-product-table-name">
+          <div className="online-admin-product-thumb">
+            {imageFor(product) ? (
+              <img src={imageFor(product)} alt="" />
+            ) : (
+              <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />
+            )}
+          </div>
+          <div>
+            <strong>{product.name}</strong>
+            {product.name_km && <small>{product.name_km}</small>}
+            <small>{product.sku || product.barcode || "No product code"}</small>
+          </div>
+        </div>
+      )
+    },
+    {
+      label: "Category",
+      width: 140,
+      value: (product) => product.categories?.name || "Uncategorized"
+    },
+    {
+      label: "Publication",
+      width: 130,
+      value: (product) => product.online_enabled ? "Published" : "Not published",
+      render: (product) => (
+        <span className={`status-badge ${product.online_enabled ? "completed" : "cancelled"}`}>
+          {product.online_enabled ? "Published" : "Not published"}
+        </span>
+      )
+    },
+    {
+      label: "Featured",
+      width: 100,
+      value: (product) => product.online_featured ? "Yes" : "No"
+    },
+    {
+      label: "Units",
+      width: 90,
+      value: (product) => publicUnitCount(product)
+    },
+    {
+      label: "Currency",
+      width: 90,
+      value: "currency"
+    },
+    {
+      label: "Configure",
+      width: 110,
+      actionsOnly: true,
+      excludeDocument: true,
+      render: (product) => canManageStore ? (
+        <button
+          type="button"
+          className="secondary-button compact-button"
+          onClick={() => setSelectedProduct(product)}
+        >
+          <SlidersHorizontal size={16} /> Configure
+        </button>
+      ) : <span className="muted">View only</span>
+    }
+  ], [canManageStore]);
+
   return (
-    <div className="page online-store-page">
-      <div className="page-head">
+    <div className="page-stack online-store-page">
+      <div className="page-heading online-store-heading">
         <div>
-          <p className="eyebrow">
-            CUSTOMER WEB ORDERS
-          </p>
+          <p className="eyebrow">CUSTOMER WEB ORDERS</p>
           <h1>Online Store</h1>
           <p>
-            Publish selected products, receive
-            customer orders and convert accepted
-            orders into reserved Sales Orders.
+            Publish selected products, receive customer orders, verify bank slips,
+            and convert accepted orders into reserved Sales Orders.
           </p>
         </div>
 
         <div className="page-actions">
           {publicUrl && (
             <>
-              <button
-                type="button"
-                className="secondary"
-                onClick={copyStoreLink}
-              >
-                <Globe2 size={18} />
-                Copy store link
+              <button type="button" className="secondary-button" onClick={copyStoreLink}>
+                <Globe2 size={18} /> Copy store link
               </button>
-              <a
-                className="button secondary"
-                href={publicUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <ExternalLink size={18} />
-                Open store
+              <a className="secondary-button" href={publicUrl} target="_blank" rel="noreferrer">
+                <ExternalLink size={18} /> Open store
               </a>
             </>
           )}
           {canManageStore && (
-            <button
-              type="button"
-              onClick={() =>
-                setSettingsOpen(true)
-              }
-            >
-              <Settings2 size={18} />
-              Store settings
+            <button type="button" className="primary-button" onClick={() => setSettingsOpen(true)}>
+              <Settings2 size={18} /> Store settings
             </button>
           )}
         </div>
       </div>
 
-      {message && (
-        <div
-          className={`notice ${messageType}`}
-          role="status"
-        >
-          {message}
-        </div>
-      )}
+      {message && <div className={`notice ${messageType}`} role="status">{message}</div>}
 
-      <div className="online-store-status-card">
+      <section className="panel online-store-status-card">
         <div>
-          <span
-            className={`online-publish-dot ${
-              workspace.settings?.is_published
-                ? "published"
-                : ""
-            }`}
-          />
+          <span className={`online-publish-dot ${workspace.settings?.is_published ? "published" : ""}`} />
           <div>
-            <strong>
-              {workspace.settings?.is_published
-                ? "Store is published"
-                : "Store is not published"}
-            </strong>
-            <small>
-              {workspace.settings?.slug
-                ? `/shop/${workspace.settings.slug}`
-                : "Configure the storefront before publishing."}
-            </small>
+            <strong>{workspace.settings?.is_published ? "Store is published" : "Store is not published"}</strong>
+            <small>{workspace.settings?.slug ? `/shop/${workspace.settings.slug}` : "Configure the storefront before publishing."}</small>
           </div>
         </div>
-        <button
-          type="button"
-          className="icon-button"
-          onClick={refresh}
-          disabled={loading}
-          aria-label="Refresh"
-        >
-          <RefreshCw
-            size={19}
-            className={loading ? "spin" : ""}
-          />
+        <button type="button" className="icon-button" onClick={refresh} disabled={loading} aria-label="Refresh">
+          <RefreshCw size={19} className={loading ? "spin" : ""} />
         </button>
+      </section>
+
+      <div className="metric-grid four online-store-metrics">
+        <article className="metric-card"><span>Pending review</span><strong>{stats.pending}</strong><small>New customer orders</small></article>
+        <article className="metric-card"><span>Active orders</span><strong>{stats.active}</strong><small>Not yet closed</small></article>
+        <article className="metric-card"><span>Order value USD</span><strong>{onlineMoney(stats.usd, "USD")}</strong><small>Current filters</small></article>
+        <article className="metric-card"><span>Order value KHR</span><strong>{onlineMoney(stats.khr, "KHR")}</strong><small>Current filters</small></article>
       </div>
 
-      <div className="metric-grid four">
-        <article className="metric-card">
-          <span>Pending review</span>
-          <strong>{stats.pending}</strong>
-          <small>New customer orders</small>
-        </article>
-        <article className="metric-card">
-          <span>Active orders</span>
-          <strong>{stats.active}</strong>
-          <small>Not yet closed</small>
-        </article>
-        <article className="metric-card">
-          <span>Order value USD</span>
-          <strong>
-            {onlineMoney(stats.usd, "USD")}
-          </strong>
-          <small>Current filters</small>
-        </article>
-        <article className="metric-card">
-          <span>Order value KHR</span>
-          <strong>
-            {onlineMoney(stats.khr, "KHR")}
-          </strong>
-          <small>Current filters</small>
-        </article>
-      </div>
-
-      <div className="segmented-tabs">
-        <button
-          type="button"
-          className={
-            tab === "orders" ? "active" : ""
-          }
-          onClick={() => setTab("orders")}
-        >
-          <ShoppingBag size={18} />
-          Online orders
+      <div className="segmented-tabs online-store-tabs">
+        <button type="button" className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>
+          <ShoppingBag size={18} /> Online orders
         </button>
-        <button
-          type="button"
-          className={
-            tab === "products" ? "active" : ""
-          }
-          onClick={() => setTab("products")}
-        >
-          <PackageSearch size={18} />
-          Public products
+        <button type="button" className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>
+          <PackageSearch size={18} /> Public products
         </button>
       </div>
 
       {tab === "orders" ? (
         <>
-          <div className="filter-bar online-order-filters">
-            <label>
-              From
-              <input
-                type="date"
-                value={filters.from}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    from: event.target.value
-                  }))
-                }
-              />
-            </label>
-            <label>
-              To
-              <input
-                type="date"
-                value={filters.to}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    to: event.target.value
-                  }))
-                }
-              />
-            </label>
-            <label>
-              Status
-              <select
-                value={filters.status}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    status: event.target.value
-                  }))
-                }
-              >
-                <option value="all">
-                  All statuses
-                </option>
-                <option value="pending">
-                  Pending
-                </option>
-                <option value="confirmed">
-                  Confirmed
-                </option>
-                <option value="preparing">
-                  Preparing
-                </option>
-                <option value="ready">
-                  Ready
-                </option>
-                <option value="fulfilled">
-                  Fulfilled
-                </option>
-                <option value="cancelled">
-                  Cancelled
-                </option>
-                <option value="rejected">
-                  Rejected
-                </option>
-              </select>
-            </label>
-            <label className="search-field">
-              Search
-              <span>
-                <Search size={17} />
-                <input
-                  value={filters.search}
-                  onChange={(event) =>
-                    setFilters((current) => ({
-                      ...current,
-                      search:
-                        event.target.value
-                    }))
-                  }
-                  placeholder="Order, customer or phone"
-                />
-              </span>
-            </label>
-          </div>
+          <section className="panel online-admin-filters">
+            <label><span>From</span><input type="date" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></label>
+            <label><span>To</span><input type="date" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></label>
+            <label><span>Status</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
+              <option value="current">Current orders</option>
+              <option value="all">All statuses</option>
+              <option value="pending">Pending review</option>
+              <option value="confirmed">Received</option>
+              <option value="preparing">Preparing</option>
+              <option value="ready">Ready</option>
+              <option value="partially_fulfilled">Partially fulfilled</option>
+              <option value="fulfilled">Fulfilled</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="rejected">Rejected</option>
+            </select></label>
+            <label><span>Payment</span><select value={filters.payment} onChange={(event) => setFilters((current) => ({ ...current, payment: event.target.value }))}>
+              <option value="all">All payments</option>
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="cash_on_delivery">Cash on delivery</option>
+              <option value="pay_at_store">Pay at store</option>
+            </select></label>
+            <label><span>Fulfilment</span><select value={filters.fulfilment} onChange={(event) => setFilters((current) => ({ ...current, fulfilment: event.target.value }))}>
+              <option value="all">Pickup and delivery</option>
+              <option value="pickup">Pickup</option>
+              <option value="delivery">Delivery</option>
+            </select></label>
+            <label className="online-filter-search"><span>Search</span><div className="search-box"><Search size={17} /><input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Order, customer or phone" /></div></label>
+          </section>
 
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Fulfilment</th>
-                  <th>Created</th>
-                  <th className="right">Total</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {!workspace.orders.length && (
-                  <tr>
-                    <td colSpan={7}>
-                      <div className="empty-state compact">
-                        <ShoppingBag size={32} />
-                        <strong>
-                          No online orders found
-                        </strong>
-                        <span>
-                          Published customers orders
-                          appear here.
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
+          <ResponsiveDataList
+            storageKey="online-store-orders"
+            title="Online orders"
+            subtitle={`${profile?.branches?.name || "Current branch"} · ${filters.from} to ${filters.to}`}
+            rows={workspace.orders}
+            columns={orderColumns}
+            filename={`online-orders-${filters.from}-${filters.to}.xls`}
+            printTitle="Online orders"
+            emptyTitle="No online orders found"
+            emptyText="Customer web orders matching the selected filters appear here."
+            renderCard={(order) => (
+              <article className="online-order-card responsive-data-card">
+                <header>
+                  <div><strong>{order.order_number}</strong><small>{onlineDateTime(order.created_at)}</small></div>
+                  <span className={`status-badge ${order.status}`}>{onlineStatusLabel(order.status)}</span>
+                </header>
+                <div className="online-order-card-customer"><strong>{order.customer_name}</strong><span>{order.customer_phone}</span></div>
+                <div className="online-order-card-grid">
+                  <div><small>Payment</small><strong>{paymentLabel(order.payment_method)}</strong><span>{paymentLabel(order.payment_status)}</span></div>
+                  <div><small>Fulfilment</small><strong>{order.fulfilment_type === "delivery" ? "Delivery" : "Pickup"}</strong></div>
+                  <div><small>Total</small><strong>{onlineMoney(order.total_amount, order.currency)}</strong></div>
+                  <div><small>Sales Order</small><strong>{order.sales_orders?.order_number || "Not received"}</strong></div>
+                </div>
+                {order.bank_slip_url && (
+                  <a className="online-order-card-slip" href={order.bank_slip_url} target="_blank" rel="noreferrer">
+                    <img src={order.bank_slip_url} alt="Bank slip" /> View bank slip
+                  </a>
                 )}
-
-                {workspace.orders.map((order) => (
-                  <tr key={order.id}>
-                    <td>
-                      <strong>
-                        {order.order_number}
-                      </strong>
-                      {order.sales_orders
-                        ?.order_number && (
-                        <small>
-                          SO:{" "}
-                          {
-                            order.sales_orders
-                              .order_number
-                          }
-                        </small>
-                      )}
-                    </td>
-                    <td>
-                      <strong>
-                        {order.customer_name}
-                      </strong>
-                      <small>
-                        {order.customer_phone}
-                      </small>
-                    </td>
-                    <td>
-                      <span
-                        className={`status-badge ${order.status}`}
-                      >
-                        {onlineStatusLabel(
-                          order.status
-                        )}
-                      </span>
-                    </td>
-                    <td>
-                      {order.fulfilment_type ===
-                      "delivery"
-                        ? "Delivery"
-                        : "Pickup"}
-                    </td>
-                    <td>
-                      {onlineDateTime(
-                        order.created_at
-                      )}
-                    </td>
-                    <td className="right">
-                      <strong>
-                        {onlineMoney(
-                          order.total_amount,
-                          order.currency
-                        )}
-                      </strong>
-                    </td>
-                    <td className="right">
-                      <button
-                        type="button"
-                        className="icon-button"
-                        onClick={() =>
-                          setSelectedOrder(order)
-                        }
-                        aria-label="View order"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                <button type="button" className="secondary-button" onClick={() => setSelectedOrder(order)}><Eye size={17} /> View order</button>
+              </article>
+            )}
+          />
         </>
       ) : (
-        <div className="online-product-grid">
-          {workspace.products.map((product) => {
-            const image = imageFor(product);
-            const enabled =
-              product.online_enabled;
+        <>
+          <section className="panel online-admin-filters online-product-filters">
+            <label className="online-filter-search"><span>Search product</span><div className="search-box"><Search size={17} /><input value={productFilters.search} onChange={(event) => setProductFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Name, code, barcode or category" /></div></label>
+            <label><span>Category / group</span><select value={productFilters.category} onChange={(event) => setProductFilters((current) => ({ ...current, category: event.target.value }))}>
+              <option value="all">All categories</option>
+              {categories.map(([id, name]) => <option value={id} key={id}>{name}</option>)}
+            </select></label>
+            <label><span>Publication</span><select value={productFilters.publication} onChange={(event) => setProductFilters((current) => ({ ...current, publication: event.target.value }))}>
+              <option value="all">Published and unpublished</option>
+              <option value="published">Published only</option>
+              <option value="unpublished">Not published</option>
+            </select></label>
+          </section>
 
-            return (
-              <article
-                key={product.id}
-                className={`online-admin-product ${
-                  enabled ? "published" : ""
-                }`}
-              >
-                <div className="online-admin-product-image">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt=""
-                    />
-                  ) : (
-                    <PackageSearch size={34} />
-                  )}
-                  {enabled && (
-                    <span>
-                      <CheckCircle2 size={15} />
-                      Published
-                    </span>
-                  )}
+          <ResponsiveDataList
+            storageKey="online-store-products"
+            title="Public products"
+            subtitle={`${filteredProducts.length} products matching the selected filters`}
+            rows={filteredProducts}
+            columns={productColumns}
+            filename="online-store-public-products.xls"
+            printTitle="Online Store public products"
+            emptyTitle="No products found"
+            emptyText="Change the search, category or publication filter."
+            renderCard={(product) => (
+              <article className={`online-admin-product-card responsive-data-card ${product.online_enabled ? "published" : ""}`}>
+                <div className="online-admin-product-card-image">
+                  <img src={imageFor(product) || "/assets/tiny-pos-product-placeholder.png"} alt="" />
+                  <span className={`status-badge ${product.online_enabled ? "completed" : "cancelled"}`}>{product.online_enabled ? "Published" : "Not published"}</span>
                 </div>
-                <div>
+                <div className="online-admin-product-card-body">
                   <strong>{product.name}</strong>
-                  <small>
-                    {product.categories?.name
-                      || "Uncategorized"}
-                  </small>
-                  <small>
-                    {
-                      (
-                        product.product_units
-                        || []
-                      ).filter(
-                        (unit) => unit.is_active
-                      ).length
-                    }{" "}
-                    selling units ·{" "}
-                    {product.currency}
-                  </small>
+                  {product.name_km && <span>{product.name_km}</span>}
+                  <small>{product.categories?.name || "Uncategorized"}</small>
+                  <small>{publicUnitCount(product)} selling units · {product.currency}</small>
                 </div>
-                {canManageStore && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() =>
-                      setSelectedProduct(product)
-                    }
-                  >
-                    Configure
-                  </button>
-                )}
+                {canManageStore && <button type="button" className="secondary-button" onClick={() => setSelectedProduct(product)}><SlidersHorizontal size={16} /> Configure</button>}
               </article>
-            );
-          })}
-        </div>
+            )}
+          />
+        </>
       )}
 
       <OnlineStoreSettingsModal
         open={settingsOpen}
         settings={workspace.settings}
         profile={profile}
+        session={session}
         busy={busy === "settings"}
         onClose={() => setSettingsOpen(false)}
         onSave={saveSettings}
@@ -717,22 +633,15 @@ export default function OnlineStorePage() {
       <OnlineProductModal
         open={Boolean(selectedProduct)}
         product={selectedProduct}
-        busy={
-          selectedProduct
-          && busy ===
-            `product:${selectedProduct.id}`
-        }
+        busy={selectedProduct && busy === `product:${selectedProduct.id}`}
         onClose={() => setSelectedProduct(null)}
         onSave={saveProduct}
       />
 
       <OnlineOrderDetailModal
         order={selectedOrder}
-        busy={
-          selectedOrder
-          && busy ===
-            `order:${selectedOrder.id}`
-        }
+        busy={selectedOrder && busy === `order:${selectedOrder.id}`}
+        canReceive={canReceiveOrders}
         canManage={canManageOrders}
         canFulfill={canFulfillOrders}
         onClose={() => setSelectedOrder(null)}
@@ -740,9 +649,7 @@ export default function OnlineStorePage() {
         onStatus={changeStatus}
         onOpenSalesOrder={(orderId) => {
           setSelectedOrder(null);
-          navigate(
-            `/sales-orders?order=${orderId}`
-          );
+          navigate(`/sales-orders?order=${orderId}`);
         }}
       />
     </div>
