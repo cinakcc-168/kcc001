@@ -3293,3 +3293,407 @@ html,body,#root{min-height:100%}body{overflow-x:hidden}.shell{transition:grid-te
 .responsive-data-card .responsive-card-value{min-width:0;overflow-wrap:anywhere;text-align:right;font-weight:800}
 .responsive-data-card .responsive-card-value small{display:block;color:var(--muted);font-weight:400;margin-top:3px}
 @media(max-width:440px){.responsive-data-card .responsive-card-value{text-align:left}}
+
+/* ========================================================================== */
+/* Step 46.4.10 — recovery for tables, printing, New Sale and settings       */
+/* ========================================================================== */
+html.language-switching .content,
+html.language-switching .side,
+html.language-switching .shell>main>header{
+  transition:opacity .16s ease,filter .16s ease;
+  opacity:.82;
+  filter:saturate(.94);
+}
+
+/* Every selected table record remains one real table row on phones. */
+.wide-list-scroll,
+.responsive-wide-table-wrap,
+.responsive-table.force-wide-table{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-inline:contain;
+  touch-action:pan-x pan-y;
+}
+.wide-list-scroll>table,
+.wide-list-scroll table,
+.responsive-wide-table,
+.responsive-table.force-wide-table table{
+  display:table!important;
+  width:max-content!important;
+  min-width:1000px!important;
+  border-collapse:collapse!important;
+  table-layout:auto!important;
+}
+.wide-list-scroll table thead,
+.responsive-wide-table thead,
+.responsive-table.force-wide-table thead{
+  display:table-header-group!important;
+}
+.wide-list-scroll table tbody,
+.responsive-wide-table tbody,
+.responsive-table.force-wide-table tbody{
+  display:table-row-group!important;
+}
+.wide-list-scroll table tr,
+.responsive-wide-table tr,
+.responsive-table.force-wide-table tr{
+  display:table-row!important;
+  width:auto!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+}
+.wide-list-scroll table th,
+.wide-list-scroll table td,
+.responsive-wide-table th,
+.responsive-wide-table td,
+.responsive-table.force-wide-table th,
+.responsive-table.force-wide-table td{
+  display:table-cell!important;
+  width:auto!important;
+  min-width:110px;
+  padding:10px 12px!important;
+  text-align:left!important;
+  vertical-align:middle!important;
+  white-space:nowrap!important;
+  border-bottom:1px solid var(--border)!important;
+}
+.wide-list-scroll table th:first-child,
+.wide-list-scroll table td:first-child,
+.responsive-wide-table th:first-child,
+.responsive-wide-table td:first-child{
+  min-width:205px;
+}
+.wide-list-scroll table td::before,
+.responsive-wide-table td::before,
+.responsive-table.force-wide-table td::before{
+  display:none!important;
+  content:none!important;
+}
+
+/* Current-window fallback printing works even in WebViews without :has(). */
+body.tiny-pos-printing>*:not(#tiny-pos-list-print-root):not(.tiny-pos-html-print-root):not(.tiny-pos-label-print-root){
+  display:none!important;
+}
+body.tiny-pos-printing #tiny-pos-list-print-root,
+body.tiny-pos-printing .tiny-pos-html-print-root,
+body.tiny-pos-printing .tiny-pos-label-print-root{
+  display:block!important;
+}
+
+/* Product sizing is isolated to the product browser only. */
+.sales-page .sale-layout{
+  min-width:0;
+}
+.sales-page:not(:has(.sale-layout-alt)) .sale-layout,
+.sales-page .sale-layout:not(.sale-layout-alt){
+  grid-template-columns:minmax(0,1.2fr) minmax(430px,.82fr);
+}
+.sale-products-panel,
+.sale-layout-alt-main,
+.sale-cart,
+.sale-cart-lines-panel,
+.sale-checkout-panel{
+  min-width:0;
+}
+.sale-product-card{
+  overflow:hidden;
+}
+.sale-product-image{
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+}
+.sale-product-image .sale-product-placeholder{
+  display:block!important;
+  width:78%!important;
+  height:78%!important;
+  max-width:150px!important;
+  max-height:120px!important;
+  margin:auto!important;
+  padding:0!important;
+  object-fit:contain!important;
+  object-position:center center!important;
+}
+.sale-product-content{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:3px!important;
+  padding:9px 10px 10px!important;
+}
+.sale-product-content>strong,
+.sale-product-content>span,
+.sale-product-content>small{
+  min-height:0!important;
+  margin:0!important;
+}
+.sale-product-content>strong{
+  line-height:1.22!important;
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:2!important;
+  overflow:hidden!important;
+}
+.sale-product-content>span{
+  line-height:1.25!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.sale-product-content>small{
+  line-height:1.2!important;
+}
+.sale-product-content>div{
+  width:100%!important;
+  margin-top:auto!important;
+  padding-top:4px!important;
+}
+
+/* Keep the bill workspace stable regardless of the product-card slider. */
+.sale-cart,
+.sale-cart-lines-panel,
+.sale-checkout-panel{
+  --sale-card-scale:1!important;
+}
+.sale-cart-lines{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
+.sale-cart-line{
+  width:100%;
+  max-width:100%;
+  min-width:0!important;
+}
+.sale-cart-line .cart-line-main{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  grid-template-columns:28px minmax(0,1fr) minmax(76px,128px) 174px!important;
+}
+.sale-cart-line .cart-line-text,
+.sale-cart-line .cart-line-unit-control,
+.sale-cart-line .cart-quantity-controls{
+  min-width:0;
+}
+.sale-cart-line .cart-line-unit-control select,
+.sale-cart-line .single-unit-label{
+  width:100%!important;
+  min-width:0!important;
+  max-width:128px!important;
+}
+.sale-cart-line .cart-quantity-controls{
+  width:174px!important;
+  grid-template-columns:32px 62px 32px 32px!important;
+  justify-self:end;
+}
+.sale-cart-line .cart-quantity-controls input{
+  width:62px!important;
+}
+.sale-layout-alt .sale-cart-lines.compact-layout{
+  max-height:clamp(520px,60vh,780px);
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.sale-layout-alt .sale-cart-lines.compact-layout .sale-cart-line.compact{
+  min-width:0!important;
+  width:100%!important;
+  display:block!important;
+}
+.sale-layout-alt .sale-cart-lines.compact-layout .sale-cart-line.compact .cart-line-main{
+  grid-template-columns:28px minmax(0,1fr) minmax(76px,128px) 174px!important;
+}
+.sale-layout-alt .sale-cart-lines.compact-layout .cart-line-text{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  gap:3px!important;
+}
+.sale-layout-alt .sale-cart-lines.compact-layout .cart-line-math{
+  text-align:left!important;
+}
+.sale-layout-alt .sale-cart-lines.compact-layout .cart-line-stock{
+  width:100%;
+  min-width:0;
+  margin:5px 0 0 36px;
+  display:flex;
+  justify-content:flex-start;
+  text-align:left;
+}
+
+/* Payroll phone/tablet recovery. */
+.payroll-page{min-width:0}
+.payroll-page .page-heading{align-items:flex-start}
+.payroll-page .page-heading-actions{display:flex;gap:8px;flex-wrap:wrap}
+.payroll-page .staff-tabs{
+  display:flex;
+  gap:8px;
+  width:100%;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:4px;
+}
+.payroll-page .staff-tabs button{flex:0 0 auto;white-space:nowrap}
+.payroll-page .responsive-table{
+  width:100%;
+  max-width:100%;
+  overflow-x:auto!important;
+  -webkit-overflow-scrolling:touch;
+}
+.payroll-page .responsive-table table{
+  display:table!important;
+  width:max-content!important;
+  min-width:980px!important;
+}
+.payroll-page .responsive-table thead{display:table-header-group!important}
+.payroll-page .responsive-table tbody{display:table-row-group!important}
+.payroll-page .responsive-table tr{display:table-row!important;width:auto!important;padding:0!important;border:0!important}
+.payroll-page .responsive-table th,
+.payroll-page .responsive-table td{
+  display:table-cell!important;
+  min-width:110px;
+  width:auto!important;
+  padding:10px 12px!important;
+  text-align:left!important;
+  white-space:nowrap!important;
+}
+.payroll-page .responsive-table td::before{display:none!important;content:none!important}
+
+@media(max-width:1180px){
+  .sales-page .sale-layout,
+  .sales-page .sale-layout.sale-layout-alt{
+    grid-template-columns:1fr!important;
+  }
+  .sale-layout-alt .sale-cart-lines.compact-layout{
+    max-height:620px;
+  }
+}
+
+@media(max-width:760px){
+  .wide-list-scroll table,
+  .responsive-wide-table,
+  .responsive-table.force-wide-table table{
+    min-width:960px!important;
+  }
+  .responsive-data-list{
+    overflow:visible!important;
+  }
+  .responsive-wide-table-wrap{
+    overflow-x:auto!important;
+  }
+
+  .sale-cart,
+  .sale-cart-lines-panel,
+  .sale-checkout-panel{
+    width:100%;
+    max-width:100%;
+    overflow:hidden!important;
+  }
+  .sale-cart-lines,
+  .sale-layout-alt .sale-cart-lines.compact-layout{
+    max-height:620px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+  }
+  .sale-layout-alt .sale-cart-lines.compact-layout .sale-cart-line.compact,
+  .sale-cart-line{
+    min-width:0!important;
+    width:100%!important;
+    padding:10px!important;
+  }
+  .sale-cart-line .cart-line-main,
+  .sale-layout-alt .sale-cart-lines.compact-layout .sale-cart-line.compact .cart-line-main{
+    display:grid!important;
+    grid-template-columns:28px minmax(0,1fr)!important;
+    grid-template-areas:
+      "number text"
+      "unit unit"
+      "quantity quantity"!important;
+    gap:7px!important;
+    width:100%!important;
+  }
+  .sale-cart-line .cart-line-number{grid-area:number!important}
+  .sale-cart-line .cart-line-text{grid-area:text!important}
+  .sale-cart-line .cart-line-unit-control{grid-area:unit!important;width:100%!important}
+  .sale-cart-line .cart-line-unit-control select,
+  .sale-cart-line .single-unit-label{
+    width:100%!important;
+    max-width:none!important;
+  }
+  .sale-cart-line .cart-quantity-controls{
+    grid-area:quantity!important;
+    width:100%!important;
+    max-width:100%!important;
+    grid-template-columns:40px minmax(56px,1fr) 40px 40px!important;
+    justify-self:stretch!important;
+  }
+  .sale-cart-line .cart-quantity-controls .icon-button{
+    width:40px!important;
+  }
+  .sale-cart-line .cart-quantity-controls input{
+    width:100%!important;
+    min-width:0!important;
+  }
+  .sale-layout-alt .sale-cart-lines.compact-layout .cart-line-stock,
+  .cart-line-stock{
+    margin:5px 0 0 35px!important;
+    width:calc(100% - 35px)!important;
+    min-width:0!important;
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:flex-start!important;
+    flex-wrap:wrap!important;
+    text-align:left!important;
+  }
+
+  .payroll-page .page-heading-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .payroll-page .page-heading-actions button{width:100%}
+  .payroll-metric-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+  .payroll-metric-grid article{padding:13px!important}
+  .payroll-filter-panel{padding:14px!important}
+  .payroll-filters{grid-template-columns:1fr!important}
+  .payroll-run-list article{
+    align-items:flex-start!important;
+    flex-direction:column!important;
+  }
+  .payroll-run-list article>div:last-child{
+    width:100%;
+    justify-items:start!important;
+  }
+  .payroll-run-list .row-actions{justify-content:flex-start!important}
+  .payroll-page .panel-title-row{
+    align-items:stretch!important;
+    flex-direction:column!important;
+  }
+  .payroll-page .compact-select{width:100%;max-width:none}
+}
+
+@media(max-width:460px){
+  .payroll-metric-grid{grid-template-columns:1fr!important}
+}
+
+@media print{
+  body.tiny-pos-printing{background:#fff!important}
+  body.tiny-pos-printing #tiny-pos-list-print-root,
+  body.tiny-pos-printing .tiny-pos-html-print-root,
+  body.tiny-pos-printing .tiny-pos-label-print-root{
+    position:absolute!important;
+    inset:0 auto auto 0!important;
+    width:100%!important;
+    max-width:none!important;
+    overflow:visible!important;
+    background:#fff!important;
+    color:#111!important;
+    z-index:2147483647!important;
+  }
+}
