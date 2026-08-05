@@ -48,10 +48,44 @@ export async function loadReorderWorkspace(supabase, profile) {
     throw supplierResult.error;
   }
 
+  const suggestions = Array.isArray(suggestionResult.data)
+    ? suggestionResult.data
+    : [];
+  const productIds = [...new Set(
+    suggestions.map((item) => item.product_id).filter(Boolean)
+  )];
+  const imageByProduct = new Map();
+
+  if (productIds.length > 0) {
+    const { data: productRows, error: productError } = await supabase
+      .from("products")
+      .select(`
+        id,
+        product_images (
+          secure_url,
+          is_primary,
+          sort_order
+        )
+      `)
+      .in("id", productIds);
+
+    if (productError) throw productError;
+
+    for (const product of productRows || []) {
+      const image = [...(product.product_images || [])].sort(
+        (a, b) =>
+          Number(b.is_primary) - Number(a.is_primary)
+          || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+      )[0];
+      imageByProduct.set(product.id, image?.secure_url || null);
+    }
+  }
+
   return {
-    suggestions: Array.isArray(suggestionResult.data)
-      ? suggestionResult.data
-      : [],
+    suggestions: suggestions.map((item) => ({
+      ...item,
+      product_image_url: imageByProduct.get(item.product_id) || null
+    })),
     suppliers: supplierResult.data || []
   };
 }
