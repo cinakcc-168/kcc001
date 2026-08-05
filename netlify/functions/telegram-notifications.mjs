@@ -146,7 +146,7 @@ function canReceive(role, eventType) {
     transfer: ["owner", "admin", "manager"],
     quotation: ["owner", "admin", "manager", "cashier"],
     sales_order: ["owner", "admin", "manager", "cashier"],
-    online_order: ["owner", "admin", "manager"],
+    online_order: ["owner", "admin", "manager", "cashier"],
     register: ["owner", "admin", "manager", "cashier"],
     approval: ["owner", "admin", "manager"],
     attendance: ["owner", "admin", "manager", "cashier", "viewer"],

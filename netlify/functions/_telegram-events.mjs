@@ -33,6 +33,13 @@ function relevantRecipient(link, event) {
     && Boolean(event.branch_id)
     && link.profiles?.branch_id === event.branch_id;
 
+  if (event.event_type === "online_order_requested") {
+    const isBranchCashier = role === "cashier"
+      && Boolean(event.branch_id)
+      && link.profiles?.branch_id === event.branch_id;
+    return isOrganizationManager || isBranchManager || isBranchCashier;
+  }
+
   if (event.event_type === "sale_completed") {
     return isActor || isOrganizationManager || isBranchManager;
   }
@@ -57,6 +64,7 @@ function relevantRecipient(link, event) {
 }
 
 function preferenceAllowed(preferences, eventType) {
+  if (eventType === "online_order_requested") return preferences?.online_order_alerts !== false;
   if (eventType === "sale_completed") return preferences?.sale_alerts !== false;
   if (eventType.startsWith("cash_register_")) return preferences?.cash_register_alerts !== false;
   if (eventType.startsWith("leave_")) return preferences?.leave_alerts !== false;
@@ -70,6 +78,29 @@ function messageFor(event, context, language) {
   const actor = escapeHtml(context.actor?.full_name || "—");
   const staff = escapeHtml(context.target?.full_name || actor);
   const payload = event.payload || {};
+
+  if (event.event_type === "online_order_requested") {
+    return {
+      path: "/online-store?tab=orders&status=pending",
+      buttonText: km ? "មើលការបញ្ជាទិញ" : "Review online order",
+      text: [
+        km ? "🛍 <b>មានការបញ្ជាទិញអនឡាញថ្មី</b>" : "🛍 <b>New online order</b>",
+        "",
+        `${km ? "លេខបញ្ជាទិញ" : "Order"}: <code>${escapeHtml(payload.order_number || "—")}</code>`,
+        `${km ? "អតិថិជន" : "Customer"}: <b>${escapeHtml(payload.customer_name || "—")}</b>`,
+        payload.customer_phone
+          ? `${km ? "ទូរស័ព្ទ" : "Phone"}: ${escapeHtml(payload.customer_phone)}`
+          : null,
+        `${km ? "ទឹកប្រាក់" : "Total"}: <b>${money(payload.total_amount, payload.currency || "USD")}</b>`,
+        `${km ? "ការទូទាត់" : "Payment"}: ${escapeHtml(String(payload.payment_method || "—").replaceAll("_", " "))}`,
+        payload.bank_slip_url
+          ? (km ? "🧾 បានភ្ជាប់សន្លឹកបង់ប្រាក់" : "🧾 Bank slip attached")
+          : null,
+        `${km ? "ប្រគល់ទំនិញ" : "Fulfilment"}: ${escapeHtml(String(payload.fulfilment_type || "—").replaceAll("_", " "))}`,
+        `${km ? "សាខា" : "Branch"}: ${branch}`
+      ].filter(Boolean).join("\n")
+    };
+  }
 
   if (event.event_type === "sale_completed") {
     return {
