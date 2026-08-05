@@ -10,11 +10,10 @@ import {
 export const LIST_ROW_OPTIONS = [30, 60, 90, 120];
 
 export function defaultListView() {
-  try {
-    return window.matchMedia("(max-width: 760px)").matches ? "cards" : "table";
-  } catch {
-    return "table";
-  }
+  // Tables remain the default on phones because Tiny POS list tables are
+  // intentionally horizontally scrollable with one record per row. Users can
+  // still switch to Cards whenever they prefer the stacked view.
+  return "table";
 }
 
 export default function ListViewControls({

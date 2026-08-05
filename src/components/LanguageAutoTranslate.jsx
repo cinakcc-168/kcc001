@@ -163,7 +163,22 @@ export default function LanguageAutoTranslate() {
   const { language } = useLanguage();
 
   useEffect(() => {
-    translateTree(document.body, language);
+    let cancelled = false;
+    const timers = [];
+    let frame = 0;
+
+    const renderAll = () => {
+      if (cancelled) return;
+      translateTree(document.body, language);
+    };
+
+    // Translate immediately, after React paints, and once more after slower
+    // page effects finish. This prevents the current page from remaining in
+    // the previous language until the user navigates away and back.
+    renderAll();
+    frame = window.requestAnimationFrame(renderAll);
+    timers.push(window.setTimeout(renderAll, 40));
+    timers.push(window.setTimeout(renderAll, 160));
 
     const observer = new MutationObserver(
       (mutations) => {
@@ -203,7 +218,19 @@ export default function LanguageAutoTranslate() {
       attributeFilter: ATTRIBUTES
     });
 
-    return () => observer.disconnect();
+    const onRequestedRefresh = () => {
+      renderAll();
+      window.requestAnimationFrame(renderAll);
+    };
+    window.addEventListener("tiny-pos-language-change", onRequestedRefresh);
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      window.removeEventListener("tiny-pos-language-change", onRequestedRefresh);
+      window.cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
   }, [language]);
 
   return null;
