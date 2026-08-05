@@ -84,7 +84,7 @@ export default function App() {
         <Route path="/payroll" element={<PermissionRoute any={["payroll.view_self","payroll.manage"]}><PayrollPage /></PermissionRoute>} />
         <Route path="/cash-expenses" element={<PermissionRoute any={["cash_expenses.manage","cash_expenses.void"]}><CashExpensesPage /></PermissionRoute>} />
         <Route path="/cash-register" element={<PermissionRoute any={["cash_register.use","cash_register.close"]}><CashRegisterPage /></PermissionRoute>} />
-        <Route path="/transfers" element={<PermissionRoute any={["transfers.create","transfers.receive","transfers.cancel"]}><TransfersPage /></PermissionRoute>} />
+        <Route path="/transfers" element={<PermissionRoute any={["transfers.create","transfers.receive","transfers.cancel","transfers.edit","transfers.count","transfers.approve"]}><TransfersPage /></PermissionRoute>} />
         <Route path="/purchase-orders" element={<PermissionRoute any={["purchases.manage","purchases.receive","purchases.cancel","purchases.supplier_return"]}><PurchaseOrdersPage /></PermissionRoute>} />
         <Route path="/supplier-payables" element={<PermissionRoute any={["supplier_payables.view","supplier_payables.pay"]}><SupplierPayablesPage /></PermissionRoute>} />
         <Route path="/reorder" element={<PermissionRoute permission="reorder.manage"><ReorderPage /></PermissionRoute>} />
