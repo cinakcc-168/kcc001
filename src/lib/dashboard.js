@@ -172,6 +172,61 @@ async function loadLeaveAndAbsenceAlerts(supabase, profile, allBranches, canMana
   return alerts;
 }
 
+
+async function loadOnlineOrderAlerts(
+  supabase,
+  profile,
+  allBranches,
+  canReceiveOnlineOrders
+) {
+  if (!profile?.organization_id || !canReceiveOnlineOrders) return [];
+
+  let query = supabase
+    .from("online_orders")
+    .select(`
+      id,
+      branch_id,
+      order_number,
+      status,
+      payment_status,
+      payment_method,
+      fulfilment_type,
+      currency,
+      customer_name,
+      customer_phone,
+      total_amount,
+      bank_slip_url,
+      created_at,
+      branches(name)
+    `)
+    .eq("organization_id", profile.organization_id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .limit(12);
+
+  query = branchScoped(query, profile, allBranches);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data || []).map((order) => ({
+    key: `online-order-${order.id}`,
+    severity: order.payment_method === "bank_transfer" ? "warning" : "info",
+    title: `Online order ${order.order_number}`,
+    detail: [
+      order.customer_name,
+      order.customer_phone,
+      order.fulfilment_type === "delivery" ? "Delivery" : "Pickup",
+      order.payment_method === "bank_transfer"
+        ? (order.bank_slip_url ? "Bank slip attached" : "Bank slip missing")
+        : String(order.payment_method || "").replaceAll("_", " "),
+      order.branches?.name
+    ].filter(Boolean).join(" · "),
+    amount: order.total_amount,
+    currency: order.currency,
+    link: "/online-store?tab=orders&status=pending"
+  }));
+}
+
 export async function loadDashboardActionCenter(
   supabase,
   allBranches = false,
@@ -187,9 +242,10 @@ export async function loadDashboardActionCenter(
   const profile = context.profile;
   if (!profile) return data;
 
-  const [approvalAlerts, attendanceAlerts] = await Promise.all([
+  const [approvalAlerts, attendanceAlerts, onlineOrderAlerts] = await Promise.all([
     loadApprovalAlerts(supabase, profile, allBranches, Boolean(context.canReviewApprovals)),
-    loadLeaveAndAbsenceAlerts(supabase, profile, allBranches, Boolean(context.canManageAttendance))
+    loadLeaveAndAbsenceAlerts(supabase, profile, allBranches, Boolean(context.canManageAttendance)),
+    loadOnlineOrderAlerts(supabase, profile, allBranches, Boolean(context.canReceiveOnlineOrders))
   ]);
 
   return {
@@ -197,6 +253,7 @@ export async function loadDashboardActionCenter(
     alerts: uniqueAlerts([
       ...approvalAlerts,
       ...attendanceAlerts,
+      ...onlineOrderAlerts,
       ...((data?.alerts || []))
     ])
   };

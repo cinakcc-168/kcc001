@@ -39,19 +39,28 @@ export function onlineDateTime(value) {
   }).format(new Date(value));
 }
 
-export function onlineStatusLabel(status) {
-  const labels = {
-    pending: "Pending",
-    confirmed: "Confirmed",
-    preparing: "Preparing",
-    ready: "Ready",
-    partially_fulfilled:
-      "Partially fulfilled",
-    fulfilled: "Fulfilled",
-    cancelled: "Cancelled",
-    rejected: "Rejected"
-  };
-
+export function onlineStatusLabel(status, language = "en") {
+  const labels = language === "km"
+    ? {
+        pending: "រង់ចាំពិនិត្យ",
+        confirmed: "បានទទួល",
+        preparing: "កំពុងរៀបចំ",
+        ready: "រួចរាល់",
+        partially_fulfilled: "បានប្រគល់មួយផ្នែក",
+        fulfilled: "បានបញ្ចប់",
+        cancelled: "បានលុប",
+        rejected: "បានបដិសេធ"
+      }
+    : {
+        pending: "Pending",
+        confirmed: "Received",
+        preparing: "Preparing",
+        ready: "Ready",
+        partially_fulfilled: "Partially fulfilled",
+        fulfilled: "Fulfilled",
+        cancelled: "Cancelled",
+        rejected: "Rejected"
+      };
   return labels[status] || status;
 }
 
@@ -149,6 +158,10 @@ export async function loadOnlineStoreAdmin(
       delivery_address,
       requested_date,
       customer_note,
+      bank_slip_url,
+      bank_slip_public_id,
+      bank_slip_uploaded_at,
+      bank_reference,
       subtotal,
       delivery_fee,
       total_amount,
@@ -202,14 +215,22 @@ export async function loadOnlineStoreAdmin(
     );
   }
 
-  if (
-    filters.status
-    && filters.status !== "all"
-  ) {
-    orderQuery = orderQuery.eq(
+  if (filters.status === "current") {
+    orderQuery = orderQuery.not(
       "status",
-      filters.status
+      "in",
+      "(fulfilled,cancelled,rejected)"
     );
+  } else if (filters.status && filters.status !== "all") {
+    orderQuery = orderQuery.eq("status", filters.status);
+  }
+
+  if (filters.payment && filters.payment !== "all") {
+    orderQuery = orderQuery.eq("payment_method", filters.payment);
+  }
+
+  if (filters.fulfilment && filters.fulfilment !== "all") {
+    orderQuery = orderQuery.eq("fulfilment_type", filters.fulfilment);
   }
 
   if (filters.from) {
@@ -395,7 +416,7 @@ export async function confirmOnlineOrder(
   orderId
 ) {
   const { data, error } = await supabase.rpc(
-    "confirm_online_order",
+    "receive_online_order",
     {
       p_order_id: orderId
     }
@@ -422,4 +443,73 @@ export async function setOnlineOrderStatus(
 
   if (error) throw error;
   return data;
+}
+
+
+async function uploadSignedImage(file, signed) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("api_key", signed.apiKey);
+  form.append("timestamp", String(signed.timestamp));
+  form.append("signature", signed.signature);
+  form.append("folder", signed.folder);
+  form.append("public_id", signed.publicId);
+  form.append("overwrite", signed.overwrite);
+  form.append("invalidate", signed.invalidate);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${encodeURIComponent(signed.cloudName)}/image/upload`,
+    { method: "POST", body: form }
+  );
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.secure_url) {
+    throw new Error(result.error?.message || "Image upload failed.");
+  }
+  return {
+    url: result.secure_url,
+    public_id: result.public_id,
+    width: result.width,
+    height: result.height
+  };
+}
+
+export async function uploadOnlineStoreMedia(session, file, kind = "banner") {
+  if (!session?.access_token) throw new Error("Your POS session is not ready.");
+  if (!file?.type?.startsWith("image/")) throw new Error("Choose an image file.");
+  if (file.size > 8 * 1024 * 1024) throw new Error("Image must be 8 MB or smaller.");
+
+  const response = await fetch("/api/online-store-media", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify({ kind, file_type: file.type, file_size: file.size })
+  });
+  const signed = await response.json().catch(() => ({}));
+  if (!response.ok || signed.ok === false) {
+    throw new Error(signed.error || "Unable to prepare the image upload.");
+  }
+  return uploadSignedImage(file, signed);
+}
+
+export async function uploadPublicBankSlip(slug, file) {
+  if (!file?.type?.startsWith("image/")) throw new Error("Choose a bank-slip image.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Bank-slip image must be 5 MB or smaller.");
+
+  const query = new URLSearchParams({ slug, action: "upload-signature" });
+  const response = await fetch(`${API_PATH}?${query.toString()}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ file_type: file.type, file_size: file.size })
+  });
+  const signed = await parseResponse(response);
+  return uploadSignedImage(file, signed);
+}
+
+export function cloudinaryDownloadUrl(url) {
+  const value = String(url || "");
+  return value.includes("/upload/")
+    ? value.replace("/upload/", "/upload/fl_attachment/")
+    : value;
 }
