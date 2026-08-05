@@ -127,6 +127,13 @@
   status = 200
   force = true
 
+
+[[redirects]]
+  from = "/api/online-store-media"
+  to = "/.netlify/functions/online-store-media"
+  status = 200
+  force = true
+
 # React/Vite fallback — this must always stay last
 [[redirects]]
   from = "/*"
