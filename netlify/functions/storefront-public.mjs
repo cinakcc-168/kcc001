@@ -217,6 +217,20 @@ async function trackOrder(service, slug, url) {
   return json({ ok: true, order: data });
 }
 
+async function phoneOrders(service, slug, url) {
+  const phone = String(url.searchParams.get("phone") || "").trim();
+  if (phone.replace(/\D/g, "").length < 7) {
+    throw Object.assign(new Error("Enter a valid phone number."), { status: 400 });
+  }
+
+  const { data, error } = await service.rpc("find_public_orders_by_phone", {
+    p_slug: slug,
+    p_phone: phone
+  });
+  if (error) throw error;
+  return json({ ok: true, orders: Array.isArray(data) ? data : [] });
+}
+
 export default async (request) => {
   try {
     const url = new URL(request.url);
@@ -226,6 +240,7 @@ export default async (request) => {
 
     if (request.method === "GET") {
       if (action === "track") return await trackOrder(service, slug, url);
+      if (action === "phone-orders") return await phoneOrders(service, slug, url);
       return await catalog(service, slug);
     }
 
