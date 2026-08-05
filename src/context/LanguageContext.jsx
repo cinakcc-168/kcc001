@@ -65,11 +65,18 @@ export function LanguageProvider({ children }) {
         nextLanguage
       );
 
+      document.documentElement.classList.add("language-switching");
       setLanguageState(normalized);
       window.localStorage.setItem(
         GUEST_LANGUAGE_KEY,
         normalized
       );
+      window.dispatchEvent(new CustomEvent("tiny-pos-language-change", {
+        detail: { language: normalized }
+      }));
+      window.setTimeout(() => {
+        document.documentElement.classList.remove("language-switching");
+      }, 260);
     },
     []
   );

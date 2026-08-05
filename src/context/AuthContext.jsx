@@ -18,6 +18,10 @@ import {
   loadOfflineAuthSnapshot,
   saveOfflineAuthSnapshot
 } from "../lib/offlineCheckout";
+import {
+  saveShopSettings as persistShopSettings,
+  shopFormFromSettings
+} from "../lib/settings";
 
 const AuthContext = createContext(null);
 
@@ -316,13 +320,26 @@ export function AuthProvider({ children }) {
   }
 
   async function savePreferences(values) {
+    if (!supabase || !session?.user?.id) {
+      throw new Error("Your POS session is not ready.");
+    }
+
+    const scale = Math.min(
+      1.45,
+      Math.max(0.8, Number(values.sale_product_card_scale || 1))
+    );
+
     const payload = {
-      language: values.language,
-      theme: values.theme,
-      accent_color: values.accent_color,
+      language: values.language || preferences?.language || "en",
+      theme: values.theme || values.theme_mode || preferences?.theme || "system",
+      accent_color: values.accent_color || preferences?.accent_color || "#2563eb",
       compact_mode: Boolean(values.compact_mode),
-      sound_enabled: Boolean(values.sound_enabled),
-      scanner_vibration: Boolean(values.scanner_vibration)
+      sound_enabled: values.sound_enabled ?? values.scanner_sound ?? preferences?.sound_enabled ?? true,
+      scanner_vibration: values.scanner_vibration ?? preferences?.scanner_vibration ?? true,
+      new_sale_layout: values.new_sale_layout === "layout2" ? "layout2" : "layout1",
+      sale_product_card_scale: scale,
+      sale_show_product_code: values.sale_show_product_code !== false,
+      sale_stock_display: values.sale_stock_display === "status" ? "status" : "exact"
     };
 
     const { data, error: updateError } = await supabase
@@ -336,8 +353,38 @@ export function AuthProvider({ children }) {
 
     setPreferences(data);
     applyPreferences(data);
+    saveOfflineAuthSnapshot(
+      session,
+      profile,
+      data,
+      shop,
+      access || fallbackAccessForRole(profile?.role)
+    );
     return data;
   }
+
+  async function saveShopSettings(values) {
+    if (!supabase || !profile?.organization_id) {
+      throw new Error("Shop settings are not ready.");
+    }
+
+    const merged = {
+      ...shopFormFromSettings(shop),
+      ...values
+    };
+
+    const data = await persistShopSettings(supabase, merged);
+    setShop(data);
+    saveOfflineAuthSnapshot(
+      session,
+      profile,
+      preferences,
+      data,
+      access || fallbackAccessForRole(profile?.role)
+    );
+    return data;
+  }
+
 
   const value = useMemo(
     () => ({
@@ -356,7 +403,8 @@ export function AuthProvider({ children }) {
       refreshAccess,
       signIn,
       signOut,
-      savePreferences
+      savePreferences,
+      saveShopSettings
     }),
     [
       supabase,
