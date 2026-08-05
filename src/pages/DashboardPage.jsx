@@ -149,7 +149,12 @@ export default function DashboardPage() {
       const data =
         await loadDashboardActionCenter(
           supabase,
-          allBranches
+          allBranches,
+          {
+            profile,
+            canReviewApprovals: can("approvals.review"),
+            canManageAttendance: can("attendance.manage")
+          }
         );
 
       setDashboard({
@@ -165,7 +170,9 @@ export default function DashboardPage() {
     supabase,
     profile?.organization_id,
     profile?.branch_id,
-    allBranches
+    allBranches,
+    profile,
+    can
   ]);
 
   useEffect(() => {

@@ -16,6 +16,7 @@ import {
 } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { notifyTelegramEvent } from "../lib/telegram";
 import UserPermissionModal from "../components/UserPermissionModal";
 import { money } from "../lib/catalog";
 import {
@@ -66,6 +67,7 @@ export default function PermissionsPage() {
   const {
     supabase,
     profile,
+    session,
     can,
     canAny,
     refreshAccess
@@ -256,6 +258,12 @@ export default function PermissionsPage() {
           decision,
           note
         }
+      );
+
+      void notifyTelegramEvent(
+        session,
+        decision === "approve" ? "approval_approved" : "approval_rejected",
+        request.id
       );
 
       setMessageType("success");
