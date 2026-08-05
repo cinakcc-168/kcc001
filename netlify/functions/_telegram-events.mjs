@@ -45,6 +45,14 @@ function relevantRecipient(link, event) {
     return isTarget || isOrganizationManager || isBranchManager;
   }
 
+  if (event.event_type === "approval_requested") {
+    return !isTarget && (isOrganizationManager || isBranchManager);
+  }
+
+  if (["approval_approved", "approval_rejected"].includes(event.event_type)) {
+    return isTarget || isOrganizationManager || isBranchManager;
+  }
+
   return false;
 }
 
@@ -52,6 +60,7 @@ function preferenceAllowed(preferences, eventType) {
   if (eventType === "sale_completed") return preferences?.sale_alerts !== false;
   if (eventType.startsWith("cash_register_")) return preferences?.cash_register_alerts !== false;
   if (eventType.startsWith("leave_")) return preferences?.leave_alerts !== false;
+  if (eventType.startsWith("approval_")) return true;
   return true;
 }
 
@@ -105,6 +114,34 @@ function messageFor(event, context, language) {
         `${km ? "លម្អៀង KHR" : "KHR variance"}: <b>${money(payload.variance_khr, "KHR")}</b>`,
         `${km ? "សាខា" : "Branch"}: ${branch}`
       ].join("\n")
+    };
+  }
+
+  if (event.event_type.startsWith("approval_")) {
+    const approved = event.event_type === "approval_approved";
+    const rejected = event.event_type === "approval_rejected";
+    return {
+      path: "/access-control?tab=approvals",
+      buttonText: km ? "មើលការអនុម័ត" : "Open approvals",
+      text: [
+        event.event_type === "approval_requested"
+          ? (km ? "🛡️ <b>សំណើអនុម័តថ្មី</b>" : "🛡️ <b>New approval request</b>")
+          : approved
+            ? (km ? "✅ <b>សំណើបានអនុម័ត</b>" : "✅ <b>Approval granted</b>")
+            : rejected
+              ? (km ? "❌ <b>សំណើត្រូវបានបដិសេធ</b>" : "❌ <b>Approval rejected</b>")
+              : "🛡️ <b>Approval update</b>",
+        "",
+        `${km ? "សកម្មភាព" : "Action"}: <b>${escapeHtml(payload.action_summary || "—")}</b>`,
+        payload.amount !== null && payload.amount !== undefined && payload.currency
+          ? `${km ? "ចំនួន" : "Amount"}: <b>${money(payload.amount, payload.currency)}</b>`
+          : null,
+        `${km ? "អ្នកស្នើ" : "Requested by"}: ${staff}`,
+        payload.review_note
+          ? `${km ? "ចំណាំ" : "Review note"}: ${escapeHtml(payload.review_note)}`
+          : null,
+        `${km ? "សាខា" : "Branch"}: ${branch}`
+      ].filter(Boolean).join("\n")
     };
   }
 
