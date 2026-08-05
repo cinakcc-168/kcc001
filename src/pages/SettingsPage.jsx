@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CreditCard, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { uploadShopLogo } from "../lib/settings";
+import { shopFormFromSettings, uploadShopLogo } from "../lib/settings";
 
 const tabs = [
   ["shop", "Shop Identity", Store],
@@ -122,7 +122,7 @@ export default function SettingsPage() {
   const [logoUploading, setLogoUploading] = useState(false);
 
   useEffect(() => {
-    if (shop) setShopForm({ ...emptyShop, ...shop });
+    if (shop) setShopForm({ ...emptyShop, ...shopFormFromSettings(shop), ...shop });
   }, [shop]);
 
   useEffect(() => {
@@ -130,6 +130,8 @@ export default function SettingsPage() {
       setPersonal({
         ...emptyPersonal,
         ...preferences,
+        theme_mode: preferences.theme || preferences.theme_mode || "system",
+        scanner_sound: preferences.sound_enabled ?? preferences.scanner_sound ?? true,
         sale_product_card_scale: clampProductScale(
           preferences.sale_product_card_scale ?? 1
         ),
