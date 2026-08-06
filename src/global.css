@@ -5074,3 +5074,206 @@ html.language-switch-complete .modal-backdrop{
   background:color-mix(in srgb,var(--accent) 12%,transparent);
   color:var(--accent);
 }
+
+/* ========================================================================== */
+/* Step 46.4.19 — custom-role desktop/tablet permission editor recovery       */
+/* ========================================================================== */
+.custom-role-modal{
+  width:min(1120px,calc(100vw - 40px))!important;
+  height:min(94vh,920px);
+  max-height:min(94vh,920px)!important;
+  display:flex;
+  flex-direction:column;
+}
+.custom-role-modal-body{
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none!important;
+  overflow:hidden!important;
+  padding:18px!important;
+}
+.custom-role-modal .custom-role-form-recovered{
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  display:grid!important;
+  grid-template-rows:auto auto auto minmax(260px,1fr) auto auto;
+  align-content:stretch;
+  gap:14px!important;
+}
+.custom-role-modal .custom-role-permissions.recovered{
+  min-height:0;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column;
+}
+.custom-role-modal .custom-role-permission-heading.recovered{
+  flex:0 0 auto;
+}
+.custom-role-modal .custom-role-groups.recovered{
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  scrollbar-gutter:stable;
+}
+.custom-role-modal .custom-role-group.recovered{
+  display:block!important;
+  min-width:0;
+  height:auto!important;
+  min-height:52px;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-header{
+  width:100%;
+  min-height:52px;
+  padding:10px 12px;
+  background:var(--surface2);
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 42px;
+  align-items:center;
+  gap:10px;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-select{
+  width:100%;
+  min-width:0;
+  min-height:32px;
+  display:grid!important;
+  grid-template-columns:22px minmax(0,1fr);
+  align-items:center;
+  gap:11px;
+  color:var(--text)!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-select>input{
+  display:block!important;
+  width:20px!important;
+  height:20px!important;
+  min-height:20px!important;
+  margin:0;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-title{
+  min-width:0;
+  width:100%;
+  display:flex!important;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  color:var(--text)!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-name{
+  display:block!important;
+  min-width:0;
+  color:var(--text)!important;
+  font-size:14px!important;
+  line-height:1.35!important;
+  font-weight:800!important;
+  white-space:normal!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-count{
+  display:block!important;
+  flex:0 0 auto;
+  color:var(--muted)!important;
+  font-size:12px!important;
+  line-height:1.35!important;
+  white-space:nowrap!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-group-toggle{
+  display:inline-grid!important;
+  place-items:center!important;
+  justify-self:end;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-permission-list{
+  display:grid!important;
+  min-width:0;
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-permission.recovered{
+  width:100%;
+  min-width:0;
+  visibility:visible!important;
+  opacity:1!important;
+  color:var(--text)!important;
+}
+.custom-role-modal .custom-role-permission-copy,
+.custom-role-modal .custom-role-permission-copy>strong,
+.custom-role-modal .custom-role-permission-copy>small,
+.custom-role-modal .custom-role-permission-copy>code{
+  visibility:visible!important;
+  opacity:1!important;
+}
+.custom-role-modal .custom-role-actions{
+  position:static!important;
+  z-index:auto;
+  margin:0!important;
+  padding-top:12px;
+  flex:0 0 auto;
+}
+
+@media(max-width:800px){
+  .custom-role-modal{
+    width:min(100%,720px)!important;
+    height:min(96dvh,900px);
+    max-height:96dvh!important;
+  }
+  .custom-role-modal-body{
+    overflow:auto!important;
+    -webkit-overflow-scrolling:touch;
+  }
+  .custom-role-modal .custom-role-form-recovered{
+    height:auto;
+    min-height:100%;
+    overflow:visible;
+    display:grid!important;
+    grid-template-rows:none;
+  }
+  .custom-role-modal .custom-role-permissions.recovered{
+    overflow:visible!important;
+  }
+  .custom-role-modal .custom-role-groups.recovered{
+    max-height:none!important;
+    overflow:visible!important;
+    scrollbar-gutter:auto;
+  }
+  .custom-role-modal .custom-role-group-title{
+    display:grid!important;
+    justify-content:start;
+    gap:3px;
+  }
+  .custom-role-modal .custom-role-actions{
+    position:sticky!important;
+    bottom:-18px;
+    z-index:5;
+    background:var(--surface);
+    padding:12px 0 max(4px,env(safe-area-inset-bottom));
+  }
+}
+
+@media(max-width:480px){
+  .custom-role-modal{
+    width:100%!important;
+    height:100dvh;
+    max-height:none!important;
+  }
+  .custom-role-modal-body{padding:14px!important}
+  .custom-role-modal .custom-role-group-header{
+    grid-template-columns:minmax(0,1fr) 40px;
+    padding:10px;
+  }
+}
