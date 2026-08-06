@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowUp, ImagePlus, QrCode, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { uploadOnlineStoreMedia } from "../lib/onlineStore";
+import Modal from "./Modal";
 
 function defaults(settings, profile) {
   const fallbackSlug = String(profile?.branches?.code || profile?.branches?.name || "tiny-pos-store")
@@ -131,14 +132,18 @@ export default function OnlineStoreSettingsModal({
   }
 
   return (
-    <div className="modal-backdrop">
-      <form className="modal wide online-settings-modal" onSubmit={submit}>
-        <div className="modal-head">
-          <div>
-            <p className="eyebrow">PUBLIC CUSTOMER ORDERING</p>
-            <h2>Online Store Settings</h2>
-          </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">×</button>
+    <Modal
+      title="Online Store Settings"
+      onClose={onClose}
+      wide
+      className="online-admin-modal online-settings-dialog"
+      bodyClassName="online-admin-modal-body"
+      closeDisabled={busy || Boolean(uploading)}
+    >
+      <form className="online-settings-form" onSubmit={submit}>
+        <div className="online-settings-intro">
+          <p className="eyebrow">PUBLIC CUSTOMER ORDERING</p>
+          <p className="muted">Manage the public store, advertising pictures, fulfilment and customer payment instructions.</p>
         </div>
 
         {uploadError && <div className="notice error">{uploadError}</div>}
@@ -252,11 +257,11 @@ export default function OnlineStoreSettingsModal({
           <span><strong>Publish online store</strong><small>Customers can open the public link and submit orders.</small></span>
         </label>
 
-        <div className="modal-actions">
-          <button type="button" className="secondary" onClick={onClose} disabled={busy || Boolean(uploading)}>Cancel</button>
-          <button type="submit" disabled={busy || Boolean(uploading)}>{busy ? "Saving…" : "Save online store"}</button>
+        <div className="modal-actions online-admin-modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose} disabled={busy || Boolean(uploading)}>Cancel</button>
+          <button type="submit" className="primary-button" disabled={busy || Boolean(uploading)}>{busy ? "Saving…" : "Save online store"}</button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

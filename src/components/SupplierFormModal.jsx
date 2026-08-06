@@ -59,7 +59,7 @@ export default function SupplierFormModal({ supplier, open, busy, onClose, onSav
   if (!open) return null;
 
   return (
-    <Modal title={supplier ? `Edit ${supplier.name}` : "New supplier"} onClose={onClose}>
+    <Modal title={supplier ? `Edit ${supplier.name}` : "New supplier"} onClose={onClose} wide className="supplier-form-dialog" bodyClassName="supplier-form-dialog-body" closeDisabled={busy}>
       <form className="supplier-form" onSubmit={submit}>
         {supplier?.supplier_code && (
           <div className="supplier-code-banner">

@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import Modal from "./Modal";
 import { Printer } from "lucide-react";
 import { payrollDate, payrollDuration, payrollMoney } from "../lib/payroll";
@@ -10,6 +11,6 @@ export default function PayrollPayslipModal({ line, shop, payments = [], onClose
     <div className="payslip-work"><span>Worked <b>{payrollDuration(line.work_minutes)}</b></span><span>Scheduled days <b>{line.scheduled_days}</b></span><span>Attendance days <b>{line.paid_days}</b></span><span>Absent days <b>{line.absent_days}</b></span></div>
     {payments.length > 0 && <div className="payslip-payments"><h3>Payment history</h3>{payments.map((row) => <p key={row.id}><span>{row.payment_number} · {row.payment_method} · {new Date(row.paid_at).toLocaleDateString("en-US")}</span><b>{payrollMoney(row.amount, line.currency)}</b></p>)}</div>}
     <div className="payslip-signatures"><span>Prepared by</span><span>Employee signature</span><span>Approved by</span></div>
-    <div className="modal-actions no-print"><button type="button" className="secondary-button" onClick={onClose}>Close</button><button type="button" className="primary-button" onClick={() => window.print()}><Printer size={18} />Print payslip</button></div>
+    <div className="modal-actions no-print"><button type="button" className="secondary-button" onClick={onClose}>Close</button><button type="button" className="primary-button" onClick={() => printElementDocument({ title: "Payroll Payslip", selector: ".payslip-sheet", page: "A4 portrait" })}><Printer size={18} />Print payslip</button></div>
   </div></Modal>;
 }

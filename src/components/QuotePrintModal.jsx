@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import {
   ClipboardList,
   Download,
@@ -331,7 +332,7 @@ export default function QuotePrintModal({
             {label("Export CSV", "នាំចេញ CSV")}
           </button>
 
-          <button type="button" className="secondary-button" onClick={() => window.print()}>
+          <button type="button" className="secondary-button" onClick={() => printElementDocument({ title: "Quotation", selector: ".quote-print-document", page: "A4 portrait" })}>
             <Printer size={18} />
             {label("Print quotation", "បោះពុម្ពសម្រង់តម្លៃ")}
           </button>

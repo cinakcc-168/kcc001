@@ -5,6 +5,7 @@ import ProductBarcode from "./ProductBarcode";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
+import { printElementDocument } from "../lib/listDocuments";
 
 function dateTime(value, locale = "en-US") {
   return new Intl.DateTimeFormat(locale, {
@@ -65,113 +66,23 @@ export default function ReceiptModal({ receipt, onClose }) {
 
   function printReceipt() {
     const printable = receiptPrintRef.current;
-
-    if (!printable) {
-      window.print();
-      return;
-    }
-
-    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=440,height=900");
-
-    if (!printWindow) {
-      window.print();
-      return;
-    }
+    if (!printable) return;
 
     const title = `${shop?.shop_name || receipt.shopName || "Tiny POS"} Receipt`;
-    const content = printable.innerHTML;
-
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html>
-<html lang="${receiptLanguage === "km" ? "km" : "en"}">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${title}</title>
-    <style>
-      :root { color-scheme: light; }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        padding: 12mm;
-        background: #fff;
-        color: #111;
-        font-family: "Noto Sans Khmer", Arial, sans-serif;
-      }
-      .print-shell {
-        width: min(100%, ${receiptWidth}mm);
-        margin: 0 auto;
-      }
-      .receipt-document {
-        width: 100%;
-        margin: 0 auto;
-        padding: 0;
-        color: #111;
-        font-family: "Noto Sans Khmer", Arial, sans-serif;
-        font-size: 12px;
-      }
-      .receipt-shop {
-        text-align: center;
-        border-bottom: 1px dashed #555;
-        padding-bottom: 10px;
-      }
-      .receipt-logo {
-        display: block;
-        max-width: 86px;
-        max-height: 62px;
-        object-fit: contain;
-        margin: 0 auto 7px;
-      }
-      .receipt-shop h2 { margin: 0 0 5px; font-size: 22px; }
-      .receipt-shop p { margin: 2px 0; }
-      .receipt-meta,
-      .receipt-totals { display: grid; gap: 5px; padding: 10px 0; border-bottom: 1px dashed #555; }
-      .receipt-meta > div,
-      .receipt-totals > div,
-      .receipt-payment-part { display: flex; justify-content: space-between; gap: 12px; }
-      .receipt-lines { display: grid; }
-      .receipt-lines > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dotted #aaa; }
-      .receipt-lines > div > span,
-      .receipt-payment-part > span { display: grid; gap: 3px; }
-      .receipt-lines small,
-      .receipt-payment-part small,
-      .receipt-grand-total small,
-      .receipt-invoice-barcode small { color: #555; }
-      .receipt-grand-total {
-        display: grid !important;
-        grid-template-columns: 1fr auto;
-        align-items: end;
-        font-size: 16px;
-        padding-top: 6px;
-      }
-      .receipt-grand-total small { grid-column: 1 / -1; text-align: right; font-size: 10px; }
-      .receipt-payment-parts { display: grid !important; gap: 0 !important; border-top: 1px dotted #aaa; }
-      .receipt-payment-part { padding: 6px 0; border-bottom: 1px dotted #aaa; }
-      .receipt-footer { text-align: center; padding-top: 12px; }
-      .receipt-invoice-barcode { display: grid; place-items: center; gap: 3px; padding: 8px 0; border-bottom: 1px dashed #555; color: #000; }
-      .receipt-invoice-barcode svg, .generated-barcode { max-width: 100%; height: auto; }
-      @page {
-        size: auto;
-        margin: 10mm;
-      }
-      @media print {
-        body { padding: 0; }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="print-shell">${content}</div>
-    <script>
-      window.addEventListener('load', function () {
-        setTimeout(function () {
-          window.focus();
-          window.print();
-        }, 250);
-      });
-    <\/script>
-  </body>
-</html>`);
-    printWindow.document.close();
+    printElementDocument({
+      title,
+      element: printable,
+      page: "auto",
+      includeAppStyles: true,
+      styles: `
+        .tiny-pos-print-frame-content{width:min(100%,${receiptWidth}mm)!important;margin:0 auto!important;padding:0!important}
+        .receipt-document{width:100%!important;max-width:${receiptWidth}mm!important;margin:0 auto!important;padding:0!important;box-shadow:none!important;background:#fff!important;color:#111!important}
+        .receipt-wrapper{padding:0!important}.receipt-language-toolbar,.receipt-actions,[data-print-hide]{display:none!important}
+        .receipt-shop,.receipt-meta,.receipt-lines,.receipt-totals,.receipt-footer,.receipt-invoice-barcode{break-inside:avoid}
+        .receipt-logo{max-width:86px!important;max-height:62px!important;object-fit:contain!important}
+        @page{margin:4mm}
+      `
+    });
   }
 
   return (

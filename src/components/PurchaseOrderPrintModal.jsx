@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import { Printer } from "lucide-react";
 import Modal from "./Modal";
 import { money, stockNumber } from "../lib/catalog";
@@ -350,7 +351,18 @@ export default function PurchaseOrderPrintModal({
           <button
             type="button"
             className="primary-button"
-            onClick={() => window.print()}
+            onClick={() => printElementDocument({
+              title: `Purchase Order ${purchase.purchase_number}`,
+              selector: ".po-print-document",
+              page: "A4 portrait",
+              styles: `
+                .po-print-document{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;box-shadow:none!important;font-size:10px!important}
+                .po-print-header{gap:14px!important;padding-bottom:8px!important}.po-print-title strong{font-size:18px!important}
+                .po-print-parties{gap:18px!important;padding:10px 0!important}.po-print-table th,.po-print-table td{padding:4px!important;font-size:8px!important}
+                .po-print-bottom{grid-template-columns:1fr 230px!important;gap:15px!important;padding-top:10px!important}
+                .po-receipt-history-print{break-before:auto!important;break-inside:auto!important}.po-print-signatures{margin-top:24px!important;break-inside:avoid!important}
+              `
+            })}
           >
             <Printer size={18} />
             Print purchase order

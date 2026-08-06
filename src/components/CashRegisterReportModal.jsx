@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import { Printer } from "lucide-react";
 import Modal from "./Modal";
 import { money } from "../lib/catalog";
@@ -159,7 +160,7 @@ export default function CashRegisterReportModal({
           <button
             type="button"
             className="primary-button"
-            onClick={() => window.print()}
+            onClick={() => printElementDocument({ title: "Cash Register Report", selector: ".register-report-document", page: "A4 landscape" })}
           >
             <Printer size={18} />
             Print report

@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import { Languages, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import Modal from "./Modal";
@@ -119,7 +120,7 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
 
         <div className="receipt-actions">
           <button type="button" className="secondary-button" onClick={onClose}>{label("Close", "បិទ")}</button>
-          <button type="button" className="primary-button" onClick={() => window.print()}>
+          <button type="button" className="primary-button" onClick={() => printElementDocument({ title: "Return Receipt", selector: ".return-receipt-document", page: "auto" })}>
             <Printer size={18} /> {label("Print refund receipt", "បោះពុម្ពវិក្កយបត្រសងប្រាក់")}
           </button>
         </div>

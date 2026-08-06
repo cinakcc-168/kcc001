@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import { Printer } from "lucide-react";
 import Modal from "./Modal";
 import {
@@ -212,7 +213,12 @@ export default function PurchaseReceiptPrintModal({
           <button
             type="button"
             className="primary-button"
-            onClick={() => window.print()}
+            onClick={() => printElementDocument({
+              title: `Goods Received Note ${receipt.receipt_number}`,
+              selector: ".grn-print-document",
+              page: "A4 portrait",
+              styles: `.grn-print-document{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;box-shadow:none!important}.grn-print-table th,.grn-print-table td{padding:4px!important;font-size:8px!important}.grn-print-signatures{break-inside:avoid!important;margin-top:24px!important}`
+            })}
           >
             <Printer size={18} />
             Print goods-received note

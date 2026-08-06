@@ -54,6 +54,9 @@ export default function StockCountWorkspaceModal({
       title={`${session.count_number} · ${session.name}`}
       onClose={onClose}
       wide
+      className="stock-count-dialog"
+      bodyClassName="stock-count-dialog-body"
+      closeDisabled={Boolean(busy === "save-all" || busy === "cancel")}
     >
       <div className="stock-count-workspace">
         <div className="stock-count-workspace-actions" data-print-hide>

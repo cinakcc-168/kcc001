@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import {
   Printer,
   ReceiptText,
@@ -401,7 +402,7 @@ export default function SalesOrderDocumentModal({
           <button
             type="button"
             className="primary-button"
-            onClick={() => window.print()}
+            onClick={() => printElementDocument({ title: "Sales Order", selector: ".sales-order-print-document", page: "A4 portrait" })}
           >
             <Printer size={18} />
             {isDelivery

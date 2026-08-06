@@ -1,3 +1,4 @@
+import { printElementDocument } from "../lib/listDocuments";
 import {
   HandCoins,
   Printer,
@@ -369,7 +370,7 @@ export default function CreditStatementModal({
             <button
               type="button"
               className="primary-button"
-              onClick={() => window.print()}
+              onClick={() => printElementDocument({ title: "Customer Credit Statement", selector: ".credit-statement-document", page: "A4 portrait" })}
             >
               <Printer size={18} />
               Print statement
