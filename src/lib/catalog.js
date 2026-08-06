@@ -1,3 +1,5 @@
+import { cloudinaryImageUrl, cloudinaryPublicIdFromUrl, optimizeImageFile } from "./media";
+
 export function money(value, currency = "USD") {
   const amount = Number(value || 0);
   if (currency === "KHR") {
@@ -21,11 +23,13 @@ export function stockNumber(value) {
 }
 
 export function cloudinaryThumb(url, width = 120, height = 120) {
-  if (!url || !url.includes("/upload/")) return url || "";
-  return url.replace(
-    "/upload/",
-    `/upload/f_auto,q_auto,c_fill,w_${width},h_${height}/`
-  );
+  return cloudinaryImageUrl(url, {
+    width,
+    height,
+    crop: "fill",
+    gravity: "auto",
+    quality: "auto:eco"
+  });
 }
 
 export async function loadCatalog(supabase, organizationId, branchId) {
@@ -270,8 +274,12 @@ export async function uploadPrimaryImage({
   file
 }) {
   if (!file) return null;
-  if (!file.type.startsWith("image/")) throw new Error("Choose a valid image file.");
-  if (file.size > 5 * 1024 * 1024) throw new Error("Image must be 5 MB or smaller.");
+  const optimizedFile = await optimizeImageFile(file, {
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.82,
+    baseName: `product-${productId}`
+  });
 
   const signed = await authorizedPost(
     "/api/cloudinary-signature",
@@ -280,7 +288,7 @@ export async function uploadPrimaryImage({
   );
 
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", optimizedFile);
   form.append("api_key", signed.apiKey);
   form.append("timestamp", String(signed.timestamp));
   form.append("signature", signed.signature);
@@ -298,7 +306,10 @@ export async function uploadPrimaryImage({
     throw new Error(result.error?.message || "Product image upload failed.");
   }
 
-  const { data, error } = await supabase
+  // Save the uploaded record first. The existing primary image is left intact
+  // until the new database row is confirmed, so a database error cannot make
+  // a working product photo disappear.
+  const { data: uploadedImage, error: imageError } = await supabase
     .from("product_images")
     .upsert(
       {
@@ -309,11 +320,29 @@ export async function uploadPrimaryImage({
         width: result.width,
         height: result.height,
         sort_order: 0,
-        is_primary: true,
+        is_primary: false,
         created_by: profile.id
       },
       { onConflict: "organization_id,cloudinary_public_id" }
     )
+    .select()
+    .single();
+
+  if (imageError) throw imageError;
+
+  const { error: primaryResetError } = await supabase
+    .from("product_images")
+    .update({ is_primary: false })
+    .eq("organization_id", profile.organization_id)
+    .eq("product_id", productId)
+    .neq("id", uploadedImage.id);
+
+  if (primaryResetError) throw primaryResetError;
+
+  const { data, error } = await supabase
+    .from("product_images")
+    .update({ is_primary: true, sort_order: 0 })
+    .eq("id", uploadedImage.id)
     .select()
     .single();
 
@@ -324,9 +353,13 @@ export async function uploadPrimaryImage({
 export async function removePrimaryImage({ supabase, session, image }) {
   if (!image) return;
 
-  await authorizedPost("/api/cloudinary-delete", session.access_token, {
-    publicId: image.cloudinary_public_id
-  });
+  const publicId = image.cloudinary_public_id
+    || cloudinaryPublicIdFromUrl(image.secure_url);
+  if (publicId) {
+    await authorizedPost("/api/cloudinary-delete", session.access_token, {
+      publicId
+    });
+  }
 
   const { error } = await supabase
     .from("product_images")

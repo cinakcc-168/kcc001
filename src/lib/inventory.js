@@ -43,6 +43,13 @@ export async function loadInventory(supabase, organizationId, branchId) {
           low_stock_threshold,
           is_active,
           categories (id, name),
+          product_images (
+            id,
+            secure_url,
+            cloudinary_public_id,
+            is_primary,
+            sort_order
+          ),
           inventory_balances (
             branch_id,
             quantity,
@@ -140,8 +147,14 @@ export async function loadInventory(supabase, organizationId, branchId) {
         ? rule.reorder_point
         : product.low_stock_threshold ?? organizationThreshold ?? 0
     );
+    const image = [...(product.product_images || [])].sort(
+      (a, b) => Number(b.is_primary) - Number(a.is_primary)
+        || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+    )[0] || null;
+
     return {
       ...product,
+      image,
       stock_quantity: stockQuantity,
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
       balance_updated_at: balance?.updated_at || null,

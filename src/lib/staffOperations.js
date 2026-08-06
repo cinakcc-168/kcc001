@@ -1,3 +1,5 @@
+import { optimizeImageFile } from "./media";
+
 import { printHtmlDocument } from "./listDocuments";
 
 function padDatePart(value) {
@@ -176,6 +178,13 @@ async function uploadLeaveImage(session, file) {
   if (!file) return { image_url: null, image_public_id: null };
   if (!session?.access_token) throw new Error("Authentication required for image upload.");
 
+  const optimizedFile = await optimizeImageFile(file, {
+    maxWidth: 1200,
+    maxHeight: 1200,
+    quality: 0.82,
+    baseName: "leave-attachment"
+  });
+
   const signatureResponse = await fetch("/api/staff-file-signature", {
     method: "POST",
     headers: {
@@ -190,7 +199,7 @@ async function uploadLeaveImage(session, file) {
   }
 
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", optimizedFile);
   form.append("api_key", signed.apiKey);
   form.append("timestamp", String(signed.timestamp));
   form.append("folder", signed.folder);
