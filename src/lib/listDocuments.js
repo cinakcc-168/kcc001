@@ -41,38 +41,123 @@ function isMobileOrTelegram() {
   }
 }
 
-function openPrintableWindow(title) {
-  try {
-    const popup = window.open("", "_blank");
-    if (!popup) return null;
-    popup.document.title = title;
-    return popup;
-  } catch {
-    return null;
-  }
+function currentStyleMarkup() {
+  return [...document.querySelectorAll('link[rel="stylesheet"], style')]
+    .map((node) => node.outerHTML)
+    .join("\n");
 }
 
-function currentWindowPrint(html, className, styles = "") {
-  document.getElementById(className)?.remove();
-  const root = document.createElement("section");
-  root.id = className;
-  root.className = className;
-  root.innerHTML = `<style>${styles}</style>${html}`;
-  document.body.appendChild(root);
-  document.body.classList.add("tiny-pos-printing");
-  void root.offsetHeight;
+function waitForPrintableAssets(doc) {
+  const images = [...doc.images].map((image) => {
+    if (image.complete) return Promise.resolve();
+    return new Promise((resolve) => {
+      const finish = () => resolve();
+      image.addEventListener("load", finish, { once: true });
+      image.addEventListener("error", finish, { once: true });
+      window.setTimeout(finish, 2500);
+    });
+  });
+
+  const fonts = doc.fonts?.ready
+    ? Promise.race([
+        doc.fonts.ready.catch(() => undefined),
+        new Promise((resolve) => window.setTimeout(resolve, 1800))
+      ])
+    : Promise.resolve();
+
+  return Promise.all([fonts, ...images]);
+}
+
+/**
+ * Print without navigating away from Tiny POS.
+ * A temporary about:blank iframe is used so mobile Safari/Telegram does not
+ * open a blank tab and the printed footer does not inherit the app route URL.
+ */
+function printInPlace({ title, html, styles = "", page = "auto", includeAppStyles = false }) {
+  const previous = document.getElementById("tiny-pos-print-frame");
+  previous?.remove();
+
+  const frame = document.createElement("iframe");
+  frame.id = "tiny-pos-print-frame";
+  frame.title = `${title} print document`;
+  frame.setAttribute("aria-hidden", "true");
+  Object.assign(frame.style, {
+    position: "fixed",
+    right: "0",
+    bottom: "0",
+    width: "1px",
+    height: "1px",
+    border: "0",
+    opacity: "0.001",
+    pointerEvents: "none",
+    zIndex: "-1"
+  });
+  document.body.appendChild(frame);
+
+  const doc = frame.contentDocument || frame.contentWindow?.document;
+  if (!doc) {
+    frame.remove();
+    return false;
+  }
+
+  const appStyles = includeAppStyles ? currentStyleMarkup() : "";
+  const baseHref = escapeHtml(document.baseURI || window.location.origin || "/");
+  const documentStyles = `
+*{box-sizing:border-box}
+html,body{margin:0!important;padding:0!important;width:100%!important;min-height:0!important;overflow:visible!important;background:#fff!important;color:#111!important;font-family:"Noto Sans Khmer",Arial,sans-serif!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:0!important}
+[data-print-hide],.no-print,.modal-actions,.receipt-actions,.po-print-actions,.grn-print-actions,.quote-print-actions,.sales-order-document-actions,.print-toolbar{display:none!important}
+a{color:inherit;text-decoration:none}
+@page{size:${page};margin:6mm}
+@media print{html,body{width:100%!important;height:auto!important;overflow:visible!important}.tiny-pos-print-frame-content{display:block!important;visibility:visible!important;position:static!important;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important}.tiny-pos-print-frame-content,.tiny-pos-print-frame-content *{visibility:visible!important}}
+${styles}`;
+
+  doc.open();
+  doc.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<base href="${baseHref}" />
+<title>${escapeHtml(title)}</title>
+${appStyles}
+<style>${documentStyles}</style>
+</head>
+<body><main class="tiny-pos-print-frame-content">${html}</main></body>
+</html>`);
+  doc.close();
 
   let cleaned = false;
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
-    root.remove();
-    document.body.classList.remove("tiny-pos-printing");
+    window.setTimeout(() => frame.remove(), 250);
   };
 
-  window.addEventListener("afterprint", cleanup, { once: true });
+  frame.contentWindow?.addEventListener("afterprint", cleanup, { once: true });
   window.setTimeout(cleanup, 300000);
-  window.print();
+
+  const run = async () => {
+    await waitForPrintableAssets(doc);
+    try {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+      return true;
+    } catch {
+      cleanup();
+      return false;
+    }
+  };
+
+  // The request still originates from the user's Print button. The short RAF
+  // lets the iframe finish layout without opening another page or popup.
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      void run();
+    });
+  });
+
+  return true;
 }
 
 async function deliverFile(blob, filename, mimeType) {
@@ -82,15 +167,10 @@ async function deliverFile(blob, filename, mimeType) {
     try {
       const file = new File([blob], safeName, { type: mimeType });
       if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: safeName,
-          files: [file]
-        });
+        await navigator.share({ title: safeName, files: [file] });
         return;
       }
     } catch (error) {
-      // A user cancelling the share sheet is not an export failure. For other
-      // WebView limitations continue to the normal download/open fallback.
       if (error?.name === "AbortError") return;
     }
   }
@@ -104,19 +184,6 @@ async function deliverFile(blob, filename, mimeType) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-
-  // Some Telegram/iOS WebViews ignore the download attribute. Opening the
-  // generated document gives the user a second Save/Share path.
-  if (isMobileOrTelegram()) {
-    window.setTimeout(() => {
-      try {
-        window.open(url, "_blank");
-      } catch {
-        // The share/download attempt above remains the primary path.
-      }
-    }, 120);
-  }
-
   window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
@@ -146,44 +213,23 @@ function reportDocumentHtml({
         <thead><tr>${head}</tr></thead>
         <tbody>${body}</tbody>
       </table>
-    </div>
-    <footer>Printed ${escapeHtml(new Date().toLocaleString())}</footer>
-  `;
+    </div>`;
   const styles = `
-*{box-sizing:border-box}body{margin:0;padding:12mm;background:#fff;color:#111;font-family:"Noto Sans Khmer",Arial,sans-serif;font-size:10px}.print-toolbar{position:sticky;top:0;z-index:5;display:flex;justify-content:flex-end;padding:8px;background:#fff;border-bottom:1px solid #ddd}.print-toolbar button{min-height:42px;border:0;border-radius:10px;padding:0 18px;background:#dc2626;color:#fff;font:700 15px Arial,sans-serif}.print-report-header h1{margin:0 0 4px;font-size:20px}.print-report-header p{margin:0 0 12px;color:#555}.print-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px;margin:10px 0}.print-summary div{border:1px solid #cfd6df;padding:7px;display:grid;gap:3px}.print-summary span{color:#555}.print-report-table{width:100%;border-collapse:collapse;table-layout:auto}.print-report-table th,.print-report-table td{border:1px solid #cfd6df;padding:5px 6px;vertical-align:top;overflow-wrap:anywhere}.print-report-table th{background:#2563eb;color:#fff;text-align:left;white-space:normal}.print-report-table thead{display:table-header-group}.print-report-table tr{display:table-row!important;break-inside:avoid}.print-report-table th,.print-report-table td{display:table-cell!important}footer{margin-top:10px;color:#666;text-align:right;font-size:8px}@page{size:${orientation};margin:10mm}@media print{body{padding:0}.print-toolbar{display:none!important}}`;
-  return { content, styles };
+.tiny-pos-print-frame-content{padding:4mm;font-size:10px}
+.print-report-header{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:8px;border-bottom:2px solid #111}
+.print-report-header h1{margin:0 0 3px;font-size:20px}.print-report-header p{margin:0;color:#555;text-align:right}
+.print-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin:9px 0}
+.print-summary div{border:1px solid #cfd6df;padding:6px;display:grid;gap:2px;break-inside:avoid}.print-summary span{color:#555;font-size:9px}.print-summary strong{font-size:11px}
+.print-table-scroll{overflow:visible}.print-report-table{width:100%;border-collapse:collapse;table-layout:auto}
+.print-report-table th,.print-report-table td{border:1px solid #cfd6df;padding:4px 5px;vertical-align:top;overflow-wrap:anywhere;word-break:normal}
+.print-report-table th{background:#2563eb!important;color:#fff!important;text-align:left;white-space:normal}.print-report-table thead{display:table-header-group}.print-report-table tr{display:table-row!important;break-inside:avoid}.print-report-table th,.print-report-table td{display:table-cell!important}`;
+  return { content, styles, page: `A4 ${orientation}` };
 }
 
 export function printListDocument(options) {
-  const { title, orientation = "landscape" } = options;
-  const { content, styles } = reportDocumentHtml(options);
-  const printWindow = openPrintableWindow(title);
-
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${escapeHtml(title)}</title>
-<style>${styles}</style>
-</head>
-<body>
-<div class="print-toolbar"><button type="button" onclick="window.print()">Print</button></div>
-${content}
-<script>
-window.addEventListener('load',function(){
-  setTimeout(function(){try{window.focus();window.print()}catch(e){}},120);
-});
-<\/script>
-</body>
-</html>`);
-    printWindow.document.close();
-    return;
-  }
-
-  currentWindowPrint(content, "tiny-pos-list-print-root", styles.replace(`@page{size:${orientation};margin:10mm}`, ""));
+  const { title } = options;
+  const { content, styles, page } = reportDocumentHtml(options);
+  printInPlace({ title, html: content, styles, page });
 }
 
 export function exportListExcel({
@@ -241,33 +287,21 @@ export function printHtmlDocument({
   html = "",
   styles = "",
   page = "auto",
-  fallbackClassName = "tiny-pos-html-print-root"
+  includeAppStyles = false
 }) {
-  const documentStyles = `
-*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#111;font-family:"Noto Sans Khmer",Arial,sans-serif}.print-toolbar{position:sticky;top:0;z-index:100;display:flex;justify-content:flex-end;padding:8px;background:#fff;border-bottom:1px solid #ddd}.print-toolbar button{min-height:42px;border:0;border-radius:10px;padding:0 18px;background:#dc2626;color:#fff;font:700 15px Arial,sans-serif}${styles}
-@page{size:${page};margin:6mm}
-@media print{html,body{width:100%;overflow:visible!important}.print-toolbar{display:none!important}}`;
-  const printWindow = openPrintableWindow(title);
+  return printInPlace({ title, html, styles, page, includeAppStyles });
+}
 
-  if (printWindow) {
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${escapeHtml(title)}</title>
-<style>${documentStyles}</style>
-</head>
-<body>
-<div class="print-toolbar"><button type="button" onclick="window.print()">Print</button></div>
-${html}
-<script>window.addEventListener('load',function(){setTimeout(function(){try{window.focus();window.print()}catch(e){}},120)});<\/script>
-</body>
-</html>`);
-    printWindow.document.close();
-    return;
-  }
-
-  currentWindowPrint(html, fallbackClassName, documentStyles);
+export function printElementDocument({
+  title = "Tiny POS",
+  element,
+  selector,
+  styles = "",
+  page = "auto",
+  includeAppStyles = true
+}) {
+  const target = element || (selector ? document.querySelector(selector) : null);
+  if (!target) return false;
+  const html = target.outerHTML || target.innerHTML || "";
+  return printInPlace({ title, html, styles, page, includeAppStyles });
 }

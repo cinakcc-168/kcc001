@@ -1,3 +1,5 @@
+import { printHtmlDocument } from "./listDocuments";
+
 function padDatePart(value) {
   return String(value).padStart(2, "0");
 }
@@ -274,12 +276,6 @@ export function printStaffReport({
   rows,
   orientation = "landscape"
 }) {
-  document.getElementById("tiny-pos-print-root")?.remove();
-
-  const root = document.createElement("section");
-  root.id = "tiny-pos-print-root";
-  root.className = `tiny-pos-print-root print-${orientation}${columns.length > 18 ? " print-many-columns" : ""}`;
-
   const summaryHtml = summary.length
     ? `<section class="print-summary">${summary.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`).join("")}</section>`
     : "";
@@ -288,26 +284,34 @@ export function printStaffReport({
     ? rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeHtml(cellValue(column, row))}</td>`).join("")}</tr>`).join("")
     : `<tr><td colspan="${columns.length}">No records in the selected period.</td></tr>`;
 
-  root.innerHTML = `
-    <header class="print-report-header">
-      <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(subtitle)}</p>
-    </header>
-    ${summaryHtml}
-    <table class="print-report-table">
-      <thead><tr>${head}</tr></thead>
-      <tbody>${body}</tbody>
-    </table>
-    <footer>Printed ${escapeHtml(new Date().toLocaleString())}</footer>
-  `;
-
-  document.body.appendChild(root);
-  void root.offsetHeight;
-
-  const cleanup = () => root.remove();
-  window.addEventListener("afterprint", cleanup, { once: true });
-  window.setTimeout(cleanup, 300000);
-  window.print();
+  printHtmlDocument({
+    title,
+    page: `A4 ${orientation}`,
+    html: `
+      <section class="tiny-pos-staff-print-document">
+        <header class="print-report-header">
+          <h1>${escapeHtml(title)}</h1>
+          <p>${escapeHtml(subtitle)}</p>
+        </header>
+        ${summaryHtml}
+        <table class="print-report-table">
+          <thead><tr>${head}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </section>`,
+    styles: `
+      .tiny-pos-print-frame-content{padding:3mm;font-size:9px}
+      .print-report-header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;border-bottom:2px solid #111;padding-bottom:8px}
+      .print-report-header h1{margin:0;font-size:20px}.print-report-header p{margin:0;color:#555;text-align:right}
+      .print-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:9px 0}
+      .print-summary>div{padding:6px 8px;border:1px solid #bbb;display:grid;gap:2px;break-inside:avoid}
+      .print-summary span{font-size:8px;color:#555;text-transform:uppercase}.print-summary strong{font-size:11px}
+      .print-report-table{width:100%;border-collapse:collapse;table-layout:auto}
+      .print-report-table th,.print-report-table td{padding:4px 5px;border:1px solid #888;text-align:left;vertical-align:top;font-size:8px;overflow-wrap:anywhere}
+      .print-report-table th{background:#eaf2f8!important;font-weight:800}.print-report-table thead{display:table-header-group}.print-report-table tr{break-inside:avoid}
+      ${columns.length > 18 ? '.print-report-table{table-layout:fixed}.print-report-table th,.print-report-table td{padding:2px;font-size:6px;text-align:center}.print-summary{grid-template-columns:repeat(2,minmax(0,1fr))}' : ''}
+    `
+  });
 }
 
 function columnWidth(column, rows) {

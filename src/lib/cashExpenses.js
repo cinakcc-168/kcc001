@@ -1,10 +1,10 @@
 export function defaultCashRange() {
-  const today = new Date();
-  const first = new Date(today.getFullYear(), today.getMonth(), 1);
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   return {
-    from: first.toISOString().slice(0, 10),
-    to: today.toISOString().slice(0, 10),
+    from: today,
+    to: today,
     branchId: "",
     allBranches: false
   };
