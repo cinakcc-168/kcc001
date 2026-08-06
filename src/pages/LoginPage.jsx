@@ -13,7 +13,7 @@ import { useLanguage } from "../context/LanguageContext";
 
 export default function LoginPage() {
   const { session, signIn, error } = useAuth();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +56,8 @@ export default function LoginPage() {
           <p className="login-secure-eyebrow">{t("SECURE STAFF LOGIN")}</p>
           <h1>{t("Welcome back")}</h1>
           <p className="login-secure-subtitle">
-            {t("Sign in to continue to")} <strong data-i18n-skip>Tiny POS</strong>.
+            {language === "km" ? "បញ្ចូលឈ្មោះដើម្បីបន្ត" : "Sign in to continue to"}{" "}
+            <strong data-i18n-skip>Tiny POS</strong>.
           </p>
         </header>
 
@@ -69,7 +70,6 @@ export default function LoginPage() {
             )}
 
             <label className="login-secure-field">
-              <span>{t("Email Address")}</span>
               <div>
                 <Mail size={21} aria-hidden="true" />
                 <input
@@ -82,13 +82,13 @@ export default function LoginPage() {
                   autoCapitalize="none"
                   spellCheck="false"
                   placeholder="Tiny@example.com"
+                  aria-label={t("Email")}
                   autoFocus
                 />
               </div>
             </label>
 
             <label className="login-secure-field">
-              <span>{t("Password")}</span>
               <div>
                 <LockKeyhole size={21} aria-hidden="true" />
                 <input
@@ -98,6 +98,7 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
+                  aria-label={t("Password")}
                 />
                 <button
                   type="button"

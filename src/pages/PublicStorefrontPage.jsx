@@ -13,7 +13,6 @@ import {
   Search,
   ShoppingBag,
   Store,
-  Truck,
   X
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -55,9 +54,16 @@ function initialOrder(store = null) {
 }
 
 function unitFor(product, unitId) {
-  return (product.units || []).find((unit) => unit.id === unitId)
+  return (product.units || []).find((unit) => String(unit.id) === String(unitId))
     || (product.units || [])[0]
     || null;
+}
+
+function publicUnitName(unit) {
+  // The public selector must show the real selling-unit name (Box, Can, pcs).
+  // Some older records stored the product name inside short_name, so using
+  // short_name first can display "Gangberg" instead of "Box".
+  return String(unit?.name || unit?.short_name || "").trim();
 }
 
 function recentOrdersKey(slug) {
@@ -427,10 +433,6 @@ export default function PublicStorefrontPage() {
           <p className="eyebrow">{label("ORDER ONLINE", "បញ្ជាទិញតាមអនឡាញ")}</p>
           <h1>{data.store.title}</h1>
           <p>{data.store.description || label("Choose products and send your order to the shop.", "ជ្រើសរើសផលិតផល ហើយផ្ញើការបញ្ជាទិញទៅហាង។")}</p>
-          <div className="public-store-meta">
-            {data.store.allow_pickup && <span><Store size={16} />{label("Branch pickup", "មកទទួលនៅសាខា")}</span>}
-            {data.store.allow_delivery && <span><Truck size={16} />{label("Delivery available", "មានសេវាដឹកជញ្ជូន")}</span>}
-          </div>
         </div>
 
         {banners.length > 1 && (
@@ -503,7 +505,7 @@ export default function PublicStorefrontPage() {
                       onChange={(event) => setUnitChoices((current) => ({ ...current, [product.id]: event.target.value }))}
                       aria-label={label("Selling unit", "ឯកតាលក់")}
                     >
-                      {(product.units || []).map((unit) => <option value={unit.id} key={unit.id}>{unit.short_name || unit.name}</option>)}
+                      {(product.units || []).map((unit) => <option value={unit.id} key={unit.id}>{publicUnitName(unit)}</option>)}
                     </select>
                   </div>
                   <button type="button" onClick={() => addProduct(product)} disabled={soldOut}><Plus size={18} />{label("Add to Cart", "បន្ថែមទៅកន្ត្រក")}</button>
@@ -574,14 +576,14 @@ export default function PublicStorefrontPage() {
         <div className="public-checkout-backdrop">
           <form className="public-checkout" onSubmit={submit}>
             <div className="modal-head">
-              <div><p className="eyebrow">{label("CUSTOMER ORDER", "ការបញ្ជាទិញអតិថិជន")}</p><h2>{label("Review and submit", "ពិនិត្យ និងផ្ញើ")}</h2></div>
+              <div><p className="eyebrow">{label("CUSTOMER ORDER", "ការបញ្ជាទិញអតិថិជន")}</p><h2>{label("Cart", "កន្ត្រក")}</h2></div>
               <button type="button" className="icon-button" onClick={() => setCheckoutOpen(false)}><X size={21} /></button>
             </div>
 
             <div className="public-cart-lines">
               {cart.map((item, index) => (
                 <div key={`${item.product.id}-${item.unit.id}`}>
-                  <div><strong>{language === "km" && item.product.name_km ? item.product.name_km : item.product.name}</strong><small>{item.unit.name}</small></div>
+                  <div><strong>{language === "km" && item.product.name_km ? item.product.name_km : item.product.name}</strong><small>{publicUnitName(item.unit)}</small></div>
                   <div className="public-qty">
                     <button type="button" onClick={() => updateQuantity(index, item.quantity - 1)}><Minus size={15} /></button>
                     <input type="number" min="0" max={item.unit.available_quantity} value={item.quantity} onChange={(event) => updateQuantity(index, event.target.value)} />
