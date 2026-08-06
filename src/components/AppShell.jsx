@@ -340,11 +340,11 @@ export default function AppShell() {
     <div className={`shell ${collapsed ? "collapsed" : ""}`}>
       <aside className={open ? "side open" : "side"}>
         <div className="brand">
-          {shop?.shop_logo_url ? (
-            <img className="side-shop-logo" src={shop.shop_logo_url} alt="" />
-          ) : (
-            <b>T</b>
-          )}
+          <img
+            className="side-app-logo"
+            src="/icons/tiny-pos-brand.png"
+            alt="Tiny POS"
+          />
           <span className="side-label" data-i18n-skip>{shop?.shop_name || "Tiny POS"}</span>
           <button
             type="button"
