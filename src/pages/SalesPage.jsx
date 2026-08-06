@@ -138,8 +138,34 @@ export default function SalesPage() {
     typeof navigator === "undefined" ? true : navigator.onLine
   );
   const [offlineBundle, setOfflineBundle] = useState(null);
+  const layout2RowsStorageKey = `tiny-pos-layout2-product-rows:${session?.user?.id || "default"}`;
+  const [layout2View, setLayout2View] = useState(() => {
+    if (typeof window === "undefined") return { storageKey: layout2RowsStorageKey, rows: 2 };
+    const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
+    return {
+      storageKey: layout2RowsStorageKey,
+      rows: [2, 3, 4].includes(stored) ? stored : 2
+    };
+  });
+  const layout2ProductRows = layout2View.storageKey === layout2RowsStorageKey
+    ? layout2View.rows
+    : 2;
   const draftReadyRef = useRef(false);
   const skipDraftSaveRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
+    setLayout2View({
+      storageKey: layout2RowsStorageKey,
+      rows: [2, 3, 4].includes(stored) ? stored : 2
+    });
+  }, [layout2RowsStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || layout2View.storageKey !== layout2RowsStorageKey) return;
+    window.localStorage.setItem(layout2RowsStorageKey, String(layout2View.rows));
+  }, [layout2RowsStorageKey, layout2View]);
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;
@@ -634,11 +660,11 @@ export default function SalesPage() {
     currency
   );
   const saleLayoutMode = preferences?.new_sale_layout === "layout2" ? "layout2" : "layout1";
-  const saleProductCardScale = Math.min(1.45, Math.max(0.8, Number(preferences?.sale_product_card_scale || 1)));
   const saleShowProductCode = preferences?.sale_show_product_code !== false;
   const saleStockDisplay = preferences?.sale_stock_display === "status" ? "status" : "exact";
   const saleWorkspaceStyle = {
-    "--sale-card-scale": saleProductCardScale
+    "--layout2-product-rows": layout2ProductRows,
+    "--layout2-products-height": `${96 + layout2ProductRows * 186}px`
   };
 
   function productStockLabel(product) {
@@ -1586,6 +1612,18 @@ export default function SalesPage() {
                   <span><strong>{visibleProducts.length}</strong> products available</span>
                   <div>
                     <small>Tap a product to add one unit.</small>
+                    <label className="layout-two-row-control" title="Choose how many product rows are visible before scrolling">
+                      <span>Default view</span>
+                      <select
+                        value={layout2ProductRows}
+                        onChange={(event) => setLayout2View({ storageKey: layout2RowsStorageKey, rows: Number(event.target.value) })}
+                        aria-label="Layout 2 product rows"
+                      >
+                        <option value={2}>2 rows</option>
+                        <option value={3}>3 rows</option>
+                        <option value={4}>4 rows</option>
+                      </select>
+                    </label>
                     <button
                       type="button"
                       className="icon-button refresh-button"

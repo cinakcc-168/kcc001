@@ -35,6 +35,7 @@ const emptyShop = {
 const emptyPersonal = {
   language: "en",
   theme_mode: "light",
+  accent_color: "#2563eb",
   compact_mode: false,
   scanner_sound: true,
   scanner_vibration: true,
@@ -44,11 +45,6 @@ const emptyPersonal = {
   sale_stock_display: "exact"
 };
 
-function clampProductScale(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return 1;
-  return Math.min(1.45, Math.max(0.8, number));
-}
 
 function NewSaleLayoutPreview({ active, title, description, layout }) {
   return (
@@ -131,10 +127,8 @@ export default function SettingsPage() {
         ...emptyPersonal,
         ...preferences,
         theme_mode: preferences.theme || preferences.theme_mode || "system",
+        accent_color: preferences.accent_color || "#2563eb",
         scanner_sound: preferences.sound_enabled ?? preferences.scanner_sound ?? true,
-        sale_product_card_scale: clampProductScale(
-          preferences.sale_product_card_scale ?? 1
-        ),
         new_sale_layout: preferences.new_sale_layout || "layout1",
         sale_show_product_code: preferences.sale_show_product_code !== false,
         sale_stock_display: preferences.sale_stock_display || "exact"
@@ -178,7 +172,7 @@ export default function SettingsPage() {
     try {
       await savePreferences({
         ...personal,
-        sale_product_card_scale: clampProductScale(personal.sale_product_card_scale)
+        sale_product_card_scale: 1
       });
       setMessage("Your preferences were updated.");
     } catch (error) {
@@ -349,7 +343,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="form-grid two">
+              <div className="form-grid three preference-appearance-grid">
                 <label>
                   <span>Language</span>
                   <select value={personal.language || "en"} onChange={(event) => updatePersonal("language", event.target.value)}>
@@ -363,6 +357,18 @@ export default function SettingsPage() {
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                   </select>
+                </label>
+                <label className="preference-accent-field">
+                  <span>Color</span>
+                  <div className="preference-color-control">
+                    <input
+                      type="color"
+                      value={personal.accent_color || "#2563eb"}
+                      onChange={(event) => updatePersonal("accent_color", event.target.value)}
+                      aria-label="Choose Tiny POS color"
+                    />
+                    <strong>{String(personal.accent_color || "#2563eb").toUpperCase()}</strong>
+                  </div>
                 </label>
               </div>
 
@@ -425,27 +431,11 @@ export default function SettingsPage() {
               </div>
 
               <div className="new-sale-preference-grid">
-                <label className="settings-wide-field">
-                  <span>Product card size</span>
-                  <div className="preference-range-row">
-                    <input
-                      type="range"
-                      min="0.8"
-                      max="1.45"
-                      step="0.05"
-                      value={clampProductScale(personal.sale_product_card_scale)}
-                      onChange={(event) => updatePersonal("sale_product_card_scale", clampProductScale(event.target.value))}
-                    />
-                    <strong>{Math.round(clampProductScale(personal.sale_product_card_scale) * 100)}%</strong>
-                  </div>
-                  <small className="field-help">Default is 100%. Increase the size when products feel too small, or reduce it to fit more products.</small>
-                </label>
-
                 <label>
                   <span>Product code display</span>
                   <select value={personal.sale_show_product_code !== false ? "show" : "hide"} onChange={(event) => updatePersonal("sale_show_product_code", event.target.value === "show")}>
-                    <option value="show">Show code / barcode</option>
-                    <option value="hide">Hide code / barcode</option>
+                    <option value="show">Show code / barcode on all devices</option>
+                    <option value="hide">Hide code / barcode on all devices</option>
                   </select>
                 </label>
 
