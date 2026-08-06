@@ -158,8 +158,7 @@ async function submitOrder(service, request, slug) {
         bank_slip_url: slipUrl,
         bank_slip_public_id: slipPublicId,
         bank_slip_uploaded_at: new Date().toISOString(),
-        bank_reference: bankReference || null,
-        payment_status: "pending_confirmation"
+        bank_reference: bankReference || null
       })
       .eq("id", data.order_id);
     if (updateError) throw updateError;
