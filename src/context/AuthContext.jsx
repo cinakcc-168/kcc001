@@ -330,11 +330,6 @@ export function AuthProvider({ children }) {
       throw new Error("Your POS session is not ready.");
     }
 
-    const scale = Math.min(
-      1.45,
-      Math.max(0.8, Number(values.sale_product_card_scale || 1))
-    );
-
     const payload = {
       language: values.language || preferences?.language || "en",
       theme: values.theme || values.theme_mode || preferences?.theme || "system",
@@ -343,7 +338,7 @@ export function AuthProvider({ children }) {
       sound_enabled: values.sound_enabled ?? values.scanner_sound ?? preferences?.sound_enabled ?? true,
       scanner_vibration: values.scanner_vibration ?? preferences?.scanner_vibration ?? true,
       new_sale_layout: values.new_sale_layout === "layout2" ? "layout2" : "layout1",
-      sale_product_card_scale: scale,
+      sale_product_card_scale: 1,
       sale_show_product_code: values.sale_show_product_code !== false,
       sale_stock_display: values.sale_stock_display === "status" ? "status" : "exact"
     };
