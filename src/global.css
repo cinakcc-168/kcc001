@@ -4551,3 +4551,336 @@ body:has(.login-secure),
   .login-secure-submit{min-height:48px}
   .login-secure-footer{min-height:64px;padding:10px 12px}
 }
+
+/* ========================================================================== */
+/* Step 46.4.17 — mobile dialogs, in-place printing and responsive workspaces */
+/* ========================================================================== */
+
+/* Every action keeps its icon and label visually centred. */
+.primary-button,
+.secondary-button,
+.danger-button,
+.compact-button,
+.table-button,
+.list-view-mode button,
+.po-tabs button,
+.online-tabs button,
+button[class*="button"]{
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+.primary-button svg,
+.secondary-button svg,
+.danger-button svg,
+.compact-button svg,
+.table-button svg,
+.list-view-mode button svg,
+button[class*="button"] svg{flex:0 0 auto}
+
+/* Shared full-height workspace dialogs. The header and actions remain visible,
+   while only the content area scrolls. */
+.online-admin-modal,
+.stock-count-dialog,
+.supplier-form-dialog{
+  display:flex;
+  flex-direction:column;
+  width:min(1120px,calc(100vw - 32px))!important;
+  max-width:1120px;
+  max-height:calc(100dvh - 32px)!important;
+  overflow:hidden!important;
+}
+.online-admin-modal>.modal-header,
+.stock-count-dialog>.modal-header,
+.supplier-form-dialog>.modal-header{
+  flex:0 0 auto;
+  position:relative!important;
+  z-index:5;
+}
+.online-admin-modal-body,
+.stock-count-dialog-body,
+.supplier-form-dialog-body{
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.online-settings-form,
+.online-product-form,
+.supplier-form{min-width:0}
+.online-admin-modal-actions,
+.supplier-form .modal-actions{
+  position:sticky;
+  z-index:8;
+  bottom:-20px;
+  margin:18px -20px -20px!important;
+  padding:14px 20px max(14px,env(safe-area-inset-bottom))!important;
+  background:color-mix(in srgb,var(--surface) 96%,transparent);
+  backdrop-filter:blur(14px);
+  box-shadow:0 -8px 22px #0f172a12;
+}
+
+/* Online Store settings and product configuration. */
+.online-settings-form{display:grid;gap:18px}
+.online-settings-intro{display:grid;gap:4px}
+.online-settings-intro p{margin:0}
+.online-settings-section{
+  min-width:0;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface2);
+  display:grid;
+  gap:14px;
+}
+.online-settings-section>h3{margin:0}
+.online-settings-heading>div{min-width:0}
+.online-banner-duration{display:grid;gap:8px}
+.online-banner-duration>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.online-banner-editor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.online-banner-editor-grid article{min-width:0;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}
+.online-banner-editor-grid img{display:block;width:100%;aspect-ratio:16/7;object-fit:cover}
+.online-banner-editor-actions{display:flex;justify-content:center;gap:5px;padding:7px}
+.online-bank-qr-editor{display:grid!important;grid-template-columns:180px minmax(0,1fr)!important;gap:18px!important;align-items:center!important}
+.online-bank-qr-preview{width:180px;aspect-ratio:1;border:1px solid var(--border);border-radius:16px;display:grid;place-items:center;overflow:hidden;background:#fff}
+.online-bank-qr-preview img{width:100%;height:100%;object-fit:contain}
+.online-upload-button{position:relative;overflow:hidden;display:inline-flex!important;align-items:center;justify-content:center;text-align:center}
+.publish-store-toggle{
+  min-width:0;
+  display:grid!important;
+  grid-template-columns:26px minmax(0,1fr)!important;
+  align-items:start!important;
+  gap:12px!important;
+  padding:15px!important;
+  border:1px solid var(--border)!important;
+  border-radius:15px!important;
+  background:var(--surface2)!important;
+}
+.publish-store-toggle>input{
+  width:22px!important;
+  height:22px!important;
+  min-width:22px!important;
+  min-height:22px!important;
+  margin:1px 0 0!important;
+  padding:0!important;
+  accent-color:var(--accent);
+}
+.publish-store-toggle>span{min-width:0;display:grid;gap:4px}
+.publish-store-toggle strong,.publish-store-toggle small{min-width:0;overflow-wrap:anywhere}
+.publish-store-toggle small{color:var(--muted);font-weight:500;line-height:1.4}
+.online-product-form{display:grid;gap:18px}
+.online-product-preview{
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  gap:18px;
+  align-items:center;
+  padding:15px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface2);
+}
+.online-product-preview>img{width:150px;height:125px;object-fit:cover;border-radius:14px;background:var(--surface);border:1px solid var(--border)}
+.online-product-preview>div{min-width:0;display:grid;gap:5px}
+.online-product-preview p,.online-product-preview span{margin:0;overflow-wrap:anywhere}
+.online-product-preview strong{font-size:22px;overflow-wrap:anywhere}
+.online-product-toggle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.online-product-fields{min-width:0}
+
+/* Stock Count: a usable phone workspace in both horizontal Table and Cards. */
+.stock-count-print-only-header{display:none!important}
+.stock-count-workspace{display:grid;gap:14px;min-width:0}
+.stock-count-dialog-body{padding:14px!important}
+.stock-count-print-document{display:grid;gap:14px;min-width:0}
+.stock-count-progress-panel{display:grid!important;grid-template-columns:auto minmax(80px,1fr) auto!important;gap:12px!important;align-items:center!important}
+.stock-count-progress-panel>div:first-child{display:grid;gap:2px}
+.stock-count-metrics{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px!important}
+.stock-count-metrics article{min-width:0}
+.stock-count-toolbar{display:grid!important;grid-template-columns:minmax(260px,1fr) 200px 200px!important;gap:10px!important}
+.stock-count-list-controls{width:100%;min-width:0}
+.stock-count-list-controls .list-view-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.stock-count-list-controls .list-view-mode button{min-width:0}
+.stock-count-table-panel{min-width:0!important;max-width:100%!important;overflow:hidden!important}
+.stock-count-table-wrap{
+  display:block!important;
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.stock-count-table{
+  display:table!important;
+  width:max-content!important;
+  min-width:1020px!important;
+  table-layout:auto!important;
+}
+.stock-count-table thead{display:table-header-group!important}
+.stock-count-table tbody{display:table-row-group!important}
+.stock-count-table tr{display:table-row!important}
+.stock-count-table th,.stock-count-table td{display:table-cell!important;white-space:normal!important;vertical-align:middle!important}
+.stock-count-table td:before{display:none!important;content:none!important}
+.stock-count-input,.stock-count-note-input{font-size:16px!important;min-height:46px!important}
+.stock-count-card-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))!important;gap:12px!important}
+.stock-count-item-card{min-width:0;gap:13px!important}
+.stock-count-card-header{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important}
+.stock-count-card-header>div{min-width:0;display:grid;gap:4px}
+.stock-count-card-header strong,.stock-count-card-header small{overflow-wrap:anywhere}
+.stock-count-card-meta,.stock-count-card-results{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+.stock-count-card-meta>div,.stock-count-card-results>div{min-width:0;padding:10px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);display:grid!important;grid-template-columns:1fr!important;gap:4px!important}
+.stock-count-card-meta span,.stock-count-card-results span{font-size:12px;color:var(--muted)}
+.stock-count-card-meta strong,.stock-count-card-results strong{text-align:left!important;overflow-wrap:anywhere}
+
+/* Payroll has separate real cards on phones rather than a compressed table. */
+.payroll-page{max-width:100%;min-width:0;overflow:hidden}
+.payroll-page>*{min-width:0}
+.payroll-mobile-card-list{display:none}
+.payroll-desktop-table{display:block}
+.payroll-mobile-card{
+  min-width:0;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  display:grid;
+  gap:12px;
+}
+.payroll-mobile-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.payroll-mobile-card>header>div{min-width:0;display:grid;gap:3px}
+.payroll-mobile-card>header strong,.payroll-mobile-card>header small{overflow-wrap:anywhere}
+.payroll-mobile-card>header small{color:var(--muted)}
+.payroll-mobile-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.payroll-card-field{min-width:0;padding:10px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);display:grid;gap:4px}
+.payroll-card-field>span{color:var(--muted);font-size:12px}
+.payroll-card-field>strong,.payroll-card-field>div{min-width:0;overflow-wrap:anywhere}
+.payroll-mobile-card>footer{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--border)}
+
+/* Supplier form remains inside the Tiny POS modal and uses phone-sized inputs. */
+.supplier-form-dialog{max-width:900px}
+.supplier-form-dialog-body input,
+.supplier-form-dialog-body select,
+.supplier-form-dialog-body textarea{font-size:16px}
+
+@media(max-width:760px){
+  .modal-layer{padding:0!important;place-items:stretch!important}
+  .online-admin-modal,
+  .stock-count-dialog,
+  .supplier-form-dialog{
+    width:100%!important;
+    max-width:none!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    border:0!important;
+    border-radius:0!important;
+  }
+  .online-admin-modal>.modal-header,
+  .stock-count-dialog>.modal-header,
+  .supplier-form-dialog>.modal-header{
+    min-height:66px!important;
+    padding:14px 16px!important;
+    align-items:center!important;
+  }
+  .online-admin-modal>.modal-header h2,
+  .stock-count-dialog>.modal-header h2,
+  .supplier-form-dialog>.modal-header h2{
+    min-width:0;
+    max-width:calc(100% - 50px);
+    font-size:clamp(21px,6.8vw,28px)!important;
+    line-height:1.18!important;
+    overflow-wrap:anywhere;
+  }
+  .online-admin-modal-body,
+  .stock-count-dialog-body,
+  .supplier-form-dialog-body{
+    padding:14px!important;
+    padding-bottom:max(14px,env(safe-area-inset-bottom))!important;
+  }
+  .online-admin-modal-actions,
+  .supplier-form .modal-actions{
+    bottom:-14px;
+    margin:16px -14px -14px!important;
+    padding:12px 14px max(12px,env(safe-area-inset-bottom))!important;
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .online-admin-modal-actions button,
+  .supplier-form .modal-actions button{width:100%;min-width:0;min-height:48px}
+
+  .online-settings-form .form-grid.two,
+  .online-product-fields,
+  .supplier-form .form-grid.two{grid-template-columns:1fr!important}
+  .online-settings-form .full,
+  .online-product-fields .full,
+  .supplier-wide-field{grid-column:1!important}
+  .online-settings-section{padding:13px}
+  .online-settings-heading{display:grid!important;grid-template-columns:1fr!important}
+  .online-settings-heading .online-upload-button{width:100%}
+  .online-banner-editor-grid{grid-template-columns:1fr 1fr}
+  .online-bank-qr-editor{grid-template-columns:1fr!important;text-align:center}
+  .online-bank-qr-preview{width:min(100%,260px);margin:auto}
+  .online-bank-qr-editor .button-row{justify-content:center}
+  .online-product-preview{grid-template-columns:96px minmax(0,1fr);gap:13px;padding:12px}
+  .online-product-preview>img{width:96px;height:96px}
+  .online-product-preview strong{font-size:19px}
+  .online-product-toggle-grid{grid-template-columns:1fr}
+  .publish-store-toggle{grid-template-columns:24px minmax(0,1fr)!important;padding:13px!important}
+
+  .stock-count-dialog-body{overflow-x:hidden!important}
+  .stock-count-workspace-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:0!important}
+  .stock-count-workspace-actions button{min-height:50px!important;padding:8px 9px!important;line-height:1.2}
+  .stock-count-progress-panel{grid-template-columns:1fr auto!important}
+  .stock-count-progress-panel>.stock-count-progress-track{grid-column:1/-1;grid-row:2}
+  .stock-count-progress-panel>b{grid-column:2;grid-row:1}
+  .stock-count-metrics{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .stock-count-toolbar{grid-template-columns:1fr!important;padding:11px!important}
+  .stock-count-toolbar input,.stock-count-toolbar select{font-size:16px!important}
+  .stock-count-list-controls{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;padding:10px!important}
+  .stock-count-list-controls .list-view-mode{grid-column:1/-1!important;width:100%!important}
+  .stock-count-list-controls .list-view-mode button{display:flex!important;min-height:46px!important}
+  .stock-count-list-controls .list-row-size{grid-column:1!important;width:100%!important}
+  .stock-count-list-controls .list-document-actions{grid-column:2!important;width:100%!important;display:flex!important;justify-content:flex-end!important}
+  .stock-count-list-controls .list-pagination{grid-column:1/-1!important}
+  .stock-count-table-panel{padding:0!important}
+  .stock-count-table-wrap{border-radius:12px!important}
+  .stock-count-table{min-width:980px!important}
+  .stock-count-card-grid{grid-template-columns:1fr!important;padding:0!important}
+  .stock-count-item-card{padding:13px!important}
+
+  .payroll-page .page-heading{align-items:stretch!important}
+  .payroll-page .heading-actions{display:grid!important;grid-template-columns:1fr 1fr!important;width:100%}
+  .payroll-page .heading-actions button{width:100%;min-width:0}
+  .payroll-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+  .payroll-filters{grid-template-columns:1fr!important}
+  .payroll-page .page-tabs,.payroll-tabs{display:flex!important;max-width:100%;overflow-x:auto;flex-wrap:nowrap!important;-webkit-overflow-scrolling:touch}
+  .payroll-page .page-tabs button,.payroll-tabs button{flex:0 0 auto;white-space:nowrap}
+  .payroll-mobile-card-list{display:grid!important;grid-template-columns:1fr;gap:11px}
+  .payroll-desktop-table{display:none!important}
+  .payroll-run-list article{align-items:flex-start!important;flex-direction:column!important}
+  .payroll-run-list article>button,.payroll-run-list article>.secondary-button{width:100%}
+  .payroll-page .panel{min-width:0;overflow:hidden}
+
+  .supplier-form-dialog-body .supplier-code-banner{align-items:flex-start;gap:8px;flex-direction:column}
+  .supplier-form-dialog-body label{min-width:0}
+}
+
+@media(max-width:460px){
+  .online-banner-editor-grid{grid-template-columns:1fr}
+  .online-product-preview{grid-template-columns:78px minmax(0,1fr)}
+  .online-product-preview>img{width:78px;height:78px}
+  .stock-count-workspace-actions{grid-template-columns:1fr!important}
+  .stock-count-metrics{grid-template-columns:1fr!important}
+  .stock-count-list-controls{grid-template-columns:1fr!important}
+  .stock-count-list-controls .list-row-size,
+  .stock-count-list-controls .list-document-actions{grid-column:1!important}
+  .stock-count-list-controls .list-document-actions{justify-content:stretch!important}
+  .stock-count-list-controls .list-document-actions button{flex:1}
+  .stock-count-card-meta,.stock-count-card-results{grid-template-columns:1fr!important}
+  .payroll-metric-grid,.payroll-mobile-card-grid{grid-template-columns:1fr!important}
+  .payroll-page .heading-actions{grid-template-columns:1fr!important}
+}
+
+@media print{
+  .stock-count-print-only-header{display:flex!important}
+}
