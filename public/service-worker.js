@@ -1,4 +1,4 @@
-const CACHE_VERSION = "tiny-pos-v45-shell-1";
+const CACHE_VERSION = "tiny-pos-step-46-4-22-icons";
 const SHELL_CACHE = `${CACHE_VERSION}-app`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
@@ -9,7 +9,8 @@ const APP_SHELL = [
   "/icons/tiny-pos-192.png",
   "/icons/tiny-pos-512.png",
   "/icons/tiny-pos-maskable-512.png",
-  "/icons/apple-touch-icon.png"
+  "/icons/apple-touch-icon.png",
+  "/icons/tiny-pos-brand.png"
 ];
 
 self.addEventListener("install", (event) => {
