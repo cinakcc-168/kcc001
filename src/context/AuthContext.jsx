@@ -6,7 +6,11 @@ import {
   useState
 } from "react";
 import { getSupabase } from "../lib/supabase";
-import { resolveTelegramLinkedSession } from "../lib/telegramSession";
+import {
+  clearTelegramExplicitLogout,
+  markTelegramExplicitLogout,
+  resolveTelegramLinkedSession
+} from "../lib/telegramSession";
 import {
   accessAllows,
   accessAllowsAny,
@@ -307,6 +311,7 @@ export function AuthProvider({ children }) {
 
     if (signInError) throw signInError;
 
+    clearTelegramExplicitLogout();
     setSession(data.session);
     await loadAccount(supabase, data.session, true);
     return data;
@@ -314,6 +319,7 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     if (!supabase) return;
+    markTelegramExplicitLogout();
     clearOfflineAuthSnapshot(session?.user?.id);
     const { error: signOutError } = await supabase.auth.signOut();
     if (signOutError) throw signOutError;
