@@ -14,12 +14,12 @@ import {
 import { useAuth } from "../context/AuthContext";
 import Modal from "../components/Modal";
 import ProductForm from "../components/ProductForm";
+import MediaImage from "../components/MediaImage";
 import CategoryForm from "../components/CategoryForm";
 import ProductUnitsModal from "../components/ProductUnitsModal";
 import ListViewControls, { defaultListView } from "../components/ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import {
-  cloudinaryThumb,
   createCategory,
   createProduct,
   loadCatalog,
@@ -289,7 +289,7 @@ export default function ProductsPage() {
                 const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
                 return (
                   <article className="list-record-card product-directory-card" key={product.id}>
-                    <header><div className="product-cell"><div className="product-thumb">{product.image?.secure_url ? <img src={cloudinaryThumb(product.image.secure_url, 96, 96)} alt="" /> : <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />}</div><div><strong>{product.name}</strong>{product.name_km && <small>{product.name_km}</small>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
+                    <header><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div><strong>{product.name}</strong>{product.name_km && <small>{product.name_km}</small>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
                     <div className="list-card-fields">
                       <div><span>Barcode</span><strong>{product.barcode || "—"}</strong></div>
                       <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
@@ -310,7 +310,7 @@ export default function ProductsPage() {
                 <tbody>{pagedProducts.map((product) => {
                   const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
                   return <tr key={product.id}>
-                    <td data-label="Product"><div className="product-cell"><div className="product-thumb">{product.image?.secure_url ? <img src={cloudinaryThumb(product.image.secure_url, 96, 96)} alt="" /> : <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />}</div><div><strong>{product.name}</strong>{product.name_km && <span>{product.name_km}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div></td>
+                    <td data-label="Product"><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div><strong>{product.name}</strong>{product.name_km && <span>{product.name_km}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div></td>
                     <td data-label="Barcode">{product.barcode || "—"}</td>
                     <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
                     <td data-label="Price"><strong>{money(product.selling_price, product.currency)}</strong></td>

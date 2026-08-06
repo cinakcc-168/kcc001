@@ -17,12 +17,13 @@ import {
 import { useAuth } from "../context/AuthContext";
 import BarcodeScanner, { primeScannerFeedback } from "../components/BarcodeScanner";
 import Modal from "../components/Modal";
+import MediaImage from "../components/MediaImage";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import QuoteSaveModal from "../components/QuoteSaveModal";
 import ApprovalRequestModal from "../components/ApprovalRequestModal";
 import SaleCart, { SaleCartLinesPanel, SaleCheckoutPanel } from "../components/SaleCart";
-import { cloudinaryThumb, money, stockNumber } from "../lib/catalog";
+import { money, stockNumber } from "../lib/catalog";
 import {
   buildSaleCartItem,
   calculateSaleTotals,
@@ -1652,11 +1653,14 @@ export default function SalesPage() {
                           disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
                         >
                           <div className="sale-product-image">
-                            {product.image?.secure_url ? (
-                              <img src={cloudinaryThumb(product.image.secure_url, 240, 180)} alt="" />
-                            ) : (
-                              <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" className="sale-product-placeholder" />
-                            )}
+                            <MediaImage
+                            src={product.image}
+                            alt={product.name}
+                            width={360}
+                            height={220}
+                            className="sale-product-media"
+                            imgClassName={!product.image?.secure_url ? "sale-product-placeholder" : ""}
+                          />
                           </div>
                           <div className="sale-product-content">
                             <strong>{product.name}</strong>
@@ -1840,11 +1844,14 @@ export default function SalesPage() {
                         disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
                       >
                         <div className="sale-product-image">
-                          {product.image?.secure_url ? (
-                            <img src={cloudinaryThumb(product.image.secure_url, 240, 180)} alt="" />
-                          ) : (
-                            <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" className="sale-product-placeholder" />
-                          )}
+                          <MediaImage
+                            src={product.image}
+                            alt={product.name}
+                            width={360}
+                            height={220}
+                            className="sale-product-media"
+                            imgClassName={!product.image?.secure_url ? "sale-product-placeholder" : ""}
+                          />
                         </div>
                         <div className="sale-product-content">
                           <strong>{product.name}</strong>

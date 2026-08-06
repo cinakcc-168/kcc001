@@ -27,6 +27,8 @@ import AttendanceCorrectionModal from "../components/AttendanceCorrectionModal";
 import CommissionPlanModal from "../components/CommissionPlanModal";
 import CommissionPayoutModal from "../components/CommissionPayoutModal";
 import LeaveRequestModal from "../components/LeaveRequestModal";
+import MediaImage from "../components/MediaImage";
+import MediaPreviewModal from "../components/MediaPreviewModal";
 import ManualAttendanceModal from "../components/ManualAttendanceModal";
 import {
   attendanceCheckIn,
@@ -101,7 +103,7 @@ const leaveColumns = [
   { label: "Status", value: (row) => leaveStatusLabel(row.status) },
   { label: "Reviewed by", value: (row) => row.reviewer?.full_name || "—" },
   { label: "Review note", value: (row) => row.review_note || "" },
-  { label: "Picture", value: (row) => row.image_url || "" }
+  { label: "Picture", value: (row) => row.image_url ? "Attached" : "—" }
 ];
 
 const commissionColumns = [
@@ -179,6 +181,7 @@ export default function StaffOperationsPage() {
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [plan, setPlan] = useState(undefined);
   const [payout, setPayout] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState(null);
   const [pageSize, setPageSize] = useState(30);
   const [page, setPage] = useState(1);
 
@@ -638,7 +641,7 @@ export default function StaffOperationsPage() {
           <div className="staff-horizontal-scroll take-leave-table"><table><thead><tr><th>Requested</th><th>Staff</th><th>Branch</th><th>Dates</th><th>Type</th><th>Reason</th><th>Picture</th><th>Status</th><th>Reviewed by</th><th>Review note</th><th>Actions</th></tr></thead><tbody>
             {pagedRows.map((row) => {
               const own = row.user_id === profile.id;
-              return <tr key={row.id}><td>{staffDateTime(row.created_at)}</td><td><strong>{row.profiles?.full_name}</strong><small>{row.profiles?.role}</small></td><td>{row.branches?.name || "—"}</td><td><strong>{row.date_from}</strong><small>to {row.date_to}</small></td><td>{String(row.leave_type || "").replaceAll("_", " ")}</td><td className="leave-reason-cell">{row.reason}</td><td>{row.image_url ? <a className="leave-image-link" href={row.image_url} target="_blank" rel="noreferrer"><ImageIcon size={18} />View</a> : "—"}</td><td><span className={`status-pill leave-${row.status}`}>{leaveStatusLabel(row.status)}</span></td><td>{row.reviewer?.full_name || "—"}</td><td>{row.review_note || "—"}</td><td><div className="leave-row-actions">{canManageLeave && row.status === "pending" && <><button type="button" className="success-icon-button" disabled={busy === `leave-${row.id}`} onClick={() => reviewLeave(row, "approved")} title="Approve"><Check size={17} /></button><button type="button" className="danger-icon-button" disabled={busy === `leave-${row.id}`} onClick={() => reviewLeave(row, "rejected")} title="Reject"><X size={17} /></button></>}{own && row.status === "pending" && <button type="button" className="secondary-button compact-button" disabled={busy === `leave-${row.id}`} onClick={() => cancelLeave(row)}>Cancel</button>}</div></td></tr>;
+              return <tr key={row.id}><td>{staffDateTime(row.created_at)}</td><td><strong>{row.profiles?.full_name}</strong><small>{row.profiles?.role}</small></td><td>{row.branches?.name || "—"}</td><td><strong>{row.date_from}</strong><small>to {row.date_to}</small></td><td>{String(row.leave_type || "").replaceAll("_", " ")}</td><td className="leave-reason-cell">{row.reason}</td><td>{row.image_url ? <button type="button" className="leave-image-link" onClick={() => setPreviewMedia({ src: row.image_url, title: `${row.profiles?.full_name || "Staff"} · Leave attachment`, downloadName: `leave-${row.id}` })}><MediaImage src={row.image_url} alt="Leave attachment" width={90} height={70} /><span><ImageIcon size={16} />View</span></button> : "—"}</td><td><span className={`status-pill leave-${row.status}`}>{leaveStatusLabel(row.status)}</span></td><td>{row.reviewer?.full_name || "—"}</td><td>{row.review_note || "—"}</td><td><div className="leave-row-actions">{canManageLeave && row.status === "pending" && <><button type="button" className="success-icon-button" disabled={busy === `leave-${row.id}`} onClick={() => reviewLeave(row, "approved")} title="Approve"><Check size={17} /></button><button type="button" className="danger-icon-button" disabled={busy === `leave-${row.id}`} onClick={() => reviewLeave(row, "rejected")} title="Reject"><X size={17} /></button></>}{own && row.status === "pending" && <button type="button" className="secondary-button compact-button" disabled={busy === `leave-${row.id}`} onClick={() => cancelLeave(row)}>Cancel</button>}</div></td></tr>;
             })}
             {!pagedRows.length && <tr><td colSpan="11" className="empty-table">No leave requests in this period.</td></tr>}
           </tbody></table></div>
@@ -663,6 +666,13 @@ export default function StaffOperationsPage() {
       {correction && <AttendanceCorrectionModal session={correction} busy={busy === "correction"} onClose={() => setCorrection(null)} onSave={saveCorrection} />}
       <ManualAttendanceModal open={manualAttendance} staff={workspace.staff} branches={workspace.branches} busy={busy === "manual-attendance"} onClose={() => setManualAttendance(false)} onSave={saveManual} />
       <LeaveRequestModal open={leaveOpen} busy={busy === "leave"} onClose={() => setLeaveOpen(false)} onSave={saveLeave} />
+      <MediaPreviewModal
+        open={Boolean(previewMedia)}
+        src={previewMedia?.src}
+        title={previewMedia?.title || "Leave attachment"}
+        downloadName={previewMedia?.downloadName || "leave-attachment"}
+        onClose={() => setPreviewMedia(null)}
+      />
       {plan !== undefined && <CommissionPlanModal plan={plan} staff={workspace.staff} branches={workspace.branches} busy={busy === "plan"} onClose={() => setPlan(undefined)} onSave={savePlan} />}
       {payout && <CommissionPayoutModal staff={workspace.staff} branches={workspace.branches} busy={busy === "payout"} onClose={() => setPayout(false)} onSave={savePayout} />}
     </div>

@@ -17,6 +17,7 @@ import InventoryAdjustmentForm from "../components/InventoryAdjustmentForm";
 import PurchaseReceiveForm from "../components/PurchaseReceiveForm";
 import SupplierForm from "../components/SupplierForm";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import MediaImage from "../components/MediaImage";
 import { money, stockNumber } from "../lib/catalog";
 import {
   adjustInventory,
@@ -241,7 +242,7 @@ export default function InventoryPage() {
         emptyTitle={loading ? "Loading inventory..." : "No matching stock items"}
         emptyText="Change the filters or create products first."
         columns={[
-          { label: "Product", width: 220, documentValue: (product) => product.name, render: (product) => <div className="inventory-product"><strong>{product.name}</strong><span>{product.sku || "No code"} · {product.barcode || "No barcode"}</span></div> },
+          { label: "Product", width: 260, documentValue: (product) => product.name, render: (product) => <div className="inventory-product"><div className="inventory-product-thumb"><MediaImage src={product.image} alt={product.name} width={110} height={110} /></div><div><strong>{product.name}</strong><span>{product.sku || "No code"} · {product.barcode || "No barcode"}</span></div></div> },
           { label: "Category", width: 140, value: (product) => product.categories?.name || "Uncategorized" },
           { label: "Stock", width: 130, documentValue: (product) => `${stockNumber(product.stock_quantity)} ${product.unit_name}`, render: (product) => <><span className={["low_stock", "out_of_stock"].includes(product.stock_status) ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></> },
           { label: "Average cost", width: 110, documentValue: (product) => money(product.average_cost, product.currency), render: (product) => money(product.average_cost, product.currency) },
@@ -252,7 +253,7 @@ export default function InventoryPage() {
         ]}
         renderCard={(product) => (
           <article className="responsive-data-card inventory-list-card">
-            <header><div><strong>{product.name}</strong><small>{product.sku || product.barcode || "No code"}</small></div><span className={["low_stock", "out_of_stock"].includes(product.stock_status) ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span></header>
+            <header><div className="inventory-card-product"><div className="inventory-product-thumb"><MediaImage src={product.image} alt={product.name} width={120} height={120} /></div><div><strong>{product.name}</strong><small>{product.sku || product.barcode || "No code"}</small></div></div><span className={["low_stock", "out_of_stock"].includes(product.stock_status) ? "stock-badge low" : "stock-badge"}>{stockNumber(product.stock_quantity)} {product.unit_name}</span></header>
             <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
             <div><span>Average cost</span><strong>{money(product.average_cost, product.currency)}</strong></div>
             <div><span>Stock value</span><strong>{money(product.stock_quantity * product.average_cost, product.currency)}</strong></div>

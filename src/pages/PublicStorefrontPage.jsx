@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import MediaImage from "../components/MediaImage";
 import {
   findPublicOrdersByPhone,
   loadPublicStorefront,
@@ -486,7 +487,7 @@ export default function PublicStorefrontPage() {
             return (
               <article className="public-product-card" key={product.id}>
                 <div className="public-product-image">
-                  <img src={product.image_url || "/assets/tiny-pos-product-placeholder.png"} alt="" className={!product.image_url ? "placeholder" : ""} />
+                  <MediaImage src={product.image_url} alt={product.name} width={520} height={360} className="public-product-media" imgClassName={!product.image_url ? "placeholder" : ""} />
                   {product.featured && <span>{label("Featured", "ពេញនិយម")}</span>}
                 </div>
                 <div className="public-product-content">

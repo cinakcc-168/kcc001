@@ -20,11 +20,12 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import MediaImage from "../components/MediaImage";
+import MediaPreviewModal from "../components/MediaPreviewModal";
 import OnlineOrderDetailModal from "../components/OnlineOrderDetailModal";
 import OnlineProductModal from "../components/OnlineProductModal";
 import OnlineStoreSettingsModal from "../components/OnlineStoreSettingsModal";
 import {
-  cloudinaryDownloadUrl,
   confirmOnlineOrder,
   loadOnlineStoreAdmin,
   onlineDateTime,
@@ -34,6 +35,7 @@ import {
   saveOnlineStoreSettings,
   setOnlineOrderStatus
 } from "../lib/onlineStore";
+import { downloadMediaFile } from "../lib/media";
 
 function todayOffset(days = 0) {
   const date = new Date();
@@ -124,6 +126,7 @@ export default function OnlineStorePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [previewMedia, setPreviewMedia] = useState(null);
 
   const canManageStore = can("online_store.manage");
   const canManageOrders = can("online_orders.manage");
@@ -372,12 +375,32 @@ export default function OnlineStorePage() {
       documentValue: (order) => order.bank_slip_url ? "Attached" : "—",
       render: (order) => order.bank_slip_url ? (
         <div className="online-order-slip-actions">
-          <a href={order.bank_slip_url} target="_blank" rel="noreferrer" title="View bank slip">
-            <img src={order.bank_slip_url} alt="Bank slip" />
-          </a>
-          <a href={cloudinaryDownloadUrl(order.bank_slip_url)} target="_blank" rel="noreferrer" className="icon-button" title="Download bank slip">
+          <button
+            type="button"
+            className="online-order-slip-preview-button"
+            title="Preview bank slip"
+            onClick={() => setPreviewMedia({
+              src: order.bank_slip_url,
+              title: `${order.order_number} · Bank slip`,
+              downloadName: `${order.order_number}-bank-slip`
+            })}
+          >
+            <MediaImage src={order.bank_slip_url} alt="Bank slip" width={140} height={100} />
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            title="Download bank slip"
+            onClick={async () => {
+              try {
+                await downloadMediaFile(order.bank_slip_url, `${order.order_number}-bank-slip`);
+              } catch (error) {
+                announce("error", error.message);
+              }
+            }}
+          >
             <Download size={16} />
-          </a>
+          </button>
         </div>
       ) : <span className="muted">—</span>
     },
@@ -407,11 +430,7 @@ export default function OnlineStorePage() {
       render: (product) => (
         <div className="online-admin-product-table-name">
           <div className="online-admin-product-thumb">
-            {imageFor(product) ? (
-              <img src={imageFor(product)} alt="" />
-            ) : (
-              <img src="/assets/tiny-pos-product-placeholder.png" alt="Tiny POS" />
-            )}
+            <MediaImage src={imageFor(product)} alt={product.name} width={140} height={110} />
           </div>
           <div>
             <strong>{product.name}</strong>
@@ -585,9 +604,18 @@ export default function OnlineStorePage() {
                   <div><small>Sales Order</small><strong>{order.sales_orders?.order_number || "Not received"}</strong></div>
                 </div>
                 {order.bank_slip_url && (
-                  <a className="online-order-card-slip" href={order.bank_slip_url} target="_blank" rel="noreferrer">
-                    <img src={order.bank_slip_url} alt="Bank slip" /> View bank slip
-                  </a>
+                  <button
+                    type="button"
+                    className="online-order-card-slip"
+                    onClick={() => setPreviewMedia({
+                      src: order.bank_slip_url,
+                      title: `${order.order_number} · Bank slip`,
+                      downloadName: `${order.order_number}-bank-slip`
+                    })}
+                  >
+                    <MediaImage src={order.bank_slip_url} alt="Bank slip" width={160} height={110} />
+                    <span>View bank slip</span>
+                  </button>
                 )}
                 <button type="button" className="secondary-button" onClick={() => openOrder(order)}><Eye size={17} /> View order</button>
               </article>
@@ -622,7 +650,7 @@ export default function OnlineStorePage() {
             renderCard={(product) => (
               <article className={`online-admin-product-card responsive-data-card ${product.online_enabled ? "published" : ""}`}>
                 <div className="online-admin-product-card-image">
-                  <img src={imageFor(product) || "/assets/tiny-pos-product-placeholder.png"} alt="" />
+                  <MediaImage src={imageFor(product)} alt={product.name} width={420} height={280} className="online-admin-product-card-media" />
                   <span className={`status-badge ${product.online_enabled ? "completed" : "cancelled"}`}>{product.online_enabled ? "Published" : "Not published"}</span>
                 </div>
                 <div className="online-admin-product-card-body">
@@ -654,6 +682,16 @@ export default function OnlineStorePage() {
         busy={selectedProduct && busy === `product:${selectedProduct.id}`}
         onClose={() => setSelectedProduct(null)}
         onSave={saveProduct}
+      />
+
+
+
+      <MediaPreviewModal
+        open={Boolean(previewMedia)}
+        src={previewMedia?.src}
+        title={previewMedia?.title || "Image preview"}
+        downloadName={previewMedia?.downloadName || "tiny-pos-image"}
+        onClose={() => setPreviewMedia(null)}
       />
 
       <OnlineOrderDetailModal
