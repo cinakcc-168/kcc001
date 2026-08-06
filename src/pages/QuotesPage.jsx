@@ -42,18 +42,9 @@ import {
 } from "../lib/salesOrders";
 
 function monthRange() {
-  const now = new Date();
-
-  const first = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1
-  );
-
-  return {
-    from: first.toISOString().slice(0, 10),
-    to: now.toISOString().slice(0, 10)
-  };
+  const date = new Date();
+  const now = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return { from: now, to: now };
 }
 
 export default function QuotesPage() {

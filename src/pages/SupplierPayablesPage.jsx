@@ -33,9 +33,8 @@ import {
 } from "../lib/payables";
 
 function todayString() {
-  return new Date()
-    .toISOString()
-    .slice(0, 10);
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function statementStartString() {
@@ -94,7 +93,7 @@ export default function SupplierPayablesPage() {
   const [statementLoading, setStatementLoading] =
     useState(false);
   const [statementFrom, setStatementFrom] =
-    useState(statementStartString());
+    useState(todayString());
   const [statementTo, setStatementTo] =
     useState(todayString());
 

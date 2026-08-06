@@ -39,13 +39,11 @@ import SupplierFormModal from "../components/SupplierFormModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
 
 function defaultFilters() {
-  const today = new Date();
-  const from = new Date(today);
-  from.setDate(from.getDate() - 90);
-
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   return {
-    from: from.toISOString().slice(0, 10),
-    to: today.toISOString().slice(0, 10),
+    from: today,
+    to: today,
     status: "all",
     supplier: "all"
   };

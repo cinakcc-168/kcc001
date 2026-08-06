@@ -105,7 +105,7 @@ export default function OnlineStorePage() {
     orders: []
   });
   const [filters, setFilters] = useState({
-    from: todayOffset(-30),
+    from: todayOffset(0),
     to: todayOffset(0),
     status: initialQuery.get("status") || "current",
     payment: "all",
@@ -208,6 +208,24 @@ export default function OnlineStorePage() {
   function announce(type, text) {
     setMessageType(type);
     setMessage(text);
+  }
+
+  function openSettings() {
+    setSelectedProduct(null);
+    setSelectedOrder(null);
+    setSettingsOpen(true);
+  }
+
+  function openProduct(product) {
+    setSettingsOpen(false);
+    setSelectedOrder(null);
+    setSelectedProduct(product);
+  }
+
+  function openOrder(order) {
+    setSettingsOpen(false);
+    setSelectedProduct(null);
+    setSelectedOrder(order);
   }
 
   async function saveSettings(values) {
@@ -372,7 +390,7 @@ export default function OnlineStorePage() {
         <button
           type="button"
           className="icon-button"
-          onClick={() => setSelectedOrder(order)}
+          onClick={() => openOrder(order)}
           aria-label={`View ${order.order_number}`}
         >
           <Eye size={18} />
@@ -442,7 +460,7 @@ export default function OnlineStorePage() {
         <button
           type="button"
           className="secondary-button compact-button"
-          onClick={() => setSelectedProduct(product)}
+          onClick={() => openProduct(product)}
         >
           <SlidersHorizontal size={16} /> Configure
         </button>
@@ -474,7 +492,7 @@ export default function OnlineStorePage() {
             </>
           )}
           {canManageStore && (
-            <button type="button" className="primary-button" onClick={() => setSettingsOpen(true)}>
+            <button type="button" className="primary-button" onClick={openSettings}>
               <Settings2 size={18} /> Store settings
             </button>
           )}
@@ -504,10 +522,10 @@ export default function OnlineStorePage() {
       </div>
 
       <div className="segmented-tabs online-store-tabs">
-        <button type="button" className={tab === "orders" ? "active" : ""} onClick={() => setTab("orders")}>
+        <button type="button" className={tab === "orders" ? "active" : ""} onClick={() => { setTab("orders"); setSettingsOpen(false); setSelectedProduct(null); setSelectedOrder(null); }}>
           <ShoppingBag size={18} /> Online orders
         </button>
-        <button type="button" className={tab === "products" ? "active" : ""} onClick={() => setTab("products")}>
+        <button type="button" className={tab === "products" ? "active" : ""} onClick={() => { setTab("products"); setSettingsOpen(false); setSelectedProduct(null); setSelectedOrder(null); }}>
           <PackageSearch size={18} /> Public products
         </button>
       </div>
@@ -571,7 +589,7 @@ export default function OnlineStorePage() {
                     <img src={order.bank_slip_url} alt="Bank slip" /> View bank slip
                   </a>
                 )}
-                <button type="button" className="secondary-button" onClick={() => setSelectedOrder(order)}><Eye size={17} /> View order</button>
+                <button type="button" className="secondary-button" onClick={() => openOrder(order)}><Eye size={17} /> View order</button>
               </article>
             )}
           />
@@ -613,7 +631,7 @@ export default function OnlineStorePage() {
                   <small>{product.categories?.name || "Uncategorized"}</small>
                   <small>{publicUnitCount(product)} selling units · {product.currency}</small>
                 </div>
-                {canManageStore && <button type="button" className="secondary-button" onClick={() => setSelectedProduct(product)}><SlidersHorizontal size={16} /> Configure</button>}
+                {canManageStore && <button type="button" className="secondary-button" onClick={() => openProduct(product)}><SlidersHorizontal size={16} /> Configure</button>}
               </article>
             )}
           />

@@ -6,8 +6,8 @@ import AccountingMappingModal from "../components/AccountingMappingModal";
 import ManualJournalModal from "../components/ManualJournalModal";
 import AccountingPeriodModal from "../components/AccountingPeriodModal";
 import {
-  accountingDate, accountingMoney, downloadAccountingCsv, loadAccountingReport,
-  loadAccountingWorkspace, monthRange, saveAccountingAccount, saveAccountingMapping,
+  accountingDate, accountingMoney, downloadAccountingCsv, isoDate, loadAccountingReport,
+  loadAccountingWorkspace, saveAccountingAccount, saveAccountingMapping,
   saveManualJournal, setAccountingPeriodStatus, voidManualJournal
 } from "../lib/accounting";
 
@@ -15,8 +15,8 @@ const EMPTY_REPORT = { summary: [], trial_balance: [], profit_loss: [], ledger: 
 
 export default function AccountingPage() {
   const { supabase, profile, can } = useAuth();
-  const initialRange = useMemo(() => monthRange(), []);
-  const [filters, setFilters] = useState({ date_from: initialRange.start, date_to: initialRange.end, branch_id: "" });
+  const today = useMemo(() => isoDate(), []);
+  const [filters, setFilters] = useState({ date_from: today, date_to: today, branch_id: "" });
   const [workspace, setWorkspace] = useState({ accounts: [], mappings: [], branches: [], periods: [], journals: [], can_manage: false, can_export: false });
   const [report, setReport] = useState(EMPTY_REPORT);
   const [tab, setTab] = useState("overview");
