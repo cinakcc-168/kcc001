@@ -5617,3 +5617,33 @@ html.language-switch-complete .modal-backdrop{
 .inventory-product-thumb{width:54px;height:54px;min-width:54px;border:1px solid var(--border);border-radius:11px;overflow:hidden;background:var(--surface2)}
 .inventory-card-product{display:flex;align-items:center;gap:10px;min-width:0}
 .inventory-card-product>div:last-child{display:grid;gap:3px;min-width:0}
+
+
+/* Step 46.4.22 — dedicated Tiny POS app branding icon */
+.side-app-logo{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:block;
+  object-fit:contain;
+  object-position:center;
+  background:transparent;
+  border:0;
+  border-radius:0;
+  padding:0;
+}
+@media(min-width:801px){
+  .shell.collapsed .side-app-logo{
+    width:40px;
+    height:40px;
+    flex-basis:40px;
+    margin-inline:auto;
+  }
+}
+@media(max-width:800px){
+  .shell.collapsed .side-app-logo{
+    width:42px;
+    height:42px;
+    flex-basis:42px;
+  }
+}
