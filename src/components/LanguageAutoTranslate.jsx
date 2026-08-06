@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { translateUiText } from "../i18n/translations";
 
@@ -34,6 +34,14 @@ const TRANSLATABLE_SELECTOR = [
   ".dashboard-alert-card",
   ".dashboard-register-banner",
   ".permission-route-denied",
+  ".content",
+  ".public-storefront",
+  ".public-store-loading",
+  ".modal-layer",
+  ".modal-backdrop",
+  ".modal-card",
+  ".scanner-overlay",
+  "[role='dialog']",
   "[data-i18n-auto]"
 ].join(",");
 
@@ -162,6 +170,13 @@ function translateTree(root, language) {
 export default function LanguageAutoTranslate() {
   const { language } = useLanguage();
 
+  // Apply the selected language before the browser paints the next frame.
+  // This makes the currently open route change immediately instead of only
+  // translating after the user leaves the page and returns.
+  useLayoutEffect(() => {
+    translateTree(document.body, language);
+  }, [language]);
+
   useEffect(() => {
     let cancelled = false;
     const timers = [];
@@ -177,8 +192,10 @@ export default function LanguageAutoTranslate() {
     // the previous language until the user navigates away and back.
     renderAll();
     frame = window.requestAnimationFrame(renderAll);
-    timers.push(window.setTimeout(renderAll, 40));
-    timers.push(window.setTimeout(renderAll, 160));
+    timers.push(window.setTimeout(renderAll, 24));
+    timers.push(window.setTimeout(renderAll, 90));
+    timers.push(window.setTimeout(renderAll, 240));
+    timers.push(window.setTimeout(renderAll, 520));
 
     const observer = new MutationObserver(
       (mutations) => {
@@ -218,9 +235,12 @@ export default function LanguageAutoTranslate() {
       attributeFilter: ATTRIBUTES
     });
 
-    const onRequestedRefresh = () => {
-      renderAll();
-      window.requestAnimationFrame(renderAll);
+    const onRequestedRefresh = (event) => {
+      const requestedLanguage = event?.detail?.language || language;
+      translateTree(document.body, requestedLanguage);
+      window.requestAnimationFrame(() => {
+        translateTree(document.body, requestedLanguage);
+      });
     };
     window.addEventListener("tiny-pos-language-change", onRequestedRefresh);
 

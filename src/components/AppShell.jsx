@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Activity,
@@ -170,6 +171,9 @@ export default function AppShell() {
       return "";
     }
   });
+  const [flyoutGroup, setFlyoutGroup] = useState("");
+  const [flyoutPosition, setFlyoutPosition] = useState({ top: 84, left: 94 });
+  const groupButtonRefs = useRef(new Map());
   const [branches, setBranches] = useState([]);
   const [switchingBranch, setSwitchingBranch] = useState(false);
 
@@ -195,12 +199,63 @@ export default function AppShell() {
     [location.pathname, visibleGroups]
   );
 
+  const flyoutNavigationGroup = useMemo(
+    () => visibleGroups.find((group) => group.id === flyoutGroup) || null,
+    [flyoutGroup, visibleGroups]
+  );
+
   const canSwitchBranch = can("branches.switch");
 
   useEffect(() => {
     if (!activeGroupId) return;
     setOpenGroup(activeGroupId);
   }, [activeGroupId]);
+
+  useEffect(() => {
+    setFlyoutGroup("");
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!collapsed) setFlyoutGroup("");
+  }, [collapsed]);
+
+  useEffect(() => {
+    if (!flyoutGroup) return undefined;
+
+    const refreshPosition = () => {
+      const button = groupButtonRefs.current.get(flyoutGroup);
+      if (!button) return;
+
+      const rect = button.getBoundingClientRect();
+      const group = visibleGroups.find((entry) => entry.id === flyoutGroup);
+      const estimatedHeight = Math.min(
+        82 + ((group?.links.length || 1) * 46),
+        window.innerHeight * 0.74
+      );
+      const top = Math.max(
+        12,
+        Math.min(rect.top, window.innerHeight - estimatedHeight - 12)
+      );
+      const left = Math.min(rect.right + 10, window.innerWidth - 292);
+
+      setFlyoutPosition({ top, left: Math.max(92, left) });
+    };
+
+    refreshPosition();
+    window.addEventListener("resize", refreshPosition);
+    window.addEventListener("scroll", refreshPosition, true);
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setFlyoutGroup("");
+    };
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("resize", refreshPosition);
+      window.removeEventListener("scroll", refreshPosition, true);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [flyoutGroup, visibleGroups]);
 
   useEffect(() => {
     try {
@@ -267,17 +322,19 @@ export default function AppShell() {
 
   function handleGroupToggle(groupId) {
     if (collapsed && window.innerWidth > 800) {
-      setCollapsed(false);
-      setOpenGroup(groupId);
+      setFlyoutGroup((current) => (current === groupId ? "" : groupId));
       return;
     }
 
+    setFlyoutGroup("");
     setOpenGroup((current) => (current === groupId ? "" : groupId));
   }
 
   function closeMobileMenu() {
     setOpen(false);
   }
+
+  const FlyoutGroupIcon = flyoutNavigationGroup?.icon || Settings;
 
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""}`}>
@@ -289,15 +346,6 @@ export default function AppShell() {
             <b>T</b>
           )}
           <span className="side-label" data-i18n-skip>{shop?.shop_name || "Tiny POS"}</span>
-          <button
-            type="button"
-            className="side-collapse-top"
-            onClick={() => setCollapsed((value) => !value)}
-            title={collapsed ? t("Expand") : t("Collapse")}
-            aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
-          >
-            {collapsed ? <ChevronRight size={19} /> : <ChevronLeft size={19} />}
-          </button>
           <button
             type="button"
             className="side-mobile-close"
@@ -334,12 +382,16 @@ export default function AppShell() {
               const active = activeGroupId === group.id;
 
               return (
-                <section className={`side-menu-group ${expanded ? "open" : ""} ${active ? "active" : ""}`} key={group.id}>
+                <section className={`side-menu-group ${expanded ? "open" : ""} ${active ? "active" : ""} ${flyoutGroup === group.id ? "flyout-open" : ""}`} key={group.id}>
                   <button
                     type="button"
                     className="side-group-button"
+                    ref={(node) => {
+                      if (node) groupButtonRefs.current.set(group.id, node);
+                      else groupButtonRefs.current.delete(group.id);
+                    }}
                     onClick={() => handleGroupToggle(group.id)}
-                    aria-expanded={expanded}
+                    aria-expanded={collapsed ? flyoutGroup === group.id : expanded}
                     aria-controls={`side-group-${group.id}`}
                     title={collapsed ? t(group.label) : undefined}
                   >
@@ -365,6 +417,17 @@ export default function AppShell() {
               );
             })}
           </div>
+
+          <button
+            type="button"
+            className="side-collapse-control desktop-only"
+            onClick={() => setCollapsed((value) => !value)}
+            title={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+            aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
+          >
+            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+            <span className="side-label">{t(collapsed ? "Expand" : "Collapse")}</span>
+          </button>
         </nav>
 
         <div className="side-footer">
@@ -379,6 +442,41 @@ export default function AppShell() {
           </button>
         </div>
       </aside>
+
+      {collapsed && flyoutNavigationGroup && typeof document !== "undefined" && createPortal(
+        <>
+          <button
+            type="button"
+            className="side-flyout-dismiss"
+            aria-label={t("Close menu")}
+            onClick={() => setFlyoutGroup("")}
+          />
+          <nav
+            className="side-collapsed-flyout"
+            style={{ top: flyoutPosition.top, left: flyoutPosition.left }}
+            aria-label={t(flyoutNavigationGroup.label)}
+          >
+            <header>
+              <FlyoutGroupIcon size={21} />
+              <strong>{t(flyoutNavigationGroup.label)}</strong>
+            </header>
+            <div className="side-collapsed-flyout-links">
+              {flyoutNavigationGroup.links.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setFlyoutGroup("")}
+                  className={({ isActive }) => (isActive ? "active" : "")}
+                >
+                  <Icon size={18} />
+                  <span>{t(label)}</span>
+                </NavLink>
+              ))}
+            </div>
+          </nav>
+        </>,
+        document.body
+      )}
 
       {open && (
         <button type="button" className="backdrop" aria-label={t("Close menu")} onClick={closeMobileMenu} />
@@ -416,7 +514,7 @@ export default function AppShell() {
         <PwaManager />
         <OfflineSyncManager />
 
-        <section className="content"><Outlet /></section>
+        <section className="content" data-i18n-auto><Outlet /></section>
       </main>
     </div>
   );
