@@ -4884,3 +4884,193 @@ button[class*="button"] svg{flex:0 0 auto}
 @media print{
   .stock-count-print-only-header{display:flex!important}
 }
+
+/* ========================================================================== */
+/* Step 46.4.18 — immediate language switching and collapsed-menu flyouts     */
+/* ========================================================================== */
+.side-collapse-control{
+  width:100%;
+  min-height:44px;
+  margin-top:8px;
+  padding:10px 11px;
+  border:1px solid transparent;
+  border-top-color:var(--border);
+  border-radius:12px;
+  background:transparent;
+  color:var(--muted);
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:10px;
+  font-weight:800;
+  text-align:left;
+  transition:background .16s ease,color .16s ease,border-color .16s ease;
+}
+.side-collapse-control:hover,
+.side-collapse-control:focus-visible{
+  background:var(--surface2);
+  color:var(--text);
+  border-color:var(--border);
+  outline:none;
+}
+.shell.collapsed .side-collapse-control{
+  padding-inline:0;
+  justify-content:center;
+}
+
+@media(min-width:801px){
+  .shell.collapsed .brand{
+    justify-content:center!important;
+    padding-inline:10px!important;
+  }
+  .shell.collapsed .brand>.side-label{
+    display:none!important;
+  }
+  .shell.collapsed .brand .side-shop-logo,
+  .shell.collapsed .brand>b{
+    margin-inline:auto;
+  }
+}
+
+.side-flyout-dismiss{
+  position:fixed;
+  inset:0 0 0 82px;
+  z-index:214;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  cursor:default;
+}
+.side-collapsed-flyout{
+  position:fixed;
+  z-index:215;
+  width:min(280px,calc(100vw - 110px));
+  max-height:74vh;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  color:var(--text);
+  box-shadow:0 24px 70px #02061735;
+  animation:tinyPosFlyoutIn .17s cubic-bezier(.2,.8,.2,1);
+}
+.side-collapsed-flyout::before{
+  content:"";
+  position:absolute;
+  left:-7px;
+  top:24px;
+  width:13px;
+  height:13px;
+  border-left:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+  transform:rotate(45deg);
+}
+.side-collapsed-flyout>header{
+  min-height:58px;
+  padding:13px 15px;
+  border-bottom:1px solid var(--border);
+  background:color-mix(in srgb,var(--accent) 6%,var(--surface));
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:var(--accent);
+}
+.side-collapsed-flyout>header strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.side-collapsed-flyout-links{
+  max-height:calc(74vh - 58px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  padding:8px;
+  display:grid;
+  gap:4px;
+}
+.side-collapsed-flyout-links a{
+  min-height:42px;
+  padding:9px 10px;
+  border-radius:10px;
+  color:var(--muted);
+  text-decoration:none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:750;
+  transition:background .14s ease,color .14s ease,transform .14s ease;
+}
+.side-collapsed-flyout-links a:hover,
+.side-collapsed-flyout-links a:focus-visible{
+  background:var(--surface2);
+  color:var(--text);
+  transform:translateX(2px);
+  outline:none;
+}
+.side-collapsed-flyout-links a.active{
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  color:var(--accent);
+}
+@keyframes tinyPosFlyoutIn{
+  from{opacity:0;transform:translateX(-6px) scale(.985)}
+  to{opacity:1;transform:translateX(0) scale(1)}
+}
+
+/* Fade the current route out, replace its text, then bring the same route
+   back in. No navigation or page reload is used. */
+.content,
+.side,
+.shell>main>header,
+.public-storefront,
+.modal-layer,
+.modal-backdrop{
+  transition:opacity .18s ease,filter .18s ease,transform .18s ease;
+}
+html.language-switching .content,
+html.language-switching .side,
+html.language-switching .shell>main>header,
+html.language-switching .public-storefront,
+html.language-switching .modal-layer,
+html.language-switching .modal-backdrop{
+  opacity:.42!important;
+  filter:blur(.35px) saturate(.9)!important;
+  transform:translateY(2px);
+}
+html.language-switch-complete .content,
+html.language-switch-complete .side,
+html.language-switch-complete .shell>main>header,
+html.language-switch-complete .public-storefront,
+html.language-switch-complete .modal-layer,
+html.language-switch-complete .modal-backdrop{
+  animation:tinyPosLanguageIn .26s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes tinyPosLanguageIn{
+  from{opacity:.55;filter:blur(.3px);transform:translateY(2px)}
+  to{opacity:1;filter:none;transform:translateY(0)}
+}
+
+@media(max-width:800px){
+  .side-collapse-control,
+  .side-collapsed-flyout,
+  .side-flyout-dismiss{
+    display:none!important;
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  .content,
+  .side,
+  .shell>main>header,
+  .public-storefront,
+  .modal-layer,
+  .modal-backdrop,
+  .side-collapsed-flyout{
+    transition:none!important;
+    animation:none!important;
+  }
+}
+.shell.collapsed .side-menu-group.flyout-open>.side-group-button{
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  color:var(--accent);
+}
