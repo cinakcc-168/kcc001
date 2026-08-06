@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
+import MediaImage from "./MediaImage";
 
 function primaryImage(product) {
   return [...(product?.product_images || [])]
@@ -70,11 +71,17 @@ export default function OnlineProductModal({
     >
       <form className="online-product-form" onSubmit={submit}>
         <div className="online-product-preview">
-          {image ? (
-            <img src={image} alt="" />
-          ) : (
-            <img src="/assets/tiny-pos-product-placeholder.png" alt="" />
-          )}
+          <MediaImage
+            src={image}
+            alt={product.name}
+            width={900}
+            height={700}
+            crop="limit"
+            gravity={null}
+            quality="auto:good"
+            className="online-product-preview-media"
+            eager
+          />
           <div>
             <p className="eyebrow">PUBLIC PRODUCT</p>
             <strong>{product.name}</strong>

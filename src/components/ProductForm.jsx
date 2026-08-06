@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ImagePlus, Save, Trash2 } from "lucide-react";
-import { cloudinaryThumb } from "../lib/catalog";
+import MediaImage from "./MediaImage";
+import { MEDIA_SOURCE_LIMIT } from "../lib/media";
 
 const emptyForm = {
   name: "",
@@ -38,6 +39,8 @@ export default function ProductForm({
   const [error, setError] = useState("");
 
   useEffect(() => {
+    setImageFile(null);
+    setRemoveImage(false);
     if (!product) {
       setForm(emptyForm);
       return;
@@ -68,11 +71,31 @@ export default function ProductForm({
 
   const preview = useMemo(() => {
     if (imageFile) return URL.createObjectURL(imageFile);
-    if (!removeImage && product?.image?.secure_url) {
-      return cloudinaryThumb(product.image.secure_url, 360, 260);
-    }
+    if (!removeImage && product?.image?.secure_url) return product.image.secure_url;
     return "";
   }, [imageFile, product, removeImage]);
+
+  useEffect(() => () => {
+    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  function chooseImage(file) {
+    setError("");
+    if (!file) {
+      setImageFile(null);
+      return;
+    }
+    if (!String(file.type || "").startsWith("image/")) {
+      setError("Choose a valid image file.");
+      return;
+    }
+    if (Number(file.size || 0) > MEDIA_SOURCE_LIMIT) {
+      setError("The source photo must be 30 MB or smaller.");
+      return;
+    }
+    setImageFile(file);
+    setRemoveImage(false);
+  }
 
   function setField(name, value) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -208,17 +231,23 @@ export default function ProductForm({
         <aside className="image-editor">
           <span className="field-title">Primary product photo</span>
           <div className={`image-preview ${preview ? "has-image" : ""}`}>
-            {preview ? <img src={preview} alt="Product preview" /> : <ImagePlus size={42} />}
+            <MediaImage
+              src={preview}
+              alt="Product preview"
+              width={900}
+              height={700}
+              crop="limit"
+              gravity={null}
+              quality="auto:good"
+              eager
+            />
           </div>
           <label className="secondary-button file-button">
             <ImagePlus size={17} /> Choose photo
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/avif"
-              onChange={(e) => {
-                setImageFile(e.target.files?.[0] || null);
-                setRemoveImage(false);
-              }}
+              onChange={(e) => chooseImage(e.target.files?.[0] || null)}
             />
           </label>
           {(preview || product?.image) && (
@@ -226,7 +255,7 @@ export default function ProductForm({
               <Trash2 size={17} /> Remove photo
             </button>
           )}
-          <small>JPG, PNG, WebP or AVIF. Maximum 5 MB.</small>
+          <small>Phone photos are resized before upload to a maximum of 1200 × 1200 and compressed for POS use. Source file limit: 30 MB.</small>
         </aside>
       </div>
 

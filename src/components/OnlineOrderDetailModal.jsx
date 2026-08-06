@@ -1,12 +1,14 @@
-import { Download, ExternalLink, ReceiptText } from "lucide-react";
+import { Download, ReceiptText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  cloudinaryDownloadUrl,
   onlineDate,
   onlineDateTime,
   onlineMoney,
   onlineStatusLabel
 } from "../lib/onlineStore";
+import MediaImage from "./MediaImage";
+import MediaPreviewModal from "./MediaPreviewModal";
+import { downloadMediaFile } from "../lib/media";
 
 const nextStatuses = [
   ["preparing", "Preparing"],
@@ -30,6 +32,8 @@ export default function OnlineOrderDetailModal({
 }) {
   const [note, setNote] = useState("");
   const [status, setStatus] = useState(order?.status === "confirmed" ? "preparing" : "ready");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [mediaError, setMediaError] = useState("");
   const closed = useMemo(
     () => ["fulfilled", "cancelled", "rejected"].includes(order?.status),
     [order?.status]
@@ -69,14 +73,24 @@ export default function OnlineOrderDetailModal({
 
         {order.bank_slip_url && (
           <section className="online-bank-slip-card">
-            <img src={order.bank_slip_url} alt="Customer bank slip" />
+            <button type="button" className="online-bank-slip-preview" onClick={() => setPreviewOpen(true)}>
+              <MediaImage src={order.bank_slip_url} alt="Customer bank slip" width={520} height={380} />
+            </button>
             <div>
               <p className="eyebrow">BANK TRANSFER EVIDENCE</p>
               <h3>Customer payment slip</h3>
               <p>Review this evidence before receiving the order. The payment remains pending confirmation until staff verifies it.</p>
+              {mediaError && <div className="notice error">{mediaError}</div>}
               <div className="button-row">
-                <a className="secondary-button" href={order.bank_slip_url} target="_blank" rel="noreferrer"><ExternalLink size={17} />View slip</a>
-                <a className="secondary-button" href={cloudinaryDownloadUrl(order.bank_slip_url)} target="_blank" rel="noreferrer"><Download size={17} />Download</a>
+                <button type="button" className="secondary-button" onClick={() => setPreviewOpen(true)}>View slip</button>
+                <button type="button" className="secondary-button" onClick={async () => {
+                  try {
+                    setMediaError("");
+                    await downloadMediaFile(order.bank_slip_url, `${order.order_number}-bank-slip`);
+                  } catch (error) {
+                    setMediaError(error.message);
+                  }
+                }}><Download size={17} />Download</button>
               </div>
             </div>
           </section>
@@ -145,6 +159,13 @@ export default function OnlineOrderDetailModal({
 
         <div className="modal-actions"><button type="button" className="secondary" onClick={onClose}>Close</button></div>
       </div>
+      <MediaPreviewModal
+        open={previewOpen}
+        src={order.bank_slip_url}
+        title={`${order.order_number} · Bank slip`}
+        downloadName={`${order.order_number}-bank-slip`}
+        onClose={() => setPreviewOpen(false)}
+      />
     </div>
   );
 }

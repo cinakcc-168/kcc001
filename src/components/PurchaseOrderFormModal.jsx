@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Plus, Search, Trash2 } from "lucide-react";
 import Modal from "./Modal";
+import MediaImage from "./MediaImage";
 import { money, stockNumber } from "../lib/catalog";
 import {
   purchaseUnitForProduct,
@@ -412,16 +413,13 @@ export default function PurchaseOrderFormModal({
                     key={product.id}
                     onClick={() => addProduct(product)}
                   >
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt=""
-                      />
-                    ) : (
-                      <span className="po-product-placeholder">
-                        P
-                      </span>
-                    )}
+                    <MediaImage
+                      src={product.image_url}
+                      alt={product.name}
+                      width={160}
+                      height={120}
+                      className="po-product-media"
+                    />
 
                     <span>
                       <strong>{product.name}</strong>

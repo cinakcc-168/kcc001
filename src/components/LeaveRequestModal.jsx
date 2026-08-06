@@ -5,6 +5,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
+import MediaImage from "./MediaImage";
+import MediaPreviewModal from "./MediaPreviewModal";
+import { MEDIA_SOURCE_LIMIT } from "../lib/media";
 import { isoDate } from "../lib/staffOperations";
 
 export default function LeaveRequestModal({
@@ -21,6 +24,7 @@ export default function LeaveRequestModal({
     file: null
   });
   const [error, setError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -32,6 +36,7 @@ export default function LeaveRequestModal({
       file: null
     });
     setError("");
+    setPreviewOpen(false);
   }, [open]);
 
   const preview = useMemo(() => {
@@ -55,8 +60,8 @@ export default function LeaveRequestModal({
       setError("Choose an image file.");
       return;
     }
-    if (file.size > 6 * 1024 * 1024) {
-      setError("The supporting image must be 6 MB or smaller.");
+    if (file.size > MEDIA_SOURCE_LIMIT) {
+      setError("The source image must be 30 MB or smaller.");
       return;
     }
     setForm((current) => ({ ...current, file }));
@@ -77,17 +82,18 @@ export default function LeaveRequestModal({
   }
 
   return (
-    <Modal title="Take Leave" wide onClose={() => !busy && onClose()}>
-      <form className="leave-request-form" onSubmit={submit}>
-        <div className="leave-request-intro">
+    <>
+      <Modal title="Take Leave" wide onClose={() => !busy && onClose()}>
+        <form className="leave-request-form" onSubmit={submit}>
+          <div className="leave-request-intro">
           <CalendarRange size={24} />
           <div>
             <strong>Submit a leave request</strong>
             <span>This is different from the manager’s Day-Off schedule. It stays pending until reviewed.</span>
           </div>
-        </div>
+          </div>
 
-        <div className="leave-request-grid">
+          <div className="leave-request-grid">
           <label>
             <span>From date</span>
             <input
@@ -131,14 +137,15 @@ export default function LeaveRequestModal({
               onChange={(event) => selectFile(event.target.files?.[0])}
             />
             <span className="secondary-button leave-file-button"><ImagePlus size={18} />Choose picture</span>
+            <small>Phone photos are resized to a maximum of 1200 × 1200 and compressed before upload.</small>
           </label>
         </div>
 
         {preview && (
-          <a className="leave-image-preview" href={preview} target="_blank" rel="noreferrer">
-            <img src={preview} alt="Leave supporting document preview" />
-            <span>Tap the image to view it</span>
-          </a>
+          <button type="button" className="leave-image-preview" onClick={() => setPreviewOpen(true)}>
+            <MediaImage src={preview} alt="Leave supporting document preview" width={240} height={180} eager />
+            <span>Open inside Tiny POS</span>
+          </button>
         )}
 
         <label>
@@ -160,7 +167,15 @@ export default function LeaveRequestModal({
             <Send size={18} />{busy ? "Submitting..." : "Submit pending request"}
           </button>
         </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+      <MediaPreviewModal
+        open={previewOpen}
+        src={preview}
+        title="Leave supporting picture"
+        downloadName="leave-supporting-picture"
+        onClose={() => setPreviewOpen(false)}
+      />
+    </>
   );
 }
