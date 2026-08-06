@@ -150,6 +150,9 @@ export default function CustomRoleModal({
       title={role?.id ? `Edit ${role.name}` : "Add custom staff role"}
       onClose={() => !busy && onClose()}
       wide
+      className="custom-role-modal"
+      bodyClassName="custom-role-modal-body"
+      closeDisabled={busy}
     >
       <form className="custom-role-form custom-role-form-recovered" onSubmit={submit}>
         <div className="form-grid two custom-role-basic-grid">
@@ -200,28 +203,29 @@ export default function CustomRoleModal({
               const isOpen = search.trim() ? true : expanded[moduleKey] !== false;
 
               return (
-                <section className="custom-role-group recovered" key={moduleKey}>
-                  <header>
+                <section className={`custom-role-group recovered ${isOpen ? "is-open" : "is-collapsed"}`} key={moduleKey}>
+                  <div className="custom-role-group-header">
                     <label className="custom-role-group-select">
                       <input
                         type="checkbox"
                         checked={allSelected}
                         onChange={(event) => toggleGroup(rows, event.target.checked)}
                       />
-                      <span>
-                        <strong>{readableModule(moduleKey)}</strong>
-                        <small>{selectedCount} of {rows.length} selected</small>
+                      <span className="custom-role-group-title">
+                        <strong className="custom-role-group-name">{readableModule(moduleKey)}</strong>
+                        <small className="custom-role-group-count">{selectedCount} of {rows.length} selected</small>
                       </span>
                     </label>
                     <button
                       type="button"
                       className="icon-button custom-role-group-toggle"
                       onClick={() => toggleExpanded(moduleKey)}
+                      aria-expanded={isOpen}
                       aria-label={`${isOpen ? "Collapse" : "Expand"} ${readableModule(moduleKey)}`}
                     >
                       <ChevronDown size={18} className={isOpen ? "" : "collapsed"} />
                     </button>
-                  </header>
+                  </div>
 
                   {isOpen && (
                     <div className="custom-role-permission-list">
@@ -232,7 +236,7 @@ export default function CustomRoleModal({
                             checked={permissionKeys.includes(definition.permission_key)}
                             onChange={() => togglePermission(definition.permission_key)}
                           />
-                          <span>
+                          <span className="custom-role-permission-copy">
                             <strong>{definition.label}</strong>
                             <small>{definition.description}</small>
                             <code>{definition.permission_key}</code>
