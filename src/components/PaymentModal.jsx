@@ -332,7 +332,7 @@ export default function PaymentModal({
   const cashIncrements = paymentCurrency === "KHR" ? [1000, 5000, 10000] : [5, 10, 20];
 
   return (
-    <Modal title="Complete payment" onClose={() => !busy && onClose()}>
+    <Modal title="Complete payment" onClose={() => !busy && onClose()} className="payment-modal-card" bodyClassName="payment-modal-body">
       <form className="payment-form mixed-payment-form" onSubmit={submit}>
         <div className="payment-total-card">
           <span>Amount due</span>

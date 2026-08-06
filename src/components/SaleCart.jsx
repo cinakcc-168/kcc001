@@ -61,82 +61,80 @@ function CartLineList({
               className={`sale-cart-line ${compact ? "compact" : ""}`}
               key={currentLineId}
             >
-              <div className="cart-line-main">
-                <div className="cart-line-number">{index + 1}</div>
+              <div className="cart-line-number">{index + 1}</div>
 
-                <div className="cart-line-text">
-                  <strong className="cart-line-name" title={item.name}>
-                    {item.name}
-                  </strong>
+              <div className="cart-line-text">
+                <strong className="cart-line-name" title={item.name}>
+                  {item.name}
+                </strong>
 
-                  <span className="cart-line-math">
-                    {standardPrice !== selectedPrice && (
-                      <del>{money(standardPrice, item.currency)}</del>
-                    )}
-                    {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} = {" "}
-                    <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
-                  </span>
-                </div>
-
-                <div className="cart-line-unit-control">
-                  {units.length > 1 ? (
-                    <select
-                      value={item.selected_unit_id || ""}
-                      onChange={(event) => onUnitChange(currentLineId, event.target.value)}
-                      aria-label={`${item.name} selling unit`}
-                      disabled={fulfillmentLocked}
-                    >
-                      {units.map((unit) => (
-                        <option value={unit.id} key={unit.id}>
-                          {unit.name} · {money(unit.selling_price, item.currency)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="single-unit-label">
-                      {item.selected_unit_name || item.unit_name}
-                    </span>
+                <span className="cart-line-math">
+                  {standardPrice !== selectedPrice && (
+                    <del>{money(standardPrice, item.currency)}</del>
                   )}
-                </div>
+                  {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} = {" "}
+                  <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
+                </span>
+              </div>
 
-                <div className="cart-quantity-controls">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    onClick={() => onQuantityChange(currentLineId, Number(item.quantity) - 1)}
+              <div className="cart-line-unit-control">
+                {units.length > 1 ? (
+                  <select
+                    value={item.selected_unit_id || ""}
+                    onChange={(event) => onUnitChange(currentLineId, event.target.value)}
+                    aria-label={`${item.name} selling unit`}
                     disabled={fulfillmentLocked}
-                    aria-label={`Reduce ${item.name}`}
                   >
-                    <Minus size={17} />
-                  </button>
-                  <input
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    value={item.quantity}
-                    onChange={(event) => onQuantityChange(currentLineId, event.target.value)}
-                    disabled={fulfillmentLocked}
-                    aria-label={`${item.name} quantity`}
-                  />
-                  <button
-                    type="button"
-                    className="icon-button"
-                    onClick={() => onQuantityChange(currentLineId, Number(item.quantity) + 1)}
-                    disabled={fulfillmentLocked}
-                    aria-label={`Add ${item.name}`}
-                  >
-                    <Plus size={17} />
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-button danger-icon"
-                    onClick={() => onRemove(currentLineId)}
-                    disabled={fulfillmentLocked}
-                    aria-label={`Remove ${item.name}`}
-                  >
-                    <Trash2 size={17} />
-                  </button>
-                </div>
+                    {units.map((unit) => (
+                      <option value={unit.id} key={unit.id}>
+                        {unit.name} · {money(unit.selling_price, item.currency)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="single-unit-label">
+                    {item.selected_unit_name || item.unit_name}
+                  </span>
+                )}
+              </div>
+
+              <div className="cart-quantity-controls">
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => onQuantityChange(currentLineId, Number(item.quantity) - 1)}
+                  disabled={fulfillmentLocked}
+                  aria-label={`Reduce ${item.name}`}
+                >
+                  <Minus size={17} />
+                </button>
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  value={item.quantity}
+                  onChange={(event) => onQuantityChange(currentLineId, event.target.value)}
+                  disabled={fulfillmentLocked}
+                  aria-label={`${item.name} quantity`}
+                />
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => onQuantityChange(currentLineId, Number(item.quantity) + 1)}
+                  disabled={fulfillmentLocked}
+                  aria-label={`Add ${item.name}`}
+                >
+                  <Plus size={17} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button danger-icon"
+                  onClick={() => onRemove(currentLineId)}
+                  disabled={fulfillmentLocked}
+                  aria-label={`Remove ${item.name}`}
+                >
+                  <Trash2 size={17} />
+                </button>
               </div>
 
               <div className="cart-line-stock">
