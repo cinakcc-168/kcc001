@@ -6071,3 +6071,73 @@ html.language-switch-complete .modal-backdrop{
 .date-range-preset-field select{font-weight:800}
 .date-range-preset-field select,.date-range-from-field input,.date-range-to-field input{min-width:0;width:100%}
 @media(max-width:560px){.date-range-preset-field,.date-range-from-field,.date-range-to-field{width:100%!important}}
+
+/* ========================================================================== */
+/* Step 46.4.26 — deterministic cash/quotation printing + cash report tables   */
+/* ========================================================================== */
+.register-report-table{
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+}
+.register-report-table th,
+.register-report-table td{
+  padding:9px 10px;
+  border-bottom:1px solid #e2e8f0;
+  vertical-align:top;
+  overflow-wrap:anywhere;
+}
+.register-report-table th{
+  width:62%;
+  text-align:left;
+  font-weight:650;
+  color:#475569;
+}
+.register-report-table td{
+  width:38%;
+  text-align:right;
+  font-weight:850;
+  white-space:nowrap;
+}
+.register-report-table tr:last-child th,
+.register-report-table tr:last-child td{border-bottom:0}
+.register-report-table tr.register-report-total th,
+.register-report-table tr.register-report-total td{
+  border-top:2px solid #111827;
+  font-size:1.04em;
+  color:#111827;
+}
+.register-report-table tr.register-report-variance th,
+.register-report-table tr.register-report-variance td{font-weight:900}
+
+@media print{
+  .register-report-grid{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    gap:5mm!important;
+    align-items:start!important;
+  }
+  .register-report-currency,
+  .register-report-table,
+  .register-report-table tr{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  .register-report-document>header img,
+  .quote-print-shop img{
+    max-width:18mm!important;
+    max-height:18mm!important;
+    width:auto!important;
+    height:auto!important;
+    object-fit:contain!important;
+  }
+  .quote-print-table{
+    width:100%!important;
+    table-layout:fixed!important;
+  }
+  .quote-print-table th,
+  .quote-print-table td{
+    overflow-wrap:anywhere!important;
+    word-break:normal!important;
+  }
+}
