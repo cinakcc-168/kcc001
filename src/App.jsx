@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useLanguage } from "./context/LanguageContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TinyPosLoader from "./components/TinyPosLoader";
 import PermissionRoute from "./components/PermissionRoute";
 import AppShell from "./components/AppShell";
 import LoginPage from "./pages/LoginPage";
@@ -49,7 +50,7 @@ export default function App() {
   const { t } = useLanguage();
 
   if (loading) {
-    return <div className="loading">{t("Loading Tiny POS…")}</div>;
+    return <TinyPosLoader label={t("Loading Tiny POS…")} />;
   }
 
   return (
