@@ -42,6 +42,7 @@ import {
 import { getOpenCashRegisterSummary } from "../lib/cashRegister";
 import {
   clearLocalSaleDraft,
+  detachQuoteFromLocalSaleDraft,
   loadLocalSaleDraft,
   saveLocalSaleDraft
 } from "../lib/pwa";
@@ -54,7 +55,9 @@ import {
 } from "../lib/offlineCheckout";
 import {
   consumeQuoteForSale,
+  effectiveQuoteStatus,
   hydrateQuoteCart,
+  quoteCanConvert,
   saveSalesQuote
 } from "../lib/quotes";
 import {
@@ -167,6 +170,101 @@ export default function SalesPage() {
     if (typeof window === "undefined" || layout2View.storageKey !== layout2RowsStorageKey) return;
     window.localStorage.setItem(layout2RowsStorageKey, String(layout2View.rows));
   }, [layout2RowsStorageKey, layout2View]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleQuoteDetached = (event) => {
+      const quoteId = event?.detail?.quoteId;
+      if (!quoteId) return;
+
+      setActiveQuote((current) =>
+        String(current?.id || "") === String(quoteId)
+          ? null
+          : current
+      );
+    };
+
+    window.addEventListener("tiny-pos-quote-detached", handleQuoteDetached);
+    return () => window.removeEventListener("tiny-pos-quote-detached", handleQuoteDetached);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !activeQuote?.id
+      || !isOnline
+      || !supabase
+      || !profile?.id
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const quoteId = activeQuote.id;
+
+    const validateQuoteLink = async () => {
+      const { data, error } = await supabase
+        .from("sales_quotes")
+        .select("id, quote_number, status, valid_until")
+        .eq("id", quoteId)
+        .maybeSingle();
+
+      if (cancelled || error) return;
+
+      if (!data || !quoteCanConvert(data)) {
+        detachQuoteFromLocalSaleDraft(profile, quoteId);
+        setActiveQuote((current) =>
+          String(current?.id || "") === String(quoteId)
+            ? null
+            : current
+        );
+
+        const status = data ? effectiveQuoteStatus(data) : "unavailable";
+        setMessageType("success");
+        setMessage(
+          `${data?.quote_number || activeQuote.quote_number || "Quotation"} is ${status}. The quotation link was removed from this sale draft.`
+        );
+        return;
+      }
+
+      setActiveQuote((current) => {
+        if (String(current?.id || "") !== String(quoteId)) return current;
+        if (
+          current?.status === data.status
+          && current?.valid_until === data.valid_until
+          && current?.quote_number === data.quote_number
+        ) {
+          return current;
+        }
+
+        return {
+          ...current,
+          quote_number: data.quote_number || current.quote_number,
+          status: data.status,
+          valid_until: data.valid_until
+        };
+      });
+    };
+
+    const handleFocus = () => {
+      void validateQuoteLink();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void validateQuoteLink();
+      }
+    };
+
+    void validateQuoteLink();
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [activeQuote?.id, isOnline, profile?.id, profile?.organization_id, profile?.branch_id, supabase]);
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;

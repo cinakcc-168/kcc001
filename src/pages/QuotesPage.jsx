@@ -27,6 +27,7 @@ import DateRangePresetFields from "../components/DateRangePresetFields";
 import ListViewControls, { defaultListView } from "../components/ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { money } from "../lib/catalog";
+import { detachQuoteFromLocalSaleDraft } from "../lib/pwa";
 import {
   effectiveQuoteStatus,
   loadSalesQuotes,
@@ -337,6 +338,10 @@ export default function QuotesPage() {
         nextStatus,
         reason
       );
+
+      if (["cancelled", "expired", "converted"].includes(nextStatus)) {
+        detachQuoteFromLocalSaleDraft(profile, quote.id);
+      }
 
       announce(
         "success",
