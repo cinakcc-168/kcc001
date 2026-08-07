@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -15,19 +16,32 @@ import {
 
 const LanguageContext = createContext(null);
 const GUEST_LANGUAGE_KEY = "tiny-pos-language";
+const SWITCH_OUT_MS = 90;
+const SWITCH_IN_MS = 260;
+
+function readStoredLanguage(key) {
+  if (typeof window === "undefined") return "";
+
+  try {
+    return window.localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
 
 function browserLanguage() {
   if (typeof window === "undefined") return "en";
 
-  const saved = window.localStorage.getItem(
-    GUEST_LANGUAGE_KEY
-  );
-
-  if (saved) return normalizeLanguage(saved);
-
   return normalizeLanguage(
-    window.navigator.language
+    readStoredLanguage(GUEST_LANGUAGE_KEY)
+    || window.navigator.language
   );
+}
+
+function accountLanguageKey(userId) {
+  return userId
+    ? `${GUEST_LANGUAGE_KEY}:${userId}`
+    : GUEST_LANGUAGE_KEY;
 }
 
 export function LanguageProvider({ children }) {
@@ -38,84 +52,162 @@ export function LanguageProvider({ children }) {
     shop
   } = useAuth();
 
+  const accountKey = session?.user?.id || "guest";
+  const storageKey = accountLanguageKey(session?.user?.id);
+  const storedLanguage = readStoredLanguage(storageKey);
   const preferred = normalizeLanguage(
-    preferences?.language
+    storedLanguage
+    || preferences?.language
     || shop?.default_language
     || browserLanguage()
   );
 
-  const [language, setLanguageState] =
-    useState(preferred);
-  const switchFrame = useRef(0);
-  const switchTimer = useRef(0);
+  const [language, setLanguageState] = useState(preferred);
+  const [pendingLanguage, setPendingLanguage] = useState("");
+  const previousAccount = useRef(accountKey);
+  const userSelectedLanguage = useRef(Boolean(storedLanguage));
+  const commitTimer = useRef(0);
+  const finishTimer = useRef(0);
+  const switchToken = useRef(0);
+  const mounted = useRef(false);
 
   useEffect(() => {
-    setLanguageState(preferred);
-  }, [preferred]);
+    const accountChanged = previousAccount.current !== accountKey;
 
-  useEffect(() => {
-    document.documentElement.lang = language;
-    document.documentElement.dir = "ltr";
-    document.documentElement.dataset.language = language;
+    if (accountChanged) {
+      previousAccount.current = accountKey;
+      userSelectedLanguage.current = Boolean(storedLanguage);
+      setPendingLanguage("");
+      setLanguageState(preferred);
+      return;
+    }
 
-    window.localStorage.setItem(
-      GUEST_LANGUAGE_KEY,
-      language
-    );
+    // Account preferences can arrive after authentication. Accept them only
+    // until this device has made an explicit EN/KH choice, so a stale profile
+    // response cannot switch the current page back to the previous language.
+    if (!userSelectedLanguage.current) {
+      setLanguageState((current) => (
+        current === preferred ? current : preferred
+      ));
+    }
+  }, [accountKey, preferred, storedLanguage]);
 
-    // Notify the DOM translation bridge only after React has committed the
-    // new language. Dispatching before the commit can translate the current
-    // page back with the previous language until the next navigation.
+  useLayoutEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const root = document.documentElement;
+    root.lang = language === "km" ? "km" : "en";
+    root.dir = "ltr";
+    root.dataset.language = language;
+
+    try {
+      window.localStorage.setItem(storageKey, language);
+      if (!session?.user?.id) {
+        window.localStorage.setItem(GUEST_LANGUAGE_KEY, language);
+      }
+    } catch {
+      // Local persistence is helpful but must never block language switching.
+    }
+
     window.dispatchEvent(new CustomEvent("tiny-pos-language-change", {
       detail: { language }
     }));
-  }, [language]);
+
+    if (!mounted.current) {
+      mounted.current = true;
+      root.classList.remove("language-switching", "language-switch-complete");
+      return;
+    }
+
+    const token = switchToken.current;
+
+    // Wait for React, portals and the DOM translation bridge to commit the
+    // same current route, then fade the updated language back in.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (token !== switchToken.current) return;
+
+        root.classList.remove("language-switching");
+        root.classList.add("language-switch-complete");
+        setPendingLanguage("");
+
+        window.clearTimeout(finishTimer.current);
+        finishTimer.current = window.setTimeout(() => {
+          root.classList.remove("language-switch-complete");
+        }, SWITCH_IN_MS);
+      });
+    });
+  }, [language, session?.user?.id, storageKey]);
 
   useEffect(() => () => {
-    window.cancelAnimationFrame(switchFrame.current);
-    window.clearTimeout(switchTimer.current);
+    window.clearTimeout(commitTimer.current);
+    window.clearTimeout(finishTimer.current);
   }, []);
+
+  const persistLanguage = useCallback(
+    async (nextLanguage) => {
+      if (!supabase || !session?.user?.id) return;
+
+      const { error } = await supabase
+        .from("user_preferences")
+        .update({ language: nextLanguage })
+        .eq("user_id", session.user.id);
+
+      if (error) {
+        console.warn("Tiny POS language preference could not be saved:", error.message);
+      }
+    },
+    [session?.user?.id, supabase]
+  );
 
   const setLanguage = useCallback(
     (nextLanguage) => {
-      const normalized = normalizeLanguage(
-        nextLanguage
-      );
+      const normalized = normalizeLanguage(nextLanguage);
+      const currentTarget = pendingLanguage || language;
 
-      if (normalized === language) return;
+      if (normalized === currentTarget) return;
+
+      // A quick second tap may choose the already-rendered language before the
+      // first transition commits. Cancel cleanly instead of leaving the UI in
+      // a permanent switching state.
+      if (pendingLanguage && normalized === language) {
+        switchToken.current += 1;
+        window.clearTimeout(commitTimer.current);
+        window.clearTimeout(finishTimer.current);
+        document.documentElement.classList.remove(
+          "language-switching",
+          "language-switch-complete"
+        );
+        setPendingLanguage("");
+        return;
+      }
+
+      userSelectedLanguage.current = true;
+      switchToken.current += 1;
+      const token = switchToken.current;
+      setPendingLanguage(normalized);
+
+      try {
+        window.localStorage.setItem(storageKey, normalized);
+      } catch {
+        // Continue with the in-memory language when storage is unavailable.
+      }
 
       const root = document.documentElement;
-      window.cancelAnimationFrame(switchFrame.current);
-      window.clearTimeout(switchTimer.current);
+      window.clearTimeout(commitTimer.current);
+      window.clearTimeout(finishTimer.current);
       root.classList.remove("language-switch-complete");
       root.classList.add("language-switching");
 
-      // Let the fade-out paint first, then commit the translated UI. This
-      // keeps the current route in place and gives EN/KH a smooth transition.
-      switchFrame.current = window.requestAnimationFrame(() => {
+      // Give the fade-out one short paint, then change the language without
+      // navigating or reloading the current page.
+      commitTimer.current = window.setTimeout(() => {
+        if (token !== switchToken.current) return;
         setLanguageState(normalized);
-        window.localStorage.setItem(
-          GUEST_LANGUAGE_KEY,
-          normalized
-        );
-
-        if (supabase && session?.user?.id) {
-          void supabase
-            .from("user_preferences")
-            .update({ language: normalized })
-            .eq("user_id", session.user.id);
-        }
-
-        window.requestAnimationFrame(() => {
-          root.classList.remove("language-switching");
-          root.classList.add("language-switch-complete");
-          switchTimer.current = window.setTimeout(() => {
-            root.classList.remove("language-switch-complete");
-          }, 300);
-        });
-      });
+        void persistLanguage(normalized);
+      }, SWITCH_OUT_MS);
     },
-    [language, session?.user?.id, supabase]
+    [language, pendingLanguage, persistLanguage, storageKey]
   );
 
   const t = useMemo(
@@ -126,16 +218,13 @@ export function LanguageProvider({ children }) {
   const value = useMemo(
     () => ({
       language,
+      displayLanguage: pendingLanguage || language,
+      isSwitching: Boolean(pendingLanguage),
       setLanguage,
       t,
       authenticated: Boolean(session)
     }),
-    [
-      language,
-      setLanguage,
-      t,
-      session
-    ]
+    [language, pendingLanguage, setLanguage, t, session]
   );
 
   return (
