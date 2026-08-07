@@ -5647,3 +5647,81 @@ html.language-switch-complete .modal-backdrop{
     flex-basis:42px;
   }
 }
+
+/* ========================================================================== */
+/* Step 46.4.23 — reliable immediate EN/KH switching and refreshed app icon   */
+/* ========================================================================== */
+.language-switcher,
+.language-toggle,
+.language-toggle button{
+  transition:
+    background-color .2s ease,
+    color .2s ease,
+    border-color .2s ease,
+    box-shadow .22s ease,
+    transform .22s cubic-bezier(.2,.8,.2,1),
+    opacity .18s ease;
+}
+.language-toggle button:hover{transform:translateY(-1px)}
+.language-toggle button.active{
+  transform:translateY(0) scale(1.02);
+}
+.language-switcher.switching .language-toggle button{
+  pointer-events:none;
+}
+.language-switcher.switching .language-toggle{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 16%,transparent);
+}
+
+/* Keep the same current route visible while its text is replaced. The fade is
+   deliberately light so switching feels immediate instead of like a reload. */
+html.language-switching .content,
+html.language-switching .side,
+html.language-switching .shell>main>header,
+html.language-switching .public-storefront,
+html.language-switching .modal-layer,
+html.language-switching .modal-backdrop{
+  opacity:.68!important;
+  filter:saturate(.94)!important;
+  transform:none!important;
+  transition:opacity .09s ease,filter .09s ease!important;
+}
+html.language-switch-complete .content,
+html.language-switch-complete .side,
+html.language-switch-complete .shell>main>header,
+html.language-switch-complete .public-storefront,
+html.language-switch-complete .modal-layer,
+html.language-switch-complete .modal-backdrop{
+  animation:tinyPosLanguageImmediateIn .24s cubic-bezier(.2,.8,.2,1)!important;
+}
+@keyframes tinyPosLanguageImmediateIn{
+  from{opacity:.68;filter:saturate(.94)}
+  to{opacity:1;filter:none}
+}
+
+/* The dedicated icon beside the store name remains logo-only: no square,
+   background, border or padding. Product-card fallback artwork is untouched. */
+.side-app-logo{
+  object-fit:contain!important;
+  object-position:center!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  padding:0!important;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .language-switcher,
+  .language-toggle,
+  .language-toggle button,
+  .content,
+  .side,
+  .shell>main>header,
+  .public-storefront,
+  .modal-layer,
+  .modal-backdrop{
+    transition:none!important;
+    animation:none!important;
+  }
+}
