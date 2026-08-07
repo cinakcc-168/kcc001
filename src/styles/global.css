@@ -818,7 +818,7 @@ html[data-language="km"] body{font-family:"Noto Sans Khmer","Khmer OS System","K
   transform: scale(1.025);
 }
 
-.public-product-image span {
+.public-product-image > .public-product-featured-badge {
   position: absolute;
   left: 10px;
   top: 10px;
@@ -5724,4 +5724,345 @@ html.language-switch-complete .modal-backdrop{
     transition:none!important;
     animation:none!important;
   }
+}
+
+
+/* ========================================================================== */
+/* Step 46.4.24 — order workflow + responsive card/detail repairs              */
+/* ========================================================================== */
+
+/* Keep every expanded sidebar group label aligned with the other navigation. */
+.side-group-button > span.side-label{
+  flex:1 1 auto;
+  min-width:0;
+  text-align:left;
+  justify-self:start;
+}
+.shell.collapsed .side-group-button > span.side-label{display:none}
+
+/* MediaImage renders a span. Do not let the Featured badge rule style the
+   actual product image frame into a pill/circle. */
+.public-product-image > .media-image-frame,
+.public-product-image > .media-image-frame > img{
+  width:100%!important;
+  height:100%!important;
+  border-radius:0!important;
+}
+.public-product-image > .media-image-frame{
+  position:relative!important;
+  inset:auto!important;
+  padding:0!important;
+  background:transparent!important;
+  color:inherit!important;
+}
+.public-product-image > .media-image-frame > img{
+  object-fit:cover!important;
+  object-position:center center!important;
+}
+.public-product-image > .media-image-frame.is-fallback > img{
+  object-fit:contain!important;
+  padding:18%!important;
+}
+.public-product-image > .public-product-featured-badge{
+  position:absolute;
+  left:10px;
+  top:10px;
+  z-index:3;
+  border-radius:999px;
+  padding:5px 9px;
+  background:var(--primary);
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+}
+
+/* Products > Cards: long bilingual names must stay inside the card header. */
+.product-directory-card{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.product-directory-card > header{
+  min-width:0!important;
+  align-items:start!important;
+}
+.product-directory-card .product-cell{
+  overflow:hidden!important;
+}
+.product-directory-card .product-cell > div:last-child{
+  overflow:hidden!important;
+}
+.product-directory-card .product-cell strong{
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden!important;
+  max-width:100%;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+.product-directory-card .product-cell small{
+  display:block!important;
+  max-width:100%;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+}
+.product-directory-card > header > .status-pill,
+.product-directory-card > header > .status-badge{
+  align-self:start!important;
+  justify-self:end!important;
+  flex:0 0 auto!important;
+}
+
+/* Inventory > Cards uses its own product header but needs the same protection. */
+.inventory-list-card{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.inventory-list-card > header{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:10px!important;
+  align-items:start!important;
+  min-width:0!important;
+}
+.inventory-card-product{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.inventory-card-product > div:last-child{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+.inventory-card-product strong{
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  overflow:hidden!important;
+  max-width:100%;
+  overflow-wrap:anywhere!important;
+  word-break:break-word!important;
+}
+.inventory-card-product small{
+  display:block!important;
+  max-width:100%;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+}
+.inventory-list-card > header > .stock-badge{
+  align-self:start!important;
+  justify-self:end!important;
+  white-space:nowrap!important;
+}
+
+/* Online order details are a true responsive in-app popup rather than a wide
+   report table. It stays usable in the Telegram webview and normal browsers. */
+.online-order-detail{
+  width:min(1080px,calc(100vw - 28px))!important;
+  max-width:1080px!important;
+  max-height:min(92dvh,920px)!important;
+  overflow:auto!important;
+  overscroll-behavior:contain;
+  padding:0 20px 20px!important;
+}
+.online-order-detail > .modal-head{
+  position:sticky;
+  top:0;
+  z-index:12;
+  margin:0 -20px 18px!important;
+  padding:17px 20px!important;
+  background:color-mix(in srgb,var(--surface) 96%,transparent);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+}
+.online-order-detail > .modal-head > div:first-child{
+  min-width:0;
+}
+.online-order-detail > .modal-head h2{
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+.online-order-summary-grid{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:10px!important;
+}
+.online-order-summary-grid > div{
+  min-width:0;
+  padding:12px!important;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--surface2);
+  display:grid;
+  gap:4px;
+  align-content:start;
+}
+.online-order-summary-grid > div small,
+.online-order-summary-grid > div span{
+  color:var(--muted);
+  overflow-wrap:anywhere;
+}
+.online-order-summary-grid > div strong{
+  overflow-wrap:anywhere;
+}
+.online-order-sales-order-link{
+  margin-top:12px;
+  padding:12px 14px;
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
+  border-radius:14px;
+  background:color-mix(in srgb,var(--accent) 7%,var(--surface));
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+}
+.online-order-sales-order-link > div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+.online-order-sales-order-link small,
+.online-order-sales-order-link span{color:var(--muted)}
+.online-order-sales-order-link strong{overflow-wrap:anywhere}
+.online-order-products-section{
+  margin-top:14px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  overflow:hidden;
+  background:var(--surface);
+}
+.online-order-section-heading{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface2);
+}
+.online-order-section-heading h3,
+.online-order-section-heading p{margin:0}
+.online-order-items-list{min-width:0}
+.online-order-item-row{
+  display:grid;
+  grid-template-columns:minmax(220px,1.8fr) minmax(90px,.65fr) minmax(70px,.45fr) minmax(100px,.7fr) minmax(110px,.75fr);
+  gap:10px;
+  align-items:center;
+  min-width:0;
+  padding:11px 14px;
+  border-bottom:1px solid var(--border);
+}
+.online-order-item-row:last-child{border-bottom:0}
+.online-order-item-head{
+  padding-block:8px;
+  background:color-mix(in srgb,var(--surface2) 72%,var(--surface));
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+}
+.online-order-item-head > span:nth-child(n+3){text-align:right}
+.online-order-item-product{
+  min-width:0;
+  display:grid;
+  gap:2px;
+}
+.online-order-item-product strong{
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.online-order-item-product small{color:var(--muted)}
+.online-order-item-value{text-align:right;min-width:0}
+.online-order-line-total strong{font-size:15px}
+.online-order-totals{
+  width:min(100%,410px)!important;
+  margin:14px 0 0 auto!important;
+}
+.online-order-actions{
+  margin-top:14px;
+  padding:12px!important;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface2);
+}
+.online-order-actions > button,
+.online-order-actions .online-status-editor button{
+  align-items:center;
+  justify-content:center;
+}
+
+@media(max-width:900px){
+  .online-order-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .online-order-item-row{grid-template-columns:minmax(180px,1.5fr) 80px 60px 90px 100px}
+}
+
+@media(max-width:760px){
+  .online-order-detail{
+    width:100%!important;
+    max-width:none!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    border-radius:0!important;
+    padding:0 13px 18px!important;
+  }
+  .online-order-detail > .modal-head{
+    margin:0 -13px 13px!important;
+    padding:13px!important;
+  }
+  .online-order-detail > .modal-head h2{font-size:23px!important;line-height:1.15}
+  .online-order-summary-grid{grid-template-columns:1fr!important;gap:8px!important}
+  .online-order-bank-slip-card,
+  .online-bank-slip-card{grid-template-columns:1fr!important}
+  .online-order-sales-order-link{grid-template-columns:1fr}
+  .online-order-sales-order-link button{width:100%;justify-content:center}
+  .online-order-section-heading{padding:10px 11px}
+  .online-order-item-head{display:none!important}
+  .online-order-item-row{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:9px 12px!important;
+    padding:12px!important;
+    align-items:start!important;
+  }
+  .online-order-item-product{
+    grid-column:1/-1;
+    padding-bottom:8px;
+    border-bottom:1px dashed var(--border);
+  }
+  .online-order-item-product strong{
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .online-order-item-value{
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:8px;
+    align-items:center;
+    text-align:right;
+    min-width:0;
+  }
+  .online-order-item-value::before{
+    content:attr(data-label);
+    color:var(--muted);
+    font-size:12px;
+    font-weight:700;
+    text-align:left;
+  }
+  .online-order-item-value strong{
+    min-width:0;
+    overflow-wrap:anywhere;
+  }
+  .online-order-totals{width:100%!important;margin-top:12px!important}
+  .online-status-editor{grid-template-columns:1fr!important}
+  .online-status-editor select,
+  .online-status-editor input,
+  .online-status-editor button{width:100%!important;min-width:0!important}
+  .online-order-actions > button{width:100%;justify-content:center}
+  .online-order-detail .modal-actions{position:sticky;bottom:-18px;z-index:10;margin:14px -13px -18px;padding:10px 13px calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--surface) 96%,transparent);border-top:1px solid var(--border)}
+  .online-order-detail .modal-actions button{width:100%;justify-content:center}
+
+  .product-directory-card .product-cell strong,
+  .inventory-card-product strong{-webkit-line-clamp:2}
 }
