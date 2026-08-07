@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import AuditDetailModal from "../components/AuditDetailModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
   defaultAuditDates,
   downloadBusinessBackup,
@@ -307,33 +308,17 @@ export default function AdminToolsPage() {
               />
             </div>
 
-            <label>
-              <span>From</span>
-              <input
-                type="date"
-                value={filters.from}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    from: event.target.value
-                  }))
-                }
-              />
-            </label>
-
-            <label>
-              <span>To</span>
-              <input
-                type="date"
-                value={filters.to}
-                onChange={(event) =>
-                  setFilters((current) => ({
-                    ...current,
-                    to: event.target.value
-                  }))
-                }
-              />
-            </label>
+            <DateRangePresetFields
+              from={filters.from}
+              to={filters.to}
+              onChange={(range) =>
+                setFilters((current) => ({
+                  ...current,
+                  from: range.from,
+                  to: range.to
+                }))
+              }
+            />
 
             <label>
               <span>Branch</span>

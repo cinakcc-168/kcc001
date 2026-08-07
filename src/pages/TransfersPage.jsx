@@ -19,6 +19,7 @@ import TransferActionModal from "../components/TransferActionModal";
 import TransferWorkflowModal from "../components/TransferWorkflowModal";
 import SupplierReturnModal from "../components/SupplierReturnModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import { money, stockNumber } from "../lib/catalog";
 import {
   approveStockTransfer,
@@ -303,8 +304,14 @@ export default function TransfersPage() {
       <section className="panel transfer-toolbar transfer-filter-grid">
         <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === "transfers" ? "Search transfer, branch or note" : "Search return, purchase or supplier"} /></label>
         {tab === "transfers" && <>
-          <label><span>From</span><input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label>
-          <label><span>To</span><input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label>
+          <DateRangePresetFields
+            from={dateFrom}
+            to={dateTo}
+            onChange={(range) => {
+              setDateFrom(range.from);
+              setDateTo(range.to);
+            }}
+          />
           <label><span>Branch transfer</span><select value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}><option value="all">All branches</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
           <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="pending">Pending</option><option value="counting">Counting</option><option value="awaiting_approval">Awaiting approval</option><option value="received">Approved / received</option><option value="cancelled">Cancelled</option></select></label>
         </>}

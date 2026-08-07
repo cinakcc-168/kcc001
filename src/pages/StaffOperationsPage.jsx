@@ -30,6 +30,7 @@ import LeaveRequestModal from "../components/LeaveRequestModal";
 import MediaImage from "../components/MediaImage";
 import MediaPreviewModal from "../components/MediaPreviewModal";
 import ManualAttendanceModal from "../components/ManualAttendanceModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
   attendanceCheckIn,
   attendanceCheckOut,
@@ -559,8 +560,17 @@ export default function StaffOperationsPage() {
 
       <section className="panel staff-filter-panel">
         <div className="staff-filters">
-          <label><span>From</span><input type="date" value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value }))} /></label>
-          <label><span>To</span><input type="date" min={filters.date_from} value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} /></label>
+          <DateRangePresetFields
+            from={filters.date_from}
+            to={filters.date_to}
+            onChange={(range) =>
+              setFilters((current) => ({
+                ...current,
+                date_from: range.from,
+                date_to: range.to
+              }))
+            }
+          />
           {(canManageAttendance || canManageCommissions || canManageLeave) && (
             <label><span>Branch</span><select value={filters.branch_id} onChange={(event) => setFilters((current) => ({ ...current, branch_id: event.target.value }))}><option value="">Accessible branches</option>{workspace.branches.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>
           )}

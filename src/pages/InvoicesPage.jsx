@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import InvoiceDetailModal from "../components/InvoiceDetailModal";
 import ReceiptModal from "../components/ReceiptModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import ListViewControls, { defaultListView } from "../components/ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { money } from "../lib/catalog";
@@ -534,33 +535,18 @@ export default function InvoicesPage() {
           />
         </div>
 
-        <label>
-          <span>From</span>
-          <input
-            type="date"
-            value={filters.from}
-            onChange={(event) =>
-              updateFilter(
-                "from",
-                event.target.value
-              )
-            }
-          />
-        </label>
-
-        <label>
-          <span>To</span>
-          <input
-            type="date"
-            value={filters.to}
-            onChange={(event) =>
-              updateFilter(
-                "to",
-                event.target.value
-              )
-            }
-          />
-        </label>
+        <DateRangePresetFields
+          from={filters.from}
+          to={filters.to}
+          onChange={(range) =>
+            setFilters((current) => ({
+              ...current,
+              from: range.from,
+              to: range.to,
+              page: 1
+            }))
+          }
+        />
 
         {result.meta?.can_view_all_branches && (
           <label>

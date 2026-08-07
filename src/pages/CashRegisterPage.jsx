@@ -14,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import CashRegisterCloseModal from "../components/CashRegisterCloseModal";
 import CashRegisterReportModal from "../components/CashRegisterReportModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import { money } from "../lib/catalog";
 import {
   closeCashRegister,
@@ -458,8 +459,17 @@ export default function CashRegisterPage() {
           <div><span>Total KHR variance</span><strong>{money(historyTotals.varianceKhr, "KHR")}</strong></div>
         </div>
         <div className="register-history-filters">
-          <label><span>From</span><input type="date" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></label>
-          <label><span>To</span><input type="date" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></label>
+          <DateRangePresetFields
+            from={filters.from}
+            to={filters.to}
+            onChange={(range) =>
+              setFilters((current) => ({
+                ...current,
+                from: range.from,
+                to: range.to
+              }))
+            }
+          />
         </div>
       </section>
 

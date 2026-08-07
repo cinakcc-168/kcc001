@@ -16,6 +16,7 @@ import PayrollRunModal from "../components/PayrollRunModal";
 import PayrollAdjustmentModal from "../components/PayrollAdjustmentModal";
 import PayrollPaymentModal from "../components/PayrollPaymentModal";
 import PayrollPayslipModal from "../components/PayrollPayslipModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
   adjustPayrollLine,
   approvePayrollRun,
@@ -188,8 +189,17 @@ export default function PayrollPage() {
 
       <section className="panel payroll-filter-panel">
         <div className="form-grid payroll-filters">
-          <label><span>From</span><input type="date" value={filters.date_from} onChange={(event) => setFilters((current) => ({ ...current, date_from: event.target.value, date_to: current.date_to < event.target.value ? event.target.value : current.date_to }))} /></label>
-          <label><span>To</span><input type="date" min={filters.date_from} value={filters.date_to} onChange={(event) => setFilters((current) => ({ ...current, date_to: event.target.value }))} /></label>
+          <DateRangePresetFields
+            from={filters.date_from}
+            to={filters.date_to}
+            onChange={(range) =>
+              setFilters((current) => ({
+                ...current,
+                date_from: range.from,
+                date_to: range.to
+              }))
+            }
+          />
           {canManage && <label><span>Branch</span><select value={filters.branch_id} onChange={(event) => setFilters((current) => ({ ...current, branch_id: event.target.value }))}><option value="">All accessible branches</option>{workspace.branches.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label>}
           {canManage && <label><span>Staff</span><select value={filters.user_id} onChange={(event) => setFilters((current) => ({ ...current, user_id: event.target.value }))}><option value="">All staff</option>{workspace.staff.map((row) => <option key={row.id} value={row.id}>{row.full_name}</option>)}</select></label>}
         </div>

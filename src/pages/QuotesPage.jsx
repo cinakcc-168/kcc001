@@ -23,6 +23,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import QuotePrintModal from "../components/QuotePrintModal";
 import SalesOrderCreateModal from "../components/SalesOrderCreateModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import ListViewControls, { defaultListView } from "../components/ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { money } from "../lib/catalog";
@@ -482,27 +483,15 @@ export default function QuotesPage() {
           />
         </div>
 
-        <label>
-          <span>From</span>
-          <input
-            type="date"
-            value={from}
-            onChange={(event) =>
-              setFrom(event.target.value)
-            }
-          />
-        </label>
-
-        <label>
-          <span>To</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(event) =>
-              setTo(event.target.value)
-            }
-          />
-        </label>
+        <DateRangePresetFields
+          from={from}
+          to={to}
+          onChange={(range) => {
+            setFrom(range.from);
+            setTo(range.to);
+            setPage(1);
+          }}
+        />
 
         <label>
           <span>Status</span>

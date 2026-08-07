@@ -25,6 +25,7 @@ import MediaPreviewModal from "../components/MediaPreviewModal";
 import OnlineOrderDetailModal from "../components/OnlineOrderDetailModal";
 import OnlineProductModal from "../components/OnlineProductModal";
 import OnlineStoreSettingsModal from "../components/OnlineStoreSettingsModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
   confirmOnlineOrder,
   loadOnlineStoreAdmin,
@@ -552,8 +553,17 @@ export default function OnlineStorePage() {
       {tab === "orders" ? (
         <>
           <section className="panel online-admin-filters">
-            <label><span>From</span><input type="date" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></label>
-            <label><span>To</span><input type="date" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></label>
+            <DateRangePresetFields
+              from={filters.from}
+              to={filters.to}
+              onChange={(range) =>
+                setFilters((current) => ({
+                  ...current,
+                  from: range.from,
+                  to: range.to
+                }))
+              }
+            />
             <label><span>Status</span><select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
               <option value="current">Current orders</option>
               <option value="all">All statuses</option>

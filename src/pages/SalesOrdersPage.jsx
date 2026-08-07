@@ -25,6 +25,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import SalesOrderDeliveryModal from "../components/SalesOrderDeliveryModal";
 import SalesOrderDocumentModal from "../components/SalesOrderDocumentModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import { money } from "../lib/catalog";
 import {
   cancelSalesOrder,
@@ -502,27 +503,14 @@ export default function SalesOrdersPage() {
           />
         </div>
 
-        <label>
-          <span>From</span>
-          <input
-            type="date"
-            value={from}
-            onChange={(event) =>
-              setFrom(event.target.value)
-            }
-          />
-        </label>
-
-        <label>
-          <span>To</span>
-          <input
-            type="date"
-            value={to}
-            onChange={(event) =>
-              setTo(event.target.value)
-            }
-          />
-        </label>
+        <DateRangePresetFields
+          from={from}
+          to={to}
+          onChange={(range) => {
+            setFrom(range.from);
+            setTo(range.to);
+          }}
+        />
 
         <label>
           <span>Status</span>

@@ -37,6 +37,7 @@ import PurchaseReceiptModal from "../components/PurchaseReceiptModal";
 import PurchaseReceiptPrintModal from "../components/PurchaseReceiptPrintModal";
 import SupplierFormModal from "../components/SupplierFormModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 
 function defaultFilters() {
   const now = new Date();
@@ -455,26 +456,17 @@ export default function PurchaseOrdersPage() {
 
         {tab === "orders" && (
           <>
-            <label>
-              <span>From</span>
-              <input
-                type="date"
-                value={filters.from}
-                onChange={(event) =>
-                  setFilters((current) => ({ ...current, from: event.target.value }))
-                }
-              />
-            </label>
-            <label>
-              <span>To</span>
-              <input
-                type="date"
-                value={filters.to}
-                onChange={(event) =>
-                  setFilters((current) => ({ ...current, to: event.target.value }))
-                }
-              />
-            </label>
+            <DateRangePresetFields
+              from={filters.from}
+              to={filters.to}
+              onChange={(range) =>
+                setFilters((current) => ({
+                  ...current,
+                  from: range.from,
+                  to: range.to
+                }))
+              }
+            />
             <label>
               <span>Status</span>
               <select

@@ -18,6 +18,7 @@ import CashCategoryModal from "../components/CashCategoryModal";
 import VoidCashEntryModal from "../components/VoidCashEntryModal";
 import ReportMetricCard from "../components/ReportMetricCard";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import { money } from "../lib/catalog";
 import { formatReportDate } from "../lib/reports";
 import {
@@ -227,8 +228,17 @@ export default function CashExpensesPage() {
           <Search size={18} />
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search code, category, user, reference or remark" />
         </div>
-        <label><span>From</span><input type="date" value={filters.from} onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))} /></label>
-        <label><span>To</span><input type="date" value={filters.to} onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))} /></label>
+        <DateRangePresetFields
+          from={filters.from}
+          to={filters.to}
+          onChange={(range) =>
+            setFilters((current) => ({
+              ...current,
+              from: range.from,
+              to: range.to
+            }))
+          }
+        />
         {canAllBranches && (
           <label><span>Branch</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => event.target.value === "all" ? setFilters((current) => ({ ...current, allBranches: true })) : setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value }))}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>
         )}

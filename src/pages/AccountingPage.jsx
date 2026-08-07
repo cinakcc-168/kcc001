@@ -5,6 +5,7 @@ import AccountingAccountModal from "../components/AccountingAccountModal";
 import AccountingMappingModal from "../components/AccountingMappingModal";
 import ManualJournalModal from "../components/ManualJournalModal";
 import AccountingPeriodModal from "../components/AccountingPeriodModal";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
   accountingDate, accountingMoney, downloadAccountingCsv, isoDate, loadAccountingReport,
   loadAccountingWorkspace, saveAccountingAccount, saveAccountingMapping,
@@ -91,7 +92,7 @@ export default function AccountingPage() {
     <div className="page-heading"><div><p className="eyebrow">ACCOUNTING & EXPORT</p><h1>Accounting Center</h1><p className="muted">Generate a double-entry ledger from POS activity, post balanced adjustments and export separate USD and KHR accounting records.</p></div><div className="page-heading-actions">{canManage && <button type="button" className="primary-button" onClick={() => setJournal(null)}><FilePlus2 size={18} />New journal</button>}<button type="button" className="secondary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button></div></div>
     {message && <div className={`notice ${messageType}`}>{message}</div>}
 
-    <section className="panel accounting-filter-panel"><div className="accounting-filters"><label><span>From</span><input type="date" value={filters.date_from} onChange={(e) => setFilters((current) => ({ ...current, date_from: e.target.value }))} /></label><label><span>To</span><input type="date" value={filters.date_to} onChange={(e) => setFilters((current) => ({ ...current, date_to: e.target.value }))} /></label><label><span>Branch</span><select value={filters.branch_id} onChange={(e) => setFilters((current) => ({ ...current, branch_id: e.target.value }))}><option value="">{workspace.all_branches ? "All branches" : "Current branch"}</option>{workspace.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label></div></section>
+    <section className="panel accounting-filter-panel"><div className="accounting-filters"><DateRangePresetFields from={filters.date_from} to={filters.date_to} onChange={(range) => setFilters((current) => ({ ...current, date_from: range.from, date_to: range.to }))} /><label><span>Branch</span><select value={filters.branch_id} onChange={(e) => setFilters((current) => ({ ...current, branch_id: e.target.value }))}><option value="">{workspace.all_branches ? "All branches" : "Current branch"}</option>{workspace.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label></div></section>
 
     <div className="accounting-tabs" role="tablist">{[["overview","Overview"],["trial","Trial Balance"],["ledger","General Ledger"],["accounts","Accounts & Mappings"],["journals","Manual Journals"],["periods","Periods"]].filter(([key]) => canManage || !["accounts","journals","periods"].includes(key)).map(([key,label]) => <button type="button" key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label}</button>)}</div>
 

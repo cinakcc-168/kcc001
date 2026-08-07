@@ -32,6 +32,7 @@ import ReportMetricCard from "../components/ReportMetricCard";
 import ReportBarChart from "../components/ReportBarChart";
 import ResponsiveDataList from "../components/ResponsiveDataList";
 import EndOfDayReport from "../components/EndOfDayReport";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import { loadEndOfDay } from "../lib/endOfDay";
 
 const tabs = [
@@ -492,8 +493,17 @@ export default function ReportsPage() {
       {message && <div className="notice error">{message}</div>}
 
       <section className="panel report-filters">
-        <label><span>From</span><input type="date" value={filters.from} onChange={(event) => updateFilter("from", event.target.value)} /></label>
-        <label><span>To</span><input type="date" value={filters.to} onChange={(event) => updateFilter("to", event.target.value)} /></label>
+        <DateRangePresetFields
+          from={filters.from}
+          to={filters.to}
+          onChange={(range) =>
+            setFilters((current) => ({
+              ...current,
+              from: range.from,
+              to: range.to
+            }))
+          }
+        />
         {canAllBranches && <label><span>Branch scope</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true, registerName: "" })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value, registerName: "" })); }}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
         {activeTab === "endofday" && <label><span>Sale user / cashier</span><select value={filters.cashierId} onChange={(event) => updateFilter("cashierId", event.target.value)}><option value="">All users</option>{staff.map((member) => <option value={member.id} key={member.id}>{member.full_name || member.email || "POS Staff"} · {String(member.role || "staff").replaceAll("_", " ")}</option>)}</select></label>}
         {activeTab === "endofday" && <label><span>Counter / register</span><select value={filters.registerName} onChange={(event) => updateFilter("registerName", event.target.value)}><option value="">All counters</option>{registerNames.map((name) => <option value={name} key={name}>{name}</option>)}</select></label>}

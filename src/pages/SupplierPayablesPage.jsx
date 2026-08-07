@@ -19,6 +19,7 @@ import SupplierPaymentModal from "../components/SupplierPaymentModal";
 import SupplierStatementModal from "../components/SupplierStatementModal";
 import SupplierTermsModal from "../components/SupplierTermsModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import { money } from "../lib/catalog";
 import {
   agingClass,
@@ -681,31 +682,14 @@ export default function SupplierPayablesPage() {
           </div>
         </div>
 
-        <label>
-          <span>From</span>
-          <input
-            type="date"
-            value={statementFrom}
-            onChange={(event) =>
-              setStatementFrom(
-                event.target.value
-              )
-            }
-          />
-        </label>
-
-        <label>
-          <span>To</span>
-          <input
-            type="date"
-            value={statementTo}
-            onChange={(event) =>
-              setStatementTo(
-                event.target.value
-              )
-            }
-          />
-        </label>
+        <DateRangePresetFields
+          from={statementFrom}
+          to={statementTo}
+          onChange={(range) => {
+            setStatementFrom(range.from);
+            setStatementTo(range.to);
+          }}
+        />
       </section>
 
       <ResponsiveDataList
