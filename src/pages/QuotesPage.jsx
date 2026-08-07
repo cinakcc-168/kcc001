@@ -293,7 +293,7 @@ export default function QuotesPage() {
         `${result.order_number} created as a Draft sales order.`
       );
       await refresh();
-      navigate("/sales-orders");
+      navigate(`/sales-orders?order=${result.order_id}`);
     } catch (error) {
       announce("error", error.message);
     } finally {

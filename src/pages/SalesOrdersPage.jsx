@@ -19,7 +19,8 @@ import {
 } from "react";
 import {
   Link,
-  useNavigate
+  useNavigate,
+  useSearchParams
 } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import SalesOrderDeliveryModal from "../components/SalesOrderDeliveryModal";
@@ -53,6 +54,8 @@ export default function SalesOrdersPage() {
   } = useAuth();
 
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedOrderId = searchParams.get("order");
   const canManage = can("sales_orders.manage");
   const canDeliver = can("sales_orders.deliver");
 
@@ -118,6 +121,18 @@ export default function SalesOrdersPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!requestedOrderId || loading) return;
+
+    const requested = orders.find((order) => order.id === requestedOrderId);
+    if (!requested) return;
+
+    setDocumentOrder(requested);
+    const next = new URLSearchParams(searchParams);
+    next.delete("order");
+    setSearchParams(next, { replace: true });
+  }, [requestedOrderId, loading, orders, searchParams, setSearchParams]);
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();

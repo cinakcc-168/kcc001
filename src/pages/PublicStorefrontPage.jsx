@@ -488,7 +488,7 @@ export default function PublicStorefrontPage() {
               <article className="public-product-card" key={product.id}>
                 <div className="public-product-image">
                   <MediaImage src={product.image_url} alt={product.name} width={520} height={360} className="public-product-media" imgClassName={!product.image_url ? "placeholder" : ""} />
-                  {product.featured && <span>{label("Featured", "ពេញនិយម")}</span>}
+                  {product.featured && <span className="public-product-featured-badge">{label("Featured", "ពេញនិយម")}</span>}
                 </div>
                 <div className="public-product-content">
                   <div className="public-product-title-row">
