@@ -51,6 +51,7 @@ import { switchMyBranch } from "../lib/staff";
 import PwaManager from "./PwaManager";
 import LanguageSwitcher from "./LanguageSwitcher";
 import OfflineSyncManager from "./OfflineSyncManager";
+import TinyPosLoader from "./TinyPosLoader";
 import { useLanguage } from "../context/LanguageContext";
 
 const navigationItems = {
@@ -338,6 +339,7 @@ export default function AppShell() {
 
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""}`}>
+      {switchingBranch && <TinyPosLoader overlay label={t("Switching branch…")} />}
       <aside className={open ? "side open" : "side"}>
         <div className="brand">
           <img
@@ -425,8 +427,7 @@ export default function AppShell() {
             title={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
             aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
           >
-            {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            <span className="side-label">{t(collapsed ? "Expand" : "Collapse")}</span>
+            {collapsed ? <ChevronRight size={19} /> : <ChevronLeft size={19} />}
           </button>
         </nav>
 

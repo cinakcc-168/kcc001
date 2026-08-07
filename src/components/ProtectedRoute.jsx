@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import TinyPosLoader from "./TinyPosLoader";
 
 export default function ProtectedRoute({ children }) {
   const {
@@ -24,16 +25,18 @@ export default function ProtectedRoute({ children }) {
   // POS profile/access. Previously this state looked like every permission was
   // denied and hid the whole sidebar, which was misleading.
   if (!profile || !access) {
+    if (!error) {
+      return <TinyPosLoader label="Loading POS account…" />;
+    }
+
     return (
-      <div className="loading">
+      <div className="loading loading-error">
         <div>
-          <strong>{error ? "Unable to load the POS account." : "Loading POS account…"}</strong>
-          {error ? <p>{error}</p> : null}
-          {error ? (
-            <button type="button" onClick={() => window.location.reload()}>
-              Retry
-            </button>
-          ) : null}
+          <strong>Unable to load the POS account.</strong>
+          <p>{error}</p>
+          <button type="button" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       </div>
     );

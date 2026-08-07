@@ -7,7 +7,6 @@ import {
   Plus,
   TicketPercent,
   FileText,
-  Trash2,
   UserPlus,
   Wallet,
   X
@@ -133,7 +132,7 @@ function CartLineList({
                   disabled={fulfillmentLocked}
                   aria-label={`Remove ${item.name}`}
                 >
-                  <Trash2 size={17} />
+                  <X size={17} />
                 </button>
               </div>
 
@@ -617,7 +616,6 @@ export function SaleCartLinesPanel({
 
       <div className="sale-cart-lines-count">
         <span>{cart.length} item{cart.length === 1 ? "" : "s"}</span>
-        {cart.length > 0 && <small>Keep the whole selected bill visible in one area.</small>}
       </div>
 
       <CartLineList
