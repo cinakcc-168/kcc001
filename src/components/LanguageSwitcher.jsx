@@ -6,17 +6,19 @@ export default function LanguageSwitcher({
   className = ""
 }) {
   const {
-    language,
+    displayLanguage,
+    isSwitching,
     setLanguage,
     t
   } = useLanguage();
 
   return (
     <div
-      className={`language-switcher ${compact ? "compact" : ""} ${className}`.trim()}
+      className={`language-switcher ${compact ? "compact" : ""} ${isSwitching ? "switching" : ""} ${className}`.trim()}
       data-i18n-skip
       role="group"
       aria-label={t("Language")}
+      aria-busy={isSwitching}
     >
       {!compact && (
         <span className="language-switcher-label">
@@ -28,17 +30,17 @@ export default function LanguageSwitcher({
       <div className="language-toggle" aria-label={t("Choose language") }>
         <button
           type="button"
-          className={language === "en" ? "active" : ""}
+          className={displayLanguage === "en" ? "active" : ""}
           onClick={() => setLanguage("en")}
-          aria-pressed={language === "en"}
+          aria-pressed={displayLanguage === "en"}
         >
           EN
         </button>
         <button
           type="button"
-          className={language === "km" ? "active" : ""}
+          className={displayLanguage === "km" ? "active" : ""}
           onClick={() => setLanguage("km")}
-          aria-pressed={language === "km"}
+          aria-pressed={displayLanguage === "km"}
         >
           KH
         </button>

@@ -1,6 +1,10 @@
-import { useEffect, useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
-import { translateUiText } from "../i18n/translations";
+import {
+  normalizeLanguage,
+  recoverEnglishUiText,
+  translateUiText
+} from "../i18n/translations";
 
 const textState = new WeakMap();
 const attributeState = new WeakMap();
@@ -62,37 +66,54 @@ const ATTRIBUTES = [
   "aria-label"
 ];
 
+const ENGLISH_TEXT = /[A-Za-z]/;
+const KHMER_TEXT = /[\u1780-\u17ff]/;
+
+function isUiText(value) {
+  return ENGLISH_TEXT.test(value || "") || KHMER_TEXT.test(value || "");
+}
+
 function shouldTranslateText(node) {
   const parent = node.parentElement;
   if (!parent) return false;
   if (parent.closest(SKIP_SELECTOR)) return false;
   if (!parent.closest(TRANSLATABLE_SELECTOR)) return false;
-  return /[A-Za-z]/.test(node.nodeValue || "");
+  return isUiText(node.nodeValue || "") || textState.has(node);
+}
+
+function stableEnglishSource(value) {
+  const current = String(value ?? "");
+  const recovered = recoverEnglishUiText(current);
+
+  if (ENGLISH_TEXT.test(recovered)) return recovered;
+  return current;
 }
 
 function renderTextNode(node, language) {
   if (!shouldTranslateText(node)) return;
 
+  const current = node.nodeValue || "";
   let state = textState.get(node);
 
   if (!state) {
     state = {
-      source: node.nodeValue,
-      rendered: node.nodeValue
+      source: stableEnglishSource(current),
+      rendered: current
     };
     textState.set(node, state);
-  } else if (node.nodeValue !== state.rendered) {
-    state.source = node.nodeValue;
+  } else if (current !== state.rendered) {
+    // React may render either the original English string or its Khmer t()
+    // result. Recover and retain the English source instead of permanently
+    // replacing it with Khmer, which previously made switching back require
+    // leaving and reopening the page.
+    const recovered = stableEnglishSource(current);
+    if (isUiText(recovered)) state.source = recovered;
   }
 
-  const translated = translateUiText(
-    state.source,
-    language
-  );
-
+  const translated = translateUiText(state.source, language);
   state.rendered = translated;
 
-  if (node.nodeValue !== translated) {
+  if (current !== translated) {
     node.nodeValue = translated;
   }
 }
@@ -115,19 +136,16 @@ function renderAttributes(element, language) {
 
     if (!state) {
       state = {
-        source: current,
+        source: stableEnglishSource(current),
         rendered: current
       };
       states.set(name, state);
     } else if (current !== state.rendered) {
-      state.source = current;
+      const recovered = stableEnglishSource(current);
+      if (isUiText(recovered)) state.source = recovered;
     }
 
-    const translated = translateUiText(
-      state.source,
-      language
-    );
-
+    const translated = translateUiText(state.source, language);
     state.rendered = translated;
 
     if (current !== translated) {
@@ -145,13 +163,13 @@ function translateTree(root, language) {
   }
 
   if (!(root instanceof Element)) return;
+  if (root.matches(SKIP_SELECTOR)) return;
 
   renderAttributes(root, language);
 
   const walker = document.createTreeWalker(
     root,
-    NodeFilter.SHOW_ELEMENT
-      | NodeFilter.SHOW_TEXT
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT
   );
 
   let node = walker.nextNode();
@@ -169,63 +187,55 @@ function translateTree(root, language) {
 
 export default function LanguageAutoTranslate() {
   const { language } = useLanguage();
+  const languageRef = useRef(normalizeLanguage(language));
+  const refreshFrame = useRef(0);
+  const refreshTimers = useRef([]);
 
-  // Apply the selected language before the browser paints the next frame.
-  // This makes the currently open route change immediately instead of only
-  // translating after the user leaves the page and returns.
+  const renderAll = () => {
+    if (!document.body) return;
+    translateTree(document.body, languageRef.current);
+  };
+
+  const schedulePasses = () => {
+    window.cancelAnimationFrame(refreshFrame.current);
+    refreshTimers.current.forEach((timer) => window.clearTimeout(timer));
+    refreshTimers.current = [];
+
+    renderAll();
+    refreshFrame.current = window.requestAnimationFrame(renderAll);
+    refreshTimers.current.push(window.setTimeout(renderAll, 32));
+    refreshTimers.current.push(window.setTimeout(renderAll, 110));
+    refreshTimers.current.push(window.setTimeout(renderAll, 280));
+  };
+
+  // Update the language reference in the layout phase. The single persistent
+  // MutationObserver below then always handles React's current-page mutations
+  // with the new language, never with a stale previous-language closure.
   useLayoutEffect(() => {
-    translateTree(document.body, language);
+    languageRef.current = normalizeLanguage(language);
+    schedulePasses();
   }, [language]);
 
   useEffect(() => {
-    let cancelled = false;
-    const timers = [];
-    let frame = 0;
+    const observer = new MutationObserver((mutations) => {
+      const activeLanguage = languageRef.current;
 
-    const renderAll = () => {
-      if (cancelled) return;
-      translateTree(document.body, language);
-    };
+      for (const mutation of mutations) {
+        if (mutation.type === "characterData") {
+          renderTextNode(mutation.target, activeLanguage);
+          continue;
+        }
 
-    // Translate immediately, after React paints, and once more after slower
-    // page effects finish. This prevents the current page from remaining in
-    // the previous language until the user navigates away and back.
-    renderAll();
-    frame = window.requestAnimationFrame(renderAll);
-    timers.push(window.setTimeout(renderAll, 24));
-    timers.push(window.setTimeout(renderAll, 90));
-    timers.push(window.setTimeout(renderAll, 240));
-    timers.push(window.setTimeout(renderAll, 520));
+        if (mutation.type === "attributes") {
+          renderAttributes(mutation.target, activeLanguage);
+          continue;
+        }
 
-    const observer = new MutationObserver(
-      (mutations) => {
-        for (const mutation of mutations) {
-          if (
-            mutation.type === "characterData"
-          ) {
-            renderTextNode(
-              mutation.target,
-              language
-            );
-            continue;
-          }
-
-          if (
-            mutation.type === "attributes"
-          ) {
-            renderAttributes(
-              mutation.target,
-              language
-            );
-            continue;
-          }
-
-          for (const node of mutation.addedNodes) {
-            translateTree(node, language);
-          }
+        for (const node of mutation.addedNodes) {
+          translateTree(node, activeLanguage);
         }
       }
-    );
+    });
 
     observer.observe(document.body, {
       subtree: true,
@@ -236,22 +246,21 @@ export default function LanguageAutoTranslate() {
     });
 
     const onRequestedRefresh = (event) => {
-      const requestedLanguage = event?.detail?.language || language;
-      translateTree(document.body, requestedLanguage);
-      window.requestAnimationFrame(() => {
-        translateTree(document.body, requestedLanguage);
-      });
+      languageRef.current = normalizeLanguage(
+        event?.detail?.language || languageRef.current
+      );
+      schedulePasses();
     };
+
     window.addEventListener("tiny-pos-language-change", onRequestedRefresh);
 
     return () => {
-      cancelled = true;
       observer.disconnect();
       window.removeEventListener("tiny-pos-language-change", onRequestedRefresh);
-      window.cancelAnimationFrame(frame);
-      timers.forEach((timer) => window.clearTimeout(timer));
+      window.cancelAnimationFrame(refreshFrame.current);
+      refreshTimers.current.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [language]);
+  }, []);
 
   return null;
 }
