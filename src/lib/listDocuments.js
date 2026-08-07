@@ -48,24 +48,41 @@ function currentStyleMarkup() {
 }
 
 function waitForPrintableAssets(doc) {
+  const stylesheets = [...doc.querySelectorAll('link[rel="stylesheet"]')].map((link) => {
+    if (link.sheet) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        resolve();
+      };
+
+      link.addEventListener("load", finish, { once: true });
+      link.addEventListener("error", finish, { once: true });
+      window.setTimeout(finish, 4000);
+    });
+  });
+
   const images = [...doc.images].map((image) => {
     if (image.complete) return Promise.resolve();
     return new Promise((resolve) => {
       const finish = () => resolve();
       image.addEventListener("load", finish, { once: true });
       image.addEventListener("error", finish, { once: true });
-      window.setTimeout(finish, 2500);
+      window.setTimeout(finish, 3000);
     });
   });
 
   const fonts = doc.fonts?.ready
     ? Promise.race([
         doc.fonts.ready.catch(() => undefined),
-        new Promise((resolve) => window.setTimeout(resolve, 1800))
+        new Promise((resolve) => window.setTimeout(resolve, 2500))
       ])
     : Promise.resolve();
 
-  return Promise.all([fonts, ...images]);
+  return Promise.all([fonts, ...stylesheets, ...images]);
 }
 
 /**

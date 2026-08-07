@@ -302,3 +302,57 @@ export function clearLocalSaleDraft(profile) {
     // Nothing else is required.
   }
 }
+
+export function detachQuoteFromLocalSaleDraft(profile, quoteId) {
+  const key = saleDraftKey(profile);
+  if (
+    !key
+    || !quoteId
+    || typeof localStorage === "undefined"
+  ) {
+    return false;
+  }
+
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return false;
+
+    const parsed = JSON.parse(value);
+    if (
+      parsed?.version !== DRAFT_VERSION
+      || String(parsed?.active_quote_id || "") !== String(quoteId)
+    ) {
+      return false;
+    }
+
+    const next = {
+      ...parsed,
+      saved_at: new Date().toISOString(),
+      active_quote_id: null,
+      active_quote_number: null,
+      active_quote_status: null,
+      active_quote_valid_until: null,
+      active_quote_terms: null
+    };
+
+    localStorage.setItem(key, JSON.stringify(next));
+
+    try {
+      window.dispatchEvent(
+        new CustomEvent("tiny-pos-quote-detached", {
+          detail: { quoteId: String(quoteId) }
+        })
+      );
+    } catch {
+      // The saved draft is already repaired even if events are unavailable.
+    }
+
+    return true;
+  } catch (error) {
+    console.warn(
+      "Unable to detach quotation from the local Tiny POS sale draft:",
+      error
+    );
+    return false;
+  }
+}
