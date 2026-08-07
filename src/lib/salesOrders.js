@@ -27,6 +27,12 @@ function number(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined) return [];
+  return [value];
+}
+
 function normalizeDeliveryItem(item) {
   return {
     ...item,
@@ -62,8 +68,8 @@ function normalizeOrderItem(item) {
     line_subtotal: number(item.line_subtotal),
     discount_amount: number(item.discount_amount),
     line_total: number(item.line_total),
-    stock_reservations: (
-      item.stock_reservations || []
+    stock_reservations: asArray(
+      item.stock_reservations
     ).map((reservation) => ({
       ...reservation,
       reserved_base_quantity: number(
@@ -88,8 +94,8 @@ function normalizeOrder(order) {
     ),
     tax_amount: number(order.tax_amount),
     total_amount: number(order.total_amount),
-    sales_order_items: (
-      order.sales_order_items || []
+    sales_order_items: asArray(
+      order.sales_order_items
     )
       .map(normalizeOrderItem)
       .sort((a, b) =>
@@ -97,17 +103,16 @@ function normalizeOrder(order) {
           String(b.product_name)
         )
       ),
-    sales_order_deliveries: (
-      order.sales_order_deliveries || []
+    sales_order_deliveries: asArray(
+      order.sales_order_deliveries
     )
       .map((delivery) => ({
         ...delivery,
         subtotal: number(delivery.subtotal),
         tax_amount: number(delivery.tax_amount),
         total_amount: number(delivery.total_amount),
-        sales_order_delivery_items: (
+        sales_order_delivery_items: asArray(
           delivery.sales_order_delivery_items
-          || []
         ).map(normalizeDeliveryItem)
       }))
       .sort(
@@ -158,8 +163,8 @@ export function orderRemainingQuantity(item) {
 }
 
 export function orderReservedQuantity(item) {
-  const reservation = (
-    item.stock_reservations || []
+  const reservation = asArray(
+    item.stock_reservations
   )[0];
 
   if (!reservation) return 0;
