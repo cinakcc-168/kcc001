@@ -43,6 +43,21 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
+const quotePrintStyles = `
+.tiny-pos-print-frame-content{padding:0!important;font-family:"Noto Sans Khmer",Arial,sans-serif!important;color:#111!important;font-size:9.5px!important}
+.quote-print-document{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:#fff!important;color:#111!important;box-shadow:none!important;overflow:visible!important}
+.quote-print-header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:start!important;gap:8mm!important;padding:0 0 4mm!important;border-bottom:2px solid #111!important;break-inside:avoid!important}
+.quote-print-shop{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:start!important;gap:3mm!important;min-width:0!important}
+.quote-print-shop img{display:block!important;width:16mm!important;height:16mm!important;max-width:16mm!important;max-height:16mm!important;object-fit:contain!important}
+.quote-print-shop h2{margin:0!important;font-size:17px!important;line-height:1.15!important}.quote-print-shop p{margin:1mm 0 0!important;color:#444!important;line-height:1.25!important;overflow-wrap:anywhere!important}
+.quote-print-title{text-align:right!important;display:grid!important;justify-items:end!important;gap:1mm!important;min-width:42mm!important}.quote-print-title>strong{font-size:18px!important;letter-spacing:.06em!important}.quote-print-title>span{font-weight:800!important;overflow-wrap:anywhere!important}.quote-status{display:inline-block!important;padding:1.2mm 2.2mm!important;border-radius:999px!important;font-size:8px!important;font-weight:800!important}
+.quote-print-parties{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8mm!important;padding:4mm 0!important;break-inside:avoid!important}.quote-print-parties>div{display:grid!important;align-content:start!important;gap:1mm!important;min-width:0!important}.quote-print-parties>div:last-child>div{display:grid!important;grid-template-columns:26mm minmax(0,1fr)!important;gap:2mm!important;padding:.7mm 0!important}.quote-print-parties span{color:#555!important;font-size:8.5px!important}.quote-print-parties p{margin:0!important;color:#333!important;overflow-wrap:anywhere!important}
+.quote-print-table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:8.8px!important}.quote-print-table thead{display:table-header-group!important}.quote-print-table tr{break-inside:avoid!important}.quote-print-table th,.quote-print-table td{display:table-cell!important;padding:1.8mm 1.5mm!important;border:1px solid #aeb4bd!important;text-align:left!important;vertical-align:top!important;overflow-wrap:anywhere!important;word-break:normal!important;line-height:1.25!important}.quote-print-table th{background:#f1f3f5!important;font-size:8.3px!important;font-weight:800!important}.quote-print-table th:nth-child(1),.quote-print-table td:nth-child(1){width:5%!important;text-align:center!important}.quote-print-table th:nth-child(2),.quote-print-table td:nth-child(2){width:31%!important}.quote-print-table th:nth-child(3),.quote-print-table td:nth-child(3){width:14%!important}.quote-print-table th:nth-child(4),.quote-print-table td:nth-child(4){width:14%!important}.quote-print-table th:nth-child(5),.quote-print-table td:nth-child(5){width:12%!important;text-align:right!important}.quote-print-table th:nth-child(6),.quote-print-table td:nth-child(6){width:12%!important;text-align:right!important}.quote-print-table th:nth-child(7),.quote-print-table td:nth-child(7){width:12%!important;text-align:right!important}.quote-print-table td>small{display:block!important;color:#64748b!important;margin-top:.8mm!important}
+.quote-print-bottom{display:grid!important;grid-template-columns:minmax(0,1fr) 70mm!important;gap:6mm!important;padding-top:4mm!important;break-inside:avoid!important}.quote-print-notes{line-height:1.4!important;min-width:0!important}.quote-print-notes p{margin:0 0 2mm!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}.quote-print-totals{display:grid!important}.quote-print-totals>div{display:flex!important;justify-content:space-between!important;gap:4mm!important;padding:1.5mm 0!important;border-bottom:1px solid #d5d7db!important}.quote-print-grand{font-size:11px!important;border-bottom:2px solid #111!important}
+.quote-print-footer{margin-top:5mm!important;padding-top:3mm!important;border-top:1px solid #aaa!important;break-inside:avoid!important}.quote-print-footer>p{text-align:center!important;color:#555!important;margin:0!important}.quote-print-footer>div{display:grid!important;grid-template-columns:1fr 1fr!important;gap:15mm!important;margin-top:11mm!important}.quote-print-footer>div>span{padding-top:2mm!important;border-top:1px solid #222!important;text-align:center!important}
+@media print{.quote-print-document,.quote-print-document *{visibility:visible!important}.quote-print-table{page-break-inside:auto!important}.quote-print-header,.quote-print-parties,.quote-print-bottom,.quote-print-footer{break-inside:avoid!important}}
+`;
+
 export default function QuotePrintModal({
   quote,
   shop,
@@ -332,7 +347,13 @@ export default function QuotePrintModal({
             {label("Export CSV", "នាំចេញ CSV")}
           </button>
 
-          <button type="button" className="secondary-button" onClick={() => printElementDocument({ title: "Quotation", selector: ".quote-print-document", page: "A4 portrait" })}>
+          <button type="button" className="secondary-button" onClick={() => printElementDocument({
+            title: "Quotation",
+            selector: ".quote-print-document",
+            styles: quotePrintStyles,
+            page: "A4 portrait",
+            includeAppStyles: true
+          })}>
             <Printer size={18} />
             {label("Print quotation", "បោះពុម្ពសម្រង់តម្លៃ")}
           </button>
