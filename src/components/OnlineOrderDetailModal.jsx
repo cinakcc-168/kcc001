@@ -99,22 +99,52 @@ export default function OnlineOrderDetailModal({
         {order.delivery_address && <section className="online-order-note"><strong>Delivery address</strong><p>{order.delivery_address}</p></section>}
         {order.customer_note && <section className="online-order-note"><strong>Customer note</strong><p>{order.customer_note}</p></section>}
 
-        <div className="table-wrap online-order-items-wrap">
-          <table>
-            <thead><tr><th>Product</th><th>Unit</th><th className="right">Qty</th><th className="right">Price</th><th className="right">Total</th></tr></thead>
-            <tbody>
-              {(order.online_order_items || []).map((item) => (
-                <tr key={item.id}>
-                  <td><strong>{item.product_name}</strong><small>{item.sku || item.barcode || ""}</small></td>
-                  <td>{item.unit_name}</td>
-                  <td className="right">{item.quantity}</td>
-                  <td className="right">{onlineMoney(item.unit_price, order.currency)}</td>
-                  <td className="right">{onlineMoney(item.line_total, order.currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {order.sales_order_id && (
+          <section className="online-order-sales-order-link">
+            <div>
+              <small>Reserved Sales Order</small>
+              <strong>{order.sales_orders?.order_number || "Sales Order ready"}</strong>
+              <span>{order.sales_orders?.status ? `Status: ${String(order.sales_orders.status).replaceAll("_", " ")}` : "Stock reservation created"}</span>
+            </div>
+            {canFulfill && (
+              <button type="button" className="secondary-button" onClick={() => onOpenSalesOrder(order.sales_order_id)}>
+                Open Sales Order / issue receipt
+              </button>
+            )}
+          </section>
+        )}
+
+        <section className="online-order-products-section">
+          <div className="online-order-section-heading">
+            <div>
+              <p className="eyebrow">ORDER ITEMS</p>
+              <h3>Products</h3>
+            </div>
+            <strong>{(order.online_order_items || []).length} lines</strong>
+          </div>
+
+          <div className="online-order-items-list" role="table" aria-label="Online order products">
+            <div className="online-order-item-row online-order-item-head" role="row">
+              <span>Product</span>
+              <span>Unit</span>
+              <span>Qty</span>
+              <span>Price</span>
+              <span>Total</span>
+            </div>
+            {(order.online_order_items || []).map((item) => (
+              <div className="online-order-item-row" role="row" key={item.id}>
+                <div className="online-order-item-product" role="cell">
+                  <strong>{item.product_name}</strong>
+                  <small>{item.sku || item.barcode || "—"}</small>
+                </div>
+                <div className="online-order-item-value" data-label="Unit" role="cell"><strong>{item.unit_name}</strong></div>
+                <div className="online-order-item-value" data-label="Qty" role="cell"><strong>{item.quantity}</strong></div>
+                <div className="online-order-item-value" data-label="Price" role="cell"><strong>{onlineMoney(item.unit_price, order.currency)}</strong></div>
+                <div className="online-order-item-value online-order-line-total" data-label="Total" role="cell"><strong>{onlineMoney(item.line_total, order.currency)}</strong></div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <div className="online-order-totals">
           <div><span>Subtotal</span><strong>{onlineMoney(order.subtotal, order.currency)}</strong></div>
@@ -136,12 +166,6 @@ export default function OnlineOrderDetailModal({
             {canReceive && order.status === "pending" && (
               <button type="button" onClick={() => onConfirm(order.id)} disabled={busy}>
                 <ReceiptText size={18} /> Receive order & reserve stock
-              </button>
-            )}
-
-            {canFulfill && order.sales_order_id && (
-              <button type="button" className="secondary" onClick={() => onOpenSalesOrder(order.sales_order_id)}>
-                Open Sales Order / issue receipt
               </button>
             )}
 
