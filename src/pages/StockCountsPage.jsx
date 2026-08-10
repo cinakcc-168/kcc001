@@ -19,15 +19,18 @@ import StockCountHistoryModal from "../components/StockCountHistoryModal";
 import StockCountStartModal from "../components/StockCountStartModal";
 import StockCountWorkspaceModal from "../components/StockCountWorkspaceModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
+import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
   money,
   stockNumber
 } from "../lib/catalog";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
+import { dateRangeForPreset, localDateKey } from "../lib/dateRangePresets";
 import {
   cancelStockCount,
   completeStockCount,
   exactStockCountMatch,
+  loadStockCountHistorySessions,
   loadStockCountItems,
   loadStockCountWorkspace,
   saveAllStockCountItems,
@@ -70,6 +73,10 @@ export default function StockCountsPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [countFilter, setCountFilter] = useState("all");
 
+  const initialHistoryRange = useMemo(() => dateRangeForPreset("today"), []);
+  const [historyFrom, setHistoryFrom] = useState(initialHistoryRange.from);
+  const [historyTo, setHistoryTo] = useState(initialHistoryRange.to);
+
   const [startOpen, setStartOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -97,8 +104,14 @@ export default function StockCountsPage() {
 
     try {
       setLoading(true);
-      const workspace = await loadStockCountWorkspace(supabase, profile);
-      setSessions(workspace.sessions);
+      const [workspace, historyRows] = await Promise.all([
+        loadStockCountWorkspace(supabase, profile),
+        loadStockCountHistorySessions(supabase, profile, {
+          from: historyFrom,
+          to: historyTo
+        })
+      ]);
+      setSessions(historyRows);
       setActiveSession(workspace.activeSession);
       setItems(workspace.activeItems);
       setProducts(workspace.products);
@@ -111,7 +124,7 @@ export default function StockCountsPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, profile, canManage]);
+  }, [supabase, profile, canManage, historyFrom, historyTo]);
 
   useEffect(() => {
     refresh();
@@ -152,10 +165,17 @@ export default function StockCountsPage() {
     };
   }, [items]);
 
-  const historySessions = useMemo(
-    () => sessions.filter((session) => session.id !== activeSession?.id),
-    [sessions, activeSession]
-  );
+  const historySessions = useMemo(() => {
+    return sessions.filter((session) => {
+      if (session.id === activeSession?.id) return false;
+      if (!session.started_at) return false;
+
+      const startedKey = localDateKey(new Date(session.started_at));
+      if (historyFrom && startedKey < historyFrom) return false;
+      if (historyTo && startedKey > historyTo) return false;
+      return true;
+    });
+  }, [sessions, activeSession, historyFrom, historyTo]);
 
   const visibleItems = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -527,10 +547,28 @@ export default function StockCountsPage() {
         </section>
       )}
 
+      <section className="panel stock-count-history-date-filter">
+        <div className="stock-count-history-date-filter-copy">
+          <p className="eyebrow">HISTORY RANGE</p>
+          <strong>Stock count sessions</strong>
+          <small>Defaults to today. Choose another preset or enter a custom date range.</small>
+        </div>
+        <div className="stock-count-history-date-filter-fields">
+          <DateRangePresetFields
+            from={historyFrom}
+            to={historyTo}
+            onChange={(range) => {
+              setHistoryFrom(range.from);
+              setHistoryTo(range.to);
+            }}
+          />
+        </div>
+      </section>
+
       <ResponsiveDataList
         storageKey="stock-count-history"
         title="Previous stock counts"
-        subtitle={`${profile?.branches?.name || "Current branch"} · Completed, cancelled and earlier count sessions`}
+        subtitle={`${profile?.branches?.name || "Current branch"} · ${historyFrom === historyTo ? historyFrom : `${historyFrom} to ${historyTo}`} · Completed, cancelled and earlier count sessions`}
         rows={historySessions}
         filename={`stock-count-history-${new Date().toISOString().slice(0, 10)}.xls`}
         emptyTitle="No stock count history yet"
