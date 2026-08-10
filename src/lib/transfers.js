@@ -3,6 +3,57 @@ export function dateTime(value) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
+function normalizeUnits(units = []) {
+  return [...units]
+    .map((unit) => ({
+      ...unit,
+      conversion_factor: Number(unit.conversion_factor || 1),
+      selling_price: Number(unit.selling_price || 0)
+    }))
+    .filter((unit) => unit.is_active || unit.is_base)
+    .sort(
+      (a, b) =>
+        Number(b.is_base) - Number(a.is_base)
+        || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+        || String(a.name || "").localeCompare(String(b.name || ""))
+    );
+}
+
+function normalizeTransferItem(item) {
+  const product = item.products
+    ? {
+        ...item.products,
+        product_units: normalizeUnits(item.products.product_units || [])
+      }
+    : null;
+  const requestedFactor = Number(item.requested_unit_factor || 1);
+  const countedFactor = Number(item.counted_unit_factor || 1);
+  const baseQuantity = Number(item.quantity || 0);
+  const countedBase = item.counted_quantity === null || item.counted_quantity === undefined
+    ? null
+    : Number(item.counted_quantity);
+
+  return {
+    ...item,
+    quantity: baseQuantity,
+    unit_cost: Number(item.unit_cost || 0),
+    requested_unit_factor: requestedFactor,
+    requested_unit_quantity: item.requested_unit_quantity === null || item.requested_unit_quantity === undefined
+      ? baseQuantity / Math.max(requestedFactor, 0.001)
+      : Number(item.requested_unit_quantity),
+    requested_unit_name: item.requested_unit_name || product?.unit_name || "pcs",
+    counted_quantity: countedBase,
+    counted_unit_factor: countedFactor,
+    counted_unit_quantity: item.counted_unit_quantity === null || item.counted_unit_quantity === undefined
+      ? countedBase === null
+        ? null
+        : countedBase / Math.max(countedFactor, 0.001)
+      : Number(item.counted_unit_quantity),
+    counted_unit_name: item.counted_unit_name || product?.unit_name || "pcs",
+    products: product
+  };
+}
+
 export async function loadTransferWorkspace(supabase, profile, options = {}) {
   const orgId = profile.organization_id;
   const branchId = profile.branch_id;
@@ -13,27 +64,33 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
       id,transfer_number,source_branch_id,destination_branch_id,status,notes,created_by,created_at,
       received_by,received_at,receive_notes,cancelled_at,cancel_reason,
       workflow_version,count_status,count_notes,counted_by,counted_at,submitted_by,submitted_at,
-      approved_by,approved_at,approval_note,
+      approved_by,approved_at,approval_note,requested_by_branch_id,
       source_branch:branches!stock_transfers_source_branch_id_fkey(id,name,code),
       destination_branch:branches!stock_transfers_destination_branch_id_fkey(id,name,code),
       stock_transfer_items(
         id,product_id,quantity,unit_cost,counted_quantity,count_note,
-        products(id,name,sku,barcode,unit_name,currency)
+        requested_product_unit_id,requested_unit_name,requested_unit_factor,requested_unit_quantity,
+        counted_product_unit_id,counted_unit_name,counted_unit_factor,counted_unit_quantity,
+        products(
+          id,name,name_km,sku,barcode,unit_name,currency,
+          product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order)
+        )
       )
     `)
     .eq("organization_id", orgId)
     .order("created_at", { ascending: false })
-    .limit(500);
+    .limit(1000);
 
   if (!options.allBranches) {
     transferQuery = transferQuery.or(`source_branch_id.eq.${branchId},destination_branch_id.eq.${branchId}`);
   }
 
-  const [branchResult, productResult, transferResult, purchaseResult, returnResult] = await Promise.all([
+  const [branchResult, productResult, transferResult, purchaseResult, returnResult, metricsResult] = await Promise.all([
     supabase.from("branches").select("id,name,code,is_active").eq("organization_id", orgId).eq("is_active", true).order("name"),
     supabase.from("products").select(`
       id,name,name_km,sku,barcode,unit_name,currency,is_active,track_stock,
-      inventory_balances(branch_id,quantity,average_cost)
+      inventory_balances(branch_id,quantity,average_cost),
+      product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order)
     `).eq("organization_id", orgId).eq("is_active", true).eq("track_stock", true).order("name"),
     transferQuery,
     supabase.from("purchases").select(`
@@ -52,16 +109,29 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
         id,purchase_item_id,product_id,quantity,base_quantity,return_unit_name,unit_factor,unit_cost,base_unit_cost,line_total,
         products(id,name,sku,barcode,unit_name,currency)
       )
-    `).eq("organization_id", orgId).eq("branch_id", branchId).eq("status", "completed").order("created_at", { ascending: false }).limit(200)
+    `).eq("organization_id", orgId).eq("branch_id", branchId).eq("status", "completed").order("created_at", { ascending: false }).limit(200),
+    supabase.rpc("get_stock_transfer_metrics_v5")
   ]);
 
-  for (const result of [branchResult, productResult, transferResult, purchaseResult, returnResult]) {
+  for (const result of [branchResult, productResult, transferResult, purchaseResult, returnResult, metricsResult]) {
     if (result.error) throw result.error;
   }
 
   const products = (productResult.data || []).map((product) => {
-    const balance = (product.inventory_balances || []).find((row) => row.branch_id === branchId);
-    return { ...product, stock_quantity: Number(balance?.quantity || 0), average_cost: Number(balance?.average_cost || 0) };
+    const balances = (product.inventory_balances || []).map((row) => ({
+      ...row,
+      quantity: Number(row.quantity || 0),
+      average_cost: Number(row.average_cost || 0)
+    }));
+    const balance = balances.find((row) => row.branch_id === branchId);
+    return {
+      ...product,
+      inventory_balances: balances,
+      product_units: normalizeUnits(product.product_units || []),
+      stock_by_branch: Object.fromEntries(balances.map((row) => [row.branch_id, row])),
+      stock_quantity: Number(balance?.quantity || 0),
+      average_cost: Number(balance?.average_cost || 0)
+    };
   });
 
   const transfers = (transferResult.data || []).map((transfer) => ({
@@ -77,12 +147,7 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
           : transfer.count_status === "counting"
             ? "Counting"
             : "Pending",
-    stock_transfer_items: (transfer.stock_transfer_items || []).map((item) => ({
-      ...item,
-      quantity: Number(item.quantity || 0),
-      counted_quantity: item.counted_quantity === null || item.counted_quantity === undefined ? null : Number(item.counted_quantity),
-      unit_cost: Number(item.unit_cost || 0)
-    }))
+    stock_transfer_items: (transfer.stock_transfer_items || []).map(normalizeTransferItem)
   }));
 
   const returnedByPurchaseItem = new Map();
@@ -117,14 +182,20 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
     products,
     transfers,
     purchases,
-    supplierReturns: returnResult.data || []
+    supplierReturns: returnResult.data || [],
+    transferMetrics: metricsResult.data || {}
   };
 }
 
 export async function createStockTransfer(supabase, values) {
-  const { data, error } = await supabase.rpc("create_stock_transfer_v4", {
+  const { data, error } = await supabase.rpc("create_stock_transfer_v5", {
+    p_source_branch_id: values.source_branch_id,
     p_destination_branch_id: values.destination_branch_id,
-    p_items: values.items.map((item) => ({ product_id: item.product_id, quantity: Number(item.quantity) })),
+    p_items: values.items.map((item) => ({
+      product_id: item.product_id,
+      product_unit_id: item.product_unit_id || null,
+      quantity: Number(item.quantity)
+    })),
     p_notes: values.notes?.trim() || null
   });
   if (error) throw error;
@@ -132,10 +203,15 @@ export async function createStockTransfer(supabase, values) {
 }
 
 export async function updateStockTransfer(supabase, values) {
-  const { data, error } = await supabase.rpc("update_stock_transfer_v4", {
+  const { data, error } = await supabase.rpc("update_stock_transfer_v5", {
     p_transfer_id: values.transfer_id,
+    p_source_branch_id: values.source_branch_id,
     p_destination_branch_id: values.destination_branch_id,
-    p_items: values.items.map((item) => ({ product_id: item.product_id, quantity: Number(item.quantity) })),
+    p_items: values.items.map((item) => ({
+      product_id: item.product_id,
+      product_unit_id: item.product_unit_id || null,
+      quantity: Number(item.quantity)
+    })),
     p_notes: values.notes?.trim() || null
   });
   if (error) throw error;
@@ -143,9 +219,16 @@ export async function updateStockTransfer(supabase, values) {
 }
 
 export async function saveStockTransferCount(supabase, values) {
-  const { data, error } = await supabase.rpc("save_stock_transfer_count_v4", {
+  const { data, error } = await supabase.rpc("save_stock_transfer_count_v5", {
     p_transfer_id: values.transfer_id,
-    p_items: values.items,
+    p_items: values.items.map((item) => ({
+      product_id: item.product_id,
+      product_unit_id: item.product_unit_id || null,
+      counted_unit_quantity: item.counted_unit_quantity === null || item.counted_unit_quantity === undefined || item.counted_unit_quantity === ""
+        ? null
+        : Number(item.counted_unit_quantity),
+      note: item.note || ""
+    })),
     p_notes: values.notes?.trim() || null,
     p_submit: Boolean(values.submit)
   });
@@ -154,7 +237,7 @@ export async function saveStockTransferCount(supabase, values) {
 }
 
 export async function approveStockTransfer(supabase, transferId, note) {
-  const { data, error } = await supabase.rpc("approve_stock_transfer_v4", {
+  const { data, error } = await supabase.rpc("approve_stock_transfer_v5", {
     p_transfer_id: transferId,
     p_note: note?.trim() || null
   });
@@ -181,7 +264,7 @@ export async function receiveStockTransfer(supabase, transferId, notes) {
 }
 
 export async function cancelStockTransfer(supabase, transfer, reason) {
-  const rpc = Number(transfer.workflow_version || 1) >= 2 ? "cancel_stock_transfer_v4" : "cancel_stock_transfer_v3";
+  const rpc = Number(transfer.workflow_version || 1) >= 2 ? "cancel_stock_transfer_v5" : "cancel_stock_transfer_v3";
   const { data, error } = await supabase.rpc(rpc, {
     p_transfer_id: transfer.id,
     p_reason: reason.trim()
