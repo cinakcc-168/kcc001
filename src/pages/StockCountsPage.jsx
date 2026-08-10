@@ -236,7 +236,7 @@ export default function StockCountsPage() {
     }
   }
 
-  function handleDraftChange(item, countedQuantity, note) {
+  function handleDraftChange(item, countedQuantity, note, selectedBatchId = null) {
     setDraftItems((current) => {
       const originalQuantity = item.counted_quantity === null
         ? null
@@ -246,17 +246,21 @@ export default function StockCountsPage() {
         : Number(countedQuantity);
       const originalNote = String(item.note || "").trim();
       const normalizedNote = String(note || "").trim();
+      const originalBatchId = String(item.selected_batch_id || "");
+      const normalizedBatchId = String(selectedBatchId || "");
       const next = { ...current };
       const unchanged =
         originalQuantity === normalizedQuantity
-        && originalNote === normalizedNote;
+        && originalNote === normalizedNote
+        && originalBatchId === normalizedBatchId;
 
       if (unchanged) delete next[item.product_id];
       else {
         next[item.product_id] = {
           product_id: item.product_id,
           counted_quantity: normalizedQuantity,
-          note: normalizedNote
+          note: normalizedNote,
+          selected_batch_id: normalizedBatchId || null
         };
       }
       return next;
@@ -276,6 +280,22 @@ export default function StockCountsPage() {
     );
     if (invalid) {
       announce("error", "Every counted quantity must be zero or greater.");
+      return;
+    }
+
+    const missingBatch = pending.find((draft) => {
+      if (draft.counted_quantity === null) return false;
+      const row = items.find((item) => item.product_id === draft.product_id);
+      const product = row?.products || {};
+      return Boolean(
+        product.batch_tracking
+        && (product.inventory_batches || []).length > 0
+        && !draft.selected_batch_id
+      );
+    });
+    if (missingBatch) {
+      const row = items.find((item) => item.product_id === missingBatch.product_id);
+      announce("error", `Choose a batch / lot for ${row?.products?.name || "the batch-tracked product"}.`);
       return;
     }
 
@@ -400,6 +420,12 @@ export default function StockCountsPage() {
     { label: "Khmer name", width: 160, value: (item) => item.products?.name_km || "" },
     { label: "Code", width: 110, value: (item) => item.products?.sku || item.products?.barcode || "" },
     { label: "Unit", width: 80, value: (item) => item.products?.unit_name || "pcs" },
+    { label: "Batch / lot", width: 150, value: (item) => {
+      if (!item.products?.batch_tracking) return "—";
+      const selected = (item.products?.inventory_batches || []).find((batch) => batch.id === item.selected_batch_id);
+      if (selected) return selected.batch_number;
+      return (item.products?.inventory_batches || []).length === 0 ? "Auto recovery lot" : "Not selected";
+    } },
     { label: "System stock", width: 100, value: (item) => activeSession?.blind_count ? "Hidden" : stockNumber(item.expected_quantity) },
     { label: "Counted", width: 100, value: (item) => item.counted_quantity === null ? "" : stockNumber(item.counted_quantity) },
     { label: "Variance", width: 100, value: (item) => {
