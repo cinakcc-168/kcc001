@@ -90,7 +90,6 @@ export default function ReportsPage() {
   }));
   const [branches, setBranches] = useState([]);
   const [staff, setStaff] = useState([]);
-  const [registerNames, setRegisterNames] = useState([]);
   const [activeTab, setActiveTab] = useState("sales");
   const [data, setData] = useState(null);
   const [endOfDay, setEndOfDay] = useState(null);
@@ -116,6 +115,20 @@ export default function ReportsPage() {
       branchId: current.branchId || profile?.branch_id || ""
     }));
   }, [profile?.branch_id]);
+
+  useEffect(() => {
+    if (activeTab !== "endofday" || !profile?.branch_id) return;
+    setFilters((current) => {
+      if (!current.allBranches && current.branchId) return current;
+      return {
+        ...current,
+        allBranches: false,
+        branchId: current.branchId || profile.branch_id,
+        cashierId: "",
+        registerName: ""
+      };
+    });
+  }, [activeTab, profile?.branch_id]);
 
   useEffect(() => {
     if (!supabase || !profile?.organization_id || !canAllBranches) {
@@ -145,7 +158,6 @@ export default function ReportsPage() {
   useEffect(() => {
     if (!supabase || !profile?.organization_id) {
       setStaff([]);
-      setRegisterNames([]);
       return;
     }
 
@@ -161,31 +173,15 @@ export default function ReportsPage() {
         .eq("organization_id", profile.organization_id)
         .eq("is_active", true)
         .order("full_name");
-      let registerQuery = supabase
-        .from("cash_register_sessions")
-        .select("register_name,branch_id")
-        .eq("organization_id", profile.organization_id)
-        .order("register_name");
 
       if (selectedBranch) {
-        staffQuery = staffQuery.or(`branch_id.eq.${selectedBranch},branch_id.is.null`);
-        registerQuery = registerQuery.eq("branch_id", selectedBranch);
+        staffQuery = staffQuery.eq("branch_id", selectedBranch);
       }
 
-      const [staffResult, registerResult] = await Promise.all([
-        staffQuery,
-        registerQuery
-      ]);
+      const staffResult = await staffQuery;
 
       if (!active) return;
       if (!staffResult.error) setStaff(staffResult.data || []);
-      if (!registerResult.error) {
-        setRegisterNames([...new Set(
-          (registerResult.data || [])
-            .map((row) => row.register_name)
-            .filter(Boolean)
-        )]);
-      }
     })();
 
     return () => { active = false; };
@@ -492,21 +488,71 @@ export default function ReportsPage() {
 
       {message && <div className="notice error">{message}</div>}
 
-      <section className="panel report-filters">
-        <DateRangePresetFields
-          from={filters.from}
-          to={filters.to}
-          onChange={(range) =>
-            setFilters((current) => ({
-              ...current,
-              from: range.from,
-              to: range.to
-            }))
-          }
-        />
-        {canAllBranches && <label><span>Branch scope</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true, registerName: "" })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value, registerName: "" })); }}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
-        {activeTab === "endofday" && <label><span>Sale user / cashier</span><select value={filters.cashierId} onChange={(event) => updateFilter("cashierId", event.target.value)}><option value="">All users</option>{staff.map((member) => <option value={member.id} key={member.id}>{member.full_name || member.email || "POS Staff"} · {String(member.role || "staff").replaceAll("_", " ")}</option>)}</select></label>}
-        {activeTab === "endofday" && <label><span>Counter / register</span><select value={filters.registerName} onChange={(event) => updateFilter("registerName", event.target.value)}><option value="">All counters</option>{registerNames.map((name) => <option value={name} key={name}>{name}</option>)}</select></label>}
+      <section className={`panel report-filters ${activeTab === "endofday" ? "end-of-day-filter-bar" : ""}`}>
+        {activeTab === "endofday" ? (
+          <>
+            <label className="end-of-day-branch-filter">
+              <span>Branch</span>
+              <select
+                value={filters.branchId || profile?.branch_id || ""}
+                disabled={!canAllBranches}
+                onChange={(event) => setFilters((current) => ({
+                  ...current,
+                  allBranches: false,
+                  branchId: event.target.value,
+                  cashierId: "",
+                  registerName: ""
+                }))}
+              >
+                {!canAllBranches && (
+                  <option value={profile?.branch_id || ""}>{profile?.branches?.name || "Current branch"}</option>
+                )}
+                {canAllBranches && branches.map((branch) => (
+                  <option value={branch.id} key={branch.id}>{branch.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <DateRangePresetFields
+              from={filters.from}
+              to={filters.to}
+              onChange={(range) =>
+                setFilters((current) => ({
+                  ...current,
+                  from: range.from,
+                  to: range.to
+                }))
+              }
+            />
+
+            <label className="end-of-day-user-filter">
+              <span>User</span>
+              <select value={filters.cashierId} onChange={(event) => updateFilter("cashierId", event.target.value)}>
+                <option value="">All staff</option>
+                {staff.map((member) => (
+                  <option value={member.id} key={member.id}>
+                    {member.full_name || member.email || "POS Staff"} · {String(member.role || "staff").replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : (
+          <>
+            <DateRangePresetFields
+              from={filters.from}
+              to={filters.to}
+              onChange={(range) =>
+                setFilters((current) => ({
+                  ...current,
+                  from: range.from,
+                  to: range.to
+                }))
+              }
+            />
+            {canAllBranches && <label><span>Branch scope</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true, registerName: "" })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value, registerName: "" })); }}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
+          </>
+        )}
         <div className="report-filter-summary"><span>Report scope</span><strong>{activeTab === "endofday" ? (endOfDay?.branch_name || profile?.branches?.name || "Current branch") : (data?.scope?.branch_name || profile?.branches?.name || "Current branch")}</strong><small>{data ? titlePeriod(data) : "Choose dates"}</small></div>
       </section>
 
