@@ -71,9 +71,17 @@ async function loadProfileWithCustomRole(client, userId) {
   };
 }
 
+function normalizeThemeMode(value) {
+  return value === "dark" || value === "light" || value === "system"
+    ? value
+    : "system";
+}
+
 function applyPreferences(preferences) {
   const root = document.documentElement;
-  const theme = preferences?.theme || "system";
+  const theme = normalizeThemeMode(
+    preferences?.theme || preferences?.theme_mode || "system"
+  );
   const accent = preferences?.accent_color || "#2563eb";
 
   root.dataset.theme = theme;
@@ -332,7 +340,9 @@ export function AuthProvider({ children }) {
 
     const payload = {
       language: values.language || preferences?.language || "en",
-      theme: values.theme || values.theme_mode || preferences?.theme || "system",
+      theme: normalizeThemeMode(
+        values.theme || values.theme_mode || preferences?.theme || preferences?.theme_mode || "system"
+      ),
       accent_color: values.accent_color || preferences?.accent_color || "#2563eb",
       compact_mode: Boolean(values.compact_mode),
       sound_enabled: values.sound_enabled ?? values.scanner_sound ?? preferences?.sound_enabled ?? true,
@@ -361,6 +371,48 @@ export function AuthProvider({ children }) {
       shop,
       access || fallbackAccessForRole(profile?.role)
     );
+    return data;
+  }
+
+  async function savePreferencePatch(values = {}) {
+    if (!supabase || !session?.user?.id) {
+      throw new Error("Your POS session is not ready.");
+    }
+
+    const payload = {};
+
+    if (Object.prototype.hasOwnProperty.call(values, "language")) {
+      payload.language = values.language === "km" ? "km" : "en";
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(values, "theme")
+      || Object.prototype.hasOwnProperty.call(values, "theme_mode")
+    ) {
+      payload.theme = normalizeThemeMode(values.theme || values.theme_mode);
+    }
+
+    if (Object.keys(payload).length === 0) return preferences;
+
+    const { data, error: updateError } = await supabase
+      .from("user_preferences")
+      .update(payload)
+      .eq("user_id", session.user.id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    setPreferences(data);
+    applyPreferences(data);
+    saveOfflineAuthSnapshot(
+      session,
+      profile,
+      data,
+      shop,
+      access || fallbackAccessForRole(profile?.role)
+    );
+
     return data;
   }
 
@@ -405,6 +457,7 @@ export function AuthProvider({ children }) {
       signIn,
       signOut,
       savePreferences,
+      savePreferencePatch,
       saveShopSettings
     }),
     [

@@ -49,7 +49,8 @@ export function LanguageProvider({ children }) {
     supabase,
     session,
     preferences,
-    shop
+    shop,
+    savePreferencePatch
   } = useAuth();
 
   const accountKey = session?.user?.id || "guest";
@@ -148,16 +149,28 @@ export function LanguageProvider({ children }) {
     async (nextLanguage) => {
       if (!supabase || !session?.user?.id) return;
 
-      const { error } = await supabase
-        .from("user_preferences")
-        .update({ language: nextLanguage })
-        .eq("user_id", session.user.id);
+      try {
+        // Use the shared preference updater so the header toggle and
+        // Settings > My Preferences always read the same live value.
+        if (savePreferencePatch) {
+          await savePreferencePatch({ language: nextLanguage });
+          return;
+        }
 
-      if (error) {
-        console.warn("Tiny POS language preference could not be saved:", error.message);
+        const { error } = await supabase
+          .from("user_preferences")
+          .update({ language: nextLanguage })
+          .eq("user_id", session.user.id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.warn(
+          "Tiny POS language preference could not be saved:",
+          error?.message || error
+        );
       }
     },
-    [session?.user?.id, supabase]
+    [savePreferencePatch, session?.user?.id, supabase]
   );
 
   const setLanguage = useCallback(
