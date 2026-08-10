@@ -18,6 +18,7 @@ import { useAuth } from "../context/AuthContext";
 import BarcodeScanner, { primeScannerFeedback } from "../components/BarcodeScanner";
 import Modal from "../components/Modal";
 import MediaImage from "../components/MediaImage";
+import TinyPosLoader from "../components/TinyPosLoader";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import QuoteSaveModal from "../components/QuoteSaveModal";
@@ -148,7 +149,7 @@ export default function SalesPage() {
     const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
     return {
       storageKey: layout2RowsStorageKey,
-      rows: [2, 3, 4].includes(stored) ? stored : 2
+      rows: [2, 3].includes(stored) ? stored : 2
     };
   });
   const layout2ProductRows = layout2View.storageKey === layout2RowsStorageKey
@@ -162,7 +163,7 @@ export default function SalesPage() {
     const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
     setLayout2View({
       storageKey: layout2RowsStorageKey,
-      rows: [2, 3, 4].includes(stored) ? stored : 2
+      rows: [2, 3].includes(stored) ? stored : 2
     });
   }, [layout2RowsStorageKey]);
 
@@ -763,14 +764,14 @@ export default function SalesPage() {
   const saleStockDisplay = preferences?.sale_stock_display === "status" ? "status" : "exact";
   const saleWorkspaceStyle = {
     "--layout2-product-rows": layout2ProductRows,
-    "--layout2-products-height": `${96 + layout2ProductRows * 186}px`
+    "--layout2-products-height": `${114 + (layout2ProductRows * 160) + ((layout2ProductRows - 1) * 8)}px`
   };
 
   function productStockLabel(product) {
     const stockValue = Number(product.stock_quantity || 0);
-    if (!product.track_stock) return saleStockDisplay === "status" ? "In stock" : "Stock: ∞";
+    if (!product.track_stock) return saleStockDisplay === "status" ? "In stock" : "∞";
     if (saleStockDisplay === "status") return stockValue > 0 ? "In stock" : "Out";
-    return `Stock: ${stockNumber(stockValue)} ${product.unit_name}`;
+    return `${stockNumber(stockValue)} ${product.unit_name || ""}`.trim();
   }
 
   function announce(type, text) {
@@ -1542,22 +1543,6 @@ export default function SalesPage() {
 
   return (
     <div className="page-stack sales-page">
-      <div className="sale-compact-heading">
-        <div>
-          <p className="eyebrow">POINT OF SALE</p>
-          <h1>New Sale</h1>
-        </div>
-
-        {message && (
-          <div
-            className={`notice ${messageType} sale-heading-notice`}
-            onClick={() => setMessage("")}
-          >
-            {message}
-          </div>
-        )}
-      </div>
-
       {!cashRegisterOpen && (
         <div className="notice warning cash-register-sale-warning">
           <span>
@@ -1708,11 +1693,22 @@ export default function SalesPage() {
                 </form>
 
                 <div className="sale-product-summary">
-                  <span><strong>{visibleProducts.length}</strong> products available</span>
-                  <div>
+                  <div className="sale-summary-leading">
+                    {message && (
+                      <button
+                        type="button"
+                        className={`sale-inline-alert ${messageType}`}
+                        onClick={() => setMessage("")}
+                        title={message}
+                      >
+                        {message}
+                      </button>
+                    )}
+                    <span className="sale-product-count"><strong>{visibleProducts.length}</strong> products available</span>
+                  </div>
+                  <div className="sale-summary-actions">
                     <small>Tap a product to add one unit.</small>
                     <label className="layout-two-row-control" title="Choose how many product rows are visible before scrolling">
-                      <span>Default view</span>
                       <select
                         value={layout2ProductRows}
                         onChange={(event) => setLayout2View({ storageKey: layout2RowsStorageKey, rows: Number(event.target.value) })}
@@ -1720,7 +1716,6 @@ export default function SalesPage() {
                       >
                         <option value={2}>2 rows</option>
                         <option value={3}>3 rows</option>
-                        <option value={4}>4 rows</option>
                       </select>
                     </label>
                     <button
@@ -1735,7 +1730,7 @@ export default function SalesPage() {
                 </div>
 
                 {loading ? (
-                  <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
+                  <TinyPosLoader compact label="Loading products…" />
                 ) : visibleProducts.length === 0 ? (
                   <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
                 ) : (
@@ -1761,16 +1756,19 @@ export default function SalesPage() {
                           />
                           </div>
                           <div className="sale-product-content">
-                            <strong>{product.name}</strong>
-                            {product.name_km && <span>{product.name_km}</span>}
-                            {saleShowProductCode && (
-                              <small>{product.sku || product.barcode || "No code"}</small>
+                            <strong className="sale-product-name-en" title={product.name}>{product.name}</strong>
+                            <span className="sale-product-name-km" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
+                            {saleShowProductCode ? (
+                              <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
+                            ) : (
+                              <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
                             )}
-                            <div>
-                              <b>{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                              <em className={outOfStock ? "out" : ""}>
-                                {productStockLabel(product)}
-                              </em>
+                            <div className="sale-product-price-stock">
+                              <b className="sale-product-price">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
+                              <span className={`sale-product-stock ${outOfStock ? "out" : ""}`}>
+                                <small>Stock</small>
+                                <em>{productStockLabel(product)}</em>
+                              </span>
                             </div>
                           </div>
                         </button>
@@ -1911,8 +1909,20 @@ export default function SalesPage() {
               </form>
 
               <div className="sale-product-summary">
-                <span><strong>{visibleProducts.length}</strong> products available</span>
-                <div>
+                <div className="sale-summary-leading">
+                  {message && (
+                    <button
+                      type="button"
+                      className={`sale-inline-alert ${messageType}`}
+                      onClick={() => setMessage("")}
+                      title={message}
+                    >
+                      {message}
+                    </button>
+                  )}
+                  <span className="sale-product-count"><strong>{visibleProducts.length}</strong> products available</span>
+                </div>
+                <div className="sale-summary-actions">
                   <small>Tap a product to add one unit.</small>
                   <button
                     type="button"
@@ -1926,7 +1936,7 @@ export default function SalesPage() {
               </div>
 
               {loading ? (
-                <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
+                <TinyPosLoader compact label="Loading products…" />
               ) : visibleProducts.length === 0 ? (
                 <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
               ) : (
@@ -1952,16 +1962,19 @@ export default function SalesPage() {
                           />
                         </div>
                         <div className="sale-product-content">
-                          <strong>{product.name}</strong>
-                          {product.name_km && <span>{product.name_km}</span>}
-                          {saleShowProductCode && (
-                            <small>{product.sku || product.barcode || "No code"}</small>
+                          <strong className="sale-product-name-en" title={product.name}>{product.name}</strong>
+                          <span className="sale-product-name-km" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
+                          {saleShowProductCode ? (
+                            <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
+                          ) : (
+                            <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
                           )}
-                          <div>
-                            <b>{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                            <em className={outOfStock ? "out" : ""}>
-                              {productStockLabel(product)}
-                            </em>
+                          <div className="sale-product-price-stock">
+                            <b className="sale-product-price">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
+                            <span className={`sale-product-stock ${outOfStock ? "out" : ""}`}>
+                              <small>Stock</small>
+                              <em>{productStockLabel(product)}</em>
+                            </span>
                           </div>
                         </div>
                       </button>
