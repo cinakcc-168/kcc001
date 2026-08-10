@@ -111,6 +111,7 @@ export default function SalesPage() {
   const [parkedSales, setParkedSales] = useState([]);
   const [recentSales, setRecentSales] = useState([]);
   const [cashRegisterOpen, setCashRegisterOpen] = useState(false);
+  const [bankQr, setBankQr] = useState({ url: "", comment: "" });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -289,6 +290,7 @@ export default function SalesPage() {
         setParkedSales([]);
         setRecentSales([]);
         setCashRegisterOpen(Boolean(bundle.settings?.cash_register_open));
+        setBankQr({ url: "", comment: "" });
         return;
       }
 
@@ -308,6 +310,20 @@ export default function SalesPage() {
       setRecentSales(data.recentSales);
       setCashRegisterOpen(Boolean(registerSummary?.session));
       setOfflineBundle(await loadOfflineCheckoutBundle(profile));
+
+      try {
+        const { data: qrData, error: qrError } = await supabase.rpc(
+          "get_pos_payment_qr"
+        );
+        if (qrError) throw qrError;
+        setBankQr({
+          url: qrData?.bank_qr_url || "",
+          comment: qrData?.bank_comment || ""
+        });
+      } catch {
+        // Bank QR is optional and must never block the sale workspace.
+        setBankQr({ url: "", comment: "" });
+      }
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -2171,6 +2187,8 @@ export default function SalesPage() {
         creditAccount={selectedCreditAccount}
         cashRegisterOpen={cashRegisterOpen}
         offline={!isOnline}
+        bankQrUrl={bankQr.url}
+        bankQrComment={bankQr.comment}
         onClose={() => setPaymentOpen(false)}
         onSubmit={handlePayment}
       />
