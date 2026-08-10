@@ -153,6 +153,7 @@ export const ROLE_PERMISSION_FALLBACKS = {
     "sales_orders.deliver",
     "online_orders.fulfill",
     "invoices.view",
+    "returns.process",
     "credit_accounts.collect",
     "credit_accounts.sell",
     "cash_register.use",
@@ -311,6 +312,38 @@ export async function loadAccessWorkspace(
     staff: data?.staff || [],
     requests: data?.requests || []
   };
+}
+
+export async function loadRefundPermissionWorkspace(
+  supabase
+) {
+  const { data, error } = await supabase.rpc(
+    "get_refund_permission_workspace"
+  );
+
+  if (error) throw error;
+
+  return {
+    staff: data?.staff || [],
+    windows: data?.windows || []
+  };
+}
+
+export async function saveRefundPermissionWindow(
+  supabase,
+  userId,
+  refundWindow
+) {
+  const { data, error } = await supabase.rpc(
+    "save_user_refund_window",
+    {
+      p_user_id: userId,
+      p_refund_window: refundWindow
+    }
+  );
+
+  if (error) throw error;
+  return data;
 }
 
 export async function saveUserAccess(
