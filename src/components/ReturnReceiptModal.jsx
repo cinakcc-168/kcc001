@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import ProductBarcode from "./ProductBarcode";
 import { useAuth } from "../context/AuthContext";
-import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
 
 function dateTime(value, locale = "en-US") {
@@ -18,12 +17,12 @@ function dateTime(value, locale = "en-US") {
 
 export default function ReturnReceiptModal({ receipt, onClose }) {
   const { shop } = useAuth();
-  const { language } = useLanguage();
-  const [receiptLanguage, setReceiptLanguage] = useState(language === "km" ? "km" : "en");
+  const defaultReceiptLanguage = shop?.receipt_default_language === "km" ? "km" : "en";
+  const [receiptLanguage, setReceiptLanguage] = useState(defaultReceiptLanguage);
 
   useEffect(() => {
-    if (receipt) setReceiptLanguage(language === "km" ? "km" : "en");
-  }, [receipt, language]);
+    if (receipt) setReceiptLanguage(defaultReceiptLanguage);
+  }, [receipt, defaultReceiptLanguage]);
 
   const label = (english, khmer) => receiptLanguage === "km" ? khmer : english;
   const locale = receiptLanguage === "km" ? "km-KH" : "en-US";
@@ -31,9 +30,26 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
   if (!receipt) return null;
 
   const receiptWidth = Number(shop?.receipt_width_mm || 80);
+  const isKhmer = receiptLanguage === "km";
+  const receiptShopName = isKhmer
+    ? shop?.shop_name_km || shop?.shop_name || receipt.shopName || "Tiny POS"
+    : shop?.shop_name || receipt.shopName || "Tiny POS";
+  const receiptHeader = isKhmer ? shop?.receipt_header_km || "" : shop?.receipt_header || "";
+  const receiptAddress = isKhmer
+    ? shop?.shop_address_km || shop?.shop_address || receipt.shopAddress || ""
+    : shop?.shop_address || receipt.shopAddress || "";
+  const receiptFooter = isKhmer
+    ? shop?.receipt_footer_km || "ការសងប្រាក់ត្រូវបានដំណើរការដោយ Tiny POS"
+    : shop?.receipt_footer || "Refund processed by Tiny POS";
+  const logoPosition = shop?.receipt_logo_position === "above" ? "above" : "inline";
+  const refundMethodText = (value) => {
+    const normalized = String(value || "other").toLowerCase();
+    if (!isKhmer) return normalized.toUpperCase();
+    return ({ cash: "សាច់ប្រាក់", bank: "ធនាគារ", khqr: "KHQR", card: "កាត", credit: "ឥណទាន", other: "ផ្សេងៗ" })[normalized] || normalized;
+  };
 
   return (
-    <Modal title={label("Refund completed", "ការសងប្រាក់បានបញ្ចប់")} onClose={onClose}>
+    <Modal title={label("Refund completed", "ការសងប្រាក់បានបញ្ចប់")} onClose={onClose} className="receipt-modal no-translate">
       <div className="receipt-wrapper">
         <div className="receipt-language-toolbar" data-print-hide>
           <Languages size={18} />
@@ -44,14 +60,17 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
           className="receipt-document return-receipt-document"
           style={{ "--receipt-width": `${receiptWidth}mm` }}
         >
-          <div className="receipt-shop">
-            {shop?.receipt_show_logo !== false && shop?.shop_logo_url && (
-              <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
-            )}
-            <h2>{shop?.shop_name || receipt.shopName}</h2>
-            <strong>{label("RETURN / REFUND RECEIPT", "វិក្កយបត្រសងទំនិញ / សងប្រាក់")}</strong>
-            {shop?.receipt_show_address !== false && (shop?.shop_address || receipt.shopAddress) && (
-              <p>{shop?.shop_address || receipt.shopAddress}</p>
+          <div className={`receipt-shop receipt-logo-${logoPosition}`}>
+            <div className="receipt-brand-line">
+              {shop?.receipt_show_logo !== false && shop?.shop_logo_url && (
+                <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
+              )}
+              <h2>{receiptShopName}</h2>
+            </div>
+            <strong>{label("RETURN / REFUND RECEIPT", "បង្កាន់ដៃសងទំនិញ / សងប្រាក់")}</strong>
+            {receiptHeader && <p>{receiptHeader}</p>}
+            {shop?.receipt_show_address !== false && receiptAddress && (
+              <p>{receiptAddress}</p>
             )}
             {shop?.receipt_show_phone !== false && (shop?.shop_phone || receipt.shopPhone) && (
               <p>{shop?.shop_phone || receipt.shopPhone}</p>
@@ -81,7 +100,7 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
             {(receipt.items || []).map((item) => (
               <div key={`${item.sale_item_id}-${item.product_name}`}>
                 <span>
-                  <strong>{item.product_name}</strong>
+                  <strong>{isKhmer ? (item.product_name_km || item.product_name) : item.product_name}</strong>
                   <small>
                     {stockNumber(item.quantity)}{" "}
                     {item.unit_name || item.return_unit_name || "pcs"}
@@ -102,7 +121,7 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
               <span>{label("Total refunded", "ប្រាក់សងសរុប")}</span>
               <strong>-{money(receipt.refundAmount, receipt.currency)}</strong>
             </div>
-            <div><span>{label("Refund method", "វិធីសងប្រាក់")}</span><strong>{String(receipt.refundMethod).toUpperCase()}</strong></div>
+            <div><span>{label("Refund method", "វិធីសងប្រាក់")}</span><strong>{refundMethodText(receipt.refundMethod)}</strong></div>
             {receipt.refundReference && (
               <div><span>{label("Reference", "លេខយោង")}</span><strong>{receipt.refundReference}</strong></div>
             )}
@@ -114,14 +133,14 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
           </div>
 
           <div className="receipt-footer">
-            {shop?.receipt_footer || label("Refund processed by Tiny POS", "ការសងប្រាក់ដំណើរការដោយ Tiny POS")}
+            {receiptFooter}
           </div>
         </article>
 
         <div className="receipt-actions">
           <button type="button" className="secondary-button" onClick={onClose}>{label("Close", "បិទ")}</button>
           <button type="button" className="primary-button" onClick={() => printElementDocument({ title: "Return Receipt", selector: ".return-receipt-document", page: "auto" })}>
-            <Printer size={18} /> {label("Print refund receipt", "បោះពុម្ពវិក្កយបត្រសងប្រាក់")}
+            <Printer size={18} /> {label("Print refund receipt", "បោះពុម្ពបង្កាន់ដៃសងប្រាក់")}
           </button>
         </div>
       </div>

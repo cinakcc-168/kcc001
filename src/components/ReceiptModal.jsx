@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import ProductBarcode from "./ProductBarcode";
 import { useAuth } from "../context/AuthContext";
-import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
 import { printElementDocument } from "../lib/listDocuments";
 
@@ -26,13 +25,13 @@ function dateOnly(value, locale = "en-US") {
 
 export default function ReceiptModal({ receipt, onClose }) {
   const { shop } = useAuth();
-  const { language } = useLanguage();
-  const [receiptLanguage, setReceiptLanguage] = useState(language === "km" ? "km" : "en");
+  const defaultReceiptLanguage = shop?.receipt_default_language === "km" ? "km" : "en";
+  const [receiptLanguage, setReceiptLanguage] = useState(defaultReceiptLanguage);
   const receiptPrintRef = useRef(null);
 
   useEffect(() => {
-    if (receipt) setReceiptLanguage(language === "km" ? "km" : "en");
-  }, [receipt, language]);
+    if (receipt) setReceiptLanguage(defaultReceiptLanguage);
+  }, [receipt, defaultReceiptLanguage]);
 
   const label = (english, khmer) => receiptLanguage === "km" ? khmer : english;
   const locale = receiptLanguage === "km" ? "km-KH" : "en-US";
@@ -64,11 +63,52 @@ export default function ReceiptModal({ receipt, onClose }) {
     || "other"
   );
 
+  const isKhmer = receiptLanguage === "km";
+  const receiptShopName = isKhmer
+    ? shop?.shop_name_km || shop?.shop_name || receipt.shopName || "Tiny POS"
+    : shop?.shop_name || receipt.shopName || "Tiny POS";
+  const receiptHeader = isKhmer
+    ? shop?.receipt_header_km || ""
+    : shop?.receipt_header || "";
+  const receiptAddress = isKhmer
+    ? shop?.shop_address_km || shop?.shop_address || receipt.shopAddress || ""
+    : shop?.shop_address || receipt.shopAddress || "";
+  const receiptFooter = isKhmer
+    ? shop?.receipt_footer_km || "សូមអរគុណសម្រាប់ការទិញ។"
+    : shop?.receipt_footer || receipt.footer || "Thank you for your purchase.";
+  const logoPosition = shop?.receipt_logo_position === "above" ? "above" : "inline";
+
+  const statusText = (value) => {
+    const normalized = String(value || "").toLowerCase();
+    if (!isKhmer) return normalized.replaceAll("_", " ").toUpperCase();
+    return ({
+      completed: "បានបញ្ចប់",
+      partially_refunded: "សងប្រាក់មួយផ្នែក",
+      refunded: "បានសងប្រាក់",
+      voided: "បានលុបចោល",
+      pending: "កំពុងរង់ចាំ"
+    })[normalized] || normalized.replaceAll("_", " ");
+  };
+
+  const paymentText = (value) => {
+    const normalized = String(value || "other").toLowerCase();
+    if (!isKhmer) return normalized.toUpperCase();
+    return ({
+      cash: "សាច់ប្រាក់",
+      bank: "ធនាគារ",
+      khqr: "KHQR",
+      card: "កាត",
+      credit: "ឥណទាន",
+      split: "ចម្រុះ",
+      other: "ផ្សេងៗ"
+    })[normalized] || normalized;
+  };
+
   function printReceipt() {
     const printable = receiptPrintRef.current;
     if (!printable) return;
 
-    const title = `${shop?.shop_name || receipt.shopName || "Tiny POS"} Receipt`;
+    const title = `${receiptShopName} ${label("Receipt", "បង្កាន់ដៃ")}`;
     printElementDocument({
       title,
       element: printable,
@@ -86,7 +126,11 @@ export default function ReceiptModal({ receipt, onClose }) {
   }
 
   return (
-    <Modal title={receipt.offlinePending ? label("Offline receipt saved", "បានរក្សាទុកវិក្កយបត្រក្រៅបណ្តាញ") : label("Sale completed", "ការលក់បានបញ្ចប់")} onClose={onClose}>
+    <Modal
+      title={receipt.offlinePending ? label("Offline receipt saved", "បានរក្សាទុកបង្កាន់ដៃក្រៅបណ្តាញ") : label("Sale completed", "ការលក់បានបញ្ចប់")}
+      onClose={onClose}
+      className="receipt-modal no-translate"
+    >
       <div className="receipt-wrapper">
         {receipt.offlinePending && (
           <div className="notice warning offline-receipt-notice">
@@ -103,14 +147,16 @@ export default function ReceiptModal({ receipt, onClose }) {
             className="receipt-document"
             style={{ "--receipt-width": `${receiptWidth}mm` }}
           >
-            <div className="receipt-shop">
-              {showLogo && shop?.shop_logo_url && (
-                <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
-              )}
-              <h2>{shop?.shop_name || receipt.shopName}</h2>
-              {shop?.receipt_header && <p>{shop.receipt_header}</p>}
-              {showAddress && (shop?.shop_address || receipt.shopAddress) && (
-                <p>{shop?.shop_address || receipt.shopAddress}</p>
+            <div className={`receipt-shop receipt-logo-${logoPosition}`}>
+              <div className="receipt-brand-line">
+                {showLogo && shop?.shop_logo_url && (
+                  <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
+                )}
+                <h2>{receiptShopName}</h2>
+              </div>
+              {receiptHeader && <p>{receiptHeader}</p>}
+              {showAddress && receiptAddress && (
+                <p>{receiptAddress}</p>
               )}
               {showPhone && (shop?.shop_phone || receipt.shopPhone) && (
                 <p>{shop?.shop_phone || receipt.shopPhone}</p>
@@ -144,9 +190,7 @@ export default function ReceiptModal({ receipt, onClose }) {
                 <div>
                   <span>{label("Status", "ស្ថានភាព")}</span>
                   <strong>
-                    {String(receipt.saleStatus)
-                      .replaceAll("_", " ")
-                      .toUpperCase()}
+                    {statusText(receipt.saleStatus)}
                   </strong>
                 </div>
               )}
@@ -268,7 +312,7 @@ export default function ReceiptModal({ receipt, onClose }) {
                   </div>
                 </>
               )}
-              <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{paymentMethod.toUpperCase()}</strong></div>
+              <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{paymentText(paymentMethod)}</strong></div>
               {paymentMethod === "credit" ? (
                 <>
                   <div>
@@ -323,7 +367,7 @@ export default function ReceiptModal({ receipt, onClose }) {
                     return (
                       <div className="receipt-payment-part" key={`${payment.method || "payment"}-${index}`}>
                         <span>
-                          <strong>{String(payment.method || "other").toUpperCase()}</strong>
+                          <strong>{paymentText(payment.method || "other")}</strong>
                           {payment.reference_number && <small>{payment.reference_number}</small>}
                         </span>
                         <span>
@@ -342,14 +386,14 @@ export default function ReceiptModal({ receipt, onClose }) {
                 </div>
               ) : (
                 <>
-                  <div><span>{label("Received", "ប្រាក់ទទួល")}</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
+                  <div><span>{label("Received", "ទទួល")}</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
                   <div><span>{label("Change", "ប្រាក់អាប់")}</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
                 </>
               )}
             </div>
 
             <div className="receipt-footer">
-              {shop?.receipt_footer || receipt.footer || label("Thank you for your purchase.", "សូមអរគុណសម្រាប់ការទិញ។")}
+              {receiptFooter}
             </div>
           </article>
         </div>
@@ -357,7 +401,7 @@ export default function ReceiptModal({ receipt, onClose }) {
         <div className="receipt-actions">
           <button type="button" className="secondary-button" onClick={onClose}>{label("Close", "បិទ")}</button>
           <button type="button" className="primary-button" onClick={printReceipt}>
-            <Printer size={18} /> {label("Print receipt", "បោះពុម្ពវិក្កយបត្រ")}
+            <Printer size={18} /> {label("Print receipt", "បោះពុម្ពបង្កាន់ដៃ")}
           </button>
         </div>
       </div>

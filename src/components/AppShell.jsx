@@ -28,6 +28,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  Moon,
   PackageCheck,
   ReceiptText,
   RotateCcw,
@@ -36,6 +37,7 @@ import {
   ShieldCheck,
   ShoppingCart,
   Store,
+  Sun,
   Tags,
   TicketPercent,
   TrendingUp,
@@ -155,7 +157,7 @@ function isLinkAllowed(link, can, canAny) {
 export default function AppShell() {
   const { t } = useLanguage();
   const location = useLocation();
-  const { supabase, session, profile, shop, can, canAny, signOut } = useAuth();
+  const { supabase, session, profile, shop, preferences, can, canAny, signOut, savePreferences } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -176,6 +178,7 @@ export default function AppShell() {
   const groupButtonRefs = useRef(new Map());
   const [branches, setBranches] = useState([]);
   const [switchingBranch, setSwitchingBranch] = useState(false);
+  const [switchingTheme, setSwitchingTheme] = useState(false);
 
   const standaloneLinks = useMemo(
     () => standaloneKeys.map((key) => navigationItems[key]).filter((link) => isLinkAllowed(link, can, canAny)),
@@ -317,6 +320,39 @@ export default function AppShell() {
     } catch (error) {
       window.alert(error.message);
       setSwitchingBranch(false);
+    }
+  }
+
+
+  const effectiveTheme = (() => {
+    const selected = preferences?.theme || preferences?.theme_mode || "system";
+    if (selected === "dark" || selected === "light") return selected;
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches) return "dark";
+    return "light";
+  })();
+
+  async function toggleTheme() {
+    if (switchingTheme) return;
+    const previous = effectiveTheme;
+    const next = previous === "dark" ? "light" : "dark";
+    const root = document.documentElement;
+
+    root.dataset.theme = next;
+    root.dataset.forceTheme = next;
+    setSwitchingTheme(true);
+
+    try {
+      await savePreferences({
+        ...(preferences || {}),
+        theme: next,
+        theme_mode: next
+      });
+    } catch (error) {
+      root.dataset.theme = previous;
+      root.dataset.forceTheme = previous;
+      window.alert(error.message || "Unable to change theme.");
+    } finally {
+      setSwitchingTheme(false);
     }
   }
 
@@ -505,7 +541,19 @@ export default function AppShell() {
             </div>
           )}
 
-          <LanguageSwitcher compact />
+          <div className="header-appearance-controls">
+            <button
+              type="button"
+              className="header-theme-toggle"
+              onClick={toggleTheme}
+              disabled={switchingTheme}
+              aria-label={effectiveTheme === "dark" ? t("Use light theme") : t("Use dark theme")}
+              title={effectiveTheme === "dark" ? t("Use light theme") : t("Use dark theme")}
+            >
+              {effectiveTheme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <LanguageSwitcher compact />
+          </div>
 
           <strong data-i18n-skip>
             {profile?.full_name || t("Owner")} · {profile?.custom_staff_roles?.name || t(profile?.role || "Owner")}

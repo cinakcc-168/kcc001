@@ -1,8 +1,11 @@
 import {
   Copy,
+  LayoutGrid,
   Printer,
-  RotateCcw
+  RotateCcw,
+  Table2
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 import {
   money,
@@ -23,6 +26,21 @@ export default function InvoiceDetailModal({
   onPrint,
   onOpenReturn
 }) {
+  const [itemViewMode, setItemViewMode] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 850px)").matches
+      ? "cards"
+      : "table"
+  );
+
+  useEffect(() => {
+    if (!invoice?.id) return;
+    setItemViewMode(
+      typeof window !== "undefined" && window.matchMedia("(max-width: 850px)").matches
+        ? "cards"
+        : "table"
+    );
+  }, [invoice?.id]);
+
   if (!invoice) return null;
 
   async function copyNumber() {
@@ -124,87 +142,89 @@ export default function InvoiceDetailModal({
           )}
         </section>
 
-        <div className="invoice-detail-table-wrap">
-          <table className="invoice-detail-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Quantity</th>
-                <th>List price</th>
-                <th>Sale price</th>
-                <th>Discount</th>
-                <th>Total</th>
-                {canViewProfit && <th>Profit</th>}
-              </tr>
-            </thead>
+        <section className="invoice-detail-items">
+          <div className="invoice-detail-items-toolbar">
+            <div>
+              <strong>Invoice items</strong>
+              <small>{(invoice.items || []).length} item{(invoice.items || []).length === 1 ? "" : "s"}</small>
+            </div>
+            <div className="invoice-detail-view-toggle" aria-label="Invoice item view">
+              <button
+                type="button"
+                className={itemViewMode === "table" ? "active" : ""}
+                onClick={() => setItemViewMode("table")}
+              >
+                <Table2 size={17} /> Table
+              </button>
+              <button
+                type="button"
+                className={itemViewMode === "cards" ? "active" : ""}
+                onClick={() => setItemViewMode("cards")}
+              >
+                <LayoutGrid size={17} /> Cards
+              </button>
+            </div>
+          </div>
 
-            <tbody>
+          {itemViewMode === "cards" ? (
+            <div className="invoice-detail-item-card-grid">
               {(invoice.items || []).map((item) => (
-                <tr key={item.id}>
-                  <td data-label="Product">
-                    <strong>
-                      {item.product_name}
-                    </strong>
-                    <small>
-                      {item.barcode || "No barcode"}
-                    </small>
-                  </td>
-
-                  <td data-label="Quantity">
-                    {stockNumber(item.quantity)}
-                    {" "}
-                    {item.sale_unit_name || "pcs"}
-                    <small>
-                      {stockNumber(
-                        item.base_quantity
-                      )}
-                      {" base units"}
-                    </small>
-                  </td>
-
-                  <td data-label="List price">
-                    {money(
-                      item.list_price,
-                      invoice.currency
-                    )}
-                  </td>
-
-                  <td data-label="Sale price">
-                    {money(
-                      item.unit_price,
-                      invoice.currency
-                    )}
-                  </td>
-
-                  <td data-label="Discount">
-                    {money(
-                      item.discount_amount,
-                      invoice.currency
-                    )}
-                  </td>
-
-                  <td data-label="Total">
-                    <strong>
-                      {money(
-                        item.line_total,
-                        invoice.currency
-                      )}
-                    </strong>
-                  </td>
-
-                  {canViewProfit && (
-                    <td data-label="Profit">
-                      {money(
-                        item.line_profit,
-                        invoice.currency
-                      )}
-                    </td>
-                  )}
-                </tr>
+                <article className="invoice-detail-item-card" key={item.id}>
+                  <header>
+                    <div>
+                      <strong>{item.product_name}</strong>
+                      <small>{item.barcode || "No barcode"}</small>
+                    </div>
+                    <strong>{money(item.line_total, invoice.currency)}</strong>
+                  </header>
+                  <div className="invoice-detail-item-fields">
+                    <div><span>Quantity</span><strong>{stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}</strong><small>{stockNumber(item.base_quantity)} base units</small></div>
+                    <div><span>List price</span><strong>{money(item.list_price, invoice.currency)}</strong></div>
+                    <div><span>Sale price</span><strong>{money(item.unit_price, invoice.currency)}</strong></div>
+                    <div><span>Discount</span><strong>{money(item.discount_amount, invoice.currency)}</strong></div>
+                    {canViewProfit && <div><span>Profit</span><strong>{money(item.line_profit, invoice.currency)}</strong></div>}
+                  </div>
+                </article>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          ) : (
+            <div className="invoice-detail-table-wrap">
+              <table className="invoice-detail-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>List price</th>
+                    <th>Sale price</th>
+                    <th>Discount</th>
+                    <th>Total</th>
+                    {canViewProfit && <th>Profit</th>}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {(invoice.items || []).map((item) => (
+                    <tr key={item.id}>
+                      <td data-label="Product">
+                        <strong>{item.product_name}</strong>
+                        <small>{item.barcode || "No barcode"}</small>
+                      </td>
+                      <td data-label="Quantity">
+                        {stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}
+                        <small>{stockNumber(item.base_quantity)} base units</small>
+                      </td>
+                      <td data-label="List price">{money(item.list_price, invoice.currency)}</td>
+                      <td data-label="Sale price">{money(item.unit_price, invoice.currency)}</td>
+                      <td data-label="Discount">{money(item.discount_amount, invoice.currency)}</td>
+                      <td data-label="Total"><strong>{money(item.line_total, invoice.currency)}</strong></td>
+                      {canViewProfit && <td data-label="Profit">{money(item.line_profit, invoice.currency)}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         <div className="invoice-detail-columns">
           <section className="invoice-detail-section">
