@@ -17,13 +17,33 @@ function lineId(item, index = 0) {
   return item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}:${index}`;
 }
 
+function useMobileSaleView() {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 760px)").matches
+      : false
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const media = window.matchMedia("(max-width: 760px)");
+    const sync = () => setMobile(media.matches);
+    sync();
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, []);
+
+  return mobile;
+}
+
 function CartLineList({
   cart,
   onQuantityChange,
   onUnitChange,
   onRemove,
   fulfillmentLocked = false,
-  compact = false
+  compact = false,
+  unitNameOnly = false
 }) {
   return (
     <div className={`sale-cart-lines ${compact ? "compact-layout" : ""}`}>
@@ -86,13 +106,17 @@ function CartLineList({
                   >
                     {units.map((unit) => (
                       <option value={unit.id} key={unit.id}>
-                        {unit.name} · {money(unit.selling_price, item.currency)}
+                        {unitNameOnly
+                          ? (unit.short_name || unit.name)
+                          : `${unit.name} · ${money(unit.selling_price, item.currency)}`}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <span className="single-unit-label">
-                    {item.selected_unit_name || item.unit_name}
+                    {unitNameOnly
+                      ? (item.selected_unit_short_name || item.selected_unit_name || item.unit_name)
+                      : (item.selected_unit_name || item.unit_name)}
                   </span>
                 )}
               </div>
@@ -664,6 +688,7 @@ export function SaleCheckoutPanel(props) {
 
 export default function SaleCart(props) {
   const title = props.fulfillmentLabel || props.activeParkLabel || props.activeQuoteNumber || "New sale";
+  const mobileSaleView = useMobileSaleView();
 
   return (
     <aside className="sale-cart panel">
@@ -699,6 +724,7 @@ export default function SaleCart(props) {
         onUnitChange={props.onUnitChange}
         onRemove={props.onRemove}
         fulfillmentLocked={props.fulfillmentLocked}
+        unitNameOnly={mobileSaleView}
       />
 
       <CheckoutControls {...props} />

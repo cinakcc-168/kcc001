@@ -10,7 +10,7 @@ import {
   HandCoins,
   QrCode,
   Split,
-  Wallet
+  X
 } from "lucide-react";
 import Modal from "./Modal";
 import { money } from "../lib/catalog";
@@ -20,8 +20,7 @@ const methods = [
   ["bank", "Bank", Building2],
   ["khqr", "KHQR", QrCode],
   ["card", "Card", CreditCard],
-  ["credit", "Credit", HandCoins],
-  ["other", "Other", Wallet]
+  ["credit", "Credit", HandCoins]
 ];
 
 function dueDateFromTerms(days) {
@@ -76,6 +75,8 @@ export default function PaymentModal({
   creditAccount,
   cashRegisterOpen = true,
   offline = false,
+  bankQrUrl = "",
+  bankQrComment = "",
   onClose,
   onSubmit
 }) {
@@ -90,6 +91,7 @@ export default function PaymentModal({
   const [bankCurrency, setBankCurrency] = useState("USD");
   const [bankReceived, setBankReceived] = useState("");
   const [bankReference, setBankReference] = useState("");
+  const [bankQrOpen, setBankQrOpen] = useState(false);
   const [error, setError] = useState("");
 
   const unlimitedCredit = Boolean(creditAccount?.allow_unlimited_credit);
@@ -132,6 +134,7 @@ export default function PaymentModal({
     setBankCurrency("USD");
     setBankReceived(exactTender(totalDue, currency, "USD", rate));
     setBankReference("");
+    setBankQrOpen(false);
     setError("");
   }, [open, totalDue, currency, rate, cashRegisterOpen]);
 
@@ -180,6 +183,7 @@ export default function PaymentModal({
     setSplitMode(false);
     setMethod(nextMethod);
     setReference("");
+    setBankQrOpen(nextMethod === "bank" && Boolean(bankQrUrl));
     setError("");
     if (nextMethod === "credit") {
       setAmountReceived("0");
@@ -195,6 +199,7 @@ export default function PaymentModal({
     setBankCurrency("USD");
     setCashReceived("0");
     setBankReceived(exactTender(totalDue, currency, "USD", rate));
+    setBankQrOpen(false);
     setError("");
   }
 
@@ -334,6 +339,7 @@ export default function PaymentModal({
   return (
     <Modal title="Complete payment" onClose={() => !busy && onClose()} className="payment-modal-card" bodyClassName="payment-modal-body">
       <form className="payment-form mixed-payment-form" onSubmit={submit}>
+        <div className="payment-form-scroll">
         <div className="payment-total-card">
           <span>Amount due</span>
           <strong>{money(totalDue, currency)}</strong>
@@ -349,7 +355,7 @@ export default function PaymentModal({
 
         {!cashRegisterOpen && (
           <div className="notice warning payment-register-warning">
-            Cash is disabled because your user has no open register. Bank, KHQR, card, customer credit and other payments remain available when eligible.
+            Cash is disabled because your user has no open register. Bank, KHQR, card and customer credit remain available when eligible.
           </div>
         )}
 
@@ -404,7 +410,7 @@ export default function PaymentModal({
             <article>
               <div className="split-payment-heading"><Banknote size={20} /><strong>Cash part</strong></div>
               <div className="payment-amount-currency-row">
-                <label><span>Received currency</span><select value={cashCurrency} onChange={(event) => setCashCurrency(event.target.value)}><option value="USD">USD $</option><option value="KHR">KHR ៛</option></select></label>
+                <label><span>Received</span><select value={cashCurrency} onChange={(event) => setCashCurrency(event.target.value)}><option value="USD">USD $</option><option value="KHR">KHR ៛</option></select></label>
                 <label><span>Cash received</span><input type="number" min="0" step={currencyStep(cashCurrency)} value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} /></label>
               </div>
               <button type="button" className="secondary-button compact-button" onClick={fillCashRemainder}>Use remaining balance</button>
@@ -412,9 +418,16 @@ export default function PaymentModal({
             </article>
 
             <article>
-              <div className="split-payment-heading"><Building2 size={20} /><strong>Bank part</strong></div>
+              <div className="split-payment-heading">
+                <span><Building2 size={20} /><strong>Bank part</strong></span>
+                {bankQrUrl && (
+                  <button type="button" className="split-bank-qr-button" onClick={() => setBankQrOpen(true)} title="Show bank QR">
+                    <QrCode size={18} /> QR
+                  </button>
+                )}
+              </div>
               <div className="payment-amount-currency-row">
-                <label><span>Received currency</span><select value={bankCurrency} onChange={(event) => setBankCurrency(event.target.value)}><option value="USD">USD $</option><option value="KHR">KHR ៛</option></select></label>
+                <label><span>Received</span><select value={bankCurrency} onChange={(event) => setBankCurrency(event.target.value)}><option value="USD">USD $</option><option value="KHR">KHR ៛</option></select></label>
                 <label><span>Bank amount</span><input type="number" min="0" step={currencyStep(bankCurrency)} value={bankReceived} onChange={(event) => setBankReceived(event.target.value)} /></label>
               </div>
               <button type="button" className="secondary-button compact-button" onClick={fillBankRemainder}>Use remaining balance</button>
@@ -446,7 +459,6 @@ export default function PaymentModal({
                   step={currencyStep(paymentCurrency)}
                   value={amountReceived}
                   onChange={(event) => setAmountReceived(event.target.value)}
-                  autoFocus
                 />
               </label>
             </div>
@@ -486,6 +498,25 @@ export default function PaymentModal({
         </div>
 
         {error && <div className="notice error">{error}</div>}
+        </div>
+
+        {bankQrOpen && bankQrUrl && (
+          <div className="payment-bank-qr-sheet" role="dialog" aria-modal="true" aria-label="Bank payment QR">
+            <div className="payment-bank-qr-card">
+              <div className="payment-bank-qr-heading">
+                <div>
+                  <span>Bank payment</span>
+                  <strong>{money(totalDue, currency)}</strong>
+                </div>
+                <button type="button" className="icon-button" onClick={() => setBankQrOpen(false)} aria-label="Close bank QR">
+                  <X size={22} />
+                </button>
+              </div>
+              <img src={bankQrUrl} alt="Bank QR for payment" />
+              {bankQrComment && <small>{bankQrComment}</small>}
+            </div>
+          </div>
+        )}
 
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
