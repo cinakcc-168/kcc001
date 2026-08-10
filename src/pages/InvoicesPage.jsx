@@ -286,8 +286,28 @@ export default function InvoicesPage() {
         .order("paid_at")
         .order("id");
       if (error) throw error;
+
+      let receiptContext = null;
+      try {
+        const { data: contextData, error: contextError } = await supabase.rpc(
+          "get_sale_receipt_context",
+          { p_sale_id: invoice.id }
+        );
+        if (contextError) throw contextError;
+        receiptContext = contextData || null;
+      } catch (contextError) {
+        console.warn("Could not load exact invoice receipt context:", contextError.message);
+      }
+
+      const khmerNames = receiptContext?.product_names_km || {};
+
       setReceipt(buildInvoiceReceipt({
         ...invoice,
+        cashier_name: receiptContext?.cashier_name || invoice.cashier_name,
+        items: (invoice.items || []).map((item) => ({
+          ...item,
+          product_name_km: item.product_name_km || khmerNames[item.product_id] || null
+        })),
         payments: (data || []).map((payment) => ({
           ...payment,
           is_credit_collection: Boolean(payment.credit_payment_id)

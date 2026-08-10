@@ -12,12 +12,16 @@ const tabs = [
 
 const emptyShop = {
   shop_name: "",
+  shop_name_km: "",
   shop_phone: "",
   shop_email: "",
   shop_address: "",
+  shop_address_km: "",
   tax_id: "",
   receipt_footer: "",
+  receipt_footer_km: "",
   receipt_header: "",
+  receipt_header_km: "",
   shop_logo_url: "",
   receipt_width_mm: 80,
   receipt_show_logo: true,
@@ -26,7 +30,9 @@ const emptyShop = {
   receipt_show_customer: true,
   receipt_show_cashier: true,
   receipt_show_barcode: true,
+  receipt_logo_position: "inline",
   default_language: "en",
+  receipt_default_language: "en",
   default_theme: "light",
   tax_percent: 0,
   usd_to_khr_rate: 4100
@@ -234,16 +240,32 @@ export default function SettingsPage() {
               </div>
 
               <div className="shop-identity-layout">
-                <div className="form-grid two">
-                  <label><span>Shop name</span><input value={shopForm.shop_name || ""} onChange={(event) => updateShop("shop_name", event.target.value)} /></label>
-                  <label><span>Phone</span><input value={shopForm.shop_phone || ""} onChange={(event) => updateShop("shop_phone", event.target.value)} /></label>
-                  <label><span>Email</span><input value={shopForm.shop_email || ""} onChange={(event) => updateShop("shop_email", event.target.value)} /></label>
-                  <label><span>Tax ID</span><input value={shopForm.tax_id || ""} onChange={(event) => updateShop("tax_id", event.target.value)} /></label>
-                  <label className="settings-wide-field"><span>Address</span><textarea rows="3" value={shopForm.shop_address || ""} onChange={(event) => updateShop("shop_address", event.target.value)} /></label>
-                  <label className="settings-wide-field"><span>Receipt header</span><textarea rows="2" value={shopForm.receipt_header || ""} onChange={(event) => updateShop("receipt_header", event.target.value)} /></label>
-                  <label className="settings-wide-field"><span>Receipt footer</span><textarea rows="2" value={shopForm.receipt_footer || ""} onChange={(event) => updateShop("receipt_footer", event.target.value)} /></label>
-                  <label><span>Default language</span><select value={shopForm.default_language || "en"} onChange={(event) => updateShop("default_language", event.target.value)}><option value="en">English</option><option value="km">Khmer</option></select></label>
-                  <label><span>Default theme</span><select value={shopForm.default_theme || "light"} onChange={(event) => updateShop("default_theme", event.target.value)}><option value="light">Light</option><option value="dark">Dark</option></select></label>
+                <div className="shop-identity-fields">
+                  <div className="shop-language-grid">
+                    <section className="shop-language-block">
+                      <h3>English</h3>
+                      <label><span>Shop name</span><input value={shopForm.shop_name || ""} onChange={(event) => updateShop("shop_name", event.target.value)} /></label>
+                      <label><span>Address</span><textarea rows="3" value={shopForm.shop_address || ""} onChange={(event) => updateShop("shop_address", event.target.value)} /></label>
+                      <label><span>Receipt header</span><textarea rows="2" value={shopForm.receipt_header || ""} onChange={(event) => updateShop("receipt_header", event.target.value)} /></label>
+                      <label><span>Receipt footer</span><textarea rows="2" value={shopForm.receipt_footer || ""} onChange={(event) => updateShop("receipt_footer", event.target.value)} /></label>
+                    </section>
+
+                    <section className="shop-language-block khmer-fields" data-i18n-skip>
+                      <h3>ខ្មែរ</h3>
+                      <label><span>ឈ្មោះហាង</span><input value={shopForm.shop_name_km || ""} onChange={(event) => updateShop("shop_name_km", event.target.value)} /></label>
+                      <label><span>អាសយដ្ឋាន</span><textarea rows="3" value={shopForm.shop_address_km || ""} onChange={(event) => updateShop("shop_address_km", event.target.value)} /></label>
+                      <label><span>ក្បាលបង្កាន់ដៃ</span><textarea rows="2" value={shopForm.receipt_header_km || ""} onChange={(event) => updateShop("receipt_header_km", event.target.value)} /></label>
+                      <label><span>បាតបង្កាន់ដៃ</span><textarea rows="2" value={shopForm.receipt_footer_km || ""} onChange={(event) => updateShop("receipt_footer_km", event.target.value)} /></label>
+                    </section>
+                  </div>
+
+                  <div className="form-grid four shop-contact-grid">
+                    <label><span>Phone</span><input value={shopForm.shop_phone || ""} onChange={(event) => updateShop("shop_phone", event.target.value)} /></label>
+                    <label><span>Email</span><input value={shopForm.shop_email || ""} onChange={(event) => updateShop("shop_email", event.target.value)} /></label>
+                    <label><span>Tax ID</span><input value={shopForm.tax_id || ""} onChange={(event) => updateShop("tax_id", event.target.value)} /></label>
+                    <label><span>Default receipt language</span><select value={shopForm.receipt_default_language || "en"} onChange={(event) => updateShop("receipt_default_language", event.target.value)}><option value="en">English</option><option value="km">Khmer</option></select></label>
+                  </div>
+                  <small className="field-help">Receipts open in this language by default. English / Khmer can still be switched manually on each receipt.</small>
                 </div>
 
                 <div className="shop-logo-editor">
@@ -287,6 +309,13 @@ export default function SettingsPage() {
                       <option value="no">Hide</option>
                     </select>
                   </label>
+                  <label>
+                    <span>Logo placement</span>
+                    <select value={shopForm.receipt_logo_position || "inline"} onChange={(event) => updateShop("receipt_logo_position", event.target.value)}>
+                      <option value="inline">Same row with store name</option>
+                      <option value="above">Above store name</option>
+                    </select>
+                  </label>
                 </div>
 
                 <div className="settings-toggle-list compact-toggles">
@@ -306,10 +335,12 @@ export default function SettingsPage() {
               </div>
 
               <div className="receipt-settings-preview" style={{ "--receipt-preview-width": receiptPreviewWidth }}>
-                {shopForm.shop_logo_url && shopForm.receipt_show_logo !== false && <img src={shopForm.shop_logo_url} alt="Preview logo" />}
-                <b>{shopForm.shop_name || "Tiny POS"}</b>
-                {shopForm.receipt_header && <span>{shopForm.receipt_header}</span>}
-                {shopForm.receipt_show_address !== false && <span>{shopForm.shop_address || "Shop address"}</span>}
+                <div className={`receipt-preview-brand ${shopForm.receipt_logo_position === "above" ? "logo-above" : "logo-inline"}`}>
+                  {shopForm.shop_logo_url && shopForm.receipt_show_logo !== false && <img src={shopForm.shop_logo_url} alt="Preview logo" />}
+                  <b>{shopForm.receipt_default_language === "km" ? (shopForm.shop_name_km || shopForm.shop_name || "Tiny POS") : (shopForm.shop_name || "Tiny POS")}</b>
+                </div>
+                {(shopForm.receipt_default_language === "km" ? shopForm.receipt_header_km : shopForm.receipt_header) && <span>{shopForm.receipt_default_language === "km" ? shopForm.receipt_header_km : shopForm.receipt_header}</span>}
+                {shopForm.receipt_show_address !== false && <span>{shopForm.receipt_default_language === "km" ? (shopForm.shop_address_km || shopForm.shop_address || "Shop address") : (shopForm.shop_address || "Shop address")}</span>}
                 {shopForm.receipt_show_phone !== false && <span>{shopForm.shop_phone || "+855 xx xxx xxx"}</span>}
                 <hr />
                 <div>Invoice · INV-00001</div>
@@ -321,7 +352,7 @@ export default function SettingsPage() {
                 <div>Total — $1.50</div>
                 {shopForm.receipt_show_barcode !== false && <div>[ barcode ]</div>}
                 <hr />
-                <span>{shopForm.receipt_footer || "Thank you for your purchase."}</span>
+                <span>{shopForm.receipt_default_language === "km" ? (shopForm.receipt_footer_km || "សូមអរគុណសម្រាប់ការទិញ។") : (shopForm.receipt_footer || "Thank you for your purchase.")}</span>
               </div>
             </section>
 
@@ -349,13 +380,6 @@ export default function SettingsPage() {
                   <select value={personal.language || "en"} onChange={(event) => updatePersonal("language", event.target.value)}>
                     <option value="en">English</option>
                     <option value="km">Khmer</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Theme mode</span>
-                  <select value={personal.theme_mode || "light"} onChange={(event) => updatePersonal("theme_mode", event.target.value)}>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
                   </select>
                 </label>
                 <label className="preference-accent-field">

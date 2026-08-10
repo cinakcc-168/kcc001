@@ -229,8 +229,33 @@ export default function ReturnsPage() {
     });
   }
 
-  function openSaleReceipt(sale) {
-    const payment = sale.payments?.[0];
+  async function openSaleReceipt(sale) {
+    let receiptContext = null;
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "get_sale_receipt_context",
+        { p_sale_id: sale.id }
+      );
+      if (error) throw error;
+      receiptContext = data || null;
+    } catch (error) {
+      console.warn("Could not load exact receipt context:", error.message);
+    }
+
+    const payments = (sale.payments || []).map((payment) => ({
+      id: payment.id,
+      method: payment.method,
+      settlement_currency: payment.currency || sale.currency,
+      settlement_amount: Number(payment.amount || 0),
+      tender_currency: payment.tender_currency || payment.currency || sale.currency,
+      tender_amount: Number(payment.tender_amount ?? payment.tendered_amount ?? payment.amount ?? 0),
+      change_amount: Number(payment.tender_change_amount ?? payment.change_amount ?? 0),
+      exchange_rate: Number(payment.exchange_rate || shop?.usd_to_khr_rate || 4100),
+      reference_number: payment.reference_number || null
+    }));
+    const payment = payments[0];
+    const khmerNames = receiptContext?.product_names_km || {};
 
     setSaleReceipt({
       invoiceNumber: sale.invoice_number,
@@ -239,11 +264,14 @@ export default function ReturnsPage() {
       shopPhone: shop?.shop_phone,
       shopAddress: shop?.shop_address,
       footer: shop?.receipt_footer,
-      cashierName: sale.cashier_name || "POS Staff",
+      cashierName: receiptContext?.cashier_name || sale.cashier_name || "POS Staff",
       customerName: sale.customers?.name,
+      customerCode: sale.customers?.customer_code || null,
+      customerType: sale.customers?.customer_type || null,
       cart: (sale.sale_items || []).map((item) => ({
         id: item.id,
         name: item.product_name,
+        name_km: khmerNames[item.product_id] || null,
         quantity: Number(item.quantity),
         selling_price: Number(item.unit_price),
         selected_unit_price: Number(item.unit_price),
@@ -254,27 +282,23 @@ export default function ReturnsPage() {
       discountAmount: Number(sale.discount_amount || 0),
       taxAmount: Number(sale.tax_amount || 0),
       totalAmount: Number(sale.total_amount || 0),
-      amountReceived: sale.credit_account_id
-        ? 0
-        : Number(
-            payment?.tendered_amount
-            || sale.paid_amount
-            || 0
-          ),
-      changeAmount: sale.credit_account_id
-        ? 0
-        : Number(
-            payment?.change_amount
-            || sale.change_amount
-            || 0
-          ),
+      refundedAmount: Number(sale.refunded_amount || 0),
+      netTotal: Number(sale.net_total ?? Number(sale.total_amount || 0) - Number(sale.refunded_amount || 0)),
+      amountReceived: sale.credit_account_id ? 0 : Number(payment?.tender_amount || sale.paid_amount || 0),
+      changeAmount: sale.credit_account_id ? 0 : Number(payment?.change_amount || sale.change_amount || 0),
       paymentMethod: sale.credit_account_id
         ? "credit"
-        : payment?.method || "other",
+        : payments.length > 1
+          ? "split"
+          : payment?.method || "other",
+      payments,
+      exchangeRate: Number(payment?.exchange_rate || shop?.usd_to_khr_rate || 4100),
       creditDueDate: sale.credit_due_date || null,
       creditAmount: Number(sale.credit_amount || 0),
+      creditOutstanding: Number(sale.credit_outstanding || 0),
       creditBalanceAfter: null,
-      currency: sale.currency
+      currency: sale.currency,
+      saleStatus: sale.status
     });
   }
 
