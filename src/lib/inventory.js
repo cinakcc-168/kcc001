@@ -23,7 +23,7 @@ export const movementLabels = {
 };
 
 export async function loadInventory(supabase, organizationId, branchId) {
-  const [productResult, categoryResult, supplierResult, movementResult, purchaseResult, settingsResult, reorderResult] =
+  const [productResult, categoryResult, supplierResult, movementResult, purchaseResult, settingsResult, reorderResult, batchResult] =
     await Promise.all([
       supabase
         .from("products")
@@ -41,6 +41,9 @@ export async function loadInventory(supabase, organizationId, branchId) {
           track_stock,
           allow_negative_stock,
           low_stock_threshold,
+          batch_tracking,
+          expiry_tracking,
+          picking_policy,
           is_active,
           categories (id, name),
           product_images (
@@ -117,7 +120,14 @@ export async function loadInventory(supabase, organizationId, branchId) {
         .from("reorder_rules")
         .select("product_id,reorder_point,target_stock,is_active")
         .eq("organization_id", organizationId)
+        .eq("branch_id", branchId),
+      supabase
+        .from("inventory_batches")
+        .select("id,product_id,batch_number,expiry_date,received_date,quantity,unit_cost,status,updated_at")
+        .eq("organization_id", organizationId)
         .eq("branch_id", branchId)
+        .order("received_date", { ascending: true })
+        .order("created_at", { ascending: true })
     ]);
 
   for (const result of [
@@ -127,13 +137,24 @@ export async function loadInventory(supabase, organizationId, branchId) {
     movementResult,
     purchaseResult,
     settingsResult,
-    reorderResult
+    reorderResult,
+    batchResult
   ]) {
     if (result.error) throw result.error;
   }
 
   const organizationThreshold = Number(settingsResult?.data?.low_stock_threshold || 0);
   const reorderByProduct = new Map((reorderResult?.data || []).map((rule) => [rule.product_id, rule]));
+  const batchesByProduct = new Map();
+  for (const batch of batchResult?.data || []) {
+    const list = batchesByProduct.get(batch.product_id) || [];
+    list.push({
+      ...batch,
+      quantity: Number(batch.quantity || 0),
+      unit_cost: Number(batch.unit_cost || 0)
+    });
+    batchesByProduct.set(batch.product_id, list);
+  }
 
   const products = (productResult.data || []).map((product) => {
     const balance = (product.inventory_balances || []).find(
@@ -155,6 +176,7 @@ export async function loadInventory(supabase, organizationId, branchId) {
     return {
       ...product,
       image,
+      inventory_batches: batchesByProduct.get(product.id) || [],
       stock_quantity: stockQuantity,
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
       balance_updated_at: balance?.updated_at || null,
@@ -179,6 +201,35 @@ export async function loadInventory(supabase, organizationId, branchId) {
 }
 
 export async function adjustInventory(supabase, values) {
+  if (values.batch_id) {
+    const quantity = Number(values.quantity);
+    const batchQuantity = Number(values.batch_quantity || 0);
+    const quantityChange = values.mode === "remove"
+      ? -quantity
+      : values.mode === "set"
+        ? quantity - batchQuantity
+        : quantity;
+
+    if (Math.abs(quantityChange) < 0.0005) {
+      throw new Error("The selected batch already has that quantity. No adjustment is needed.");
+    }
+
+    const { data, error } = await supabase.rpc("adjust_inventory_batch", {
+      p_batch_id: values.batch_id,
+      p_quantity_change: quantityChange,
+      p_reason: values.reason,
+      p_notes: values.notes?.trim() || null
+    });
+
+    if (error) throw error;
+    return {
+      ...data,
+      adjustment_number: `Batch ${data?.batch?.batch_number || values.batch_number || "adjustment"}`,
+      quantity_after: Number(data?.inventory_quantity_after || 0),
+      batch_quantity_after: Number(data?.batch?.quantity || 0)
+    };
+  }
+
   const { data, error } = await supabase.rpc("adjust_inventory_v2", {
     p_product_id: values.product_id,
     p_mode: values.mode,
