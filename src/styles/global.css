@@ -8008,3 +8008,198 @@ html{
     margin:0!important;
   }
 }
+
+
+/* ========================================================================== */
+/* Step 46.17 — PC New Sale Layout 2 one-line bill rows + compact summary     */
+/* ========================================================================== */
+@media(min-width:981px){
+  /* Keep Layout 2 panel heights unchanged. Only make each selected item one row. */
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-lines-panel>.sale-cart-lines,
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-lines.compact-layout{
+    padding:0 3px!important;
+    overflow-x:hidden!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line,
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-lines.compact-layout .sale-cart-line.compact{
+    min-height:36px!important;
+    height:36px!important;
+    grid-template-columns:22px minmax(0,1fr) 56px 118px minmax(112px,156px)!important;
+    grid-template-areas:"number text unit quantity stock"!important;
+    align-items:center!important;
+    column-gap:6px!important;
+    row-gap:0!important;
+    padding:3px 2px 4px!important;
+    overflow:visible!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line:not(:last-child)::after,
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-lines.compact-layout .sale-cart-line.compact:not(:last-child)::after{
+    left:27px!important;
+    right:3px!important;
+    bottom:0!important;
+    height:1px!important;
+    background:color-mix(in srgb,var(--border) 78%,transparent)!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-number{
+    width:21px!important;
+    height:21px!important;
+    font-size:10px!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-text{
+    grid-area:text!important;
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    gap:7px!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-name{
+    flex:0 1 auto!important;
+    min-width:46px!important;
+    max-width:52%!important;
+    font-size:13px!important;
+    line-height:16px!important;
+    font-weight:850!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-math{
+    flex:1 1 auto!important;
+    min-width:92px!important;
+    font-size:10px!important;
+    line-height:14px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  /* Unit uses very little width: plain word for one unit, compact dropdown for many. */
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-unit-control{
+    grid-area:unit!important;
+    width:56px!important;
+    min-width:56px!important;
+    max-width:56px!important;
+    justify-self:center!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .single-unit-label{
+    width:auto!important;
+    min-width:0!important;
+    max-width:56px!important;
+    height:auto!important;
+    min-height:0!important;
+    padding:0 2px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    color:var(--muted)!important;
+    font-size:10px!important;
+    font-weight:800!important;
+    display:block!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-unit-control select{
+    width:56px!important;
+    min-width:56px!important;
+    max-width:56px!important;
+    height:28px!important;
+    min-height:28px!important;
+    padding:0 17px 0 4px!important;
+    border-radius:7px!important;
+    font-size:9px!important;
+    text-align:center!important;
+    text-align-last:center!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-quantity-controls{
+    grid-area:quantity!important;
+    width:118px!important;
+    min-width:118px!important;
+    max-width:118px!important;
+    grid-template-columns:26px 38px 26px 26px!important;
+    gap:1px!important;
+    justify-self:end!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-stock{
+    grid-area:stock!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    width:100%!important;
+    min-width:0!important;
+    height:auto!important;
+    margin:0!important;
+    display:block!important;
+    overflow:hidden!important;
+    color:var(--muted)!important;
+    font-size:9px!important;
+    line-height:12px!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+  }
+
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-stock small{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+
+  /* Conversion detail is secondary; hide it in the one-row PC bill so Available remains visible. */
+  .sales-page .sale-layout.sale-layout-alt .sale-cart-line .cart-line-stock small+small{
+    display:none!important;
+  }
+
+  /* Hide browser number spinners in Layout 2 as well; Tiny POS +/- remain. */
+  .sales-page .sale-layout.sale-layout-alt .cart-quantity-controls input[type="number"]{
+    appearance:textfield!important;
+    -moz-appearance:textfield!important;
+  }
+  .sales-page .sale-layout.sale-layout-alt .cart-quantity-controls input[type="number"]::-webkit-outer-spin-button,
+  .sales-page .sale-layout.sale-layout-alt .cart-quantity-controls input[type="number"]::-webkit-inner-spin-button{
+    -webkit-appearance:none!important;
+    margin:0!important;
+  }
+
+  /* Keep only the height needed by “9 products available” and its controls. */
+  .sales-page .sale-layout.sale-layout-alt .sale-product-summary{
+    min-height:32px!important;
+    height:32px!important;
+    padding:2px 7px!important;
+    gap:5px!important;
+  }
+  .sales-page .sale-layout.sale-layout-alt .sale-product-summary>span{
+    line-height:28px!important;
+  }
+  .sales-page .sale-layout.sale-layout-alt .sale-product-summary>div{
+    height:28px!important;
+    align-items:center!important;
+    gap:4px!important;
+  }
+  .sales-page .sale-layout.sale-layout-alt .sale-product-summary .refresh-button{
+    width:28px!important;
+    height:28px!important;
+  }
+  .sales-page .sale-layout.sale-layout-alt .layout-two-row-control,
+  .sales-page .sale-layout.sale-layout-alt .layout-two-row-control select{
+    width:72px!important;
+    min-width:72px!important;
+    height:28px!important;
+    min-height:28px!important;
+  }
+}
