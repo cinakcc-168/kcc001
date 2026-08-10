@@ -47,6 +47,43 @@ function currentStyleMarkup() {
     .join("\n");
 }
 
+function finalPrintGuardStyles(page) {
+  const normalizedPage = String(page || "auto").trim();
+  const isA4 = /^A4(?:\s|$)/i.test(normalizedPage);
+
+  if (!isA4) {
+    return `
+.tiny-pos-print-frame-content,.tiny-pos-print-frame-content *{box-sizing:border-box!important}
+.tiny-pos-print-frame-content img,.tiny-pos-print-frame-content svg{max-width:100%!important}
+`;
+  }
+
+  return `
+@page{size:${normalizedPage};margin:8mm}
+html,body{width:auto!important;max-width:none!important;margin:0!important;padding:0!important;overflow:visible!important}
+.tiny-pos-print-frame-content{width:100%!important;max-width:100%!important;margin:0 auto!important;padding:0!important;overflow:visible!important;box-sizing:border-box!important}
+.tiny-pos-print-frame-content,.tiny-pos-print-frame-content *{box-sizing:border-box!important}
+.tiny-pos-print-frame-content>*,
+.tiny-pos-print-frame-content article,
+.tiny-pos-print-frame-content section,
+.tiny-pos-print-frame-content header,
+.tiny-pos-print-frame-content footer,
+.tiny-pos-print-frame-content div{max-width:100%!important;min-width:0!important}
+.tiny-pos-print-frame-content table{width:100%!important;max-width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse!important}
+.tiny-pos-print-frame-content thead{display:table-header-group!important}
+.tiny-pos-print-frame-content tr{break-inside:avoid!important}
+.tiny-pos-print-frame-content th,
+.tiny-pos-print-frame-content td{min-width:0!important;max-width:none!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important}
+.tiny-pos-print-frame-content img,
+.tiny-pos-print-frame-content svg,
+.tiny-pos-print-frame-content canvas{max-width:100%!important;height:auto!important}
+.tiny-pos-print-frame-content pre,
+.tiny-pos-print-frame-content code{white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+.po-print-document,.grn-print-document,.quote-print-document,.sales-order-print-document,.credit-statement-document,.supplier-statement-document,.register-report-document,.payslip-sheet,.tiny-pos-staff-print-document,.stock-count-print-document{width:100%!important;max-width:100%!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;overflow:visible!important}
+.print-table-scroll,.responsive-wide-table-wrap,.stock-count-table-wrap,.stock-count-history-table-wrap{width:100%!important;max-width:100%!important;overflow:visible!important}
+`;
+}
+
 function waitForPrintableAssets(doc) {
   const stylesheets = [...doc.querySelectorAll('link[rel="stylesheet"]')].map((link) => {
     if (link.sheet) return Promise.resolve();
@@ -118,6 +155,7 @@ function printInPlace({ title, html, styles = "", page = "auto", includeAppStyle
   }
 
   const appStyles = includeAppStyles ? currentStyleMarkup() : "";
+  const finalGuards = finalPrintGuardStyles(page);
   const baseHref = escapeHtml(document.baseURI || window.location.origin || "/");
   const documentStyles = `
 *{box-sizing:border-box}
@@ -140,7 +178,7 @@ ${styles}`;
 ${appStyles}
 <style>${documentStyles}</style>
 </head>
-<body><main class="tiny-pos-print-frame-content">${html}</main></body>
+<body><main class="tiny-pos-print-frame-content">${html}</main><style id="tiny-pos-final-print-guard">${finalGuards}</style></body>
 </html>`);
   doc.close();
 

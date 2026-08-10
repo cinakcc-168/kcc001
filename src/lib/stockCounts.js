@@ -305,6 +305,69 @@ export async function loadStockCountWorkspace(
   };
 }
 
+function localDateBoundaryIso(dateKey, addDays = 0) {
+  if (!dateKey) return null;
+  const [year, month, day] = String(dateKey).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day + addDays, 0, 0, 0, 0);
+  return date.toISOString();
+}
+
+export async function loadStockCountHistorySessions(
+  supabase,
+  profile,
+  { from, to } = {}
+) {
+  let query = supabase
+    .from("stock_count_sessions")
+    .select(`
+      id,
+      organization_id,
+      branch_id,
+      count_number,
+      name,
+      status,
+      scope,
+      category_id,
+      blind_count,
+      notes,
+      expected_items,
+      counted_items,
+      discrepancy_items,
+      shortage_items,
+      overage_items,
+      value_variance_usd,
+      value_variance_khr,
+      adjustment_id,
+      started_by,
+      started_at,
+      completed_by,
+      completed_at,
+      cancelled_by,
+      cancelled_at,
+      cancellation_reason,
+      created_at,
+      updated_at,
+      inventory_adjustments (
+        adjustment_number
+      )
+    `)
+    .eq("organization_id", profile.organization_id)
+    .eq("branch_id", profile.branch_id)
+    .neq("status", "counting")
+    .order("started_at", { ascending: false });
+
+  const startIso = localDateBoundaryIso(from);
+  const endExclusiveIso = localDateBoundaryIso(to, 1);
+
+  if (startIso) query = query.gte("started_at", startIso);
+  if (endExclusiveIso) query = query.lt("started_at", endExclusiveIso);
+
+  const { data, error } = await query.limit(1000);
+  if (error) throw error;
+  return (data || []).map(normalizeSession);
+}
+
 export function exactStockCountMatch(
   items,
   code
