@@ -2,6 +2,7 @@ import { Languages, Printer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
 import ProductBarcode from "./ProductBarcode";
+import SaleInvoiceDocument from "./SaleInvoiceDocument";
 import { useAuth } from "../context/AuthContext";
 import { money, stockNumber } from "../lib/catalog";
 import { printElementDocument } from "../lib/listDocuments";
@@ -39,6 +40,8 @@ export default function ReceiptModal({ receipt, onClose }) {
   if (!receipt) return null;
 
   const receiptWidth = Number(shop?.receipt_width_mm || 80);
+  const saleDocumentType = shop?.sale_document_type === "invoice" ? "invoice" : "receipt";
+  const invoicePaperSize = shop?.invoice_paper_size === "A4" ? "A4" : "A5";
   const showLogo = shop?.receipt_show_logo !== false;
   const showAddress = shop?.receipt_show_address !== false;
   const showPhone = shop?.receipt_show_phone !== false;
@@ -108,13 +111,27 @@ export default function ReceiptModal({ receipt, onClose }) {
     const printable = receiptPrintRef.current;
     if (!printable) return;
 
-    const title = `${receiptShopName} ${label("Receipt", "បង្កាន់ដៃ")}`;
+    const documentLabel = saleDocumentType === "invoice"
+      ? label("Invoice", "វិក្កយបត្រ")
+      : label("Receipt", "បង្កាន់ដៃ");
+    const title = `${receiptShopName} ${documentLabel}`;
+    const page = saleDocumentType === "invoice"
+      ? `${invoicePaperSize} portrait`
+      : "auto";
+
     printElementDocument({
       title,
       element: printable,
-      page: "auto",
+      page,
       includeAppStyles: true,
-      styles: `
+      styles: saleDocumentType === "invoice" ? `
+        .tiny-pos-print-frame-content{width:100%!important;max-width:100%!important;margin:0 auto!important;padding:0!important}
+        .sale-invoice-document{width:100%!important;max-width:100%!important;margin:0 auto!important;padding:0!important;box-shadow:none!important;border:0!important;background:#fff!important;color:#111!important}
+        .sale-invoice-table{width:100%!important;table-layout:fixed!important}
+        .sale-invoice-table th,.sale-invoice-table td{white-space:normal!important;overflow-wrap:anywhere!important}
+        .receipt-language-toolbar,.receipt-actions,[data-print-hide]{display:none!important}
+        @page{size:${invoicePaperSize} portrait;margin:${invoicePaperSize === "A4" ? "8mm" : "7mm"}}
+      ` : `
         .tiny-pos-print-frame-content{width:min(100%,${receiptWidth}mm)!important;margin:0 auto!important;padding:0!important}
         .receipt-document{width:100%!important;max-width:${receiptWidth}mm!important;margin:0 auto!important;padding:0!important;box-shadow:none!important;background:#fff!important;color:#111!important}
         .receipt-wrapper{padding:0!important}.receipt-language-toolbar,.receipt-actions,[data-print-hide]{display:none!important}
@@ -129,7 +146,8 @@ export default function ReceiptModal({ receipt, onClose }) {
     <Modal
       title={receipt.offlinePending ? label("Offline receipt saved", "បានរក្សាទុកបង្កាន់ដៃក្រៅបណ្តាញ") : label("Sale completed", "ការលក់បានបញ្ចប់")}
       onClose={onClose}
-      className="receipt-modal no-translate"
+      wide={saleDocumentType === "invoice"}
+      className={`receipt-modal no-translate ${saleDocumentType === "invoice" ? "sale-invoice-modal" : ""}`}
     >
       <div className="receipt-wrapper">
         {receipt.offlinePending && (
@@ -143,6 +161,9 @@ export default function ReceiptModal({ receipt, onClose }) {
           <button type="button" className={receiptLanguage === "km" ? "active" : ""} onClick={() => setReceiptLanguage("km")}>ខ្មែរ</button>
         </div>
         <div ref={receiptPrintRef}>
+          {saleDocumentType === "invoice" ? (
+            <SaleInvoiceDocument receipt={receipt} shop={shop} language={receiptLanguage} />
+          ) : (
           <article
             className="receipt-document"
             style={{ "--receipt-width": `${receiptWidth}mm` }}
@@ -396,6 +417,7 @@ export default function ReceiptModal({ receipt, onClose }) {
               {receiptFooter}
             </div>
           </article>
+          )}
         </div>
 
         <div className="receipt-actions">
