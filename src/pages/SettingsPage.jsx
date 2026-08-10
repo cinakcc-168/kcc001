@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CreditCard, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { shopFormFromSettings, uploadShopLogo } from "../lib/settings";
 
 const tabs = [
@@ -115,6 +116,7 @@ function NewSaleLayoutPreview({ active, title, description, layout }) {
 
 export default function SettingsPage() {
   const { supabase, session, shop, profile, preferences, saveShopSettings, savePreferences, loading } = useAuth();
+  const { language, setLanguage } = useLanguage();
   const [tab, setTab] = useState("shop");
   const [shopForm, setShopForm] = useState(emptyShop);
   const [personal, setPersonal] = useState(emptyPersonal);
@@ -132,7 +134,8 @@ export default function SettingsPage() {
       setPersonal({
         ...emptyPersonal,
         ...preferences,
-        theme_mode: preferences.theme || preferences.theme_mode || "system",
+        language: language || preferences.language || "en",
+        theme_mode: (preferences.theme || preferences.theme_mode) === "dark" ? "dark" : "light",
         accent_color: preferences.accent_color || "#2563eb",
         scanner_sound: preferences.sound_enabled ?? preferences.scanner_sound ?? true,
         new_sale_layout: preferences.new_sale_layout || "layout1",
@@ -140,7 +143,7 @@ export default function SettingsPage() {
         sale_stock_display: preferences.sale_stock_display || "exact"
       });
     }
-  }, [preferences]);
+  }, [language, preferences]);
 
   const receiptPreviewWidth = useMemo(
     () => `${Math.max(58, Number(shopForm.receipt_width_mm || 80))}mm`,
@@ -178,8 +181,16 @@ export default function SettingsPage() {
     try {
       await savePreferences({
         ...personal,
+        language: personal.language || "en",
+        theme: personal.theme_mode === "dark" ? "dark" : "light",
+        theme_mode: personal.theme_mode === "dark" ? "dark" : "light",
         sale_product_card_scale: 1
       });
+
+      if ((personal.language || "en") !== language) {
+        setLanguage(personal.language || "en");
+      }
+
       setMessage("Your preferences were updated.");
     } catch (error) {
       setMessage(error.message || "Unable to save preferences.");
@@ -380,6 +391,13 @@ export default function SettingsPage() {
                   <select value={personal.language || "en"} onChange={(event) => updatePersonal("language", event.target.value)}>
                     <option value="en">English</option>
                     <option value="km">Khmer</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Theme mode</span>
+                  <select value={personal.theme_mode === "dark" ? "dark" : "light"} onChange={(event) => updatePersonal("theme_mode", event.target.value)}>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
                   </select>
                 </label>
                 <label className="preference-accent-field">
