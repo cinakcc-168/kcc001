@@ -427,7 +427,14 @@ export default function AppShell() {
             title={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
             aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
           >
-            {collapsed ? <ChevronRight size={19} /> : <ChevronLeft size={19} />}
+            {collapsed ? (
+              <ChevronRight size={19} />
+            ) : (
+              <>
+                <ChevronLeft size={19} />
+                <span className="side-collapse-label">{t("Collapse")}</span>
+              </>
+            )}
           </button>
         </nav>
 
