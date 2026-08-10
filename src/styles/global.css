@@ -7233,3 +7233,81 @@ html{
     grid-template-columns:1fr!important;
   }
 }
+
+
+/* ========================================================================== */
+/* Step 46.11 — Refund date permissions + cross-cashier returns               */
+/* ========================================================================== */
+.refund-window-strip{
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  flex-wrap:wrap;
+  padding:10px 13px;
+  border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border));
+  border-radius:12px;
+  background:color-mix(in srgb,var(--accent) 6%,var(--surface));
+}
+.refund-window-strip>span,.refund-window-strip>small{color:var(--muted)}
+.refund-window-strip>strong{color:var(--accent)}
+.refund-window-strip>small{margin-left:auto}
+
+.refund-permission-panel{display:grid;gap:16px}
+.refund-permission-filters{
+  display:grid;
+  grid-template-columns:minmax(280px,1fr) minmax(190px,.3fr);
+  gap:10px;
+  align-items:end;
+}
+.refund-permission-list{
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+}
+.refund-permission-row{
+  min-width:0;
+  display:grid;
+  grid-template-columns:minmax(220px,1.15fr) minmax(290px,1fr) minmax(220px,.65fr);
+  gap:16px;
+  align-items:center;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+}
+.refund-permission-row:last-child{border-bottom:0}
+.refund-permission-person{min-width:0;display:grid;gap:4px}
+.refund-permission-person>strong,.refund-permission-person>small{
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.refund-permission-person>small,.refund-permission-access>small{color:var(--muted)}
+.refund-permission-meta{min-width:0;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.refund-permission-meta>span:not(.status-pill){
+  min-width:0;
+  max-width:190px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  padding:5px 8px;
+  border-radius:8px;
+  background:var(--surface2);
+  color:var(--muted);
+  font-size:12px;
+}
+.refund-permission-access{min-width:0;display:grid;gap:6px;justify-items:stretch}
+.refund-permission-access select{min-width:0;width:100%}
+.refund-permission-access select:disabled{opacity:.72}
+
+@media(max-width:900px){
+  .refund-permission-row{grid-template-columns:minmax(0,1fr) minmax(210px,.7fr)}
+  .refund-permission-meta{grid-column:1}
+  .refund-permission-access{grid-column:2;grid-row:1 / span 2}
+}
+@media(max-width:760px){
+  .refund-window-strip>small{width:100%;margin-left:0}
+  .refund-permission-filters,.refund-permission-row{grid-template-columns:1fr}
+  .refund-permission-meta,.refund-permission-access{grid-column:auto;grid-row:auto}
+}
