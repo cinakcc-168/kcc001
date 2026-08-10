@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { CreditCard, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
+import { CreditCard, FileText, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { shopFormFromSettings, uploadShopLogo } from "../lib/settings";
+import Modal from "../components/Modal";
+import SaleInvoiceDocument from "../components/SaleInvoiceDocument";
 
 const tabs = [
   ["shop", "Shop Identity", Store],
-  ["receipt", "Receipt", ReceiptText],
+  ["receipt", "Receipt Center", ReceiptText],
   ["preferences", "My Preferences", SlidersHorizontal],
   ["payment", "Payment & Tax", CreditCard]
 ];
@@ -32,6 +34,21 @@ const emptyShop = {
   receipt_show_cashier: true,
   receipt_show_barcode: true,
   receipt_logo_position: "inline",
+  sale_document_type: "receipt",
+  invoice_paper_size: "A5",
+  invoice_title: "INVOICE",
+  invoice_title_km: "វិក្កយបត្រ",
+  invoice_footer: "Thank you for your purchase.",
+  invoice_footer_km: "សូមអរគុណចំពោះការគាំទ្រ!",
+  invoice_show_logo: true,
+  invoice_show_address: true,
+  invoice_show_contact: true,
+  invoice_show_tax_id: true,
+  invoice_show_customer: true,
+  invoice_show_cashier: true,
+  invoice_show_received: true,
+  invoice_show_change: true,
+  invoice_show_signatures: true,
   default_language: "en",
   receipt_default_language: "en",
   default_theme: "light",
@@ -50,6 +67,35 @@ const emptyPersonal = {
   sale_product_card_scale: 1,
   sale_show_product_code: true,
   sale_stock_display: "exact"
+};
+
+const invoicePreviewReceipt = {
+  invoiceNumber: "INV-MAIN-20260810-00001",
+  completedAt: "2026-08-10T11:00:00+07:00",
+  cashierName: "POS Staff",
+  customerName: "Walk-in customer",
+  currency: "USD",
+  cart: [
+    {
+      id: "preview-1",
+      name: "Coca-Cola 330ml",
+      name_km: "កូកាខូឡា",
+      quantity: 10,
+      selected_unit_name: "can",
+      selected_unit_price: 1,
+      selling_price: 1,
+      currency: "USD"
+    }
+  ],
+  subtotal: 10,
+  discountAmount: 0,
+  taxAmount: 0,
+  totalAmount: 10,
+  amountReceived: 10,
+  changeAmount: 0,
+  paymentMethod: "cash",
+  payments: [],
+  exchangeRate: 4100
 };
 
 
@@ -124,6 +170,7 @@ export default function SettingsPage() {
   const [savingShop, setSavingShop] = useState(false);
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [receiptCenterModal, setReceiptCenterModal] = useState(null);
 
   useEffect(() => {
     if (shop) setShopForm({ ...emptyShop, ...shopFormFromSettings(shop), ...shop });
@@ -160,18 +207,51 @@ export default function SettingsPage() {
     setPersonal((current) => ({ ...current, [key]: value }));
   }
 
-  async function handleShopSave(event) {
-    event.preventDefault();
+  function closeReceiptCenterModal() {
+    if (shop) {
+      setShopForm({ ...emptyShop, ...shopFormFromSettings(shop), ...shop });
+    }
+    setReceiptCenterModal(null);
+  }
+
+  async function persistShopForm(successMessage = "Shop settings saved.") {
     setSavingShop(true);
     setMessage("");
     try {
       await saveShopSettings(shopForm);
-      setMessage("Shop settings saved.");
+      setMessage(successMessage);
+      return true;
     } catch (error) {
       setMessage(error.message || "Unable to save shop settings.");
+      return false;
     } finally {
       setSavingShop(false);
     }
+  }
+
+  async function handleShopSave(event) {
+    event.preventDefault();
+    await persistShopForm();
+  }
+
+  async function handleReceiptSetupSave(event) {
+    event.preventDefault();
+    const saved = await persistShopForm("Receipt setup saved.");
+    if (saved) setReceiptCenterModal(null);
+  }
+
+  async function handleInvoiceSetupSave(event) {
+    event.preventDefault();
+    const saved = await persistShopForm("Invoice setup saved.");
+    if (saved) setReceiptCenterModal(null);
+  }
+
+  async function saveSaleDocumentPreference() {
+    await persistShopForm(
+      shopForm.sale_document_type === "invoice"
+        ? "Completed sales will now open the invoice print view."
+        : "Completed sales will now open the receipt print view."
+    );
   }
 
   async function handlePersonalSave(event) {
@@ -300,79 +380,228 @@ export default function SettingsPage() {
         )}
 
         {tab === "receipt" && (
-          <form className="settings-section" onSubmit={handleShopSave}>
-            <section className="panel receipt-settings-layout">
-              <div className="receipt-settings-fields">
+          <div className="settings-section receipt-center-page">
+            <section className="panel receipt-center-home">
+              <div className="panel-heading">
                 <div>
-                  <h2>Receipt setup</h2>
-                  <p>Control the default receipt width and what prints for every sale.</p>
-                </div>
-
-                <div className="form-grid two">
-                  <label>
-                    <span>Receipt width (mm)</span>
-                    <input type="number" min="58" max="120" value={shopForm.receipt_width_mm || 80} onChange={(event) => updateShop("receipt_width_mm", Number(event.target.value || 80))} />
-                  </label>
-                  <label>
-                    <span>Cashier name on receipt</span>
-                    <select value={shopForm.receipt_show_cashier !== false ? "yes" : "no"} onChange={(event) => updateShop("receipt_show_cashier", event.target.value === "yes")}>
-                      <option value="yes">Show</option>
-                      <option value="no">Hide</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Logo placement</span>
-                    <select value={shopForm.receipt_logo_position || "inline"} onChange={(event) => updateShop("receipt_logo_position", event.target.value)}>
-                      <option value="inline">Same row with store name</option>
-                      <option value="above">Above store name</option>
-                    </select>
-                  </label>
-                </div>
-
-                <div className="settings-toggle-list compact-toggles">
-                  {[
-                    ["receipt_show_logo", "Shop logo", "Display the shop logo at the top of each receipt."],
-                    ["receipt_show_address", "Shop address", "Show the shop address block."],
-                    ["receipt_show_phone", "Phone and email", "Show phone number and email if available."],
-                    ["receipt_show_customer", "Customer details", "Include customer name and profile details."],
-                    ["receipt_show_barcode", "Invoice barcode", "Render a scannable barcode on the printed receipt."]
-                  ].map(([key, title, note]) => (
-                    <label key={key} className="settings-toggle">
-                      <span><strong>{title}</strong><small>{note}</small></span>
-                      <input type="checkbox" checked={shopForm[key] !== false} onChange={(event) => updateShop(key, event.target.checked)} />
-                    </label>
-                  ))}
+                  <h2>Receipt Center</h2>
+                  <p>Choose how receipts and invoices are configured, then choose which document opens after a completed sale.</p>
                 </div>
               </div>
 
-              <div className="receipt-settings-preview" style={{ "--receipt-preview-width": receiptPreviewWidth }}>
-                <div className={`receipt-preview-brand ${shopForm.receipt_logo_position === "above" ? "logo-above" : "logo-inline"}`}>
-                  {shopForm.shop_logo_url && shopForm.receipt_show_logo !== false && <img src={shopForm.shop_logo_url} alt="Preview logo" />}
-                  <b>{shopForm.receipt_default_language === "km" ? (shopForm.shop_name_km || shopForm.shop_name || "Tiny POS") : (shopForm.shop_name || "Tiny POS")}</b>
-                </div>
-                {(shopForm.receipt_default_language === "km" ? shopForm.receipt_header_km : shopForm.receipt_header) && <span>{shopForm.receipt_default_language === "km" ? shopForm.receipt_header_km : shopForm.receipt_header}</span>}
-                {shopForm.receipt_show_address !== false && <span>{shopForm.receipt_default_language === "km" ? (shopForm.shop_address_km || shopForm.shop_address || "Shop address") : (shopForm.shop_address || "Shop address")}</span>}
-                {shopForm.receipt_show_phone !== false && <span>{shopForm.shop_phone || "+855 xx xxx xxx"}</span>}
-                <hr />
-                <div>Invoice · INV-00001</div>
-                <div>Cashier · {profile?.full_name || "Cashier"}</div>
-                {shopForm.receipt_show_customer !== false && <div>Customer · Walk-in</div>}
-                <hr />
-                <div>1 × Sample product — $1.50</div>
-                <div>Subtotal — $1.50</div>
-                <div>Total — $1.50</div>
-                {shopForm.receipt_show_barcode !== false && <div>[ barcode ]</div>}
-                <hr />
-                <span>{shopForm.receipt_default_language === "km" ? (shopForm.receipt_footer_km || "សូមអរគុណសម្រាប់ការទិញ។") : (shopForm.receipt_footer || "Thank you for your purchase.")}</span>
+              <div className="receipt-center-setup-grid">
+                <button
+                  type="button"
+                  className="receipt-center-setup-card"
+                  onClick={() => setReceiptCenterModal("receipt")}
+                >
+                  <span className="receipt-center-setup-icon"><ReceiptText size={28} /></span>
+                  <span>
+                    <strong>Receipt set up</strong>
+                    <small>80 mm / 58 mm receipt, logo, barcode and receipt visibility options.</small>
+                  </span>
+                  <Settings2 size={20} />
+                </button>
+
+                <button
+                  type="button"
+                  className="receipt-center-setup-card"
+                  onClick={() => setReceiptCenterModal("invoice")}
+                >
+                  <span className="receipt-center-setup-icon"><FileText size={28} /></span>
+                  <span>
+                    <strong>Invoice set up</strong>
+                    <small>A5 / A4 invoice layout with bilingual print view, totals, payment and signatures.</small>
+                  </span>
+                  <Settings2 size={20} />
+                </button>
               </div>
+
+              <footer className="receipt-center-default-document">
+                <div>
+                  <strong>Document after completed sale</strong>
+                  <small>The New Sale buttons stay the same. This only changes the document shown and printed after payment.</small>
+                </div>
+                <div className="receipt-center-document-choice" role="group" aria-label="Completed sale document">
+                  <button
+                    type="button"
+                    className={shopForm.sale_document_type !== "invoice" ? "active" : ""}
+                    onClick={() => updateShop("sale_document_type", "receipt")}
+                  >
+                    <ReceiptText size={18} /> Receipt
+                  </button>
+                  <button
+                    type="button"
+                    className={shopForm.sale_document_type === "invoice" ? "active" : ""}
+                    onClick={() => updateShop("sale_document_type", "invoice")}
+                  >
+                    <FileText size={18} /> Invoice
+                  </button>
+                </div>
+                <button type="button" className="primary-button" onClick={saveSaleDocumentPreference} disabled={savingShop}>
+                  <Save size={18} /> {savingShop ? "Saving..." : "Save preference"}
+                </button>
+              </footer>
             </section>
 
-            <div className="settings-save-row">
-              <button type="submit" className="primary-button" disabled={savingShop}>
-                <Save size={18} /> {savingShop ? "Saving..." : "Save receipt settings"}
-              </button>
-            </div>
-          </form>
+            {receiptCenterModal === "receipt" && (
+              <Modal title="Receipt set up" onClose={() => !savingShop && closeReceiptCenterModal()} wide closeDisabled={savingShop}>
+                <form className="receipt-center-modal-form" onSubmit={handleReceiptSetupSave}>
+                  <section className="receipt-settings-layout">
+                    <div className="receipt-settings-fields">
+                      <div>
+                        <h2>Receipt setup</h2>
+                        <p>Control the default receipt width and what prints for every sale.</p>
+                      </div>
+
+                      <div className="form-grid two">
+                        <label>
+                          <span>Receipt width (mm)</span>
+                          <input type="number" min="58" max="120" value={shopForm.receipt_width_mm || 80} onChange={(event) => updateShop("receipt_width_mm", Number(event.target.value || 80))} />
+                        </label>
+                        <label>
+                          <span>Cashier name on receipt</span>
+                          <select value={shopForm.receipt_show_cashier !== false ? "yes" : "no"} onChange={(event) => updateShop("receipt_show_cashier", event.target.value === "yes")}>
+                            <option value="yes">Show</option>
+                            <option value="no">Hide</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Logo placement</span>
+                          <select value={shopForm.receipt_logo_position || "inline"} onChange={(event) => updateShop("receipt_logo_position", event.target.value)}>
+                            <option value="inline">Same row with store name</option>
+                            <option value="above">Above store name</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div className="settings-toggle-list compact-toggles">
+                        {[
+                          ["receipt_show_logo", "Shop logo", "Display the shop logo at the top of each receipt."],
+                          ["receipt_show_address", "Shop address", "Show the shop address block."],
+                          ["receipt_show_phone", "Phone and email", "Show phone number and email if available."],
+                          ["receipt_show_customer", "Customer details", "Include customer name and profile details."],
+                          ["receipt_show_barcode", "Invoice barcode", "Render a scannable barcode on the printed receipt."]
+                        ].map(([key, title, note]) => (
+                          <label key={key} className="settings-toggle">
+                            <span><strong>{title}</strong><small>{note}</small></span>
+                            <input type="checkbox" checked={shopForm[key] !== false} onChange={(event) => updateShop(key, event.target.checked)} />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="receipt-settings-preview" style={{ "--receipt-preview-width": receiptPreviewWidth }}>
+                      <div className={`receipt-preview-brand ${shopForm.receipt_logo_position === "above" ? "logo-above" : "logo-inline"}`}>
+                        {shopForm.shop_logo_url && shopForm.receipt_show_logo !== false && <img src={shopForm.shop_logo_url} alt="Preview logo" />}
+                        <b>{shopForm.receipt_default_language === "km" ? (shopForm.shop_name_km || shopForm.shop_name || "Tiny POS") : (shopForm.shop_name || "Tiny POS")}</b>
+                      </div>
+                      {(shopForm.receipt_default_language === "km" ? shopForm.receipt_header_km : shopForm.receipt_header) && <span>{shopForm.receipt_default_language === "km" ? shopForm.receipt_header_km : shopForm.receipt_header}</span>}
+                      {shopForm.receipt_show_address !== false && <span>{shopForm.receipt_default_language === "km" ? (shopForm.shop_address_km || shopForm.shop_address || "Shop address") : (shopForm.shop_address || "Shop address")}</span>}
+                      {shopForm.receipt_show_phone !== false && <span>{shopForm.shop_phone || "+855 xx xxx xxx"}</span>}
+                      <hr />
+                      <div>Invoice · INV-00001</div>
+                      <div>Cashier · {profile?.full_name || "Cashier"}</div>
+                      {shopForm.receipt_show_customer !== false && <div>Customer · Walk-in</div>}
+                      <hr />
+                      <div>1 × Sample product — $1.50</div>
+                      <div>Subtotal — $1.50</div>
+                      <div>Total — $1.50</div>
+                      {shopForm.receipt_show_barcode !== false && <div>[ barcode ]</div>}
+                      <hr />
+                      <span>{shopForm.receipt_default_language === "km" ? (shopForm.receipt_footer_km || "សូមអរគុណសម្រាប់ការទិញ។") : (shopForm.receipt_footer || "Thank you for your purchase.")}</span>
+                    </div>
+                  </section>
+
+                  <div className="modal-actions">
+                    <button type="button" className="secondary-button" onClick={closeReceiptCenterModal} disabled={savingShop}>Cancel</button>
+                    <button type="submit" className="primary-button" disabled={savingShop}>
+                      <Save size={18} /> {savingShop ? "Saving..." : "Save receipt settings"}
+                    </button>
+                  </div>
+                </form>
+              </Modal>
+            )}
+
+            {receiptCenterModal === "invoice" && (
+              <Modal title="Invoice set up" onClose={() => !savingShop && closeReceiptCenterModal()} wide closeDisabled={savingShop}>
+                <form className="receipt-center-modal-form" onSubmit={handleInvoiceSetupSave}>
+                  <section className="invoice-settings-layout">
+                    <div className="invoice-settings-fields">
+                      <div>
+                        <h2>Invoice setup</h2>
+                        <p>The invoice uses Shop Identity for shop name, address, phone, email and logo. It follows the same default print language and can still switch English / Khmer after a sale.</p>
+                      </div>
+
+                      <div className="form-grid two">
+                        <label>
+                          <span>Print paper</span>
+                          <select value={shopForm.invoice_paper_size === "A4" ? "A4" : "A5"} onChange={(event) => updateShop("invoice_paper_size", event.target.value)}>
+                            <option value="A5">A5</option>
+                            <option value="A4">A4</option>
+                          </select>
+                        </label>
+                        <label>
+                          <span>Default print language</span>
+                          <input value={shopForm.receipt_default_language === "km" ? "Khmer" : "English"} readOnly />
+                        </label>
+                        <label>
+                          <span>Invoice title — English</span>
+                          <input value={shopForm.invoice_title || "INVOICE"} onChange={(event) => updateShop("invoice_title", event.target.value)} />
+                        </label>
+                        <label className="khmer-fields" data-i18n-skip>
+                          <span>ចំណងជើងវិក្កយបត្រ — ខ្មែរ</span>
+                          <input value={shopForm.invoice_title_km || "វិក្កយបត្រ"} onChange={(event) => updateShop("invoice_title_km", event.target.value)} />
+                        </label>
+                        <label>
+                          <span>Invoice footer — English</span>
+                          <textarea rows="3" value={shopForm.invoice_footer || ""} onChange={(event) => updateShop("invoice_footer", event.target.value)} />
+                        </label>
+                        <label className="khmer-fields" data-i18n-skip>
+                          <span>បាតវិក្កយបត្រ — ខ្មែរ</span>
+                          <textarea rows="3" value={shopForm.invoice_footer_km || ""} onChange={(event) => updateShop("invoice_footer_km", event.target.value)} />
+                        </label>
+                      </div>
+
+                      <div className="settings-toggle-list compact-toggles invoice-setup-toggles">
+                        {[
+                          ["invoice_show_logo", "Shop logo", "Show the Shop Identity logo."],
+                          ["invoice_show_address", "Shop address", "Show the selected-language address."],
+                          ["invoice_show_contact", "Phone and email", "Show shop phone and email."],
+                          ["invoice_show_tax_id", "Tax ID", "Show the shop tax ID when available."],
+                          ["invoice_show_customer", "Customer", "Show customer name on the invoice."],
+                          ["invoice_show_cashier", "Cashier", "Show the original cashier name."],
+                          ["invoice_show_received", "Received payment", "Show received/tender amounts."],
+                          ["invoice_show_change", "Change", "Show customer change when applicable."],
+                          ["invoice_show_signatures", "Seller / buyer signatures", "Print both signature lines at the bottom."]
+                        ].map(([key, title, note]) => (
+                          <label key={key} className="settings-toggle">
+                            <span><strong>{title}</strong><small>{note}</small></span>
+                            <input type="checkbox" checked={shopForm[key] !== false} onChange={(event) => updateShop(key, event.target.checked)} />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="invoice-settings-preview-shell">
+                      <SaleInvoiceDocument
+                        receipt={{ ...invoicePreviewReceipt, exchangeRate: Number(shopForm.usd_to_khr_rate || 4100) }}
+                        shop={shopForm}
+                        language={shopForm.receipt_default_language === "km" ? "km" : "en"}
+                      />
+                    </div>
+                  </section>
+
+                  <div className="modal-actions">
+                    <button type="button" className="secondary-button" onClick={closeReceiptCenterModal} disabled={savingShop}>Cancel</button>
+                    <button type="submit" className="primary-button" disabled={savingShop}>
+                      <Save size={18} /> {savingShop ? "Saving..." : "Save invoice settings"}
+                    </button>
+                  </div>
+                </form>
+              </Modal>
+            )}
+          </div>
         )}
 
         {tab === "preferences" && (
