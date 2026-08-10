@@ -8502,3 +8502,110 @@ html{
     background:var(--surface)!important;
   }
 }
+
+/* ========================================================================== */
+/* Step 46.23 — Receipt Center + A5/A4 bilingual sale invoice                 */
+/* ========================================================================== */
+.receipt-center-page{min-width:0}
+.receipt-center-home{display:grid;gap:22px;min-width:0}
+.receipt-center-setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;min-width:0}
+.receipt-center-setup-card{min-width:0;min-height:126px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--surface);color:var(--text);display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;text-align:left;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease,background .18s ease}
+.receipt-center-setup-card:hover{border-color:color-mix(in srgb,var(--accent) 38%,var(--border));box-shadow:0 12px 30px rgba(15,23,42,.08);transform:translateY(-1px);background:color-mix(in srgb,var(--accent) 2%,var(--surface))}
+.receipt-center-setup-card>span:nth-child(2){display:grid;gap:5px;min-width:0}
+.receipt-center-setup-card strong{font-size:18px}
+.receipt-center-setup-card small{color:var(--muted);line-height:1.45}
+.receipt-center-setup-icon{width:52px;height:52px;border-radius:14px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));color:var(--accent);display:grid;place-items:center}
+.receipt-center-default-document{padding-top:18px;border-top:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;min-width:0}
+.receipt-center-default-document>div:first-child{display:grid;gap:4px;min-width:0}
+.receipt-center-default-document small{color:var(--muted);line-height:1.4}
+.receipt-center-document-choice{display:inline-grid;grid-template-columns:repeat(2,minmax(110px,1fr));gap:4px;padding:4px;border:1px solid var(--border);border-radius:13px;background:var(--surface2)}
+.receipt-center-document-choice button{min-height:40px;padding:0 13px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.receipt-center-document-choice button.active{background:var(--accent);color:#fff;box-shadow:0 6px 16px color-mix(in srgb,var(--accent) 24%,transparent)}
+.receipt-center-modal-form{display:grid;gap:14px;min-width:0}
+.invoice-settings-layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(340px,.95fr);gap:18px;align-items:start;min-width:0}
+.invoice-settings-fields{display:grid;gap:15px;min-width:0}
+.invoice-settings-fields h2,.invoice-settings-fields p{margin-top:0}
+.invoice-setup-toggles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.invoice-settings-preview-shell{min-width:0;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface2);overflow:auto;max-height:68vh}
+.invoice-settings-preview-shell .sale-invoice-document{font-size:8px;box-shadow:0 10px 28px rgba(15,23,42,.13)}
+.invoice-settings-preview-shell .sale-invoice-document.paper-a4{max-width:210mm}
+.invoice-settings-preview-shell .sale-invoice-document.paper-a5{max-width:148mm}
+
+.sale-invoice-document{width:min(100%,148mm);margin:0 auto;padding:10mm 9mm;background:#fff;color:#111;font-family:"Noto Sans Khmer",Inter,"Khmer OS System","Khmer UI",Arial,sans-serif;font-size:10.5px;line-height:1.35;box-shadow:0 10px 30px rgba(15,23,42,.12);overflow:hidden}
+.sale-invoice-document.paper-a4{width:min(100%,210mm);padding:12mm 13mm;font-size:11px}
+.sale-invoice-shop-header{position:relative;min-height:58px;padding:0 60px 11px;border-bottom:1px solid #9ca3af;text-align:center;display:grid;place-items:center}
+.sale-invoice-logo{position:absolute;left:0;top:0;max-width:52px;max-height:52px;object-fit:contain}
+.sale-invoice-shop-copy{display:grid;justify-items:center;gap:2px;max-width:100%}
+.sale-invoice-shop-copy h1{margin:0;font-size:19px;line-height:1.2;overflow-wrap:anywhere}
+.sale-invoice-shop-copy p{margin:0;color:#3f3f46;white-space:pre-wrap;overflow-wrap:anywhere}
+.sale-invoice-shop-note{font-weight:700;margin-top:3px!important}
+.sale-invoice-heading{padding:10px 0 9px;display:grid;gap:6px}
+.sale-invoice-heading h2{margin:0;text-align:center;font-size:19px;letter-spacing:.08em}
+.sale-invoice-title-rule{width:62px;border-top:1px solid #111;justify-self:center}
+.sale-invoice-heading-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px;margin-top:4px}
+.sale-invoice-heading-meta>div{display:flex;justify-content:space-between;gap:9px;min-width:0}
+.sale-invoice-heading-meta span{color:#52525b}
+.sale-invoice-heading-meta strong{text-align:right;overflow-wrap:anywhere}
+.sale-invoice-table-wrap{width:100%;overflow:hidden}
+.sale-invoice-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:inherit}
+.sale-invoice-table th,.sale-invoice-table td{border:1px solid #a1a1aa;padding:5px 5px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:normal}
+.sale-invoice-table th{background:#f4f4f5;font-size:.88em;text-align:center;font-weight:800}
+.sale-invoice-table td:nth-child(1),.sale-invoice-table td:nth-child(3),.sale-invoice-table td:nth-child(4){text-align:center}
+.sale-invoice-table td:nth-child(n+5){text-align:right;white-space:nowrap}
+.sale-invoice-table th:nth-child(1){width:6%}.sale-invoice-table th:nth-child(2){width:32%}.sale-invoice-table th:nth-child(3){width:8%}.sale-invoice-table th:nth-child(4){width:10%}.sale-invoice-table th:nth-child(5){width:14%}.sale-invoice-table th:nth-child(6){width:14%}.sale-invoice-table th:nth-child(7){width:16%}
+.sale-invoice-settlement{padding:12px 0 8px;display:flex;justify-content:flex-end}
+.sale-invoice-totals-box{width:min(100%,82mm);display:grid;gap:4px}
+.sale-invoice-totals-box>div:not(.sale-invoice-total-divider){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start}
+.sale-invoice-totals-box span{min-width:0}
+.sale-invoice-totals-box strong{text-align:right;white-space:nowrap}
+.sale-invoice-total-divider{height:0;border-top:1px solid #111;margin:2px 0}
+.sale-invoice-grand-total{font-size:1.08em;font-weight:900}
+.sale-invoice-payment-row{padding-top:2px}
+.sale-invoice-payment-row strong{display:grid;justify-items:end;gap:1px}
+.sale-invoice-payment-row strong small{font-size:.82em;font-weight:500;color:#52525b}
+.sale-invoice-payment-change{grid-column:1/-1;text-align:right;color:#52525b}
+.sale-invoice-payment-change b{color:#111}
+.sale-invoice-signatures{margin-top:14px;padding-top:10px;border-top:1px solid #a1a1aa;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;text-align:center}
+.sale-invoice-signatures>div{display:grid;gap:7px;justify-items:center}
+.sale-invoice-signatures i{display:block;width:100%;max-width:150px;height:23px;border-bottom:1px solid #111}
+.sale-invoice-signatures small{color:#52525b}
+.sale-invoice-footer{margin-top:14px;padding-top:9px;border-top:1px solid #a1a1aa;text-align:center;font-weight:700;white-space:pre-wrap}
+.sale-invoice-footer small{display:none}
+.sale-invoice-document.khmer{font-family:"Noto Sans Khmer","Khmer OS System","Khmer UI",Arial,sans-serif}
+.sale-invoice-document.khmer .sale-invoice-heading h2{letter-spacing:0}
+
+@media(max-width:1050px){
+  .invoice-settings-layout{grid-template-columns:1fr}
+  .invoice-settings-preview-shell{max-height:none}
+}
+@media(max-width:800px){
+  .receipt-center-setup-grid{grid-template-columns:1fr}
+  .receipt-center-default-document{grid-template-columns:1fr}
+  .receipt-center-document-choice{width:100%;grid-template-columns:1fr 1fr}
+  .receipt-center-default-document>.primary-button{width:100%}
+  .invoice-setup-toggles{grid-template-columns:1fr}
+  .sale-invoice-document{padding:18px 14px;font-size:9px;box-shadow:none;border:1px solid #d4d4d8}
+  .sale-invoice-shop-header{padding-inline:48px;min-height:50px}
+  .sale-invoice-logo{max-width:42px;max-height:42px}
+  .sale-invoice-shop-copy h1{font-size:17px}
+  .sale-invoice-heading h2{font-size:17px}
+  .sale-invoice-heading-meta{grid-template-columns:1fr;gap:3px}
+  .sale-invoice-table th,.sale-invoice-table td{padding:4px 3px;font-size:8px}
+  .sale-invoice-totals-box{width:min(100%,76mm)}
+  .sale-invoice-signatures{gap:14px}
+}
+@media(max-width:430px){
+  .sale-invoice-document{padding:14px 9px;font-size:8.5px}
+  .sale-invoice-shop-header{padding-inline:42px}
+  .sale-invoice-table th,.sale-invoice-table td{font-size:7.3px;padding:3px 2px}
+  .sale-invoice-table th:nth-child(1){width:6%}.sale-invoice-table th:nth-child(2){width:29%}.sale-invoice-table th:nth-child(3){width:8%}.sale-invoice-table th:nth-child(4){width:10%}.sale-invoice-table th:nth-child(5){width:15%}.sale-invoice-table th:nth-child(6){width:15%}.sale-invoice-table th:nth-child(7){width:17%}
+}
+
+@media print{
+  .sale-invoice-document,.sale-invoice-document *{visibility:visible!important}
+  .sale-invoice-document{box-shadow:none!important;border:0!important;background:#fff!important;color:#111!important;overflow:visible!important}
+  .sale-invoice-table{table-layout:fixed!important;width:100%!important}
+  .sale-invoice-table thead{display:table-header-group!important}
+  .sale-invoice-table tr{break-inside:avoid!important}
+  .sale-invoice-signatures,.sale-invoice-settlement{break-inside:avoid!important}
+}
