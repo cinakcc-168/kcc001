@@ -8257,3 +8257,121 @@ html{
   .end-of-day-master-actions{display:none!important}
   .end-of-day-master-header{border:0!important;padding:0 0 5mm!important}
 }
+
+
+/* ========================================================================== */
+/* Step 46.19 — smooth UI slide transitions                                   */
+/* Sidebar collapse/expand, route changes, and the EN/KH selector are motion  */
+/* polish only. No page dimensions or business behavior are changed.          */
+/* ========================================================================== */
+
+/* 1) Desktop main-menu collapse / expand. Keep the existing widths, but make
+   the rail, labels, and collapse chevron move as one continuous animation. */
+@media(min-width:801px){
+  .shell{
+    transition:grid-template-columns .34s cubic-bezier(.22,1,.36,1)!important;
+  }
+  .side{
+    transition:
+      width .34s cubic-bezier(.22,1,.36,1),
+      transform .34s cubic-bezier(.22,1,.36,1),
+      box-shadow .26s ease!important;
+  }
+  .side .side-label:not(.side-account){
+    display:inline-block!important;
+    max-width:230px;
+    opacity:1;
+    transform:translateX(0);
+    overflow:hidden;
+    white-space:nowrap;
+    vertical-align:middle;
+    transition:
+      max-width .30s cubic-bezier(.22,1,.36,1),
+      opacity .20s ease,
+      transform .30s cubic-bezier(.22,1,.36,1)!important;
+  }
+  .shell.collapsed .side .side-label:not(.side-account){
+    display:inline-block!important;
+    max-width:0!important;
+    opacity:0!important;
+    transform:translateX(-7px)!important;
+    pointer-events:none!important;
+  }
+  .side-collapse-chevron{
+    flex:0 0 auto;
+    transform:rotate(0deg);
+    transition:transform .34s cubic-bezier(.22,1,.36,1)!important;
+  }
+  .shell.collapsed .side-collapse-chevron{
+    transform:rotate(180deg);
+  }
+  .side-collapse-label{
+    display:inline-block!important;
+    max-width:78px;
+    opacity:1;
+    overflow:hidden;
+    white-space:nowrap;
+    transform:translateX(0);
+    transition:
+      max-width .28s cubic-bezier(.22,1,.36,1),
+      opacity .18s ease,
+      transform .28s cubic-bezier(.22,1,.36,1)!important;
+  }
+  .shell.collapsed .side-collapse-label{
+    display:inline-block!important;
+    max-width:0!important;
+    opacity:0!important;
+    transform:translateX(-5px)!important;
+    margin:0!important;
+  }
+}
+
+/* 2) Moving from one main function to another. Only the route body slides;
+   the top bar and side menu stay fixed so the app feels stable. */
+.route-slide-content{
+  animation:tinyPosRouteSlideIn .26s cubic-bezier(.22,1,.36,1) both;
+  transform-origin:center top;
+}
+@keyframes tinyPosRouteSlideIn{
+  from{
+    opacity:.58;
+    transform:translate3d(12px,0,0);
+  }
+  to{
+    opacity:1;
+    transform:translate3d(0,0,0);
+  }
+}
+
+/* 3) EN/KH pill. The white active pill already moves between the two choices;
+   lengthen the movement slightly and use a softer easing instead of snapping. */
+.language-toggle::before{
+  transition:
+    transform .34s cubic-bezier(.22,1,.36,1),
+    box-shadow .24s ease!important;
+  will-change:transform;
+}
+.language-toggle button{
+  transition:
+    color .24s ease,
+    opacity .20s ease,
+    transform .24s cubic-bezier(.22,1,.36,1)!important;
+}
+.language-switcher.switching .language-toggle::before{
+  box-shadow:0 3px 10px #0f172a20,0 0 0 1px #e5e7eb!important;
+}
+
+@media(prefers-reduced-motion:reduce){
+  .shell,
+  .side,
+  .side .side-label:not(.side-account),
+  .side-collapse-chevron,
+  .side-collapse-label,
+  .language-toggle::before,
+  .language-toggle button{
+    transition:none!important;
+  }
+  .route-slide-content{
+    animation:none!important;
+  }
+}
