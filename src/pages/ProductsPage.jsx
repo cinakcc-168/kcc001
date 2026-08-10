@@ -3,6 +3,7 @@ import {
   Boxes,
   Download,
   ImageOff,
+  Eye,
   Pencil,
   Plus,
   PackageOpen,
@@ -18,6 +19,7 @@ import ProductForm from "../components/ProductForm";
 import MediaImage from "../components/MediaImage";
 import CategoryForm from "../components/CategoryForm";
 import ProductUnitsModal from "../components/ProductUnitsModal";
+import ProductInsightsModal from "../components/ProductInsightsModal";
 import ListViewControls, { defaultListView } from "../components/ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import {
@@ -50,6 +52,7 @@ export default function ProductsPage() {
   const [categoryModal, setCategoryModal] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
   const [unitsProduct, setUnitsProduct] = useState(null);
+  const [insightsProduct, setInsightsProduct] = useState(null);
   const [viewMode, setViewMode] = useState(defaultListView);
   const [pageSize, setPageSize] = useState(30);
   const [page, setPage] = useState(1);
@@ -314,7 +317,7 @@ export default function ProductsPage() {
                       <div><span>Stock</span><strong className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</strong><small>Low at {stockNumber(product.effective_low_stock_threshold)}</small></div>
                       <div><span>Units</span><strong>{(product.product_units || []).filter((unit) => unit.is_active).length}</strong></div>
                     </div>
-                    <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setUnitsProduct(product)} disabled={!canManage}><PackageOpen size={17} /> Units</button><button className="secondary-button compact-button" onClick={() => setProductModal(product)} disabled={!canManage}><Pencil size={17} /> Edit</button></div>
+                    <div className="list-card-actions product-directory-actions"><button type="button" className="secondary-button compact-button" onClick={() => setUnitsProduct(product)} disabled={!canManage}><PackageOpen size={17} /> Units</button><button type="button" className="secondary-button compact-button" onClick={() => setInsightsProduct(product)}><Eye size={17} /> View</button><button className="secondary-button compact-button" onClick={() => setProductModal(product)} disabled={!canManage}><Pencil size={17} /> Edit</button></div>
                   </article>
                 );
               })}
@@ -333,7 +336,7 @@ export default function ProductsPage() {
                     <td data-label="Cost">{money(product.average_cost || product.default_cost, product.currency)}</td>
                     <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></td>
                     <td data-label="Status"><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></td>
-                    <td data-label="Units"><button type="button" className="secondary-button product-units-button" onClick={() => setUnitsProduct(product)} disabled={!canManage} title="Manage selling units"><PackageOpen size={17} />{(product.product_units || []).filter((unit) => unit.is_active).length}</button></td>
+                    <td data-label="Units"><div className="product-table-unit-actions"><button type="button" className="secondary-button product-units-button" onClick={() => setUnitsProduct(product)} disabled={!canManage} title="Manage selling units"><PackageOpen size={17} />{(product.product_units || []).filter((unit) => unit.is_active).length}</button><button type="button" className="secondary-button compact-button product-view-button" onClick={() => setInsightsProduct(product)} title="View product history and stock summary"><Eye size={17} /> View</button></div></td>
                     <td><button className="icon-button table-action" onClick={() => setProductModal(product)} disabled={!canManage} title="Edit product"><Pencil size={18} /></button></td>
                   </tr>;
                 })}</tbody>
@@ -372,6 +375,14 @@ export default function ProductsPage() {
             );
             setUnitsProduct(updatedProduct || null);
           }}
+        />
+      )}
+
+      {insightsProduct && (
+        <ProductInsightsModal
+          supabase={supabase}
+          product={insightsProduct}
+          onClose={() => setInsightsProduct(null)}
         />
       )}
 
