@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   Ban,
-  CalendarDays,
   CheckCircle2,
   Eye,
   PackageCheck,
@@ -53,7 +52,7 @@ function statusClass(status) {
 }
 
 export default function TransfersPage() {
-  const { supabase, profile, shop, can, canAny } = useAuth();
+  const { supabase, profile, can, canAny } = useAuth();
   const canCreate = can("transfers.create");
   const canEdit = can("transfers.edit");
   const canCount = canAny(["transfers.count", "transfers.receive"]);
@@ -62,7 +61,7 @@ export default function TransfersPage() {
   const canAllBranches = can("branches.all");
   const canManage = canAny([
     "transfers.create", "transfers.receive", "transfers.cancel",
-    "transfers.edit", "transfers.count", "transfers.approve"
+    "transfers.edit", "transfers.count", "transfers.approve", "approvals.review"
   ]);
 
   const today = localDate();
@@ -72,6 +71,7 @@ export default function TransfersPage() {
   const [transfers, setTransfers] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [supplierReturns, setSupplierReturns] = useState([]);
+  const [transferMetrics, setTransferMetrics] = useState({});
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [dateFrom, setDateFrom] = useState(today);
@@ -97,6 +97,8 @@ export default function TransfersPage() {
       setTransfers(data.transfers);
       setPurchases(data.purchases);
       setSupplierReturns(data.supplierReturns);
+      setTransferMetrics(data.transferMetrics || {});
+      return data;
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -106,6 +108,14 @@ export default function TransfersPage() {
   }, [supabase, profile, canAllBranches]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  function directionForTransfer(transfer) {
+    const referenceBranchId = branchFilter !== "all" ? branchFilter : profile?.branch_id;
+    if (!referenceBranchId) return "—";
+    if (transfer.destination_branch_id === referenceBranchId) return "IN";
+    if (transfer.source_branch_id === referenceBranchId) return "OUT";
+    return "—";
+  }
 
   const visibleTransfers = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -124,29 +134,30 @@ export default function TransfersPage() {
         ...(transfer.stock_transfer_items || []).flatMap((item) => [item.products?.name, item.products?.sku, item.products?.barcode])
       ].filter(Boolean).join(" ").toLowerCase();
       const statusValue = transfer.status === "pending" ? transfer.count_status || "pending" : transfer.status;
+      const direction = directionForTransfer(transfer).toLowerCase();
+      const statusMatches = status === "all"
+        || (status === "in" && direction === "in")
+        || (status === "out" && direction === "out")
+        || statusValue === status;
       return day >= dateFrom && day <= dateTo
         && branchMatches
         && (!needle || searchable.includes(needle))
-        && (status === "all" || statusValue === status);
+        && statusMatches;
     });
-  }, [transfers, search, status, dateFrom, dateTo, branchFilter]);
+  }, [transfers, search, status, dateFrom, dateTo, branchFilter, profile?.branch_id]);
 
   const visibleSupplierReturns = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return supplierReturns.filter((row) => !needle || [row.return_number, row.purchases?.purchase_number, row.suppliers?.name, row.reason].filter(Boolean).join(" ").toLowerCase().includes(needle));
   }, [supplierReturns, search]);
 
-  const metrics = useMemo(() => {
-    const outgoing = visibleTransfers.filter((row) => row.status === "pending" && row.source_branch_id === profile?.branch_id);
-    const incoming = visibleTransfers.filter((row) => row.status === "pending" && row.destination_branch_id === profile?.branch_id);
-    return {
-      pendingOutgoing: outgoing.length,
-      pendingIncoming: incoming.length,
-      awaitingApproval: visibleTransfers.filter((row) => row.status === "pending" && row.count_status === "awaiting_approval").length,
-      inTransitUnits: [...outgoing, ...incoming].reduce((sum, transfer) => sum + (transfer.stock_transfer_items || []).reduce((itemSum, item) => itemSum + Number(item.quantity || 0), 0), 0),
-      supplierReturnValue: supplierReturns.reduce((sum, row) => sum + Number(row.total_amount || 0), 0)
-    };
-  }, [visibleTransfers, supplierReturns, profile?.branch_id]);
+  const metrics = useMemo(() => ({
+    pendingOutgoing: Number(transferMetrics.outgoing_pending || 0),
+    pendingIncoming: Number(transferMetrics.waiting_to_count || 0),
+    awaitingApproval: Number(transferMetrics.waiting_approval || 0),
+    inTransitUnits: Number(transferMetrics.requested_units || 0),
+    supplierReturnValue: supplierReturns.reduce((sum, row) => sum + Number(row.total_amount || 0), 0)
+  }), [transferMetrics, supplierReturns]);
 
   function announce(type, text) {
     setMessageType(type);
@@ -191,9 +202,15 @@ export default function TransfersPage() {
     setBusy(true);
     try {
       const result = await saveStockTransferCount(supabase, values);
-      setWorkflow(null);
-      announce("success", values.submit ? `${result.transfer_number} submitted for branch-manager approval.` : `${result.transfer_number} count saved as pending.`);
-      await refresh();
+      announce("success", values.submit ? `${result.transfer_number} submitted for approval.` : `${result.transfer_number} counts saved.`);
+      const data = await refresh();
+      if (values.submit) {
+        setWorkflow(null);
+      } else {
+        const refreshed = data?.transfers?.find((row) => row.id === values.transfer_id);
+        if (refreshed) setWorkflow({ transfer: refreshed, mode: "count" });
+      }
+      return result;
     } finally {
       setBusy(false);
     }
@@ -226,6 +243,23 @@ export default function TransfersPage() {
     }
   }
 
+  async function cancelWorkflowTransfer(transfer) {
+    const reason = window.prompt(`Enter a cancellation reason for ${transfer.transfer_number}:`);
+    if (reason === null) return null;
+    if (reason.trim().length < 3) throw new Error("A cancellation reason is required.");
+
+    setBusy(true);
+    try {
+      const result = await cancelStockTransfer(supabase, transfer, reason);
+      setWorkflow(null);
+      announce("success", `${result.transfer_number} cancelled. No stock was moved for this workflow transfer.`);
+      await refresh();
+      return result;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveSupplierReturn(values) {
     try {
       setBusy(true);
@@ -248,6 +282,7 @@ export default function TransfersPage() {
     { label: "Transfer", width: 180, documentValue: (row) => row.transfer_number, render: (row) => <><strong>{row.transfer_number}</strong><small>{dateTime(row.created_at)}</small></> },
     { label: "From", width: 150, value: (row) => row.source_branch?.name || "Source" },
     { label: "To", width: 150, value: (row) => row.destination_branch?.name || "Destination" },
+    { label: "IN / OUT", width: 82, documentValue: (row) => directionForTransfer(row), render: (row) => { const direction = directionForTransfer(row); return <span className={`transfer-direction-pill ${direction === "IN" ? "in" : direction === "OUT" ? "out" : "neutral"}`}>{direction}</span>; } },
     { label: "Items", width: 80, value: (row) => (row.stock_transfer_items || []).length },
     { label: "Requested", width: 110, value: (row) => stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)) },
     { label: "Counted", width: 110, value: (row) => stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0)) },
@@ -260,11 +295,12 @@ export default function TransfersPage() {
     const workflow2 = Number(row.workflow_version || 1) >= 2;
     const source = row.source_branch_id === profile.branch_id;
     const destination = row.destination_branch_id === profile.branch_id;
-    const editable = workflow2 && row.status === "pending" && ["pending", "not_started"].includes(row.count_status) && source && canEdit;
-    const countable = workflow2 && row.status === "pending" && ["pending", "not_started", "counting"].includes(row.count_status) && destination && canCount;
-    const approvable = workflow2 && row.status === "pending" && row.count_status === "awaiting_approval" && canApprove;
+    const endpoint = source || destination || canAllBranches;
+    const editable = workflow2 && row.status === "pending" && ["pending", "not_started"].includes(row.count_status) && endpoint && canEdit;
+    const countable = workflow2 && row.status === "pending" && ["pending", "not_started", "counting"].includes(row.count_status) && endpoint && canCount;
+    const approvable = workflow2 && row.status === "pending" && row.count_status === "awaiting_approval" && endpoint && canApprove;
     const legacyReceive = !workflow2 && row.status === "pending" && destination && canCount;
-    const cancellable = row.status === "pending" && source && canCancel;
+    const cancellable = row.status === "pending" && (workflow2 ? endpoint : source) && canCancel;
     return (
       <div className="transfer-card-actions">
         <button type="button" className="secondary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "view" })}><Eye size={17} />View</button>
@@ -313,7 +349,7 @@ export default function TransfersPage() {
             }}
           />
           <label><span>Branch transfer</span><select value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}><option value="all">All branches</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
-          <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="pending">Pending</option><option value="counting">Counting</option><option value="awaiting_approval">Awaiting approval</option><option value="received">Approved / received</option><option value="cancelled">Cancelled</option></select></label>
+          <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="in">IN</option><option value="out">OUT</option><option value="pending">Pending</option><option value="counting">Counting</option><option value="awaiting_approval">Awaiting approval</option><option value="received">Approved / received</option><option value="cancelled">Cancelled</option></select></label>
         </>}
       </section>
 
@@ -334,7 +370,7 @@ export default function TransfersPage() {
           columns={columns}
           renderCard={(row) => (
             <article className="responsive-data-card transfer-card compact-transfer-card">
-              <header><div><strong>{row.transfer_number}</strong><small>{dateTime(row.created_at)}</small></div><span className={`status-pill ${statusClass(row.status === "pending" ? row.count_status : row.status)}`}>{row.display_status}</span></header>
+              <header><div><strong>{row.transfer_number}</strong><small>{dateTime(row.created_at)}</small></div><div className="transfer-card-statuses"><span className={`transfer-direction-pill ${directionForTransfer(row) === "IN" ? "in" : directionForTransfer(row) === "OUT" ? "out" : "neutral"}`}>{directionForTransfer(row)}</span><span className={`status-pill ${statusClass(row.status === "pending" ? row.count_status : row.status)}`}>{row.display_status}</span></div></header>
               <div className="transfer-route"><div><span>From</span><strong>{row.source_branch?.name || "Source"}</strong></div><ArrowLeftRight size={20} /><div><span>To</span><strong>{row.destination_branch?.name || "Destination"}</strong></div></div>
               <div className="responsive-card-field-list transfer-count-summary">
                 <div><span>Products</span><strong>{(row.stock_transfer_items || []).length}</strong></div>
@@ -354,9 +390,9 @@ export default function TransfersPage() {
         </section>
       )}
 
-      {(newTransferOpen || editingTransfer) && <TransferFormModal transfer={editingTransfer} branches={branches} products={products.filter((product) => Number(product.stock_quantity || 0) > 0 || editingTransfer?.stock_transfer_items?.some((item) => item.product_id === product.id))} currentBranchId={profile.branch_id} busy={busy} onClose={() => { setNewTransferOpen(false); setEditingTransfer(null); }} onSubmit={saveTransfer} />}
+      {(newTransferOpen || editingTransfer) && <TransferFormModal transfer={editingTransfer} branches={branches} products={products} currentBranchId={profile.branch_id} canAllBranches={canAllBranches} busy={busy} onClose={() => { setNewTransferOpen(false); setEditingTransfer(null); }} onSubmit={saveTransfer} />}
       <TransferActionModal transfer={transferAction?.transfer} action={transferAction?.action} busy={busy} onClose={() => setTransferAction(null)} onSubmit={saveTransferAction} />
-      <TransferWorkflowModal transfer={workflow?.transfer} mode={workflow?.mode} busy={busy} onClose={() => setWorkflow(null)} onSaveCount={saveCount} onApprove={approveTransfer} onReopen={reopenCount} />
+      <TransferWorkflowModal transfer={workflow?.transfer} mode={workflow?.mode} busy={busy} onClose={() => setWorkflow(null)} onSaveCount={saveCount} onApprove={approveTransfer} onReopen={reopenCount} onCancel={canCancel ? cancelWorkflowTransfer : null} />
       {supplierReturnOpen && <SupplierReturnModal purchases={purchases} products={products} busy={busy} onClose={() => setSupplierReturnOpen(false)} onSubmit={saveSupplierReturn} />}
     </div>
   );
