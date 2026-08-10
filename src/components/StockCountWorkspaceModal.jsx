@@ -90,7 +90,8 @@ export default function StockCountWorkspaceModal({
             type="button"
             className="secondary-button"
             onClick={onComplete}
-            disabled={loading || busy === "save-all"}
+            disabled={loading || busy === "save-all" || draftCount > 0}
+            title={draftCount > 0 ? "Save all edited counts and batch selections first" : "Review and complete stock count"}
           >
             <CheckCircle2 size={18} />
             Review & complete
@@ -244,6 +245,7 @@ export default function StockCountWorkspaceModal({
                     <tr>
                       <th>Product</th>
                       <th>Base unit</th>
+                      <th>Batch / lot</th>
                       <th>System stock</th>
                       <th>Counted</th>
                       <th>Variance</th>

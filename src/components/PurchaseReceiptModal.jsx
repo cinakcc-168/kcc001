@@ -1,9 +1,12 @@
 import {
   Box,
   CheckCircle2,
-  PackageCheck
+  LayoutGrid,
+  PackageCheck,
+  Table2
 } from "lucide-react";
 import {
+  Fragment,
   useEffect,
   useMemo,
   useState
@@ -36,30 +39,28 @@ function localDateTimeValue() {
   return local.toISOString().slice(0, 16);
 }
 
+function defaultReceiptView() {
+  return globalThis.matchMedia?.("(max-width: 760px)")?.matches
+    ? "cards"
+    : "table";
+}
+
 export default function PurchaseReceiptModal({
   purchase,
   busy,
   onClose,
   onSubmit
 }) {
-  const [quantities, setQuantities] =
-    useState({});
-  const [amountPaid, setAmountPaid] =
-    useState("0");
-  const [method, setMethod] =
-    useState("cash");
-  const [reference, setReference] =
-    useState("");
-  const [supplierInvoice, setSupplierInvoice] =
-    useState("");
-  const [receivedAt, setReceivedAt] =
-    useState(localDateTimeValue());
-  const [notes, setNotes] =
-    useState("");
-  const [batchAllocations, setBatchAllocations] =
-    useState({});
-  const [error, setError] =
-    useState("");
+  const [quantities, setQuantities] = useState({});
+  const [amountPaid, setAmountPaid] = useState("0");
+  const [method, setMethod] = useState("cash");
+  const [reference, setReference] = useState("");
+  const [supplierInvoice, setSupplierInvoice] = useState("");
+  const [receivedAt, setReceivedAt] = useState(localDateTimeValue());
+  const [notes, setNotes] = useState("");
+  const [batchAllocations, setBatchAllocations] = useState({});
+  const [itemViewMode, setItemViewMode] = useState(defaultReceiptView);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!purchase) return;
@@ -68,12 +69,11 @@ export default function PurchaseReceiptModal({
     setAmountPaid("0");
     setMethod("cash");
     setReference("");
-    setSupplierInvoice(
-      purchase.supplier_invoice_number || ""
-    );
+    setSupplierInvoice(purchase.supplier_invoice_number || "");
     setReceivedAt(localDateTimeValue());
     setNotes("");
     setBatchAllocations({});
+    setItemViewMode(defaultReceiptView());
     setError("");
   }, [purchase]);
 
@@ -82,11 +82,8 @@ export default function PurchaseReceiptModal({
       (purchase?.purchase_items || [])
         .map((item) => ({
           item,
-          remaining:
-            purchaseItemRemainingQuantity(item),
-          quantity: Number(
-            quantities[item.id] || 0
-          )
+          remaining: purchaseItemRemainingQuantity(item),
+          quantity: Number(quantities[item.id] || 0)
         }))
         .filter((row) => row.remaining > 0),
     [purchase, quantities]
@@ -102,8 +99,7 @@ export default function PurchaseReceiptModal({
       selectedRows.reduce(
         (sum, row) =>
           sum
-          + row.quantity
-            * Number(row.item.unit_cost || 0),
+          + row.quantity * Number(row.item.unit_cost || 0),
         0
       ),
     [selectedRows]
@@ -116,34 +112,56 @@ export default function PurchaseReceiptModal({
     rows.length > 0
     && rows.every(
       (row) =>
-        Math.abs(
-          row.quantity - row.remaining
-        ) < 0.0005
+        Math.abs(row.quantity - row.remaining) < 0.0005
     );
 
   function updateQuantity(itemId, value) {
-    setQuantities((current) => ({ ...current, [itemId]: value }));
+    setQuantities((current) => ({
+      ...current,
+      [itemId]: value
+    }));
+
     const item = purchase.purchase_items.find((row) => row.id === itemId);
-    if (item?.products?.batch_tracking && Number(value || 0) > 0 && !(batchAllocations[itemId] || []).length) {
-      setBatchAllocations((current) => ({ ...current, [itemId]: [createBatchAllocation(item.products, receivedAt, value)] }));
+    if (
+      item?.products?.batch_tracking
+      && Number(value || 0) > 0
+      && !(batchAllocations[itemId] || []).length
+    ) {
+      setBatchAllocations((current) => ({
+        ...current,
+        [itemId]: [createBatchAllocation(item.products, receivedAt, value)]
+      }));
     }
+
+    setError("");
+  }
+
+  function updateBatches(itemId, next) {
+    setBatchAllocations((current) => ({
+      ...current,
+      [itemId]: next
+    }));
     setError("");
   }
 
   function receiveAllRemaining() {
     const next = {};
+    const nextBatches = {};
 
     for (const row of rows) {
       next[row.item.id] = String(row.remaining);
+      if (row.item.products?.batch_tracking) {
+        nextBatches[row.item.id] = [
+          createBatchAllocation(
+            row.item.products,
+            receivedAt,
+            row.remaining
+          )
+        ];
+      }
     }
 
     setQuantities(next);
-    const nextBatches = {};
-    for (const row of rows) {
-      if (row.item.products?.batch_tracking) {
-        nextBatches[row.item.id] = [createBatchAllocation(row.item.products, receivedAt, row.remaining)];
-      }
-    }
     setBatchAllocations(nextBatches);
     setError("");
   }
@@ -154,25 +172,64 @@ export default function PurchaseReceiptModal({
     setError("");
   }
 
+  function receiveField(row) {
+    const { item, remaining, quantity } = row;
+    const factor = Number(item.unit_factor || 1);
+    const baseReceipt = quantity * factor;
+
+    return (
+      <label className="partial-receipt-quantity-field">
+        <span>Receive {item.purchase_unit_name || "quantity"}</span>
+        <div className="partial-receipt-quantity-input">
+          <input
+            type="number"
+            min="0"
+            max={remaining}
+            step="0.001"
+            value={quantities[item.id] || ""}
+            onChange={(event) => updateQuantity(item.id, event.target.value)}
+            placeholder="0"
+          />
+          <button
+            type="button"
+            className="secondary-button compact"
+            onClick={() => updateQuantity(item.id, String(remaining))}
+            disabled={busy}
+          >
+            Receive remaining
+          </button>
+        </div>
+        <small>
+          Adds {stockNumber(baseReceipt)} {item.products?.unit_name || "base units"}
+        </small>
+      </label>
+    );
+  }
+
+  function batchEditor(row) {
+    return (
+      <BatchAllocationEditor
+        item={row.item}
+        receiptQuantity={row.quantity}
+        receivedAt={receivedAt}
+        allocations={batchAllocations[row.item.id] || []}
+        onChange={(next) => updateBatches(row.item.id, next)}
+      />
+    );
+  }
+
   async function submit(event) {
     event.preventDefault();
     setError("");
 
     if (selectedRows.length === 0) {
-      setError(
-        "Enter a received quantity for at least one product."
-      );
+      setError("Enter a received quantity for at least one product.");
       return;
     }
 
     for (const row of selectedRows) {
-      if (
-        !Number.isFinite(row.quantity)
-        || row.quantity <= 0
-      ) {
-        setError(
-          `Enter a valid quantity for ${row.item.products?.name || "Product"}.`
-        );
+      if (!Number.isFinite(row.quantity) || row.quantity <= 0) {
+        setError(`Enter a valid quantity for ${row.item.products?.name || "Product"}.`);
         return;
       }
 
@@ -188,15 +245,32 @@ export default function PurchaseReceiptModal({
 
     for (const row of selectedRows) {
       if (!row.item.products?.batch_tracking) continue;
+
       const batchRows = batchAllocations[row.item.id] || [];
-      const batchTotal = batchRows.reduce((sum, batch) => sum + Number(batch.quantity || 0), 0);
-      if (batchRows.length === 0 || Math.abs(batchTotal - row.quantity) > 0.0005) {
-        setError(`Batch quantities for ${row.item.products?.name || "Product"} must total ${stockNumber(row.quantity)} ${row.item.purchase_unit_name}.`);
+      const batchTotal = batchRows.reduce(
+        (sum, batch) => sum + Number(batch.quantity || 0),
+        0
+      );
+
+      if (
+        batchRows.length === 0
+        || Math.abs(batchTotal - row.quantity) > 0.0005
+      ) {
+        setError(
+          `Batch quantities for ${row.item.products?.name || "Product"} must total ${stockNumber(row.quantity)} ${row.item.purchase_unit_name}.`
+        );
         return;
       }
+
       for (const batch of batchRows) {
-        if (!batch.batch_number.trim() || !(Number(batch.quantity) > 0)) { setError(`Every batch for ${row.item.products?.name || "Product"} needs a lot number and quantity.`); return; }
-        if (row.item.products.expiry_tracking && !batch.expiry_date) { setError(`Expiry date is required for ${row.item.products?.name || "Product"}.`); return; }
+        if (!(Number(batch.quantity) > 0)) {
+          setError(`Every batch for ${row.item.products?.name || "Product"} needs a quantity greater than zero.`);
+          return;
+        }
+        if (row.item.products.expiry_tracking && !batch.expiry_date) {
+          setError(`Expiry date is required for ${row.item.products?.name || "Product"}.`);
+          return;
+        }
       }
     }
 
@@ -208,13 +282,7 @@ export default function PurchaseReceiptModal({
       || payment > balance + 0.005
     ) {
       setError(
-        `Payment must be between ${money(
-          0,
-          purchase.currency
-        )} and ${money(
-          balance,
-          purchase.currency
-        )}.`
+        `Payment must be between ${money(0, purchase.currency)} and ${money(balance, purchase.currency)}.`
       );
       return;
     }
@@ -230,9 +298,7 @@ export default function PurchaseReceiptModal({
       Number.isNaN(parsedDate.getTime())
       || parsedDate > new Date(Date.now() + 5 * 60000)
     ) {
-      setError(
-        "Received date and time are invalid or in the future."
-      );
+      setError("Received date and time are invalid or in the future.");
       return;
     }
 
@@ -252,7 +318,10 @@ export default function PurchaseReceiptModal({
         notes
       });
     } catch (submitError) {
-      setError(submitError?.message || "The purchase receipt could not be saved.");
+      setError(
+        submitError?.message
+        || "The purchase receipt could not be saved."
+      );
     }
   }
 
@@ -262,43 +331,23 @@ export default function PurchaseReceiptModal({
       onClose={onClose}
       wide
     >
-      <form
-        className="partial-receipt-form"
-        onSubmit={submit}
-      >
+      <form className="partial-receipt-form" onSubmit={submit}>
         <section className="partial-receipt-summary">
           <div>
             <span>Supplier</span>
-            <strong>
-              {purchase.suppliers?.name || "—"}
-            </strong>
+            <strong>{purchase.suppliers?.name || "—"}</strong>
           </div>
-
           <div>
             <span>Order total</span>
-            <strong>
-              {money(
-                purchase.total_amount,
-                purchase.currency
-              )}
-            </strong>
+            <strong>{money(purchase.total_amount, purchase.currency)}</strong>
           </div>
-
           <div>
             <span>Balance due</span>
-            <strong>
-              {money(
-                balance,
-                purchase.currency
-              )}
-            </strong>
+            <strong>{money(balance, purchase.currency)}</strong>
           </div>
-
           <div>
             <span>Previous receipts</span>
-            <strong>
-              {(purchase.purchase_receipts || []).length}
-            </strong>
+            <strong>{(purchase.purchase_receipts || []).length}</strong>
           </div>
         </section>
 
@@ -306,11 +355,9 @@ export default function PurchaseReceiptModal({
           <div>
             <Box size={20} />
             <span>
-              Enter quantities using each line's
-              original purchasing unit.
+              Enter quantities using each line&apos;s original purchasing unit.
             </span>
           </div>
-
           <div>
             <button
               type="button"
@@ -320,7 +367,6 @@ export default function PurchaseReceiptModal({
             >
               Clear
             </button>
-
             <button
               type="button"
               className="secondary-button compact"
@@ -333,115 +379,118 @@ export default function PurchaseReceiptModal({
           </div>
         </div>
 
-        <div className="partial-receipt-items">
-          {rows.length === 0 ? (
-            <div className="empty-state compact">
-              <PackageCheck size={40} />
-              <p>
-                Every purchase-order line is already
-                fully received.
-              </p>
-            </div>
-          ) : (
-            rows.map(({ item, remaining, quantity }) => {
-              const factor = Number(
-                item.unit_factor || 1
-              );
+        <div className="po-modal-item-view-header partial-receipt-view-header">
+          <div>
+            <strong>Items to receive</strong>
+            <span>{rows.length} remaining line{rows.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="list-view-mode po-modal-view-toggle" role="group" aria-label="Receiving item view">
+            <button
+              type="button"
+              className={itemViewMode === "table" ? "active" : ""}
+              onClick={() => setItemViewMode("table")}
+            >
+              <Table2 size={17} /> Table
+            </button>
+            <button
+              type="button"
+              className={itemViewMode === "cards" ? "active" : ""}
+              onClick={() => setItemViewMode("cards")}
+            >
+              <LayoutGrid size={17} /> Cards
+            </button>
+          </div>
+        </div>
 
-              const baseReceipt =
-                quantity * factor;
+        {rows.length === 0 ? (
+          <div className="empty-state compact partial-receipt-empty">
+            <PackageCheck size={40} />
+            <p>Every purchase-order line is already fully received.</p>
+          </div>
+        ) : itemViewMode === "table" ? (
+          <div className="partial-receipt-table-wrap">
+            <table className="partial-receipt-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Ordered / received</th>
+                  <th>Cost</th>
+                  <th>Receive</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const { item, remaining } = row;
+                  const factor = Number(item.unit_factor || 1);
+                  return (
+                    <Fragment key={item.id}>
+                      <tr>
+                        <td data-label="Product">
+                          <strong>{item.products?.name || "Product"}</strong>
+                          <small>
+                            1 {item.purchase_unit_name || "unit"} = {stockNumber(factor)} {item.products?.unit_name || "base units"}
+                          </small>
+                        </td>
+                        <td data-label="Ordered / received">
+                          <strong>{stockNumber(item.quantity)} {item.purchase_unit_name || "units"}</strong>
+                          <small>
+                            Received {stockNumber(item.received_quantity)} · Remaining {stockNumber(remaining)}
+                          </small>
+                        </td>
+                        <td data-label="Cost">
+                          <strong>{money(item.unit_cost, purchase.currency)}</strong>
+                          <small>per {item.purchase_unit_name || "unit"}</small>
+                        </td>
+                        <td data-label="Receive">{receiveField(row)}</td>
+                      </tr>
+                      {item.products?.batch_tracking && row.quantity > 0 && (
+                        <tr className="partial-receipt-batch-table-row">
+                          <td colSpan="4">{batchEditor(row)}</td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="partial-receipt-card-grid">
+            {rows.map((row) => {
+              const { item, remaining } = row;
+              const factor = Number(item.unit_factor || 1);
 
               return (
-                <article key={item.id}>
-                  <div>
-                    <strong>
-                      {item.products?.name || "Product"}
-                    </strong>
-
-                    <span>
-                      Ordered {stockNumber(item.quantity)}{" "}
-                      {item.purchase_unit_name || "units"}
-                      {" · Received "}
-                      {stockNumber(
-                        item.received_quantity
-                      )}
-                      {" · Remaining "}
-                      {stockNumber(remaining)}
-                    </span>
-
-                    <small>
-                      1 {item.purchase_unit_name || "unit"}
-                      {" = "}
-                      {stockNumber(factor)}{" "}
-                      {item.products?.unit_name || "base units"}
-                    </small>
-                  </div>
-
-                  <div>
-                    <span>Cost per purchase unit</span>
-                    <strong>
-                      {money(
-                        item.unit_cost,
-                        purchase.currency
-                      )}
-                    </strong>
-                  </div>
-
-                  <label className="partial-receipt-quantity-field">
-                    <span>
-                      Receive {item.purchase_unit_name || "quantity"}
-                    </span>
-                    <div className="partial-receipt-quantity-input">
-                      <input
-                        type="number"
-                        min="0"
-                        max={remaining}
-                        step="0.001"
-                        value={quantities[item.id] || ""}
-                        onChange={(event) =>
-                          updateQuantity(
-                            item.id,
-                            event.target.value
-                          )
-                        }
-                        placeholder="0"
-                      />
-                      <button
-                        type="button"
-                        className="secondary-button compact"
-                        onClick={() => updateQuantity(item.id, String(remaining))}
-                        disabled={busy}
-                      >
-                        Receive remaining
-                      </button>
+                <article className="partial-receipt-card" key={item.id}>
+                  <header>
+                    <div>
+                      <strong>{item.products?.name || "Product"}</strong>
+                      <span>
+                        Ordered {stockNumber(item.quantity)} {item.purchase_unit_name || "units"}
+                        {" · Received "}{stockNumber(item.received_quantity)}
+                        {" · Remaining "}{stockNumber(remaining)}
+                      </span>
+                      <small>
+                        1 {item.purchase_unit_name || "unit"} = {stockNumber(factor)} {item.products?.unit_name || "base units"}
+                      </small>
                     </div>
-                    <small>
-                      Adds {stockNumber(baseReceipt)}{" "}
-                      {item.products?.unit_name || "base units"}
-                    </small>
-                  </label>
+                    <div>
+                      <span>Cost per purchase unit</span>
+                      <strong>{money(item.unit_cost, purchase.currency)}</strong>
+                    </div>
+                  </header>
 
-                  <BatchAllocationEditor
-                    item={item}
-                    receiptQuantity={quantity}
-                    receivedAt={receivedAt}
-                    allocations={batchAllocations[item.id] || []}
-                    onChange={(next) => setBatchAllocations((current) => ({ ...current, [item.id]: next }))}
-                  />
+                  {receiveField(row)}
+                  {batchEditor(row)}
                 </article>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
 
         <section className="partial-receipt-value">
           <span>Goods-received value</span>
-          <strong>
-            {money(
-              receiptValue,
-              purchase.currency
-            )}
-          </strong>
+          <strong>{money(receiptValue, purchase.currency)}</strong>
           <small>
             {allRemainingSelected
               ? "This receipt will complete the purchase order."
@@ -455,9 +504,7 @@ export default function PurchaseReceiptModal({
             <input
               type="datetime-local"
               value={receivedAt}
-              onChange={(event) =>
-                setReceivedAt(event.target.value)
-              }
+              onChange={(event) => setReceivedAt(event.target.value)}
             />
           </label>
 
@@ -465,11 +512,7 @@ export default function PurchaseReceiptModal({
             <span>Supplier invoice number</span>
             <input
               value={supplierInvoice}
-              onChange={(event) =>
-                setSupplierInvoice(
-                  event.target.value
-                )
-              }
+              onChange={(event) => setSupplierInvoice(event.target.value)}
               placeholder="Optional"
             />
           </label>
@@ -482,9 +525,7 @@ export default function PurchaseReceiptModal({
               max={balance}
               step="0.01"
               value={amountPaid}
-              onChange={(event) =>
-                setAmountPaid(event.target.value)
-              }
+              onChange={(event) => setAmountPaid(event.target.value)}
             />
           </label>
 
@@ -492,9 +533,7 @@ export default function PurchaseReceiptModal({
             <span>Payment method</span>
             <select
               value={method}
-              onChange={(event) =>
-                setMethod(event.target.value)
-              }
+              onChange={(event) => setMethod(event.target.value)}
               disabled={Number(amountPaid || 0) <= 0}
             >
               {paymentMethods.map((value) => (
@@ -509,9 +548,7 @@ export default function PurchaseReceiptModal({
             <span>Payment reference</span>
             <input
               value={reference}
-              onChange={(event) =>
-                setReference(event.target.value)
-              }
+              onChange={(event) => setReference(event.target.value)}
               disabled={Number(amountPaid || 0) <= 0}
               placeholder="Optional"
             />
@@ -522,27 +559,19 @@ export default function PurchaseReceiptModal({
             <textarea
               rows="3"
               value={notes}
-              onChange={(event) =>
-                setNotes(event.target.value)
-              }
+              onChange={(event) => setNotes(event.target.value)}
               placeholder="Damage, short shipment, batch, delivery note..."
             />
           </label>
         </div>
 
-        {Number(amountPaid || 0) > 0
-          && method === "cash" && (
+        {Number(amountPaid || 0) > 0 && method === "cash" && (
           <div className="notice warning">
-            A cash supplier payment requires an open
-            Cash Register for this branch.
+            A cash supplier payment requires an open Cash Register for this branch.
           </div>
         )}
 
-        {error && (
-          <div className="notice error">
-            {error}
-          </div>
-        )}
+        {error && <div className="notice error">{error}</div>}
 
         <div className="modal-actions">
           <button
@@ -557,10 +586,7 @@ export default function PurchaseReceiptModal({
           <button
             type="submit"
             className="primary-button"
-            disabled={
-              busy
-              || selectedRows.length === 0
-            }
+            disabled={busy || selectedRows.length === 0}
           >
             <PackageCheck size={18} />
             {busy

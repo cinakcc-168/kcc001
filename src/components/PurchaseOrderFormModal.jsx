@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Plus, Search, Trash2 } from "lucide-react";
+import { Box, LayoutGrid, Plus, Search, Table2, Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import MediaImage from "./MediaImage";
 import { money, stockNumber } from "../lib/catalog";
@@ -61,6 +61,9 @@ export default function PurchaseOrderFormModal({
   const [form, setForm] = useState(blankForm);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [itemViewMode, setItemViewMode] = useState(() =>
+    globalThis.matchMedia?.("(max-width: 760px)")?.matches ? "cards" : "table"
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -129,6 +132,9 @@ export default function PurchaseOrderFormModal({
 
     setSearch("");
     setError("");
+    setItemViewMode(
+      globalThis.matchMedia?.("(max-width: 760px)")?.matches ? "cards" : "table"
+    );
   }, [open, purchase, products]);
 
   const matchingProducts = useMemo(() => {
@@ -450,165 +456,243 @@ export default function PurchaseOrderFormModal({
           )}
         </section>
 
-        <div className="po-items-table-wrap">
-          <table className="po-items-table package-aware">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Purchase unit</th>
-                <th>Quantity</th>
-                <th>Cost per unit</th>
-                <th>Base quantity</th>
-                <th>Line total</th>
-                <th />
-              </tr>
-            </thead>
+        <div className="po-modal-item-view-header">
+          <div>
+            <strong>Selected products</strong>
+            <span>{form.items.length} item{form.items.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="list-view-mode po-modal-view-toggle" role="group" aria-label="Purchase order item view">
+            <button
+              type="button"
+              className={itemViewMode === "table" ? "active" : ""}
+              onClick={() => setItemViewMode("table")}
+            >
+              <Table2 size={17} /> Table
+            </button>
+            <button
+              type="button"
+              className={itemViewMode === "cards" ? "active" : ""}
+              onClick={() => setItemViewMode("cards")}
+            >
+              <LayoutGrid size={17} /> Cards
+            </button>
+          </div>
+        </div>
 
-            <tbody>
-              {form.items.length === 0 ? (
+        {itemViewMode === "table" ? (
+          <div className="po-items-table-wrap">
+            <table className="po-items-table package-aware">
+              <thead>
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="po-empty-row"
-                  >
-                    Search and add products above.
-                  </td>
+                  <th>Product</th>
+                  <th>Purchase unit</th>
+                  <th>Quantity</th>
+                  <th>Cost per unit</th>
+                  <th>Base quantity</th>
+                  <th>Line total</th>
+                  <th />
                 </tr>
-              ) : (
-                form.items.map((item) => {
-                  const baseQuantity =
-                    Number(item.quantity || 0)
-                    * Number(item.unit_factor || 1);
+              </thead>
 
-                  return (
-                    <tr key={item.product_id}>
-                      <td data-label="Product">
+              <tbody>
+                {form.items.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="po-empty-row">
+                      Search and add products above.
+                    </td>
+                  </tr>
+                ) : (
+                  form.items.map((item) => {
+                    const baseQuantity =
+                      Number(item.quantity || 0)
+                      * Number(item.unit_factor || 1);
+
+                    return (
+                      <tr key={item.product_id}>
+                        <td data-label="Product">
+                          <strong>{item.name}</strong>
+                          <small>
+                            {[item.sku, item.barcode]
+                              .filter(Boolean)
+                              .join(" · ")
+                              || "No code"}
+                          </small>
+                        </td>
+
+                        <td data-label="Purchase unit">
+                          <select
+                            value={item.product_unit_id || ""}
+                            onChange={(event) =>
+                              changeUnit(item, event.target.value)
+                            }
+                          >
+                            {item.product_units.map((unit) => (
+                              <option value={unit.id} key={unit.id}>
+                                {unit.name}
+                                {" · 1 = "}
+                                {stockNumber(unit.conversion_factor)}
+                                {" "}
+                                {item.base_unit_name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+
+                        <td data-label="Quantity">
+                          <input
+                            type="number"
+                            min="0.001"
+                            step="0.001"
+                            value={item.quantity}
+                            onChange={(event) =>
+                              updateItem(item.product_id, { quantity: event.target.value })
+                            }
+                          />
+                        </td>
+
+                        <td data-label="Cost per unit">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.0001"
+                            value={item.unit_cost}
+                            onChange={(event) =>
+                              updateItem(item.product_id, { unit_cost: event.target.value })
+                            }
+                          />
+                        </td>
+
+                        <td data-label="Base quantity">
+                          <strong>
+                            {stockNumber(baseQuantity)} {item.base_unit_name}
+                          </strong>
+                          <small>
+                            Base cost: {money(
+                              Number(item.unit_cost || 0)
+                                / Math.max(Number(item.unit_factor || 1), 0.001),
+                              form.currency
+                            )}
+                          </small>
+                        </td>
+
+                        <td data-label="Line total">
+                          <strong>
+                            {money(
+                              Number(item.quantity || 0) * Number(item.unit_cost || 0),
+                              form.currency
+                            )}
+                          </strong>
+                        </td>
+
+                        <td data-label="Remove">
+                          <button
+                            type="button"
+                            className="icon-button danger-icon"
+                            onClick={() => removeItem(item.product_id)}
+                            title="Remove product"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="po-item-card-grid">
+            {form.items.length === 0 ? (
+              <div className="po-empty-row">Search and add products above.</div>
+            ) : (
+              form.items.map((item) => {
+                const baseQuantity =
+                  Number(item.quantity || 0)
+                  * Number(item.unit_factor || 1);
+
+                return (
+                  <article className="po-item-edit-card" key={item.product_id}>
+                    <header>
+                      <div>
                         <strong>{item.name}</strong>
                         <small>
-                          {[item.sku, item.barcode]
-                            .filter(Boolean)
-                            .join(" · ")
-                            || "No code"}
+                          {[item.sku, item.barcode].filter(Boolean).join(" · ") || "No code"}
                         </small>
-                      </td>
+                      </div>
+                      <button
+                        type="button"
+                        className="icon-button danger-icon"
+                        onClick={() => removeItem(item.product_id)}
+                        title="Remove product"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </header>
 
-                      <td data-label="Purchase unit">
+                    <div className="po-item-edit-card-fields">
+                      <label>
+                        <span>Purchase unit</span>
                         <select
-                          value={
-                            item.product_unit_id || ""
-                          }
-                          onChange={(event) =>
-                            changeUnit(
-                              item,
-                              event.target.value
-                            )
-                          }
+                          value={item.product_unit_id || ""}
+                          onChange={(event) => changeUnit(item, event.target.value)}
                         >
                           {item.product_units.map((unit) => (
-                            <option
-                              value={unit.id}
-                              key={unit.id}
-                            >
-                              {unit.name}
-                              {" · 1 = "}
-                              {stockNumber(
-                                unit.conversion_factor
-                              )}
-                              {" "}
-                              {item.base_unit_name}
+                            <option value={unit.id} key={unit.id}>
+                              {unit.name} · 1 = {stockNumber(unit.conversion_factor)} {item.base_unit_name}
                             </option>
                           ))}
                         </select>
-                      </td>
+                      </label>
 
-                      <td data-label="Quantity">
+                      <label>
+                        <span>Quantity</span>
                         <input
                           type="number"
                           min="0.001"
                           step="0.001"
                           value={item.quantity}
                           onChange={(event) =>
-                            updateItem(
-                              item.product_id,
-                              {
-                                quantity:
-                                  event.target.value
-                              }
-                            )
+                            updateItem(item.product_id, { quantity: event.target.value })
                           }
                         />
-                      </td>
+                      </label>
 
-                      <td data-label="Cost per unit">
+                      <label>
+                        <span>Cost per unit</span>
                         <input
                           type="number"
                           min="0"
                           step="0.0001"
                           value={item.unit_cost}
                           onChange={(event) =>
-                            updateItem(
-                              item.product_id,
-                              {
-                                unit_cost:
-                                  event.target.value
-                              }
-                            )
+                            updateItem(item.product_id, { unit_cost: event.target.value })
                           }
                         />
-                      </td>
+                      </label>
+                    </div>
 
-                      <td data-label="Base quantity">
-                        <strong>
-                          {stockNumber(baseQuantity)}
-                          {" "}
-                          {item.base_unit_name}
-                        </strong>
-                        <small>
-                          Base cost:{" "}
-                          {money(
-                            Number(item.unit_cost || 0)
-                              / Math.max(
-                                Number(
-                                  item.unit_factor || 1
-                                ),
-                                0.001
-                              ),
-                            form.currency
-                          )}
-                        </small>
-                      </td>
-
-                      <td data-label="Line total">
+                    <div className="po-item-edit-card-summary">
+                      <div>
+                        <span>Base quantity</span>
+                        <strong>{stockNumber(baseQuantity)} {item.base_unit_name}</strong>
+                      </div>
+                      <div>
+                        <span>Line total</span>
                         <strong>
                           {money(
-                            Number(item.quantity || 0)
-                              * Number(
-                                item.unit_cost || 0
-                              ),
+                            Number(item.quantity || 0) * Number(item.unit_cost || 0),
                             form.currency
                           )}
                         </strong>
-                      </td>
-
-                      <td data-label="Remove">
-                        <button
-                          type="button"
-                          className="icon-button danger-icon"
-                          onClick={() =>
-                            removeItem(item.product_id)
-                          }
-                          title="Remove product"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        )}
 
         <div className="po-package-note">
           <Box size={19} />

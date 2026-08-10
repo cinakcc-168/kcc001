@@ -22,7 +22,7 @@ export default function PurchaseOrderActionModal({
 
   useEffect(() => {
     if (!purchase || !action) return;
-    setAmount(0);
+    setAmount(action === "payment" ? purchaseBalance(purchase) : 0);
     setMethod("cash");
     setReference("");
     setSupplierInvoice(purchase.supplier_invoice_number || "");
