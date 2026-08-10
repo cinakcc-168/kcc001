@@ -75,7 +75,9 @@ export default function TransferActionModal({
 
         {!receiving && (
           <div className="notice warning">
-            Cancelling restores all in-transit quantities to the source branch.
+            {Number(transfer.workflow_version || 1) >= 2
+              ? "Cancelling closes this pending transfer. No stock has moved yet, so inventory stays unchanged."
+              : "Cancelling restores all in-transit quantities to the source branch."}
           </div>
         )}
 
