@@ -6977,3 +6977,259 @@ html{
     min-width:0!important;
   }
 }
+
+/* ========================================================================== */
+/* Step 46.10 — flexible stock-transfer request + count/approval workspace    */
+/* ========================================================================== */
+.transfer-branch-route-fields{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr)!important;
+  gap:12px!important;
+  align-items:end!important;
+  min-width:0!important;
+}
+.transfer-branch-route-fields>svg{
+  align-self:center!important;
+  justify-self:center!important;
+  color:var(--accent)!important;
+  margin-top:22px!important;
+}
+.transfer-branch-route-fields label{min-width:0!important}
+.transfer-request-note{
+  display:grid!important;
+  gap:4px!important;
+  padding:12px 14px!important;
+  border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border))!important;
+  border-radius:12px!important;
+  background:color-mix(in srgb,var(--accent) 6%,var(--surface))!important;
+  min-width:0!important;
+}
+.transfer-request-note strong{overflow-wrap:anywhere!important}
+.transfer-request-note span{color:var(--muted)!important;font-size:12px!important;line-height:1.45!important}
+.transfer-item-row.transfer-item-row-with-unit{
+  grid-template-columns:minmax(320px,1fr) 125px 150px 44px!important;
+  align-items:end!important;
+  min-width:0!important;
+}
+.transfer-item-row-with-unit>label{min-width:0!important}
+.transfer-product-field small{
+  display:block!important;
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-weight:600!important;
+}
+.transfer-stock-warning{color:#b45309!important}
+
+.transfer-direction-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-width:48px!important;
+  min-height:27px!important;
+  padding:4px 9px!important;
+  border-radius:999px!important;
+  font-size:11px!important;
+  line-height:1!important;
+  font-weight:900!important;
+  letter-spacing:.05em!important;
+  white-space:nowrap!important;
+}
+.transfer-direction-pill.in{
+  color:var(--success)!important;
+  background:color-mix(in srgb,var(--success) 11%,transparent)!important;
+  border:1px solid color-mix(in srgb,var(--success) 24%,transparent)!important;
+}
+.transfer-direction-pill.out{
+  color:var(--accent)!important;
+  background:color-mix(in srgb,var(--accent) 10%,transparent)!important;
+  border:1px solid color-mix(in srgb,var(--accent) 23%,transparent)!important;
+}
+.transfer-direction-pill.neutral{
+  color:var(--muted)!important;
+  background:var(--surface2)!important;
+  border:1px solid var(--border)!important;
+}
+.transfer-card-statuses{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:7px!important;
+  flex-wrap:wrap!important;
+  min-width:0!important;
+}
+
+.transfer-count-dialog .modal-card,
+.transfer-count-dialog.modal-card{
+  width:min(96vw,1420px)!important;
+}
+.transfer-count-dialog-body{min-width:0!important}
+.transfer-count-workspace{
+  display:grid!important;
+  gap:14px!important;
+  min-width:0!important;
+}
+.transfer-count-workspace .stock-count-workspace-actions{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+.transfer-count-workspace .stock-count-workspace-actions button{
+  width:100%!important;
+  justify-content:center!important;
+}
+.transfer-count-metrics article small{line-height:1.35!important}
+.transfer-count-toolbar{
+  grid-template-columns:minmax(260px,1fr) minmax(180px,.42fr)!important;
+}
+.transfer-count-list-controls{min-width:0!important}
+.transfer-count-table-panel{min-width:0!important;max-width:100%!important}
+.transfer-count-table{
+  min-width:1080px!important;
+}
+.transfer-count-table td:first-child{
+  min-width:190px!important;
+}
+.transfer-count-table td:first-child strong,
+.transfer-count-table td:first-child small{
+  display:block!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+}
+.transfer-count-table td:first-child small{color:var(--muted)!important;margin-top:3px!important}
+.transfer-count-input,
+.transfer-count-unit,
+.transfer-count-note{
+  min-width:0!important;
+  width:100%!important;
+  min-height:40px!important;
+}
+.transfer-count-input{width:112px!important}
+.transfer-count-unit{width:122px!important}
+.transfer-count-note{min-width:165px!important}
+.transfer-count-card-grid{min-width:0!important}
+.transfer-count-card{
+  min-width:0!important;
+  overflow:hidden!important;
+  gap:12px!important;
+}
+.transfer-count-card>header{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:start!important;
+  gap:8px!important;
+  min-width:0!important;
+}
+.transfer-count-card>header>div{min-width:0!important;overflow:hidden!important}
+.transfer-count-card>header strong,
+.transfer-count-card>header small{
+  display:block!important;
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+  text-overflow:ellipsis!important;
+}
+.transfer-count-card>header small{color:var(--muted)!important;margin-top:3px!important}
+.transfer-count-card-requested{
+  display:grid!important;
+  gap:3px!important;
+  padding:10px!important;
+  border:1px solid var(--border)!important;
+  border-radius:11px!important;
+  background:var(--surface2)!important;
+}
+.transfer-count-card-requested span,
+.transfer-count-card-requested small,
+.transfer-count-card-results span{color:var(--muted)!important;font-size:12px!important}
+.transfer-count-entry-grid,
+.transfer-count-card-results{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:9px!important;
+  min-width:0!important;
+}
+.transfer-count-card-results>div{
+  display:grid!important;
+  gap:3px!important;
+  padding:10px!important;
+  border:1px solid var(--border)!important;
+  border-radius:11px!important;
+  min-width:0!important;
+}
+.transfer-count-card-results strong{overflow-wrap:anywhere!important}
+.transfer-count-review{
+  display:grid!important;
+  gap:16px!important;
+  min-width:0!important;
+}
+.transfer-count-review .transfer-product-detail-wrap{max-height:48vh!important}
+
+@media(max-width:1000px){
+  .transfer-item-row.transfer-item-row-with-unit{
+    grid-template-columns:minmax(230px,1fr) 110px 125px 42px!important;
+  }
+  .transfer-count-toolbar{grid-template-columns:1fr!important}
+}
+
+@media(max-width:760px){
+  .transfer-branch-route-fields{
+    grid-template-columns:1fr!important;
+    gap:9px!important;
+  }
+  .transfer-branch-route-fields>svg{
+    margin:0!important;
+    transform:rotate(90deg)!important;
+  }
+  .transfer-item-row.transfer-item-row-with-unit{
+    grid-template-columns:minmax(0,1fr) minmax(90px,.55fr) minmax(90px,.55fr) 40px!important;
+    gap:8px!important;
+    align-items:end!important;
+  }
+  .transfer-item-row-with-unit .transfer-product-field{
+    grid-column:1/-1!important;
+  }
+  .transfer-product-field small{white-space:normal!important;line-height:1.35!important}
+  .transfer-card-statuses{
+    align-items:flex-end!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+  }
+  .transfer-count-workspace .stock-count-workspace-actions{
+    grid-template-columns:1fr 1fr!important;
+  }
+  .transfer-count-table{
+    min-width:0!important;
+  }
+  .transfer-count-table td:first-child{min-width:0!important}
+  .transfer-count-table .transfer-count-input,
+  .transfer-count-table .transfer-count-unit,
+  .transfer-count-table .transfer-count-note{
+    width:100%!important;
+    min-width:0!important;
+  }
+  .transfer-count-entry-grid,
+  .transfer-count-card-results{
+    grid-template-columns:1fr 1fr!important;
+  }
+  .transfer-count-review .stock-count-complete-grid{
+    grid-template-columns:1fr 1fr!important;
+  }
+}
+
+@media(max-width:480px){
+  .transfer-item-row.transfer-item-row-with-unit{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr) 40px!important;
+  }
+  .transfer-item-row-with-unit>label:nth-of-type(2){grid-column:1!important}
+  .transfer-item-row-with-unit>label:nth-of-type(3){grid-column:2!important}
+  .transfer-item-row-with-unit>.danger-icon{grid-column:3!important}
+  .transfer-count-workspace .stock-count-workspace-actions,
+  .transfer-count-entry-grid,
+  .transfer-count-card-results,
+  .transfer-count-review .stock-count-complete-grid{
+    grid-template-columns:1fr!important;
+  }
+}
