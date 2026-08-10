@@ -7,6 +7,15 @@ function normalizeUnit(unit) {
   };
 }
 
+function normalizeBatch(batch) {
+  return {
+    ...batch,
+    initial_quantity: Number(batch.initial_quantity || 0),
+    quantity: Number(batch.quantity || 0),
+    unit_cost: Number(batch.unit_cost || 0)
+  };
+}
+
 function normalizeItem(item) {
   return {
     ...item,
@@ -38,7 +47,18 @@ function normalizeItem(item) {
                 - Number(a.is_base)
                 || Number(a.sort_order || 0)
                   - Number(b.sort_order || 0)
-            )
+            ),
+          inventory_batches: [
+            ...(item.products.inventory_batches || [])
+          ]
+            .map(normalizeBatch)
+            .sort((a, b) => {
+              const aDate = a.expiry_date || "9999-12-31";
+              const bDate = b.expiry_date || "9999-12-31";
+              return String(aDate).localeCompare(String(bDate))
+                || String(a.received_date || "").localeCompare(String(b.received_date || ""))
+                || String(a.batch_number || "").localeCompare(String(b.batch_number || ""));
+            })
         }
       : null
   };
@@ -78,6 +98,7 @@ const itemSelect = `
   product_id,
   expected_quantity,
   counted_quantity,
+  selected_batch_id,
   unit_cost_snapshot,
   note,
   counted_by,
@@ -93,6 +114,9 @@ const itemSelect = `
     unit_name,
     currency,
     category_id,
+    batch_tracking,
+    expiry_tracking,
+    picking_policy,
     categories (
       id,
       name
@@ -106,6 +130,16 @@ const itemSelect = `
       is_base,
       is_active,
       sort_order
+    ),
+    inventory_batches (
+      id,
+      batch_number,
+      expiry_date,
+      received_date,
+      initial_quantity,
+      quantity,
+      unit_cost,
+      status
     )
   )
 `;
@@ -461,7 +495,7 @@ export async function saveStockCountItem(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_stock_count_item_v2",
+    "save_stock_count_item_v3",
     {
       p_session_id: values.session_id,
       p_product_id: values.product_id,
@@ -472,7 +506,9 @@ export async function saveStockCountItem(
               values.counted_quantity
             ),
       p_note:
-        values.note?.trim() || null
+        values.note?.trim() || null,
+      p_selected_batch_id:
+        values.selected_batch_id || null
     }
   );
 
@@ -485,7 +521,7 @@ export async function saveAllStockCountItems(
   values
 ) {
   const { data, error } = await supabase.rpc(
-    "save_stock_count_items_bulk_v2",
+    "save_stock_count_items_bulk_v3",
     {
       p_session_id: values.session_id,
       p_items: values.items.map((item) => ({
@@ -494,7 +530,8 @@ export async function saveAllStockCountItems(
           item.counted_quantity === null
             ? null
             : Number(item.counted_quantity),
-        note: item.note?.trim() || null
+        note: item.note?.trim() || null,
+        selected_batch_id: item.selected_batch_id || null
       }))
     }
   );
@@ -530,7 +567,7 @@ export async function completeStockCount(
   note
 ) {
   const { data, error } = await supabase.rpc(
-    "complete_stock_count_v2",
+    "complete_stock_count_v3",
     {
       p_session_id: sessionId,
       p_completion_note:

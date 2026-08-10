@@ -484,7 +484,7 @@ export async function receivePurchaseOrder(supabase, values) {
       p_batch_allocations: (values.items || []).flatMap((item) =>
         (item.batches || []).map((batch) => ({
           purchase_item_id: item.purchase_item_id,
-          batch_number: batch.batch_number.trim(),
+          batch_number: String(batch.batch_number || "").trim(),
           expiry_date: batch.expiry_date || null,
           quantity: Number(batch.quantity),
           notes: batch.notes?.trim() || null
