@@ -37,6 +37,7 @@ export default function BatchesPage() {
   const [status, setStatus] = useState("available");
   const [productId, setProductId] = useState("all");
   const [categoryId, setCategoryId] = useState("all");
+  const [pickingPolicy, setPickingPolicy] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
   const [adjusting, setAdjusting] = useState(null);
 
@@ -77,6 +78,7 @@ export default function BatchesPage() {
       const product = productMap.get(batch.product_id);
       if (productId !== "all" && batch.product_id !== productId) return false;
       if (categoryId !== "all" && product?.categories?.id !== categoryId) return false;
+      if (pickingPolicy !== "all" && String(product?.picking_policy || batch.products?.picking_policy || "fifo").toLowerCase() !== pickingPolicy) return false;
       if (status === "available" && !["active", "expiring"].includes(effective)) return false;
       if (status !== "all" && status !== "available" && effective !== status) return false;
       return !needle || [
@@ -88,7 +90,7 @@ export default function BatchesPage() {
         batch.purchase_receipt_items?.purchase_receipts?.receipt_number
       ].filter(Boolean).join(" ").toLowerCase().includes(needle);
     });
-  }, [batches, search, status, productId, categoryId, productMap]);
+  }, [batches, search, status, productId, categoryId, pickingPolicy, productMap]);
 
   const metrics = useMemo(() => {
     let active = 0;
@@ -201,6 +203,11 @@ export default function BatchesPage() {
         <select value={productId} onChange={(event) => setProductId(event.target.value)}>
           <option value="all">All products</option>
           {products.filter((product) => product.batch_tracking).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+        </select>
+        <select value={pickingPolicy} onChange={(event) => setPickingPolicy(event.target.value)} aria-label="Filter batches by picking policy">
+          <option value="all">All</option>
+          <option value="fifo">FIFO</option>
+          <option value="fefo">FEFO</option>
         </select>
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
           <option value="available">Available for sale</option>

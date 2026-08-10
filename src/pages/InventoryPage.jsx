@@ -134,7 +134,11 @@ export default function InventoryPage() {
       const result = await adjustInventory(supabase, values);
       setAdjustment(null);
       setMessageType("success");
-      setMessage(`${result.adjustment_number} saved. New stock: ${stockNumber(result.quantity_after)}.`);
+      setMessage(
+        result.batch
+          ? `${result.adjustment_number} saved. Batch stock: ${stockNumber(result.batch_quantity_after)}. Total stock: ${stockNumber(result.quantity_after)}.`
+          : `${result.adjustment_number} saved. New stock: ${stockNumber(result.quantity_after)}.`
+      );
       await refresh();
     } finally {
       setBusy(false);
