@@ -106,6 +106,8 @@ export default function SalesPage() {
     USD: null,
     KHR: null
   });
+  const [customerPricingBusy, setCustomerPricingBusy] = useState(false);
+  const [customerPricingReadyFor, setCustomerPricingReadyFor] = useState("");
   const [categories, setCategories] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [parkedSales, setParkedSales] = useState([]);
@@ -151,7 +153,7 @@ export default function SalesPage() {
     const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
     return {
       storageKey: layout2RowsStorageKey,
-      rows: [2, 3, 4].includes(stored) ? stored : 2
+      rows: [2, 3].includes(stored) ? stored : (stored === 4 ? 3 : 2)
     };
   });
   const layout2ProductRows = layout2View.storageKey === layout2RowsStorageKey
@@ -165,7 +167,7 @@ export default function SalesPage() {
     const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
     setLayout2View({
       storageKey: layout2RowsStorageKey,
-      rows: [2, 3, 4].includes(stored) ? stored : 2
+      rows: [2, 3].includes(stored) ? stored : (stored === 4 ? 3 : 2)
     });
   }, [layout2RowsStorageKey]);
 
@@ -365,8 +367,14 @@ export default function SalesPage() {
       || !profile?.branch_id
       || !isOnline
     ) {
+      setCustomerPricingBusy(false);
+      setCustomerPricingReadyFor(customerId || "");
       return undefined;
     }
+
+    const requestedCustomerId = customerId || "";
+    setCustomerPricingBusy(true);
+    setCustomerPricingReadyFor("");
 
     (async () => {
       try {
@@ -386,9 +394,13 @@ export default function SalesPage() {
         if (!active) return;
 
         setPriceCatalogs({ USD: usd, KHR: khr });
+        setCustomerPricingReadyFor(requestedCustomerId);
       } catch (error) {
         if (!active) return;
-        announce("error", error.message);
+        setCustomerPricingReadyFor("");
+        announce("error", `Customer pricing could not be prepared: ${error.message}`);
+      } finally {
+        if (active) setCustomerPricingBusy(false);
       }
     })();
 
@@ -1311,6 +1323,37 @@ export default function SalesPage() {
     }
   }
 
+  function openPayment() {
+    if (!isOnline) {
+      announce(
+        "error",
+        "Reconnect before completing payment."
+      );
+      return;
+    }
+
+    if (customerId && !selectedCustomer) {
+      announce(
+        "error",
+        "The selected customer is no longer available. Choose the customer again."
+      );
+      return;
+    }
+
+    if (
+      customerPricingBusy
+      || customerPricingReadyFor !== (customerId || "")
+    ) {
+      announce(
+        "info",
+        "Updating customer pricing. Try Pay again in a moment."
+      );
+      return;
+    }
+
+    setPaymentOpen(true);
+  }
+
   async function handlePayment(
     payment,
     approvalRequestId = null
@@ -1773,7 +1816,6 @@ export default function SalesPage() {
                       >
                         <option value={2}>2 rows</option>
                         <option value={3}>3 rows</option>
-                        <option value={4}>4 rows</option>
                       </select>
                     </label>
                     <button
@@ -1900,16 +1942,7 @@ export default function SalesPage() {
                 }
                 setQuoteOpen(true);
               }}
-              onPay={() => {
-                if (!isOnline) {
-                  announce(
-                    "error",
-                    "Reconnect before completing payment."
-                  );
-                  return;
-                }
-                setPaymentOpen(true);
-              }}
+              onPay={openPayment}
               canSell={canSell && !busy}
               canDiscount={canDiscount}
               online={isOnline}
@@ -2120,16 +2153,7 @@ export default function SalesPage() {
                 }
                 setQuoteOpen(true);
               }}
-              onPay={() => {
-                if (!isOnline) {
-                  announce(
-                    "error",
-                    "Reconnect before completing payment."
-                  );
-                  return;
-                }
-                setPaymentOpen(true);
-              }}
+              onPay={openPayment}
               canSell={canSell && !busy}
               canDiscount={canDiscount}
               online={isOnline}
