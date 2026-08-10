@@ -12,6 +12,7 @@ import {
   Tags
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import Modal from "../components/Modal";
 import ProductForm from "../components/ProductForm";
 import MediaImage from "../components/MediaImage";
@@ -34,6 +35,7 @@ import { saveProductBatchSettings } from "../lib/batches";
 
 export default function ProductsPage() {
   const { supabase, session, profile, can } = useAuth();
+  const { language } = useLanguage();
   const canManage = can("products.manage");
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -106,6 +108,20 @@ export default function ProductsPage() {
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const pagedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function productDisplayNames(product) {
+    const englishName = String(product?.name || "").trim();
+    const khmerName = String(product?.name_km || "").trim();
+
+    if (language === "km" && khmerName) {
+      return { primaryName: khmerName, secondaryName: englishName };
+    }
+
+    return {
+      primaryName: englishName || khmerName || "Unnamed product",
+      secondaryName: khmerName && khmerName !== englishName ? khmerName : ""
+    };
+  }
 
   const productReportColumns = [
     { label: "Code", value: (row) => row.sku || "—" },
@@ -289,7 +305,7 @@ export default function ProductsPage() {
                 const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
                 return (
                   <article className="list-record-card product-directory-card" key={product.id}>
-                    <header><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div><strong>{product.name}</strong>{product.name_km && <small>{product.name_km}</small>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
+                    <header><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div>{(() => { const { primaryName, secondaryName } = productDisplayNames(product); return <><strong className="product-name-primary" title={primaryName}>{primaryName}</strong>{secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></>; })()}</div></div><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
                     <div className="list-card-fields">
                       <div><span>Barcode</span><strong>{product.barcode || "—"}</strong></div>
                       <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
@@ -310,7 +326,7 @@ export default function ProductsPage() {
                 <tbody>{pagedProducts.map((product) => {
                   const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
                   return <tr key={product.id}>
-                    <td data-label="Product"><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div><strong>{product.name}</strong>{product.name_km && <span>{product.name_km}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></div></div></td>
+                    <td data-label="Product"><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div>{(() => { const { primaryName, secondaryName } = productDisplayNames(product); return <><strong className="product-name-primary" title={primaryName}>{primaryName}</strong>{secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></>; })()}</div></div></td>
                     <td data-label="Barcode">{product.barcode || "—"}</td>
                     <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
                     <td data-label="Price"><strong>{money(product.selling_price, product.currency)}</strong></td>

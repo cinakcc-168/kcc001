@@ -15,10 +15,10 @@ import {
   WifiOff
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import BarcodeScanner, { primeScannerFeedback } from "../components/BarcodeScanner";
 import Modal from "../components/Modal";
 import MediaImage from "../components/MediaImage";
-import TinyPosLoader from "../components/TinyPosLoader";
 import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import QuoteSaveModal from "../components/QuoteSaveModal";
@@ -95,6 +95,7 @@ export default function SalesPage() {
     access,
     can
   } = useAuth();
+  const { language } = useLanguage();
 
   const canSell = can("sales.create");
   const canDiscount = can(
@@ -149,7 +150,7 @@ export default function SalesPage() {
     const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
     return {
       storageKey: layout2RowsStorageKey,
-      rows: [2, 3].includes(stored) ? stored : 2
+      rows: [2, 3, 4].includes(stored) ? stored : 2
     };
   });
   const layout2ProductRows = layout2View.storageKey === layout2RowsStorageKey
@@ -163,7 +164,7 @@ export default function SalesPage() {
     const stored = Number(window.localStorage.getItem(layout2RowsStorageKey) || 2);
     setLayout2View({
       storageKey: layout2RowsStorageKey,
-      rows: [2, 3].includes(stored) ? stored : 2
+      rows: [2, 3, 4].includes(stored) ? stored : 2
     });
   }, [layout2RowsStorageKey]);
 
@@ -761,17 +762,60 @@ export default function SalesPage() {
   );
   const saleLayoutMode = preferences?.new_sale_layout === "layout2" ? "layout2" : "layout1";
   const saleShowProductCode = preferences?.sale_show_product_code !== false;
-  const saleStockDisplay = preferences?.sale_stock_display === "status" ? "status" : "exact";
   const saleWorkspaceStyle = {
     "--layout2-product-rows": layout2ProductRows,
-    "--layout2-products-height": `${114 + (layout2ProductRows * 160) + ((layout2ProductRows - 1) * 8)}px`
+    "--layout2-products-height": `${96 + layout2ProductRows * 186}px`
   };
 
-  function productStockLabel(product) {
+  function productCardNames(product) {
+    const englishName = String(product?.name || "").trim();
+    const khmerName = String(product?.name_km || "").trim();
+
+    if (language === "km" && khmerName) {
+      return { primaryName: khmerName, secondaryName: englishName };
+    }
+
+    return {
+      primaryName: englishName || khmerName || "Unnamed product",
+      secondaryName: khmerName && khmerName !== englishName ? khmerName : ""
+    };
+  }
+
+  function productCardPrice(product) {
+    const unit = saleUnitForProduct(product);
+    const value = Number(unit?.selling_price || 0);
+    const currencyCode = String(product?.currency || "USD").toUpperCase();
+    const isUsd = currencyCode === "USD";
+    const amount = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: isUsd ? 2 : 0,
+      maximumFractionDigits: isUsd ? 2 : 0
+    }).format(value);
+    const digitCount = amount.replace(/[^0-9]/g, "").length;
+    const sizeClass = digitCount >= 9
+      ? "price-xxl"
+      : digitCount >= 7
+        ? "price-xl"
+        : digitCount >= 5
+          ? "price-lg"
+          : "price-normal";
+
+    return {
+      amount,
+      symbol: isUsd ? "$" : currencyCode === "KHR" ? "៛" : currencyCode,
+      isUsd,
+      sizeClass
+    };
+  }
+
+  function productCardStock(product) {
     const stockValue = Number(product.stock_quantity || 0);
-    if (!product.track_stock) return saleStockDisplay === "status" ? "In stock" : "∞";
-    if (saleStockDisplay === "status") return stockValue > 0 ? "In stock" : "Out";
-    return `${stockNumber(stockValue)} ${product.unit_name || ""}`.trim();
+    if (!product.track_stock) return { label: "Stock", value: "∞", out: false };
+
+    return {
+      label: "Stock",
+      value: `${stockNumber(stockValue)} ${product.unit_name || ""}`.trim(),
+      out: stockValue <= 0
+    };
   }
 
   function announce(type, text) {
@@ -1543,6 +1587,22 @@ export default function SalesPage() {
 
   return (
     <div className="page-stack sales-page">
+      <div className="sale-compact-heading">
+        <div>
+          <p className="eyebrow">POINT OF SALE</p>
+          <h1>New Sale</h1>
+        </div>
+
+        {message && (
+          <div
+            className={`notice ${messageType} sale-heading-notice`}
+            onClick={() => setMessage("")}
+          >
+            {message}
+          </div>
+        )}
+      </div>
+
       {!cashRegisterOpen && (
         <div className="notice warning cash-register-sale-warning">
           <span>
@@ -1693,22 +1753,11 @@ export default function SalesPage() {
                 </form>
 
                 <div className="sale-product-summary">
-                  <div className="sale-summary-leading">
-                    {message && (
-                      <button
-                        type="button"
-                        className={`sale-inline-alert ${messageType}`}
-                        onClick={() => setMessage("")}
-                        title={message}
-                      >
-                        {message}
-                      </button>
-                    )}
-                    <span className="sale-product-count"><strong>{visibleProducts.length}</strong> products available</span>
-                  </div>
-                  <div className="sale-summary-actions">
+                  <span><strong>{visibleProducts.length}</strong> products available</span>
+                  <div>
                     <small>Tap a product to add one unit.</small>
                     <label className="layout-two-row-control" title="Choose how many product rows are visible before scrolling">
+                      <span>Default view</span>
                       <select
                         value={layout2ProductRows}
                         onChange={(event) => setLayout2View({ storageKey: layout2RowsStorageKey, rows: Number(event.target.value) })}
@@ -1716,6 +1765,7 @@ export default function SalesPage() {
                       >
                         <option value={2}>2 rows</option>
                         <option value={3}>3 rows</option>
+                        <option value={4}>4 rows</option>
                       </select>
                     </label>
                     <button
@@ -1730,7 +1780,7 @@ export default function SalesPage() {
                 </div>
 
                 {loading ? (
-                  <TinyPosLoader compact label="Loading products…" />
+                  <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
                 ) : visibleProducts.length === 0 ? (
                   <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
                 ) : (
@@ -1755,22 +1805,38 @@ export default function SalesPage() {
                             imgClassName={!product.image?.secure_url ? "sale-product-placeholder" : ""}
                           />
                           </div>
-                          <div className="sale-product-content">
-                            <strong className="sale-product-name-en" title={product.name}>{product.name}</strong>
-                            <span className="sale-product-name-km" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
-                            {saleShowProductCode ? (
-                              <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
-                            ) : (
-                              <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
-                            )}
-                            <div className="sale-product-price-stock">
-                              <b className="sale-product-price">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                              <span className={`sale-product-stock ${outOfStock ? "out" : ""}`}>
-                                <small>Stock</small>
-                                <em>{productStockLabel(product)}</em>
-                              </span>
-                            </div>
-                          </div>
+                          {(() => {
+                            const { primaryName, secondaryName } = productCardNames(product);
+                            const price = productCardPrice(product);
+                            const stock = productCardStock(product);
+                            return (
+                              <div className="sale-product-content">
+                                <div className="sale-product-names">
+                                  <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
+                                  {secondaryName ? (
+                                    <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
+                                  ) : (
+                                    <span className="sale-product-name-secondary sale-product-name-empty" aria-hidden="true">&nbsp;</span>
+                                  )}
+                                </div>
+                                <div className="sale-product-footer">
+                                  <div className={`sale-product-price-block ${price.sizeClass}`}>
+                                    <span className={`sale-product-price-symbol ${price.isUsd ? "usd" : ""}`}>{price.symbol}</span>
+                                    <b className="sale-product-price-value" title={money(saleUnitForProduct(product).selling_price, product.currency)}>{price.amount}</b>
+                                  </div>
+                                  <div className="sale-product-meta">
+                                    {saleShowProductCode ? (
+                                      <small className="sale-product-code" title={product.sku || product.barcode || "No code"}>{product.sku || product.barcode || "No code"}</small>
+                                    ) : (
+                                      <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
+                                    )}
+                                    <small className="sale-product-stock-label">{stock.label}</small>
+                                    <em className={`sale-product-stock-value ${stock.out ? "out" : ""}`} title={stock.value}>{stock.value}</em>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </button>
                       );
                     })}
@@ -1909,20 +1975,8 @@ export default function SalesPage() {
               </form>
 
               <div className="sale-product-summary">
-                <div className="sale-summary-leading">
-                  {message && (
-                    <button
-                      type="button"
-                      className={`sale-inline-alert ${messageType}`}
-                      onClick={() => setMessage("")}
-                      title={message}
-                    >
-                      {message}
-                    </button>
-                  )}
-                  <span className="sale-product-count"><strong>{visibleProducts.length}</strong> products available</span>
-                </div>
-                <div className="sale-summary-actions">
+                <span><strong>{visibleProducts.length}</strong> products available</span>
+                <div>
                   <small>Tap a product to add one unit.</small>
                   <button
                     type="button"
@@ -1936,7 +1990,7 @@ export default function SalesPage() {
               </div>
 
               {loading ? (
-                <TinyPosLoader compact label="Loading products…" />
+                <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
               ) : visibleProducts.length === 0 ? (
                 <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
               ) : (
@@ -1961,22 +2015,38 @@ export default function SalesPage() {
                             imgClassName={!product.image?.secure_url ? "sale-product-placeholder" : ""}
                           />
                         </div>
-                        <div className="sale-product-content">
-                          <strong className="sale-product-name-en" title={product.name}>{product.name}</strong>
-                          <span className="sale-product-name-km" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
-                          {saleShowProductCode ? (
-                            <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
-                          ) : (
-                            <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
-                          )}
-                          <div className="sale-product-price-stock">
-                            <b className="sale-product-price">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                            <span className={`sale-product-stock ${outOfStock ? "out" : ""}`}>
-                              <small>Stock</small>
-                              <em>{productStockLabel(product)}</em>
-                            </span>
-                          </div>
-                        </div>
+                        {(() => {
+                          const { primaryName, secondaryName } = productCardNames(product);
+                          const price = productCardPrice(product);
+                          const stock = productCardStock(product);
+                          return (
+                            <div className="sale-product-content">
+                              <div className="sale-product-names">
+                                <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
+                                {secondaryName ? (
+                                  <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
+                                ) : (
+                                  <span className="sale-product-name-secondary sale-product-name-empty" aria-hidden="true">&nbsp;</span>
+                                )}
+                              </div>
+                              <div className="sale-product-footer">
+                                <div className={`sale-product-price-block ${price.sizeClass}`}>
+                                  <span className={`sale-product-price-symbol ${price.isUsd ? "usd" : ""}`}>{price.symbol}</span>
+                                  <b className="sale-product-price-value" title={money(saleUnitForProduct(product).selling_price, product.currency)}>{price.amount}</b>
+                                </div>
+                                <div className="sale-product-meta">
+                                  {saleShowProductCode ? (
+                                    <small className="sale-product-code" title={product.sku || product.barcode || "No code"}>{product.sku || product.barcode || "No code"}</small>
+                                  ) : (
+                                    <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
+                                  )}
+                                  <small className="sale-product-stock-label">{stock.label}</small>
+                                  <em className={`sale-product-stock-value ${stock.out ? "out" : ""}`} title={stock.value}>{stock.value}</em>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </button>
                     );
                   })}
