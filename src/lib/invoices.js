@@ -146,6 +146,7 @@ export function buildInvoiceReceipt(invoice, shop) {
     cart: (invoice.items || []).map((item) => ({
       id: item.id,
       name: item.product_name,
+      name_km: item.product_name_km || null,
       quantity: Number(item.quantity || 0),
       selected_unit_price: Number(item.unit_price || 0),
       selected_unit_name: item.sale_unit_name || "pcs",

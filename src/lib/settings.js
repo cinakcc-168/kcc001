@@ -20,13 +20,18 @@ async function authorizedPost(path, token, body) {
 export function shopFormFromSettings(shop) {
   return {
     shop_name: shop?.shop_name || "Tiny POS",
+    shop_name_km: shop?.shop_name_km || "",
     shop_phone: shop?.shop_phone || "",
     shop_email: shop?.shop_email || "",
     shop_address: shop?.shop_address || "",
+    shop_address_km: shop?.shop_address_km || "",
     tax_id: shop?.tax_id || "",
     receipt_header: shop?.receipt_header || "",
+    receipt_header_km: shop?.receipt_header_km || "",
     receipt_footer: shop?.receipt_footer || "Thank you for your purchase.",
+    receipt_footer_km: shop?.receipt_footer_km || "",
     default_language: shop?.default_language || "en",
+    receipt_default_language: shop?.receipt_default_language === "km" ? "km" : "en",
     default_theme: shop?.default_theme || "system",
     base_currency: shop?.base_currency || "USD",
     usd_to_khr_rate: Number(shop?.usd_to_khr_rate || 4100),
@@ -41,6 +46,7 @@ export function shopFormFromSettings(shop) {
     receipt_show_customer: shop?.receipt_show_customer !== false,
     receipt_show_cashier: shop?.receipt_show_cashier !== false,
     receipt_show_barcode: shop?.receipt_show_barcode !== false,
+    receipt_logo_position: shop?.receipt_logo_position === "above" ? "above" : "inline",
     label_width_mm: Number(shop?.label_width_mm || 50),
     label_height_mm: Number(shop?.label_height_mm || 30),
     label_columns: Number(shop?.label_columns || 3),
@@ -60,13 +66,18 @@ export async function saveShopSettings(supabase, values) {
 
   const payload = {
     p_shop_name: text(values.shop_name, "Tiny POS"),
+    p_shop_name_km: text(values.shop_name_km),
     p_shop_phone: text(values.shop_phone),
     p_shop_email: text(values.shop_email),
     p_shop_address: text(values.shop_address),
+    p_shop_address_km: text(values.shop_address_km),
     p_tax_id: text(values.tax_id),
     p_receipt_header: text(values.receipt_header),
+    p_receipt_header_km: text(values.receipt_header_km),
     p_receipt_footer: text(values.receipt_footer, "Thank you for your purchase."),
+    p_receipt_footer_km: text(values.receipt_footer_km),
     p_default_language: values.default_language === "km" ? "km" : "en",
+    p_receipt_default_language: values.receipt_default_language === "km" ? "km" : "en",
     p_default_theme: ["light", "dark", "system"].includes(values.default_theme)
       ? values.default_theme
       : "system",
@@ -83,6 +94,7 @@ export async function saveShopSettings(supabase, values) {
     p_receipt_show_customer: values.receipt_show_customer !== false,
     p_receipt_show_cashier: values.receipt_show_cashier !== false,
     p_receipt_show_barcode: values.receipt_show_barcode !== false,
+    p_receipt_logo_position: values.receipt_logo_position === "above" ? "above" : "inline",
     p_label_width_mm: Math.min(120, Math.max(20, number(values.label_width_mm, 50))),
     p_label_height_mm: Math.min(100, Math.max(15, number(values.label_height_mm, 30))),
     p_label_columns: Math.min(6, Math.max(1, Math.round(number(values.label_columns, 3)))),
@@ -92,7 +104,9 @@ export async function saveShopSettings(supabase, values) {
     p_label_barcode_format: values.label_barcode_format === "EAN13" ? "EAN13" : "CODE128"
   };
 
-  const { data, error } = await supabase.rpc("update_shop_settings", payload);
+  const { data, error } = await supabase.rpc("update_shop_settings_v2", {
+    p_settings: payload
+  });
 
   if (error) throw error;
   return data;
