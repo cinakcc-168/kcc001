@@ -1,8 +1,10 @@
+import { Download, Printer } from "lucide-react";
 import Modal from "./Modal";
 import {
   money,
   stockNumber
 } from "../lib/catalog";
+import { exportListExcel, printListDocument } from "../lib/listDocuments";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -21,6 +23,61 @@ export default function StockCountHistoryModal({
 }) {
   if (!session) return null;
 
+  const documentColumns = [
+    { label: "Product", width: 170, value: (item) => item.products?.name || "" },
+    { label: "Khmer name", width: 145, value: (item) => item.products?.name_km || "" },
+    { label: "Code", width: 95, value: (item) => item.products?.sku || item.products?.barcode || "" },
+    { label: "Unit", width: 70, value: (item) => item.products?.unit_name || "pcs" },
+    { label: "Expected", width: 82, value: (item) => stockNumber(item.expected_quantity) },
+    { label: "Counted", width: 82, value: (item) => item.counted_quantity === null ? "Not counted" : stockNumber(item.counted_quantity) },
+    { label: "Variance", width: 82, value: (item) => {
+      if (item.counted_quantity === null) return "—";
+      const variance = Number(item.counted_quantity) - Number(item.expected_quantity);
+      return `${variance > 0 ? "+" : ""}${stockNumber(variance)}`;
+    } },
+    { label: "Value", width: 95, value: (item) => {
+      if (item.counted_quantity === null) return "—";
+      const variance = Number(item.counted_quantity) - Number(item.expected_quantity);
+      return money(variance * Number(item.unit_cost_snapshot || 0), item.products?.currency || "USD");
+    } },
+    { label: "Note", width: 150, value: (item) => item.note || "" }
+  ];
+
+  const documentSummary = [
+    { label: "Status", value: session.status || "—" },
+    { label: "Started", value: dateTime(session.started_at) },
+    { label: session.status === "cancelled" ? "Cancelled" : "Completed", value: dateTime(session.completed_at || session.cancelled_at) },
+    { label: "Products", value: session.expected_items || 0 },
+    { label: "Discrepancies", value: session.discrepancy_items || 0 },
+    { label: "Adjustment", value: session.inventory_adjustments?.adjustment_number || "No adjustment" },
+    { label: "USD variance", value: money(session.value_variance_usd, "USD") },
+    { label: "KHR variance", value: money(session.value_variance_khr, "KHR") },
+    ...(session.cancellation_reason ? [{ label: "Cancellation reason", value: session.cancellation_reason }] : []),
+    ...(session.notes ? [{ label: "Notes", value: session.notes }] : [])
+  ];
+
+  function exportCount() {
+    exportListExcel({
+      filename: `${session.count_number}.xls`,
+      title: `${session.count_number} · ${session.name}`,
+      subtitle: `Stock count · ${dateTime(session.started_at)}`,
+      summary: documentSummary,
+      columns: documentColumns,
+      rows: items || []
+    });
+  }
+
+  function printCount() {
+    printListDocument({
+      title: `${session.count_number} · ${session.name}`,
+      subtitle: `Stock count · ${dateTime(session.started_at)}`,
+      summary: documentSummary,
+      columns: documentColumns,
+      rows: items || [],
+      orientation: "landscape"
+    });
+  }
+
   return (
     <Modal
       title={`${session.count_number} · ${session.name}`}
@@ -28,6 +85,27 @@ export default function StockCountHistoryModal({
       wide
     >
       <div className="stock-count-history-detail">
+        <div className="stock-count-history-document-actions" data-print-hide>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={exportCount}
+            disabled={loading}
+          >
+            <Download size={18} />
+            Export
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={printCount}
+            disabled={loading}
+          >
+            <Printer size={18} />
+            Print
+          </button>
+        </div>
+
         <section className="stock-count-history-summary">
           <div>
             <span>Status</span>
