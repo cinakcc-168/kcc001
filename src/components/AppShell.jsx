@@ -157,7 +157,7 @@ function isLinkAllowed(link, can, canAny) {
 export default function AppShell() {
   const { t } = useLanguage();
   const location = useLocation();
-  const { supabase, session, profile, shop, preferences, can, canAny, signOut, savePreferences } = useAuth();
+  const { supabase, session, profile, shop, preferences, can, canAny, signOut, savePreferencePatch } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -337,16 +337,14 @@ export default function AppShell() {
     const next = previous === "dark" ? "light" : "dark";
     const root = document.documentElement;
 
+    // Apply immediately so the one-tap button feels instant, then persist only
+    // the theme field. The shared preference state keeps Settings in sync.
     root.dataset.theme = next;
     root.dataset.forceTheme = next;
     setSwitchingTheme(true);
 
     try {
-      await savePreferences({
-        ...(preferences || {}),
-        theme: next,
-        theme_mode: next
-      });
+      await savePreferencePatch({ theme: next });
     } catch (error) {
       root.dataset.theme = previous;
       root.dataset.forceTheme = previous;
