@@ -2233,7 +2233,7 @@ export default function SalesPage() {
         <Modal title="Add customer" onClose={() => !busy && setCustomerOpen(false)}>
           <form className="customer-quick-form" onSubmit={saveCustomer}>
             <label><span>Customer type</span><select value={customerForm.customer_type} onChange={(event) => setCustomerForm((current) => ({ ...current, customer_type: event.target.value }))}><option value="regular">Regular</option><option value="vip">VIP</option><option value="wholesale">Wholesale</option></select></label>
-            <label><span>Name *</span><input value={customerForm.name} onChange={(event) => setCustomerForm((current) => ({ ...current, name: event.target.value }))} autoFocus /></label>
+            <label><span>Name *</span><input value={customerForm.name} onChange={(event) => setCustomerForm((current) => ({ ...current, name: event.target.value }))} /></label>
             <label><span>Phone</span><input value={customerForm.phone} onChange={(event) => setCustomerForm((current) => ({ ...current, phone: event.target.value }))} /></label>
             <label><span>Email</span><input type="email" value={customerForm.email} onChange={(event) => setCustomerForm((current) => ({ ...current, email: event.target.value }))} /></label>
             <label><span>Note</span><textarea rows="3" value={customerForm.notes} onChange={(event) => setCustomerForm((current) => ({ ...current, notes: event.target.value }))} /></label>
