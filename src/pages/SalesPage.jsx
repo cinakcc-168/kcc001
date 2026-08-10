@@ -1286,31 +1286,23 @@ export default function SalesPage() {
         }
       );
 
-      setActiveParkedId(null);
-      setActiveParkLabel("");
-
-      setActiveQuote({
-        ...(activeQuote || {}),
-        id: result.quote_id,
-        quote_number:
-          result.quote_number,
-        status: result.status,
-        valid_until:
-          result.valid_until,
-        terms: values.terms,
-        customer_id:
-          customerId || null
-      });
-
       setQuoteOpen(false);
+
+      // A saved quotation is a finished document, not an active sale draft.
+      // Clear every sale-only field so the cashier immediately receives a
+      // fresh New Sale board instead of accidentally converting/editing the
+      // quotation on the next transaction.
+      clearSale();
 
       announce(
         "success",
         `${result.quote_number} saved for ${money(
           result.total_amount,
           result.currency
-        )}.`
+        )}. New sale is ready.`
       );
+
+      await refresh();
     } catch (error) {
       announce("error", error.message);
       throw error;

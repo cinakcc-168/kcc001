@@ -43,6 +43,7 @@ function searchableSale(sale) {
     sale.invoice_number,
     sale.customers?.name,
     sale.customers?.phone,
+    sale.cashier_name,
     ...(sale.sale_items || []).flatMap((item) => [
       item.product_name,
       item.barcode
@@ -96,6 +97,7 @@ export default function ReturnsPage() {
   const [tab, setTab] = useState("sales");
   const [sales, setSales] = useState([]);
   const [returns, setReturns] = useState([]);
+  const [refundPolicy, setRefundPolicy] = useState(null);
   const [selectedSale, setSelectedSale] = useState(null);
   const [refundReceipt, setRefundReceipt] = useState(null);
   const [saleReceipt, setSaleReceipt] = useState(null);
@@ -125,6 +127,7 @@ export default function ReturnsPage() {
       );
       setSales(data.sales);
       setReturns(data.returns);
+      setRefundPolicy(data.refundPolicy || null);
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
@@ -186,6 +189,7 @@ export default function ReturnsPage() {
     { label: "Date", value: (row) => dateTime(row.completed_at || row.created_at) },
     { label: "Customer", value: (row) => row.customers?.name || "Walk-in" },
     { label: "Phone", value: (row) => row.customers?.phone || "—" },
+    { label: "Cashier", value: (row) => row.cashier_name || "POS Staff" },
     { label: "Status", value: (row) => String(row.status || "").replaceAll("_", " ") },
     { label: "Total", value: (row) => money(row.total_amount, row.currency) },
     { label: "Refunded", value: (row) => money(row.refunded_amount, row.currency) },
@@ -235,7 +239,7 @@ export default function ReturnsPage() {
       shopPhone: shop?.shop_phone,
       shopAddress: shop?.shop_address,
       footer: shop?.receipt_footer,
-      cashierName: "POS Staff",
+      cashierName: sale.cashier_name || "POS Staff",
       customerName: sale.customers?.name,
       cart: (sale.sale_items || []).map((item) => ({
         id: item.id,
@@ -497,6 +501,19 @@ export default function ReturnsPage() {
         </div>
       )}
 
+      {refundPolicy && (
+        <div className="refund-window-strip">
+          <span>Refund permission</span>
+          <strong>{refundPolicy.label || "Current date"}</strong>
+          {refundPolicy.from && refundPolicy.to && (
+            <small>{refundPolicy.from} to {refundPolicy.to}</small>
+          )}
+          {!refundPolicy.from && (
+            <small>Any invoice date in the current branch</small>
+          )}
+        </div>
+      )}
+
       <section className="panel returns-toolbar">
         <div className="search-box">
           <Search size={18} />
@@ -573,18 +590,21 @@ export default function ReturnsPage() {
                 {pagedSales.map((sale) => {
                   const remainingItems = (sale.sale_items || []).filter((item) => Number(item.returnable_quantity || 0) > 0);
                   const fullyRefunded = remainingItems.length === 0;
+                  const refundAllowed = sale.refund_allowed !== false;
+                  const refundDisabled = fullyRefunded || !refundAllowed;
                   return (
                     <article className="list-record-card return-sale-card compact-return-card" key={sale.id}>
                       <header><div><strong>{sale.invoice_number}</strong><small>{dateTime(sale.completed_at || sale.created_at)}</small></div><span className={`status-pill ${fullyRefunded ? "inactive" : "active"}`}>{String(sale.status).replaceAll("_", " ")}</span></header>
                       <div className="list-card-fields">
                         <div><span>Customer</span><strong>{sale.customers?.name || "Walk-in"}</strong></div>
+                        <div><span>Cashier</span><strong>{sale.cashier_name || "POS Staff"}</strong></div>
                         <div><span>Total</span><strong>{money(sale.total_amount, sale.currency)}</strong></div>
                         <div><span>Refunded</span><strong>{money(sale.refunded_amount, sale.currency)}</strong></div>
                         <div><span>Returnable lines</span><strong>{remainingItems.length}</strong></div>
                       </div>
                       <div className="list-card-actions return-sale-actions">
                         <button type="button" className="secondary-button compact-button" onClick={() => openSaleReceipt(sale)}><Printer size={17} /> Original receipt</button>
-                        <button type="button" className="danger-button compact-button" disabled={fullyRefunded} onClick={() => setSelectedSale(sale)}><RotateCcw size={17} /> {fullyRefunded ? "Fully refunded" : "Refund items"}</button>
+                        <button type="button" className="danger-button compact-button" disabled={refundDisabled} title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} onClick={() => setSelectedSale(sale)}><RotateCcw size={17} /> {fullyRefunded ? "Fully refunded" : !refundAllowed ? "Outside refund window" : "Refund items"}</button>
                       </div>
                     </article>
                   );
@@ -593,19 +613,22 @@ export default function ReturnsPage() {
             ) : (
               <div className="wide-list-scroll returnable-sales-table-wrap">
                 <table className="return-history-table returnable-sales-table">
-                  <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Status</th><th>Total</th><th>Refunded</th><th>Returnable lines</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Cashier</th><th>Status</th><th>Total</th><th>Refunded</th><th>Returnable lines</th><th>Actions</th></tr></thead>
                   <tbody>{pagedSales.map((sale) => {
                     const remainingItems = (sale.sale_items || []).filter((item) => Number(item.returnable_quantity || 0) > 0);
                     const fullyRefunded = remainingItems.length === 0;
+                    const refundAllowed = sale.refund_allowed !== false;
+                    const refundDisabled = fullyRefunded || !refundAllowed;
                     return <tr key={sale.id}>
                       <td><strong>{sale.invoice_number}</strong></td>
                       <td>{dateTime(sale.completed_at || sale.created_at)}</td>
                       <td>{sale.customers?.name || "Walk-in"}</td>
+                      <td>{sale.cashier_name || "POS Staff"}</td>
                       <td><span className={`status-pill ${fullyRefunded ? "inactive" : "active"}`}>{String(sale.status).replaceAll("_", " ")}</span></td>
                       <td>{money(sale.total_amount, sale.currency)}</td>
                       <td>{money(sale.refunded_amount, sale.currency)}</td>
                       <td>{remainingItems.length}</td>
-                      <td><div className="table-actions"><button type="button" title="Original receipt" onClick={() => openSaleReceipt(sale)}><Printer size={17} /></button><button type="button" title="Refund items" disabled={fullyRefunded} onClick={() => setSelectedSale(sale)}><RotateCcw size={17} /></button></div></td>
+                      <td><div className="table-actions"><button type="button" title="Original receipt" onClick={() => openSaleReceipt(sale)}><Printer size={17} /></button><button type="button" title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} disabled={refundDisabled} onClick={() => setSelectedSale(sale)}><RotateCcw size={17} /></button></div></td>
                     </tr>;
                   })}</tbody>
                 </table>
