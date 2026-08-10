@@ -17,25 +17,6 @@ function lineId(item, index = 0) {
   return item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}:${index}`;
 }
 
-function useMobileSaleView() {
-  const [mobile, setMobile] = useState(() =>
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 760px)").matches
-      : false
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const media = window.matchMedia("(max-width: 760px)");
-    const sync = () => setMobile(media.matches);
-    sync();
-    media.addEventListener?.("change", sync);
-    return () => media.removeEventListener?.("change", sync);
-  }, []);
-
-  return mobile;
-}
-
 function CartLineList({
   cart,
   onQuantityChange,
@@ -688,8 +669,6 @@ export function SaleCheckoutPanel(props) {
 
 export default function SaleCart(props) {
   const title = props.fulfillmentLabel || props.activeParkLabel || props.activeQuoteNumber || "New sale";
-  const mobileSaleView = useMobileSaleView();
-
   return (
     <aside className="sale-cart panel">
       <SaleCartHeader
@@ -724,7 +703,7 @@ export default function SaleCart(props) {
         onUnitChange={props.onUnitChange}
         onRemove={props.onRemove}
         fulfillmentLocked={props.fulfillmentLocked}
-        unitNameOnly={mobileSaleView}
+        unitNameOnly
       />
 
       <CheckoutControls {...props} />
