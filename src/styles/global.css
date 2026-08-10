@@ -7931,3 +7931,80 @@ html{
   .product-insights-tabs button{font-size:12px;gap:5px}
   .product-branch-stock-details{grid-template-columns:1fr}
 }
+
+
+/* ========================================================================== */
+/* Step 46.16 — PC New Sale Layout 1 bill width + readable selected items     */
+/* ========================================================================== */
+@media(min-width:981px){
+  /* Keep the existing full-height workspace; only give Current Bill more width. */
+  .sales-page .sale-layout:not(.sale-layout-alt){
+    grid-template-columns:minmax(0,1fr) clamp(455px,28vw,515px)!important;
+  }
+
+  /* Layout 1 selected rows: reclaim space from Unit so product + price math fit. */
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line{
+    grid-template-columns:22px minmax(0,1fr) minmax(42px,56px) 118px!important;
+    column-gap:4px!important;
+  }
+
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line .cart-line-name{
+    min-width:42px!important;
+    max-width:48%!important;
+  }
+
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line .cart-line-math{
+    min-width:78px!important;
+  }
+
+  /* One selling unit is plain text. Multiple units keep the compact dropdown. */
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line .single-unit-label{
+    width:auto!important;
+    min-width:0!important;
+    max-width:56px!important;
+    height:auto!important;
+    min-height:0!important;
+    padding:0 2px!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    color:var(--muted)!important;
+    font-size:9px!important;
+    font-weight:800!important;
+    place-items:center!important;
+  }
+
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line .cart-line-unit-control select{
+    width:56px!important;
+    max-width:56px!important;
+    min-width:42px!important;
+    padding:0 18px 0 5px!important;
+    font-size:9px!important;
+  }
+
+  /* Always leave the full lower row to the Available amount + unit text. */
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line .cart-line-stock{
+    grid-column:2 / -1!important;
+    grid-row:2!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+  }
+  .sales-page .sale-layout:not(.sale-layout-alt) .sale-cart-line .cart-line-stock small:first-child{
+    flex:0 1 auto!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  /* Quantity is typed manually or changed by Tiny POS +/- buttons: hide browser spinners. */
+  .sales-page .sale-layout:not(.sale-layout-alt) .cart-quantity-controls input[type="number"]{
+    appearance:textfield!important;
+    -moz-appearance:textfield!important;
+  }
+  .sales-page .sale-layout:not(.sale-layout-alt) .cart-quantity-controls input[type="number"]::-webkit-outer-spin-button,
+  .sales-page .sale-layout:not(.sale-layout-alt) .cart-quantity-controls input[type="number"]::-webkit-inner-spin-button{
+    -webkit-appearance:none!important;
+    margin:0!important;
+  }
+}
