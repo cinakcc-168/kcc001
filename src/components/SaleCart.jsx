@@ -630,6 +630,7 @@ export function SaleCartLinesPanel({
         onRemove={onRemove}
         fulfillmentLocked={fulfillmentLocked}
         compact
+        unitNameOnly
       />
     </section>
   );
