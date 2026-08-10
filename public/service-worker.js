@@ -1,4 +1,4 @@
-const CACHE_VERSION = "tiny-pos-step-46-4-28-global-mobile-input-stability";
+const CACHE_VERSION = "tiny-pos-step-46-4-26-print-quote-sync";
 const SHELL_CACHE = `${CACHE_VERSION}-app`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
