@@ -7640,3 +7640,60 @@ html{
     min-width:0;
   }
 }
+
+
+/* ========================================================================== */
+/* Step 46.14 — Batch-aware inventory adjustment + FIFO/FEFO batch filtering */
+/* ========================================================================== */
+.inventory-batch-adjustment{
+  display:grid;
+  gap:10px;
+  padding:12px;
+  border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border));
+  border-radius:13px;
+  background:color-mix(in srgb,var(--accent) 4%,var(--surface));
+}
+.inventory-selected-batch-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.inventory-selected-batch-summary>div{
+  min-width:0;
+  display:grid;
+  gap:3px;
+  padding:9px 10px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface);
+}
+.inventory-selected-batch-summary span{
+  color:var(--muted);
+  font-size:11px;
+}
+.inventory-selected-batch-summary strong{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.batch-toolbar{
+  grid-template-columns:minmax(300px,1fr) repeat(4,minmax(145px,.42fr));
+}
+@media(max-width:1180px){
+  .batch-toolbar{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .batch-toolbar>.search-box{
+    grid-column:1/-1;
+  }
+}
+@media(max-width:760px){
+  .inventory-selected-batch-summary,
+  .batch-toolbar{
+    grid-template-columns:1fr!important;
+  }
+  .batch-toolbar>.search-box{
+    grid-column:auto;
+  }
+}
