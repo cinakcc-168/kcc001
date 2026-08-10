@@ -75,6 +75,8 @@ function searchablePurchase(purchase) {
 }
 
 
+
+
 function convertToBase(amount, currency, baseCurrency, usdToKhrRate) {
   const value = Number(amount || 0);
   const rate = Number(usdToKhrRate || 4100);
@@ -538,7 +540,6 @@ export default function PurchaseOrdersPage() {
             { label: "Supplier", width: 170, value: (purchase) => purchase.suppliers?.name || "No supplier" },
             { label: "Expected", width: 105, documentValue: (purchase) => dateOnly(purchase.expected_date), render: (purchase) => dateOnly(purchase.expected_date) },
             { label: "Items", width: 75, value: (purchase) => purchase.purchase_items?.length || 0 },
-            { label: "Products", width: 300, documentValue: (purchase) => (purchase.purchase_items || []).map((item) => `${item.products?.name || "Product"}: ${Number(item.quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} ${item.purchase_unit_name || item.products?.unit_name || "pcs"}`).join("; "), render: (purchase) => <div className="compact-list purchase-table-lines">{(purchase.purchase_items || []).slice(0, 4).map((item) => <div key={item.id}><span><strong>{item.products?.name || "Product"}</strong><small>{item.products?.sku || item.products?.barcode || "No code"}</small></span><strong>{Number(item.quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} {item.purchase_unit_name || item.products?.unit_name || "pcs"}</strong></div>)}{(purchase.purchase_items || []).length > 4 && <small>+{purchase.purchase_items.length - 4} more products</small>}</div> },
             { label: "Receiving", width: 140, documentValue: (purchase) => purchaseReceivingStatusLabel(purchase), render: (purchase) => <span className={`status-pill ${purchaseReceivingStatus(purchase)}`}>{purchaseReceivingStatusLabel(purchase)}</span> },
             { label: "Payment", width: 100, documentValue: (purchase) => purchasePaymentStatus(purchase), render: (purchase) => <span className={`payment-pill ${purchasePaymentStatus(purchase)}`}>{purchasePaymentStatus(purchase)}</span> },
             { label: "Total", width: 110, documentValue: (purchase) => money(purchase.total_amount, purchase.currency), render: (purchase) => <strong>{money(purchase.total_amount, purchase.currency)}</strong> },
@@ -575,7 +576,6 @@ export default function PurchaseOrdersPage() {
                 <div><span>Total</span><strong>{money(purchase.total_amount, purchase.currency)}</strong></div>
                 <div><span>Balance</span><strong>{money(purchaseBalance(purchase), purchase.currency)}</strong></div>
                 <div className="po-receiving-progress"><div><span>Received {receivingProgress.toLocaleString("en-US", { maximumFractionDigits: 0 })}%</span><strong>{receivingTotals.receivedBaseUnits.toLocaleString("en-US", { maximumFractionDigits: 3 })} / {receivingTotals.orderedBaseUnits.toLocaleString("en-US", { maximumFractionDigits: 3 })} base units</strong></div><div className="po-receiving-track"><div style={{ width: `${receivingProgress}%` }} /></div></div>
-                <div className="po-card-items">{(purchase.purchase_items || []).slice(0, 4).map((item) => <span key={item.id}>{item.products?.name || "Product"} · Ordered {Number(item.quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} · Received {Number(item.received_quantity || 0).toLocaleString("en-US", { maximumFractionDigits: 3 })} · Remaining {Math.max(0, Number(item.quantity || 0) - Number(item.received_quantity || 0)).toLocaleString("en-US", { maximumFractionDigits: 3 })} {item.purchase_unit_name || item.products?.unit_name || "pcs"}</span>)}</div>
                 <footer className="po-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setPrintPurchase(purchase)}><Eye size={17} />View / Print</button>{editable && <button type="button" className="secondary-button compact-button" onClick={() => openEditOrder(purchase)}><Edit3 size={17} />Edit</button>}{payable && <button type="button" className="secondary-button compact-button" onClick={() => openAction(purchase, "payment")}><WalletCards size={17} />Pay</button>}{receivable && <button type="button" className="primary-button compact-button" onClick={() => setReceivingPurchase(purchase)}><PackageCheck size={17} />{hasReceived ? "Receive more" : "Receive"}</button>}{cancelable && <button type="button" className="danger-button compact-button" onClick={() => openAction(purchase, "cancel")}><Ban size={17} />Cancel</button>}</footer>
               </article>
             );
