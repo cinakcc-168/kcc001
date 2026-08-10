@@ -14,7 +14,6 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   CloudOff,
@@ -427,14 +426,8 @@ export default function AppShell() {
             title={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
             aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
           >
-            {collapsed ? (
-              <ChevronRight size={19} />
-            ) : (
-              <>
-                <ChevronLeft size={19} />
-                <span className="side-collapse-label">{t("Collapse")}</span>
-              </>
-            )}
+            <ChevronLeft className="side-collapse-chevron" size={19} />
+            <span className="side-collapse-label">{t("Collapse")}</span>
           </button>
         </nav>
 
@@ -522,7 +515,7 @@ export default function AppShell() {
         <PwaManager />
         <OfflineSyncManager />
 
-        <section className="content" data-i18n-auto><Outlet /></section>
+        <section key={location.pathname} className="content route-slide-content" data-i18n-auto><Outlet /></section>
       </main>
     </div>
   );
