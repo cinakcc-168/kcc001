@@ -67,6 +67,8 @@ export default function SalesOrderDocumentModal({
       title={`${order.order_number} documents`}
       onClose={onClose}
       wide
+      className="sales-order-document-modal"
+      bodyClassName="sales-order-document-modal-body"
     >
       <div className="sales-order-document-wrapper">
         <div className="sales-order-document-tabs">
