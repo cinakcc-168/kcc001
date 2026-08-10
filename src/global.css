@@ -6876,3 +6876,396 @@ html{
   .sale-product-stock-label{font-size:7px!important}
   .sale-product-stock-value{font-size:10px!important}
 }
+
+/* ========================================================================== */
+/* Step 46.6 — Mobile New Sale: compact bill + stable payment workspace        */
+/* ========================================================================== */
+.payment-form-scroll{
+  min-width:0;
+  display:grid;
+  gap:16px;
+}
+.split-payment-heading>span{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+.split-bank-qr-button,
+.payment-bank-qr-sheet{
+  display:none;
+}
+
+@media(max-width:760px){
+  /* Layout 1 only: Current Bill title + Parked + Clear share one compact row. */
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading{
+    min-height:46px!important;
+    padding:5px 7px!important;
+    display:grid!important;
+    grid-template-columns:minmax(82px,1fr) auto 44px!important;
+    align-items:center!important;
+    gap:5px!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading>div:first-child{
+    min-width:0!important;
+    align-self:center!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading .eyebrow{
+    margin:0!important;
+    font-size:8px!important;
+    line-height:10px!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading h2{
+    margin:0!important;
+    font-size:15px!important;
+    line-height:18px!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading .sale-cart-heading-actions{
+    display:contents!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading .sale-cart-heading-actions .compact-button{
+    grid-column:2!important;
+    justify-self:center!important;
+    min-height:30px!important;
+    height:30px!important;
+    padding:0 7px!important;
+    font-size:10px!important;
+    white-space:nowrap!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading .sale-cart-heading-actions .compact-button svg{
+    width:15px!important;
+    height:15px!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart>.sale-cart-heading .sale-cart-heading-actions .text-button{
+    grid-column:3!important;
+    justify-self:end!important;
+    padding:3px 2px!important;
+    font-size:11px!important;
+    white-space:nowrap!important;
+  }
+
+  /* Layout 1 only: enlarge product name/math while keeping the number compact. */
+  .sale-layout:not(.sale-layout-alt) .sale-cart .sale-cart-line{
+    min-height:66px!important;
+    grid-template-columns:20px minmax(0,1fr) 48px 108px!important;
+    grid-template-areas:
+      "number text unit quantity"
+      ". stock stock stock"!important;
+    column-gap:4px!important;
+    row-gap:3px!important;
+    padding:6px 1px 7px!important;
+    overflow:visible!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-number{
+    width:19px!important;
+    height:19px!important;
+    font-size:9px!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-text{
+    min-width:0!important;
+    display:flex!important;
+    flex-direction:row!important;
+    align-items:center!important;
+    gap:5px!important;
+    overflow:hidden!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-name{
+    flex:0 1 auto!important;
+    max-width:44%!important;
+    min-width:22px!important;
+    font-size:20px!important;
+    line-height:23px!important;
+    font-weight:850!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-math{
+    flex:1 1 auto!important;
+    min-width:0!important;
+    font-size:16px!important;
+    line-height:21px!important;
+    font-weight:650!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-math b{
+    font-weight:850!important;
+  }
+
+  /* Unit: one unit = plain word; multiple units = compact selector, no prices. */
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-unit-control{
+    width:48px!important;
+    min-width:48px!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-unit-control select{
+    width:48px!important;
+    height:30px!important;
+    min-height:30px!important;
+    padding:0 2px!important;
+    font-size:11px!important;
+    font-weight:750!important;
+    text-align:center!important;
+    text-align-last:center!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .single-unit-label{
+    width:48px!important;
+    height:30px!important;
+    min-height:30px!important;
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    font-size:11px!important;
+    font-weight:800!important;
+    color:var(--text)!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-quantity-controls{
+    width:108px!important;
+    min-width:108px!important;
+    max-width:108px!important;
+    grid-template-columns:24px 36px 24px 24px!important;
+    gap:0!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-quantity-controls .icon-button,
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-quantity-controls input{
+    width:24px!important;
+    height:30px!important;
+    min-height:30px!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-quantity-controls input{
+    width:36px!important;
+    font-size:12px!important;
+  }
+
+  /* Always show the complete Available amount/unit row instead of A… clipping. */
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-stock{
+    grid-area:stock!important;
+    grid-column:2 / -1!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:16px!important;
+    height:auto!important;
+    margin:0!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    flex-wrap:wrap!important;
+    gap:2px 6px!important;
+    overflow:visible!important;
+    font-size:11px!important;
+    line-height:15px!important;
+    text-align:left!important;
+  }
+  .sale-layout:not(.sale-layout-alt) .sale-cart .cart-line-stock small{
+    display:inline!important;
+    max-width:none!important;
+    overflow:visible!important;
+    white-space:nowrap!important;
+    text-overflow:clip!important;
+    font-size:11px!important;
+    line-height:15px!important;
+  }
+
+  /* Complete Payment remains a fixed phone workspace. Only its middle scrolls. */
+  .modal-layer:has(>.payment-modal-card){
+    padding:5px!important;
+    place-items:stretch!important;
+  }
+  .payment-modal-card{
+    position:relative!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:calc(100dvh - 10px)!important;
+    max-height:calc(100dvh - 10px)!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+    border-radius:18px!important;
+  }
+  .payment-modal-card>.modal-header{
+    flex:0 0 auto!important;
+    min-height:58px!important;
+    padding:10px 14px!important;
+  }
+  .payment-modal-card>.modal-header h2{
+    font-size:24px!important;
+    line-height:1.1!important;
+  }
+  .payment-modal-body{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+  .payment-form,
+  .mixed-payment-form{
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    display:grid!important;
+    grid-template-rows:minmax(0,1fr) auto!important;
+    gap:0!important;
+    overflow:hidden!important;
+  }
+  .payment-form-scroll{
+    min-height:0!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    display:grid!important;
+    align-content:start!important;
+    gap:11px!important;
+    padding:10px 12px 12px!important;
+  }
+  .payment-form .modal-actions{
+    position:relative!important;
+    inset:auto!important;
+    z-index:6!important;
+    margin:0!important;
+    padding:9px 12px calc(9px + env(safe-area-inset-bottom))!important;
+    border-top:1px solid var(--border)!important;
+    background:var(--surface)!important;
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+  }
+  .payment-form .modal-actions button{
+    width:100%!important;
+    min-width:0!important;
+    min-height:44px!important;
+  }
+
+  /* Six choices = two clean rows of three. Other is replaced by Cash + Bank. */
+  .payment-method-grid,
+  .credit-sale-method-grid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:6px!important;
+  }
+  .payment-method-grid button{
+    min-height:64px!important;
+    padding:7px 4px!important;
+    font-size:11px!important;
+  }
+
+  /* Split payment: currency on the short left, amount on the wider right. */
+  .split-payment-editor{
+    grid-template-columns:1fr!important;
+    gap:8px!important;
+  }
+  .split-payment-editor>article{
+    gap:8px!important;
+    padding:10px!important;
+  }
+  .split-payment-editor .payment-amount-currency-row{
+    grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr)!important;
+    gap:7px!important;
+    align-items:end!important;
+  }
+  .split-payment-editor .payment-amount-currency-row label{
+    min-width:0!important;
+    gap:4px!important;
+  }
+  .split-payment-editor .payment-amount-currency-row label>span{
+    font-size:11px!important;
+    line-height:14px!important;
+    white-space:nowrap!important;
+  }
+  .split-payment-editor .payment-amount-currency-row select,
+  .split-payment-editor .payment-amount-currency-row input{
+    min-height:42px!important;
+    height:42px!important;
+    padding-inline:8px!important;
+  }
+  .split-payment-heading{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+  }
+  .split-bank-qr-button{
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:4px!important;
+    min-height:30px!important;
+    padding:0 9px!important;
+    border:1px solid var(--border)!important;
+    border-radius:9px!important;
+    background:var(--surface)!important;
+    color:var(--accent)!important;
+    font-size:11px!important;
+    font-weight:800!important;
+  }
+
+  /* Static bank QR from Online Store settings; KHQR remains unchanged for later. */
+  .payment-bank-qr-sheet{
+    position:absolute!important;
+    z-index:20!important;
+    top:58px!important;
+    left:0!important;
+    right:0!important;
+    height:min(49dvh,430px)!important;
+    display:grid!important;
+    place-items:start center!important;
+    padding:10px 12px!important;
+    background:color-mix(in srgb,#0f172a 34%,transparent)!important;
+    backdrop-filter:blur(2px)!important;
+  }
+  .payment-bank-qr-card{
+    width:min(100%,360px)!important;
+    max-height:100%!important;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    gap:7px!important;
+    padding:10px!important;
+    border:1px solid var(--border)!important;
+    border-radius:16px!important;
+    background:var(--surface)!important;
+    box-shadow:0 18px 48px rgba(15,23,42,.28)!important;
+    overflow:hidden!important;
+  }
+  .payment-bank-qr-heading{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:10px!important;
+  }
+  .payment-bank-qr-heading>div{
+    display:grid!important;
+    gap:1px!important;
+  }
+  .payment-bank-qr-heading span{
+    font-size:11px!important;
+    color:var(--muted)!important;
+  }
+  .payment-bank-qr-heading strong{
+    font-size:20px!important;
+    color:var(--accent)!important;
+  }
+  .payment-bank-qr-card>img{
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:calc(49dvh - 100px)!important;
+    object-fit:contain!important;
+    object-position:center!important;
+    border-radius:10px!important;
+    background:#fff!important;
+  }
+  .payment-bank-qr-card>small{
+    display:block!important;
+    overflow:hidden!important;
+    white-space:nowrap!important;
+    text-overflow:ellipsis!important;
+    color:var(--muted)!important;
+    text-align:center!important;
+    font-size:10px!important;
+  }
+}
