@@ -6641,3 +6641,85 @@ html.language-switch-complete .modal-backdrop{
   .language-toggle::before{width:46px;height:32px}
   .language-toggle:has(button:nth-child(2).active)::before{transform:translateX(46px)}
 }
+
+/* ========================================================================== */
+/* Step 46.4.28 — touch input stability                                        */
+/* Prevent iOS Safari / Telegram WKWebView from zooming the whole Tiny POS UI  */
+/* whenever a compact input, search field, select, date field or textarea      */
+/* receives focus. Keep accessibility zoom available; do not disable pinch zoom.*/
+/* ========================================================================== */
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+
+@media (max-width:1180px), (hover:none) and (pointer:coarse){
+  html,body,#root{
+    width:100%;
+    max-width:100%;
+    overflow-x:hidden;
+  }
+
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea,
+  [contenteditable="true"]{
+    font-size:16px!important;
+    line-height:1.25!important;
+    min-width:0;
+    max-width:100%;
+    -webkit-text-size-adjust:100%;
+    text-size-adjust:100%;
+    touch-action:manipulation;
+  }
+
+  input[type="search"],
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"]{
+    font-size:16px!important;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus,
+  [contenteditable="true"]:focus{
+    transform:none!important;
+    scale:1!important;
+  }
+
+  .search-box,
+  .search-box input,
+  .catalog-toolbar,
+  .modal-body,
+  .sale-cart,
+  .sale-checkout-panel,
+  .public-checkout,
+  .public-phone-order-search,
+  .public-private-track-form{
+    min-width:0;
+    max-width:100%;
+  }
+}
+
+/* iPhone/iPad WebKit can report a desktop-width viewport in landscape or in an
+   embedded Telegram web view. This WebKit guard keeps focused controls at the
+   same 1:1 page scale even when the viewport is wider than the tablet breakpoint. */
+@supports (-webkit-touch-callout:none){
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea,
+  [contenteditable="true"]{
+    font-size:16px!important;
+    -webkit-text-size-adjust:100%;
+    touch-action:manipulation;
+  }
+}
