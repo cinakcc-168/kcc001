@@ -392,7 +392,7 @@ export default function TransfersPage() {
 
       {(newTransferOpen || editingTransfer) && <TransferFormModal transfer={editingTransfer} branches={branches} products={products} currentBranchId={profile.branch_id} canAllBranches={canAllBranches} busy={busy} onClose={() => { setNewTransferOpen(false); setEditingTransfer(null); }} onSubmit={saveTransfer} />}
       <TransferActionModal transfer={transferAction?.transfer} action={transferAction?.action} busy={busy} onClose={() => setTransferAction(null)} onSubmit={saveTransferAction} />
-      <TransferWorkflowModal transfer={workflow?.transfer} mode={workflow?.mode} busy={busy} onClose={() => setWorkflow(null)} onSaveCount={saveCount} onApprove={approveTransfer} onReopen={reopenCount} onCancel={canCancel ? cancelWorkflowTransfer : null} />
+      <TransferWorkflowModal supabase={supabase} transfer={workflow?.transfer} mode={workflow?.mode} busy={busy} onClose={() => setWorkflow(null)} onSaveCount={saveCount} onApprove={approveTransfer} onReopen={reopenCount} onCancel={canCancel ? cancelWorkflowTransfer : null} />
       {supplierReturnOpen && <SupplierReturnModal purchases={purchases} products={products} busy={busy} onClose={() => setSupplierReturnOpen(false)} onSubmit={saveSupplierReturn} />}
     </div>
   );
