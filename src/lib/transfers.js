@@ -33,6 +33,12 @@ function normalizeTransferItem(item) {
     ? null
     : Number(item.counted_quantity);
 
+  const batchAllocations = (item.stock_transfer_item_batches || []).map((row) => ({
+    ...row,
+    base_quantity: Number(row.base_quantity || 0),
+    base_unit_cost: Number(row.base_unit_cost || 0)
+  }));
+
   return {
     ...item,
     quantity: baseQuantity,
@@ -50,6 +56,7 @@ function normalizeTransferItem(item) {
         : countedBase / Math.max(countedFactor, 0.001)
       : Number(item.counted_unit_quantity),
     counted_unit_name: item.counted_unit_name || product?.unit_name || "pcs",
+    stock_transfer_item_batches: batchAllocations,
     products: product
   };
 }
@@ -71,8 +78,11 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
         id,product_id,quantity,unit_cost,counted_quantity,count_note,
         requested_product_unit_id,requested_unit_name,requested_unit_factor,requested_unit_quantity,
         counted_product_unit_id,counted_unit_name,counted_unit_factor,counted_unit_quantity,
+        stock_transfer_item_batches(
+          id,source_batch_id,destination_batch_id,batch_number,expiry_date,received_date,base_quantity,base_unit_cost,notes,created_at
+        ),
         products(
-          id,name,name_km,sku,barcode,unit_name,currency,
+          id,name,name_km,sku,barcode,unit_name,currency,batch_tracking,expiry_tracking,picking_policy,
           product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order)
         )
       )
@@ -88,7 +98,7 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
   const [branchResult, productResult, transferResult, purchaseResult, returnResult, metricsResult] = await Promise.all([
     supabase.from("branches").select("id,name,code,is_active").eq("organization_id", orgId).eq("is_active", true).order("name"),
     supabase.from("products").select(`
-      id,name,name_km,sku,barcode,unit_name,currency,is_active,track_stock,
+      id,name,name_km,sku,barcode,unit_name,currency,is_active,track_stock,batch_tracking,expiry_tracking,picking_policy,
       inventory_balances(branch_id,quantity,average_cost),
       product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order)
     `).eq("organization_id", orgId).eq("is_active", true).eq("track_stock", true).order("name"),
@@ -187,6 +197,19 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
   };
 }
 
+export async function loadStockTransferBatchOptions(supabase, transferId) {
+  const { data, error } = await supabase.rpc("get_stock_transfer_batch_options_v6", {
+    p_transfer_id: transferId
+  });
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    ...row,
+    available_quantity: Number(row.available_quantity || 0),
+    unit_cost: Number(row.unit_cost || 0),
+    recommended_order: Number(row.recommended_order || 0)
+  }));
+}
+
 export async function createStockTransfer(supabase, values) {
   const { data, error } = await supabase.rpc("create_stock_transfer_v5", {
     p_source_branch_id: values.source_branch_id,
@@ -219,7 +242,7 @@ export async function updateStockTransfer(supabase, values) {
 }
 
 export async function saveStockTransferCount(supabase, values) {
-  const { data, error } = await supabase.rpc("save_stock_transfer_count_v5", {
+  const { data, error } = await supabase.rpc("save_stock_transfer_count_v6", {
     p_transfer_id: values.transfer_id,
     p_items: values.items.map((item) => ({
       product_id: item.product_id,
@@ -227,6 +250,10 @@ export async function saveStockTransferCount(supabase, values) {
       counted_unit_quantity: item.counted_unit_quantity === null || item.counted_unit_quantity === undefined || item.counted_unit_quantity === ""
         ? null
         : Number(item.counted_unit_quantity),
+      batch_allocations: (item.batch_allocations || []).map((row) => ({
+        source_batch_id: row.source_batch_id,
+        base_quantity: Number(row.base_quantity)
+      })),
       note: item.note || ""
     })),
     p_notes: values.notes?.trim() || null,
@@ -237,7 +264,7 @@ export async function saveStockTransferCount(supabase, values) {
 }
 
 export async function approveStockTransfer(supabase, transferId, note) {
-  const { data, error } = await supabase.rpc("approve_stock_transfer_v5", {
+  const { data, error } = await supabase.rpc("approve_stock_transfer_v6", {
     p_transfer_id: transferId,
     p_note: note?.trim() || null
   });
@@ -264,7 +291,7 @@ export async function receiveStockTransfer(supabase, transferId, notes) {
 }
 
 export async function cancelStockTransfer(supabase, transfer, reason) {
-  const rpc = Number(transfer.workflow_version || 1) >= 2 ? "cancel_stock_transfer_v5" : "cancel_stock_transfer_v3";
+  const rpc = Number(transfer.workflow_version || 1) >= 2 ? "cancel_stock_transfer_v6" : "cancel_stock_transfer_v3";
   const { data, error } = await supabase.rpc(rpc, {
     p_transfer_id: transfer.id,
     p_reason: reason.trim()
