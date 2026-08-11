@@ -4,10 +4,12 @@ import {
   Clock3,
   Download,
   PackageCheck,
+  Plus,
   Printer,
   RotateCcw,
   Save,
   Search,
+  Trash2,
   XCircle
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -18,6 +20,7 @@ import { useListViewState } from "../lib/listViewState";
 import { stockNumber } from "../lib/catalog";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { baseProductUnit, findProductUnit, sortedProductUnits } from "../lib/productUnits";
+import { loadStockTransferBatchOptions } from "../lib/transfers";
 
 function requestedUnit(item) {
   const product = item.products || {};
@@ -26,6 +29,33 @@ function requestedUnit(item) {
     || baseProductUnit(product)
     || null
   );
+}
+
+function normalizedSavedBatchAllocations(item) {
+  return (item.stock_transfer_item_batches || [])
+    .filter((row) => !row.destination_batch_id)
+    .map((row) => ({
+      source_batch_id: row.source_batch_id || "",
+      base_quantity: String(Number(row.base_quantity || 0))
+    }));
+}
+
+function batchAllocationSignature(rows = []) {
+  return rows
+    .filter((row) => row?.source_batch_id || String(row?.base_quantity ?? "").trim())
+    .map((row) => `${row.source_batch_id || ""}:${Number(row.base_quantity || 0).toFixed(3)}`)
+    .sort()
+    .join("|");
+}
+
+function batchSnapshotLabel(row, unitName) {
+  if (!row) return "—";
+  const parts = [
+    row.batch_number || "Batch/Lot",
+    `${stockNumber(row.base_quantity || 0)} ${unitName || "pcs"}`
+  ];
+  if (row.expiry_date) parts.push(`exp ${String(row.expiry_date).slice(0, 10)}`);
+  return parts.join(" · ");
 }
 
 function initialCountRow(item) {
@@ -40,11 +70,13 @@ function initialCountRow(item) {
       ? ""
       : String(item.counted_unit_quantity),
     product_unit_id: unit?.id || "",
-    note: item.count_note || ""
+    note: item.count_note || "",
+    batch_allocations: normalizedSavedBatchAllocations(item)
   };
 }
 
 export default function TransferWorkflowModal({
+  supabase,
   transfer,
   mode,
   busy,
@@ -62,6 +94,9 @@ export default function TransferWorkflowModal({
   const [reviewing, setReviewing] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
+  const [batchOptions, setBatchOptions] = useState([]);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchError, setBatchError] = useState("");
 
   useEffect(() => {
     if (!transfer) return;
@@ -73,7 +108,39 @@ export default function TransferWorkflowModal({
     setReviewing(false);
     setScannerOpen(false);
     setScanMessage("");
+    setBatchError("");
   }, [transfer, mode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!supabase || !transfer?.id || mode !== "count") {
+      setBatchOptions([]);
+      setBatchLoading(false);
+      return undefined;
+    }
+
+    const hasBatchItems = (transfer.stock_transfer_items || []).some((item) => item.products?.batch_tracking);
+    if (!hasBatchItems) {
+      setBatchOptions([]);
+      setBatchLoading(false);
+      return undefined;
+    }
+
+    setBatchLoading(true);
+    setBatchError("");
+    loadStockTransferBatchOptions(supabase, transfer.id)
+      .then((rows) => {
+        if (!cancelled) setBatchOptions(rows);
+      })
+      .catch((loadError) => {
+        if (!cancelled) setBatchError(loadError?.message || "Source Batch/Lot options could not be loaded.");
+      })
+      .finally(() => {
+        if (!cancelled) setBatchLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [supabase, transfer, mode]);
 
   const rows = transfer?.stock_transfer_items || [];
 
@@ -92,9 +159,19 @@ export default function TransferWorkflowModal({
     const originalQuantity = item.counted_unit_quantity === null || item.counted_unit_quantity === undefined
       ? ""
       : String(item.counted_unit_quantity);
+    const savedBatchSignature = batchAllocationSignature(normalizedSavedBatchAllocations(item));
+    const draftBatchSignature = batchAllocationSignature(draft.batch_allocations || []);
+    const allocatedBase = (draft.batch_allocations || []).reduce((sum, row) => {
+      const value = Number(row.base_quantity);
+      return sum + (Number.isFinite(value) && value > 0 ? value : 0);
+    }, 0);
+    const batchMismatch = product.batch_tracking && countedBase !== null
+      ? Math.abs(allocatedBase - countedBase) > 0.0005
+      : false;
     const changed = String(draft.quantity ?? "") !== originalQuantity
       || String(unit?.id || "") !== String(originalUnitId || "")
-      || String(draft.note || "").trim() !== String(item.count_note || "").trim();
+      || String(draft.note || "").trim() !== String(item.count_note || "").trim()
+      || savedBatchSignature !== draftBatchSignature;
 
     return {
       draft,
@@ -105,6 +182,8 @@ export default function TransferWorkflowModal({
       countedBase,
       requestedBase,
       variance,
+      allocatedBase,
+      batchMismatch,
       changed
     };
   }
@@ -176,6 +255,209 @@ export default function TransferWorkflowModal({
     setError("");
   }
 
+  function optionsForItem(item) {
+    return batchOptions
+      .filter((row) => row.transfer_item_id === item.id || row.product_id === item.product_id)
+      .sort((a, b) => Number(a.recommended_order || 0) - Number(b.recommended_order || 0));
+  }
+
+  function batchOptionLabel(option, unitName) {
+    const parts = [
+      option.batch_number || "Batch/Lot",
+      `${stockNumber(option.available_quantity)} ${unitName || "pcs"}`
+    ];
+    if (option.expiry_date) parts.push(`exp ${String(option.expiry_date).slice(0, 10)}`);
+    return parts.join(" · ");
+  }
+
+  function updateBatchAllocation(productId, index, changes) {
+    setCounts((current) => {
+      const row = current[productId] || {};
+      const allocations = [...(row.batch_allocations || [])];
+      allocations[index] = { ...(allocations[index] || {}), ...changes };
+      return {
+        ...current,
+        [productId]: { ...row, batch_allocations: allocations }
+      };
+    });
+    setError("");
+  }
+
+  function addBatchAllocation(item) {
+    const values = rowValues(item);
+    const selected = new Set((values.draft.batch_allocations || []).map((row) => row.source_batch_id).filter(Boolean));
+    const next = optionsForItem(item).find((option) => !selected.has(option.source_batch_id));
+    if (!next) {
+      setError(`No more available Batch/Lot rows for ${values.product.name || "this product"}.`);
+      return;
+    }
+    const remaining = Math.max(0, Number(values.countedBase || 0) - Number(values.allocatedBase || 0));
+    setCounts((current) => {
+      const row = current[item.product_id] || {};
+      return {
+        ...current,
+        [item.product_id]: {
+          ...row,
+          batch_allocations: [
+            ...(row.batch_allocations || []),
+            {
+              source_batch_id: next.source_batch_id,
+              base_quantity: remaining > 0 ? String(Math.min(remaining, next.available_quantity)) : ""
+            }
+          ]
+        }
+      };
+    });
+    setError("");
+  }
+
+  function removeBatchAllocation(productId, index) {
+    setCounts((current) => {
+      const row = current[productId] || {};
+      const allocations = (row.batch_allocations || []).filter((_, rowIndex) => rowIndex !== index);
+      return { ...current, [productId]: { ...row, batch_allocations: allocations } };
+    });
+    setError("");
+  }
+
+  function autoAllocateBatches(item) {
+    const values = rowValues(item);
+    if (values.countedBase === null || values.countedBase <= 0) {
+      setError(`Enter the counted quantity for ${values.product.name || "this product"} first.`);
+      return;
+    }
+
+    let remaining = Number(values.countedBase);
+    const allocations = [];
+    for (const option of optionsForItem(item)) {
+      if (remaining <= 0.0005) break;
+      const take = Math.min(remaining, Number(option.available_quantity || 0));
+      if (take <= 0) continue;
+      allocations.push({
+        source_batch_id: option.source_batch_id,
+        base_quantity: String(Number(take.toFixed(3)))
+      });
+      remaining = Number((remaining - take).toFixed(3));
+    }
+
+    if (remaining > 0.0005) {
+      setError(`Source batches do not currently contain enough stock for ${values.product.name || "this product"}.`);
+      return;
+    }
+
+    setCounts((current) => ({
+      ...current,
+      [item.product_id]: {
+        ...(current[item.product_id] || {}),
+        batch_allocations: allocations
+      }
+    }));
+    setError("");
+  }
+
+  function batchAllocationSummary(item, useDraft = true) {
+    const product = item.products || {};
+    const allocations = useDraft
+      ? rowValues(item).draft.batch_allocations || []
+      : (item.stock_transfer_item_batches || []).map((row) => ({
+          source_batch_id: row.source_batch_id,
+          base_quantity: row.base_quantity,
+          batch_number: row.batch_number,
+          expiry_date: row.expiry_date
+        }));
+
+    if (!product.batch_tracking) return "—";
+    if (!allocations.length) return "Not allocated";
+
+    return allocations.map((allocation) => {
+      const option = optionsForItem(item).find((row) => row.source_batch_id === allocation.source_batch_id);
+      const saved = (item.stock_transfer_item_batches || []).find((row) => row.source_batch_id === allocation.source_batch_id);
+      const batch = option || saved || allocation;
+      return batchSnapshotLabel({
+        ...batch,
+        base_quantity: allocation.base_quantity
+      }, product.unit_name);
+    }).join(" / ");
+  }
+
+  function renderBatchAllocationEditor(item, values) {
+    if (!values.product.batch_tracking) return <span className="transfer-batch-not-required">—</span>;
+
+    const options = optionsForItem(item);
+    const allocations = values.draft.batch_allocations || [];
+    const selectedIds = new Set(allocations.map((row) => row.source_batch_id).filter(Boolean));
+    const policy = String(values.product.picking_policy || options[0]?.picking_policy || "fifo").toUpperCase();
+
+    return (
+      <div className={`transfer-batch-editor ${values.batchMismatch ? "mismatch" : ""}`}>
+        <div className="transfer-batch-editor-head">
+          <span>Batch / lot allocation</span>
+          <div>
+            <button type="button" className="secondary-button transfer-batch-auto" onClick={() => autoAllocateBatches(item)} disabled={busy || batchLoading || options.length === 0}>Auto {policy}</button>
+            <button type="button" className="icon-button transfer-batch-add" onClick={() => addBatchAllocation(item)} disabled={busy || batchLoading || options.length === 0} title="Add another Batch/Lot"><Plus size={16} /></button>
+          </div>
+        </div>
+
+        {batchLoading && <small className="transfer-batch-message">Loading source batches…</small>}
+        {!batchLoading && options.length === 0 && allocations.length === 0 && <small className="transfer-batch-message warning">No active source Batch/Lot is available.</small>}
+
+        <div className="transfer-batch-allocation-list">
+          {allocations.map((allocation, index) => {
+            const currentOption = options.find((option) => option.source_batch_id === allocation.source_batch_id);
+            const savedOption = (item.stock_transfer_item_batches || []).find((row) => row.source_batch_id === allocation.source_batch_id);
+            return (
+              <div className="transfer-batch-allocation-row" key={`${item.product_id}-${index}`}>
+                <select
+                  value={allocation.source_batch_id || ""}
+                  onChange={(event) => updateBatchAllocation(item.product_id, index, { source_batch_id: event.target.value })}
+                  disabled={busy}
+                  aria-label={`Batch or lot for ${values.product.name || "product"}`}
+                >
+                  <option value="">Choose Batch/Lot</option>
+                  {savedOption && !currentOption && (
+                    <option value={savedOption.source_batch_id}>
+                      {savedOption.batch_number || "Saved lot"} · unavailable now
+                    </option>
+                  )}
+                  {options.map((option) => (
+                    <option
+                      value={option.source_batch_id}
+                      key={option.source_batch_id}
+                      disabled={selectedIds.has(option.source_batch_id) && option.source_batch_id !== allocation.source_batch_id}
+                    >
+                      {batchOptionLabel(option, values.product.unit_name)}
+                    </option>
+                  ))}
+                </select>
+                <div className="transfer-batch-qty">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    inputMode="decimal"
+                    value={allocation.base_quantity ?? ""}
+                    onChange={(event) => updateBatchAllocation(item.product_id, index, { base_quantity: event.target.value })}
+                    disabled={busy}
+                    placeholder="0"
+                    aria-label={`Base quantity for Batch/Lot ${index + 1}`}
+                  />
+                  <span>{values.product.unit_name || "pcs"}</span>
+                </div>
+                <button type="button" className="icon-button danger-icon" onClick={() => removeBatchAllocation(item.product_id, index)} disabled={busy} title="Remove Batch/Lot"><Trash2 size={16} /></button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="transfer-batch-allocation-total">
+          <span>Allocated</span>
+          <strong>{stockNumber(values.allocatedBase)} / {values.countedBase === null ? "—" : stockNumber(values.countedBase)} {values.product.unit_name || "pcs"}</strong>
+        </div>
+        {values.batchMismatch && <small className="transfer-batch-message warning">Allocation must equal the counted base quantity before Review & submit.</small>}
+      </div>
+    );
+  }
+
   function preparedItems(requireAll) {
     const prepared = rows.map((item) => {
       const values = rowValues(item);
@@ -185,10 +467,39 @@ export default function TransferWorkflowModal({
       if (requireAll && values.unitQuantity === null) {
         throw new Error("Count every product before submitting for approval.");
       }
+
+      const allocations = (values.draft.batch_allocations || [])
+        .filter((row) => row.source_batch_id || String(row.base_quantity ?? "").trim())
+        .map((row) => ({
+          source_batch_id: row.source_batch_id || "",
+          base_quantity: Number(row.base_quantity)
+        }));
+
+      if (values.product.batch_tracking) {
+        const seen = new Set();
+        for (const allocation of allocations) {
+          if (!allocation.source_batch_id || !Number.isFinite(allocation.base_quantity) || allocation.base_quantity <= 0) {
+            throw new Error(`Choose a valid Batch/Lot and quantity for ${values.product.name || "every batch product"}.`);
+          }
+          if (seen.has(allocation.source_batch_id)) {
+            throw new Error(`Do not select the same Batch/Lot twice for ${values.product.name || "this product"}.`);
+          }
+          seen.add(allocation.source_batch_id);
+          const option = optionsForItem(item).find((row) => row.source_batch_id === allocation.source_batch_id);
+          if (option && allocation.base_quantity > Number(option.available_quantity || 0) + 0.0005) {
+            throw new Error(`${option.batch_number || "Selected batch"} has only ${stockNumber(option.available_quantity)} ${values.product.unit_name || "pcs"} available.`);
+          }
+        }
+        if (requireAll && values.countedBase !== null && Math.abs(values.allocatedBase - values.countedBase) > 0.0005) {
+          throw new Error(`Batch/Lot allocation for ${values.product.name || "this product"} must equal the counted base quantity.`);
+        }
+      }
+
       return {
         product_id: item.product_id,
         product_unit_id: values.unit?.id || null,
         counted_unit_quantity: values.unitQuantity,
+        batch_allocations: values.product.batch_tracking ? allocations : [],
         note: values.draft.note || ""
       };
     });
@@ -248,6 +559,7 @@ export default function TransferWorkflowModal({
       { label: "Code", width: 105, value: (row) => row.values.product.sku || row.values.product.barcode || "—" },
       { label: "Requested", width: 120, value: (row) => requestedLabel(row.item) },
       { label: "Counted", width: 120, value: (row) => row.values.unitQuantity === null ? "Not counted" : `${stockNumber(row.values.unitQuantity)} ${row.values.unit?.short_name || row.values.unit?.name || row.values.product.unit_name || "pcs"}` },
+      { label: "Batch / lot", width: 210, value: (row) => batchAllocationSummary(row.item, true) },
       { label: "Base count", width: 110, value: (row) => row.values.countedBase === null ? "—" : `${stockNumber(row.values.countedBase)} ${row.values.product.unit_name || "pcs"}` },
       { label: "Variance", width: 95, value: (row) => row.values.variance === null ? "—" : `${row.values.variance > 0 ? "+" : ""}${stockNumber(row.values.variance)}` },
       { label: "Note", width: 190, value: (row) => row.values.draft.note || "—" }
@@ -383,6 +695,7 @@ export default function TransferWorkflowModal({
             <label><span>Counted</span><input type="number" min="0" step="0.001" value={values.draft.quantity ?? ""} onChange={(event) => updateCount(item.product_id, { quantity: event.target.value })} inputMode="decimal" disabled={busy} placeholder="Not counted" /></label>
             <label><span>Unit</span><select value={values.unit?.id || ""} onChange={(event) => updateCount(item.product_id, { product_unit_id: event.target.value })} disabled={busy}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.short_name || unit.name}</option>)}</select></label>
           </div>
+          {values.product.batch_tracking && renderBatchAllocationEditor(item, values)}
           <div className="transfer-count-card-results">
             <div><span>Base count</span><strong>{values.countedBase === null ? "—" : `${stockNumber(values.countedBase)} ${values.product.unit_name || "pcs"}`}</strong></div>
             <div><span>Variance</span><strong>{values.variance === null ? "—" : `${values.variance > 0 ? "+" : ""}${stockNumber(values.variance)}`}</strong></div>
@@ -398,6 +711,7 @@ export default function TransferWorkflowModal({
         <td data-label="Requested"><strong>{requestedLabel(item)}</strong><small>{stockNumber(values.requestedBase)} {values.product.unit_name || "pcs"} base</small></td>
         <td data-label="Counted"><input className="transfer-count-input" type="number" min="0" step="0.001" value={values.draft.quantity ?? ""} onChange={(event) => updateCount(item.product_id, { quantity: event.target.value })} inputMode="decimal" disabled={busy} placeholder="Not counted" /></td>
         <td data-label="Unit"><select className="transfer-count-unit" value={values.unit?.id || ""} onChange={(event) => updateCount(item.product_id, { product_unit_id: event.target.value })} disabled={busy}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.short_name || unit.name}</option>)}</select></td>
+        <td data-label="Batch / lot">{renderBatchAllocationEditor(item, values)}</td>
         <td data-label="Base count">{values.countedBase === null ? "—" : `${stockNumber(values.countedBase)} ${values.product.unit_name || "pcs"}`}</td>
         <td data-label="Variance">{values.variance === null ? "—" : <strong>{values.variance > 0 ? "+" : ""}{stockNumber(values.variance)}</strong>}</td>
         <td data-label="Note"><input className="transfer-count-note" value={values.draft.note || ""} onChange={(event) => updateCount(item.product_id, { note: event.target.value })} disabled={busy} placeholder="Optional item note" /></td>
@@ -409,7 +723,7 @@ export default function TransferWorkflowModal({
     return (
       <div className="responsive-wide-table-wrap transfer-product-detail-wrap">
         <table className="responsive-wide-table transfer-product-detail-table">
-          <thead><tr><th>Product</th><th>Requested</th><th>Counted</th><th>Base received</th><th>Variance</th><th>Note</th></tr></thead>
+          <thead><tr><th>Product</th><th>Requested</th><th>Counted</th><th>Batch / lot</th><th>Base received</th><th>Variance</th><th>Note</th></tr></thead>
           <tbody>
             {rows.map((item) => {
               const product = item.products || {};
@@ -430,6 +744,7 @@ export default function TransferWorkflowModal({
                   <td><strong>{product.name || "Product"}</strong><small>{product.sku || product.barcode || "No code"}</small></td>
                   <td>{requestedLabel(item)}</td>
                   <td>{countedLabel}</td>
+                  <td>{batchAllocationSummary(item, useDraft)}</td>
                   <td>{counted === null ? "—" : `${stockNumber(counted)} ${product.unit_name || "pcs"}`}</td>
                   <td>{variance === null ? "—" : `${variance > 0 ? "+" : ""}${stockNumber(variance)}`}</td>
                   <td>{item.count_note || "—"}</td>
@@ -528,7 +843,7 @@ export default function TransferWorkflowModal({
               ) : listState.viewMode === "table" ? (
                 <div className="stock-count-table-wrap responsive-wide-table-wrap">
                   <table className="stock-count-table responsive-wide-table transfer-count-table">
-                    <thead><tr><th>Product</th><th>Requested</th><th>Counted</th><th>Unit</th><th>Base count</th><th>Variance</th><th>Note</th></tr></thead>
+                    <thead><tr><th>Product</th><th>Requested</th><th>Counted</th><th>Unit</th><th>Batch / lot</th><th>Base count</th><th>Variance</th><th>Note</th></tr></thead>
                     <tbody>{listState.pageRows.map((item) => renderCountRow(item))}</tbody>
                   </table>
                 </div>
@@ -540,8 +855,9 @@ export default function TransferWorkflowModal({
             </section>
 
             <label><span>Counting / delivery note</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional transfer count note" /></label>
+            {batchError && <div className="notice error" onClick={() => setBatchError("")}>{batchError}</div>}
             {scanMessage && <div className="notice success" onClick={() => setScanMessage("")}>{scanMessage}</div>}
-            <div className="notice info"><Clock3 size={18} /> Save all counts keeps this transfer open. Review & submit sends the completed count to approval. You can count in any configured product unit; Tiny POS converts it to base stock automatically.</div>
+            <div className="notice info"><Clock3 size={18} /> Save all counts keeps this transfer open. For batch-tracked products, choose the exact source Batch/Lot allocation (or use Auto FIFO/FEFO). Review & submit requires allocated lots to equal the counted base quantity. Stock still moves only after final approval.</div>
             <BarcodeScanner
               open={scannerOpen}
               title="Scan product or package for transfer count"
@@ -567,7 +883,7 @@ export default function TransferWorkflowModal({
         {mode === "approve" && (
           <>
             <label><span>Approval note</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional approval note" disabled={busy} /></label>
-            <div className="notice warning"><PackageCheck size={18} /> Approving applies the counted base quantity: stock is deducted from the From branch and added to the To branch.</div>
+            <div className="notice warning"><PackageCheck size={18} /> Approving applies the counted base quantity and exact saved Batch/Lot allocation. The same lot number and expiry move to the destination; an existing matching destination lot is merged instead of duplicated.</div>
           </>
         )}
 
