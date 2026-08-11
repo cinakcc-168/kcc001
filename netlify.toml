@@ -75,12 +75,6 @@
   force = true
 
 [[redirects]]
-  from = "/api/backup-google-drive-callback"
-  to = "/.netlify/functions/backup-google-drive-callback"
-  status = 200
-  force = true
-
-[[redirects]]
   from = "/api/telegram-admin"
   to = "/.netlify/functions/telegram-admin"
   status = 200
