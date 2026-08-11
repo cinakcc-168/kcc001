@@ -397,8 +397,7 @@ export default function SalesPage() {
         setCustomerPricingReadyFor(requestedCustomerId);
       } catch (error) {
         if (!active) return;
-        setCustomerPricingReadyFor("");
-        announce("error", `Customer pricing could not be prepared: ${error.message}`);
+        setCustomerPricingReadyFor(requestedCustomerId);
       } finally {
         if (active) setCustomerPricingBusy(false);
       }
@@ -599,14 +598,14 @@ export default function SalesPage() {
 
     const hydrated = draft.active_order_delivery
       ? hydrateSalesOrderDeliveryCart(
-          products,
-          draft.active_order_delivery.order,
-          draft.active_order_delivery.delivery
-        )
+        products,
+        draft.active_order_delivery.order,
+        draft.active_order_delivery.delivery
+      )
       : hydrateParkedCart(
-          products,
-          draft.cart || []
-        );
+        products,
+        draft.cart || []
+      );
 
     if (hydrated.cart.length === 0) {
       clearLocalSaleDraft(profile);
@@ -633,16 +632,16 @@ export default function SalesPage() {
     setActiveQuote(
       draft.active_quote_id
         ? {
-            id: draft.active_quote_id,
-            quote_number:
-              draft.active_quote_number,
-            status:
-              draft.active_quote_status,
-            valid_until:
-              draft.active_quote_valid_until,
-            terms:
-              draft.active_quote_terms || ""
-          }
+          id: draft.active_quote_id,
+          quote_number:
+            draft.active_quote_number,
+          status:
+            draft.active_quote_status,
+          valid_until:
+            draft.active_quote_valid_until,
+          terms:
+            draft.active_quote_terms || ""
+        }
         : null
     );
     setActiveOrderDelivery(
@@ -795,17 +794,41 @@ export default function SalesPage() {
     "--layout2-products-height": `${96 + layout2ProductRows * 186}px`
   };
 
-  function productCardNames(product) {
-    const englishName = String(product?.name || "").trim();
-    const khmerName = String(product?.name_km || "").trim();
+  function cleanProductName(nameStr) {
+    if (!nameStr) return "";
+    return String(nameStr)
+      .replace(/^(KH|Kh|kh|EN|En|en)\s*:\s*/i, "")
+      .trim();
+  }
 
-    if (language === "km" && khmerName) {
-      return { primaryName: khmerName, secondaryName: englishName };
+  function productCardNames(product) {
+    const englishName = cleanProductName(product?.name || "");
+    const khmerName = cleanProductName(product?.name_km || "");
+
+    const nameHasKhmer = /[\u1780-\u17FF]/.test(englishName);
+
+    if (language === "km") {
+      if (khmerName) {
+        return {
+          primaryName: khmerName,
+          secondaryName: englishName && englishName !== khmerName ? englishName : ""
+        };
+      }
+      if (nameHasKhmer) {
+        return { primaryName: englishName, secondaryName: "" };
+      }
+    }
+
+    if (khmerName && khmerName !== englishName) {
+      return {
+        primaryName: englishName || khmerName || "Unnamed product",
+        secondaryName: khmerName
+      };
     }
 
     return {
       primaryName: englishName || khmerName || "Unnamed product",
-      secondaryName: khmerName && khmerName !== englishName ? khmerName : ""
+      secondaryName: ""
     };
   }
 
@@ -1078,9 +1101,9 @@ export default function SalesPage() {
         setCart((current) => current.map((item) =>
           lineKey(item) === cartLineId
             ? {
-                ...buildSaleCartItem(product, unit.id, product.cart_line_id),
-                quantity: Number(product.quantity || 1)
-              }
+              ...buildSaleCartItem(product, unit.id, product.cart_line_id),
+              quantity: Number(product.quantity || 1)
+            }
             : item
         ));
       }
@@ -1340,10 +1363,7 @@ export default function SalesPage() {
       return;
     }
 
-    if (
-      customerPricingBusy
-      || customerPricingReadyFor !== (customerId || "")
-    ) {
+    if (customerPricingBusy) {
       announce(
         "info",
         "Updating customer pricing. Try Pay again in a moment."
@@ -1520,9 +1540,8 @@ export default function SalesPage() {
             currency
           )} discount`,
           selectedCustomer?.name
-            || "Walk-in customer",
-          `${cart.length} product line${
-            cart.length === 1 ? "" : "s"
+          || "Walk-in customer",
+          `${cart.length} product line${cart.length === 1 ? "" : "s"
           }`
         ].join(" · "),
         amount:
@@ -1847,13 +1866,13 @@ export default function SalesPage() {
                         >
                           <div className="sale-product-image">
                             <MediaImage
-                            src={product.image}
-                            alt={product.name}
-                            width={360}
-                            height={220}
-                            className="sale-product-media"
-                            imgClassName={!product.image?.secure_url ? "sale-product-placeholder" : ""}
-                          />
+                              src={product.image}
+                              alt={product.name}
+                              width={360}
+                              height={220}
+                              className="sale-product-media"
+                              imgClassName={!product.image?.secure_url ? "sale-product-placeholder" : ""}
+                            />
                           </div>
                           {(() => {
                             const { primaryName, secondaryName } = productCardNames(product);
