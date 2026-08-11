@@ -1,6 +1,5 @@
 import { hasEffectivePermission } from "./_permission.mjs";
 import { createClient } from "@supabase/supabase-js";
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 
 // Step 45 security boundary: integration API keys, webhook secrets, external
@@ -407,143 +406,6 @@ function cleanFilenamePart(value) {
 }
 
 
-const GOOGLE_DRIVE_SCOPE = [
-  "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/userinfo.email"
-].join(" ");
-
-function backupSecret() {
-  const value = process.env.BACKUP_TOKEN_ENCRYPTION_KEY;
-  if (!value || value.length < 24) {
-    throw Object.assign(
-      new Error("BACKUP_TOKEN_ENCRYPTION_KEY must be configured in Netlify."),
-      { status: 500 }
-    );
-  }
-  return value;
-}
-
-function encryptionKey() {
-  return createHash("sha256").update(backupSecret()).digest();
-}
-
-function encryptSecret(value) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
-  const encrypted = Buffer.concat([
-    cipher.update(String(value), "utf8"),
-    cipher.final()
-  ]);
-  return {
-    ciphertext: encrypted.toString("base64"),
-    iv: iv.toString("base64"),
-    tag: cipher.getAuthTag().toString("base64")
-  };
-}
-
-function decryptSecret(row) {
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    encryptionKey(),
-    Buffer.from(row.refresh_token_iv, "base64")
-  );
-  decipher.setAuthTag(Buffer.from(row.refresh_token_tag, "base64"));
-  return Buffer.concat([
-    decipher.update(Buffer.from(row.refresh_token_ciphertext, "base64")),
-    decipher.final()
-  ]).toString("utf8");
-}
-
-function toBase64Url(value) {
-  return Buffer.from(value).toString("base64url");
-}
-
-function createOAuthState(profile, origin) {
-  const payload = {
-    organization_id: profile.organization_id,
-    user_id: profile.id,
-    origin,
-    exp: Date.now() + 10 * 60 * 1000,
-    nonce: randomBytes(12).toString("hex")
-  };
-  const encoded = toBase64Url(JSON.stringify(payload));
-  const signature = createHmac("sha256", backupSecret())
-    .update(encoded)
-    .digest("base64url");
-  return `${encoded}.${signature}`;
-}
-
-function verifyOAuthState(state) {
-  const [encoded, signature] = String(state || "").split(".");
-  if (!encoded || !signature) throw new Error("Google Drive connection state is invalid.");
-  const expected = createHmac("sha256", backupSecret())
-    .update(encoded)
-    .digest("base64url");
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
-    throw new Error("Google Drive connection state could not be verified.");
-  }
-  const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
-  if (!payload.exp || Date.now() > Number(payload.exp)) {
-    throw new Error("Google Drive connection request expired. Try Connect again.");
-  }
-  return payload;
-}
-
-function googleOAuthConfig() {
-  const clientId = process.env.GOOGLE_BACKUP_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_BACKUP_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw Object.assign(
-      new Error("Google Drive backup is not configured. Add GOOGLE_BACKUP_CLIENT_ID and GOOGLE_BACKUP_CLIENT_SECRET in Netlify."),
-      { status: 503 }
-    );
-  }
-  return { clientId, clientSecret };
-}
-
-function parseDriveFolderId(value) {
-  const text = String(value || "").trim();
-  if (!text) return "";
-  const folderMatch = text.match(/\/folders\/([a-zA-Z0-9_-]+)/i);
-  if (folderMatch) return folderMatch[1];
-  const idMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
-  if (idMatch) return idMatch[1];
-  if (/^[a-zA-Z0-9_-]{10,}$/.test(text)) return text;
-  throw new Error("Enter a valid Google Drive folder link or folder ID.");
-}
-
-async function refreshGoogleAccessToken(connection) {
-  const { clientId, clientSecret } = googleOAuthConfig();
-  const refreshToken = decryptSecret(connection);
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token"
-    })
-  });
-  const data = await response.json();
-  if (!response.ok || !data.access_token) {
-    throw new Error(data.error_description || data.error || "Google Drive access token refresh failed.");
-  }
-  return data.access_token;
-}
-
-async function loadDriveConnection(admin, organizationId) {
-  const { data, error } = await admin
-    .from("backup_google_drive_connections")
-    .select("*")
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-  if (error) throw error;
-  return data || null;
-}
-
 async function ensureBackupSchedule(admin, profile) {
   const { data: existing, error } = await admin
     .from("backup_schedules")
@@ -753,78 +615,45 @@ function buildBackupZipBuffer(backup) {
   ]);
 }
 
-async function verifyOrCreateDriveFolder(admin, schedule, connection, accessToken) {
-  let folderId = schedule.google_drive_folder_id || "";
-  if (folderId) {
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?fields=id,name,mimeType,trashed&supportsAllDrives=true`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    const data = await response.json();
-    if (!response.ok || data.trashed || data.mimeType !== "application/vnd.google-apps.folder") {
-      throw new Error("The saved Google Drive folder cannot be accessed. Choose another folder link.");
-    }
-    return { id: data.id, name: data.name };
-  }
-
-  const response = await fetch("https://www.googleapis.com/drive/v3/files?fields=id,name", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      name: "Tiny POS Backups",
-      mimeType: "application/vnd.google-apps.folder"
-    })
-  });
-  const data = await response.json();
-  if (!response.ok || !data.id) throw new Error(data.error?.message || "Could not create Tiny POS Backups folder in Google Drive.");
-  await admin.from("backup_schedules").update({
-    google_drive_folder_id: data.id,
-    google_drive_folder_url: `https://drive.google.com/drive/folders/${data.id}`,
-    updated_at: new Date().toISOString()
-  }).eq("organization_id", schedule.organization_id);
-  schedule.google_drive_folder_id = data.id;
-  schedule.google_drive_folder_url = `https://drive.google.com/drive/folders/${data.id}`;
-  return { id: data.id, name: data.name };
-}
-
-async function uploadBackupToDrive(admin, profile, backup, schedule) {
-  const connection = await loadDriveConnection(admin, profile.organization_id);
-  if (!connection) throw new Error("Connect Google Drive before saving backups there.");
-  const accessToken = await refreshGoogleAccessToken(connection);
-  const folder = await verifyOrCreateDriveFolder(admin, schedule, connection, accessToken);
+async function uploadBackupToStorage(admin, profile, backup, trigger = "manual") {
   const date = new Date().toISOString().replace(/[:.]/g, "-");
   const shop = cleanFilenamePart(backup.source.organization.name);
   const filename = `${shop}-backup-${date}.zip`;
+  const storagePath = `${profile.organization_id}/${filename}`;
   const zip = buildBackupZipBuffer(backup);
-  const boundary = `tinypos-${randomBytes(12).toString("hex")}`;
-  const metadata = Buffer.from(JSON.stringify({ name: filename, parents: [folder.id], mimeType: "application/zip" }), "utf8");
-  const body = Buffer.concat([
-    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`),
-    metadata,
-    Buffer.from(`\r\n--${boundary}\r\nContent-Type: application/zip\r\n\r\n`),
-    zip,
-    Buffer.from(`\r\n--${boundary}--`)
-  ]);
-  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,size&supportsAllDrives=true", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": `multipart/related; boundary=${boundary}`
-    },
-    body
-  });
-  const data = await response.json();
-  if (!response.ok || !data.id) throw new Error(data.error?.message || "Google Drive backup upload failed.");
+
+  const { error: uploadError } = await admin.storage
+    .from("tiny-pos-backups")
+    .upload(storagePath, zip, {
+      contentType: "application/zip",
+      cacheControl: "3600",
+      upsert: false
+    });
+  if (uploadError) throw uploadError;
+
+  const { data: record, error: recordError } = await admin
+    .from("backup_storage_files")
+    .insert({
+      organization_id: profile.organization_id,
+      storage_path: storagePath,
+      filename,
+      size_bytes: zip.length,
+      trigger,
+      created_by: profile.id,
+      created_at: new Date().toISOString()
+    })
+    .select("id,filename,size_bytes,storage_path,trigger,created_at")
+    .single();
+  if (recordError) throw recordError;
+
   return {
     filename,
     size: zip.length,
-    drive_file_id: data.id,
-    drive_web_view_link: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`,
-    drive_folder_id: folder.id,
-    drive_folder_name: folder.name,
-    drive_folder_url: schedule.google_drive_folder_url || `https://drive.google.com/drive/folders/${folder.id}`
+    storage_path: storagePath,
+    backup_id: record.id,
+    destination: "supabase_storage",
+    trigger,
+    created_at: backup.created_at
   };
 }
 
@@ -835,21 +664,12 @@ async function saveSchedule(admin, profile, incoming) {
     ? incoming.backup_time
     : String(current.backup_time || "23:00").slice(0, 5);
   const timezone = String(incoming.timezone || current.timezone || "Asia/Phnom_Penh").trim();
-  let folderId = current.google_drive_folder_id || null;
-  let folderUrl = current.google_drive_folder_url || null;
-  if (Object.prototype.hasOwnProperty.call(incoming, "google_drive_folder_url")) {
-    const raw = String(incoming.google_drive_folder_url || "").trim();
-    folderId = raw ? parseDriveFolderId(raw) : null;
-    folderUrl = folderId ? `https://drive.google.com/drive/folders/${folderId}` : null;
-  }
   const nextSchedule = {
     ...current,
     frequency_days: frequencyDays,
     backup_time: backupTime,
     timezone,
-    is_enabled: Boolean(incoming.is_enabled),
-    google_drive_folder_id: folderId,
-    google_drive_folder_url: folderUrl
+    is_enabled: Boolean(incoming.is_enabled)
   };
   const nextAt = nextSchedule.is_enabled ? nextBackupAt(nextSchedule) : null;
   const { data, error } = await admin.from("backup_schedules").upsert({
@@ -858,9 +678,7 @@ async function saveSchedule(admin, profile, incoming) {
     frequency_days: frequencyDays,
     backup_time: backupTime,
     timezone,
-    destination: "google_drive",
-    google_drive_folder_id: folderId,
-    google_drive_folder_url: folderUrl,
+    destination: "supabase_storage",
     next_backup_at: nextAt,
     updated_by: profile.id,
     updated_at: new Date().toISOString()
@@ -871,7 +689,13 @@ async function saveSchedule(admin, profile, incoming) {
 
 async function backupCenterSettings(admin, profile) {
   const schedule = await ensureBackupSchedule(admin, profile);
-  const connection = await loadDriveConnection(admin, profile.organization_id);
+  const { data: files, error: filesError } = await admin
+    .from("backup_storage_files")
+    .select("id,filename,size_bytes,storage_path,trigger,created_at")
+    .eq("organization_id", profile.organization_id)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (filesError) throw filesError;
   return {
     ok: true,
     schedule: {
@@ -879,22 +703,19 @@ async function backupCenterSettings(admin, profile) {
       frequency_days: schedule.frequency_days,
       backup_time: String(schedule.backup_time || "23:00").slice(0, 5),
       timezone: schedule.timezone,
-      google_drive_folder_url: schedule.google_drive_folder_url || "",
       last_backup_at: schedule.last_backup_at,
       next_backup_at: schedule.next_backup_at,
       last_status: schedule.last_status,
       last_error: schedule.last_error
     },
-    drive: {
-      configured: Boolean(process.env.GOOGLE_BACKUP_CLIENT_ID && process.env.GOOGLE_BACKUP_CLIENT_SECRET && process.env.BACKUP_TOKEN_ENCRYPTION_KEY),
-      connected: Boolean(connection),
-      account_email: connection?.account_email || "",
-      connected_at: connection?.connected_at || null
+    storage: {
+      bucket: "tiny-pos-backups",
+      files: files || []
     }
   };
 }
 
-async function runDriveBackup(admin, profile, trigger = "manual") {
+async function runStorageBackup(admin, profile, trigger = "manual") {
   const schedule = await ensureBackupSchedule(admin, profile);
   await admin.from("backup_schedules").update({
     last_status: "running",
@@ -904,7 +725,7 @@ async function runDriveBackup(admin, profile, trigger = "manual") {
 
   try {
     const backup = await createBackup(admin, profile);
-    const details = await uploadBackupToDrive(admin, profile, backup, schedule);
+    const details = await uploadBackupToStorage(admin, profile, backup, trigger);
     const completedAt = new Date();
     const nextAt = schedule.is_enabled ? nextBackupAt(schedule, completedAt, true) : null;
     await admin.from("backup_schedules").update({
@@ -914,12 +735,8 @@ async function runDriveBackup(admin, profile, trigger = "manual") {
       last_error: null,
       updated_at: completedAt.toISOString()
     }).eq("organization_id", profile.organization_id);
-    await logOperation(admin, profile, "export", "completed", backup, {
-      ...details,
-      destination: "google_drive",
-      trigger
-    });
-    return { ok: true, ...details, created_at: backup.created_at, next_backup_at: nextAt };
+    await logOperation(admin, profile, "export", "completed", backup, details);
+    return { ok: true, ...details, next_backup_at: nextAt };
   } catch (error) {
     const retryAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
     await admin.from("backup_schedules").update({
@@ -965,11 +782,11 @@ export async function runScheduledBackups() {
       continue;
     }
     try {
-      const result = await runDriveBackup(admin, profile, "scheduled");
+      const result = await runStorageBackup(admin, profile, "scheduled");
       results.push({ organization_id: schedule.organization_id, ok: true, filename: result.filename });
     } catch (error) {
       await logOperation(admin, profile, "export", "failed", null, {
-        destination: "google_drive",
+        destination: "supabase_storage",
         trigger: "scheduled",
         error: error.message
       });
@@ -977,57 +794,6 @@ export async function runScheduledBackups() {
     }
   }
   return { ok: true, checked_at: now, processed: results.length, results };
-}
-
-export async function handleGoogleDriveCallback(request) {
-  try {
-    const url = new URL(request.url);
-    if (url.searchParams.get("error")) throw new Error(url.searchParams.get("error_description") || url.searchParams.get("error"));
-    const code = url.searchParams.get("code");
-    const payload = verifyOAuthState(url.searchParams.get("state"));
-    if (!code) throw new Error("Google did not return an authorization code.");
-    const { clientId, clientSecret } = googleOAuthConfig();
-    const redirectUri = `${url.origin}/api/backup-google-drive-callback`;
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code"
-      })
-    });
-    const tokens = await tokenResponse.json();
-    if (!tokenResponse.ok || !tokens.refresh_token) {
-      throw new Error(tokens.error_description || "Google did not return a refresh token. Disconnect the app in Google and try Connect again.");
-    }
-    const userResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${tokens.access_token}` }
-    });
-    const userInfo = await userResponse.json();
-    const encrypted = encryptSecret(tokens.refresh_token);
-    const admin = createAdminClient();
-    const { error } = await admin.from("backup_google_drive_connections").upsert({
-      organization_id: payload.organization_id,
-      connected_by: payload.user_id,
-      account_email: userInfo.email || null,
-      refresh_token_ciphertext: encrypted.ciphertext,
-      refresh_token_iv: encrypted.iv,
-      refresh_token_tag: encrypted.tag,
-      scope: tokens.scope || GOOGLE_DRIVE_SCOPE,
-      connected_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }, { onConflict: "organization_id" });
-    if (error) throw error;
-    await ensureBackupSchedule(admin, { id: payload.user_id, organization_id: payload.organization_id });
-    const html = `<!doctype html><html><body style="font-family:system-ui;padding:24px"><h2>Google Drive connected</h2><p>You can close this window.</p><script>if(window.opener){window.opener.postMessage({type:'tiny-pos-drive-connected'},${JSON.stringify(payload.origin)});window.close();}</script></body></html>`;
-    return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
-  } catch (error) {
-    const safe = String(error.message || "Google Drive connection failed").replace(/[<>]/g, "");
-    return new Response(`<!doctype html><html><body style="font-family:system-ui;padding:24px"><h2>Connection failed</h2><p>${safe}</p></body></html>`, { status: 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
-  }
 }
 
 function createAdminClient() {
@@ -1647,65 +1413,38 @@ export default async (request) => {
     }
 
     if (action === "settings_save") {
-      const saved = await saveSchedule(admin, caller, body.settings || {});
-      const connection = await loadDriveConnection(admin, caller.organization_id);
-      if (saved.google_drive_folder_id && connection) {
-        const accessToken = await refreshGoogleAccessToken(connection);
-        await verifyOrCreateDriveFolder(admin, saved, connection, accessToken);
-      }
+      await saveSchedule(admin, caller, body.settings || {});
       return json(await backupCenterSettings(admin, caller));
     }
 
-    if (action === "drive_connect_url") {
-      const { clientId } = googleOAuthConfig();
-      const origin = new URL(request.url).origin;
-      const redirectUri = `${origin}/api/backup-google-drive-callback`;
-      const state = createOAuthState(caller, origin);
-      const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-      authUrl.search = new URLSearchParams({
-        client_id: clientId,
-        redirect_uri: redirectUri,
-        response_type: "code",
-        access_type: "offline",
-        prompt: "consent",
-        include_granted_scopes: "true",
-        scope: GOOGLE_DRIVE_SCOPE,
-        state
-      }).toString();
-      return json({ ok: true, auth_url: authUrl.toString() });
+    if (action === "storage_backup") {
+      return json(await runStorageBackup(admin, caller, "manual"));
     }
 
-    if (action === "drive_disconnect") {
-      const connection = await loadDriveConnection(admin, caller.organization_id);
-      if (connection) {
-        try {
-          const token = decryptSecret(connection);
-          await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" }
-          });
-        } catch (revokeError) {
-          console.warn("Google token revoke failed:", revokeError.message);
+    if (action === "storage_download") {
+      const fileId = String(body.file_id || "").trim();
+      if (!fileId) return json({ ok: false, error: "Backup file ID is required." }, 400);
+      const { data: file, error: fileError } = await admin
+        .from("backup_storage_files")
+        .select("*")
+        .eq("id", fileId)
+        .eq("organization_id", caller.organization_id)
+        .maybeSingle();
+      if (fileError) throw fileError;
+      if (!file) return json({ ok: false, error: "Backup file was not found." }, 404);
+      const { data: blob, error: downloadError } = await admin.storage
+        .from("tiny-pos-backups")
+        .download(file.storage_path);
+      if (downloadError) throw downloadError;
+      const arrayBuffer = await blob.arrayBuffer();
+      return new Response(arrayBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/zip",
+          "Content-Disposition": `attachment; filename="${file.filename.replaceAll('"', '')}"`,
+          "Cache-Control": "no-store"
         }
-      }
-      const { error } = await admin
-        .from("backup_google_drive_connections")
-        .delete()
-        .eq("organization_id", caller.organization_id);
-      if (error) throw error;
-      await admin.from("backup_schedules").update({
-        is_enabled: false,
-        next_backup_at: null,
-        last_status: null,
-        last_error: null,
-        updated_by: caller.id,
-        updated_at: new Date().toISOString()
-      }).eq("organization_id", caller.organization_id);
-      return json({ ok: true, disconnected: true });
-    }
-
-    if (action === "export_drive") {
-      return json(await runDriveBackup(admin, caller, "manual"));
+      });
     }
 
     if (action === "export") {
