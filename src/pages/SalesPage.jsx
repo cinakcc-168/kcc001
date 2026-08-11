@@ -1356,11 +1356,7 @@ export default function SalesPage() {
     }
 
     if (customerId && !selectedCustomer) {
-      announce(
-        "error",
-        "The selected customer is no longer available. Choose the customer again."
-      );
-      return;
+      setCustomerId("");
     }
 
     if (customerPricingBusy) {
