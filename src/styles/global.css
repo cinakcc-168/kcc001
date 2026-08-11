@@ -8892,3 +8892,212 @@ html{
   .backup-folder-input input{font-size:16px!important}
   .backup-log-list article>div:last-child{width:100%;display:flex!important;flex-wrap:wrap;align-items:center;justify-content:flex-start!important;gap:8px}
 }
+
+/* ========================================================================== */
+/* Step 46.26 — exact Batch/Lot allocation inside Stock Transfer Count        */
+/* ========================================================================== */
+.transfer-count-table{
+  min-width:1320px!important;
+}
+
+.transfer-count-table td[data-label="Batch / lot"]{
+  min-width:330px!important;
+  vertical-align:top!important;
+}
+
+.transfer-batch-not-required{
+  color:var(--muted);
+}
+
+.transfer-batch-editor{
+  min-width:0;
+  display:grid;
+  gap:7px;
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:color-mix(in srgb,var(--surface2) 70%,var(--surface));
+}
+
+.transfer-batch-editor.mismatch{
+  border-color:color-mix(in srgb,#d97706 38%,var(--border));
+  background:color-mix(in srgb,#d97706 5%,var(--surface));
+}
+
+.transfer-batch-editor-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-width:0;
+}
+
+.transfer-batch-editor-head>span{
+  min-width:0;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  white-space:nowrap;
+}
+
+.transfer-batch-editor-head>div{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:5px;
+}
+
+.transfer-batch-auto{
+  min-height:30px!important;
+  height:30px!important;
+  padding:0 9px!important;
+  border-radius:8px!important;
+  font-size:10px!important;
+  white-space:nowrap!important;
+}
+
+.transfer-batch-add{
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  border:1px solid var(--border)!important;
+  background:var(--surface)!important;
+}
+
+.transfer-batch-allocation-list{
+  display:grid;
+  gap:6px;
+  min-width:0;
+}
+
+.transfer-batch-allocation-row{
+  display:grid;
+  grid-template-columns:minmax(145px,1fr) 118px 30px;
+  gap:6px;
+  align-items:center;
+  min-width:0;
+}
+
+.transfer-batch-allocation-row select,
+.transfer-batch-allocation-row input{
+  min-width:0!important;
+  min-height:34px!important;
+  height:34px!important;
+  padding-top:0!important;
+  padding-bottom:0!important;
+  font-size:11px!important;
+}
+
+.transfer-batch-qty{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:4px;
+  min-width:0;
+}
+
+.transfer-batch-qty>span{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:750;
+  white-space:nowrap;
+}
+
+.transfer-batch-allocation-row>.icon-button{
+  width:30px!important;
+  height:30px!important;
+}
+
+.transfer-batch-allocation-total{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  min-width:0;
+  padding-top:2px;
+  font-size:11px;
+}
+
+.transfer-batch-allocation-total>span{
+  color:var(--muted);
+}
+
+.transfer-batch-allocation-total>strong{
+  min-width:0;
+  text-align:right;
+  overflow-wrap:anywhere;
+}
+
+.transfer-batch-message{
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.35;
+}
+
+.transfer-batch-message.warning{
+  color:#b45309;
+}
+
+.transfer-count-card .transfer-batch-editor{
+  width:100%;
+}
+
+.transfer-product-detail-table td:nth-child(4){
+  max-width:260px;
+  white-space:normal!important;
+  overflow-wrap:anywhere;
+}
+
+@media(max-width:760px){
+  .transfer-count-table{
+    min-width:1240px!important;
+  }
+
+  .transfer-batch-editor{
+    padding:8px;
+    gap:7px;
+  }
+
+  .transfer-batch-editor-head{
+    align-items:flex-start;
+  }
+
+  .transfer-batch-allocation-row{
+    grid-template-columns:minmax(0,1fr) 105px 30px;
+  }
+
+  .transfer-batch-allocation-row select,
+  .transfer-batch-allocation-row input{
+    font-size:16px!important;
+  }
+
+  .transfer-batch-auto{
+    font-size:11px!important;
+  }
+}
+
+@media(max-width:480px){
+  .transfer-batch-editor-head{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+
+  .transfer-batch-allocation-row{
+    grid-template-columns:minmax(0,1fr) 30px;
+  }
+
+  .transfer-batch-allocation-row select{
+    grid-column:1 / -1;
+  }
+
+  .transfer-batch-qty{
+    grid-column:1;
+  }
+
+  .transfer-batch-allocation-row>.icon-button{
+    grid-column:2;
+  }
+}
