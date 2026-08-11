@@ -94,7 +94,9 @@ export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) 
   const showReceived = shop?.invoice_show_received !== false;
   const showChange = shop?.invoice_show_change !== false;
   const showSignatures = shop?.invoice_show_signatures !== false;
-  const showProductCode = shop?.invoice_show_product_code !== false;
+  const showProductCode = shop?.invoice_show_product_code !== undefined
+    ? shop.invoice_show_product_code !== false
+    : (typeof window !== "undefined" && window.localStorage.getItem("invoice_show_product_code") === "false" ? false : true);
   const paperSize = shop?.invoice_paper_size === "A4" ? "A4" : "A5";
 
   const creditAmount = Number(
