@@ -8609,3 +8609,233 @@ html{
   .sale-invoice-table tr{break-inside:avoid!important}
   .sale-invoice-signatures,.sale-invoice-settlement{break-inside:avoid!important}
 }
+
+/* ========================================================================== */
+/* Patch 46.24 — Staff/Branch/Role responsive lists + Plans/Payouts mobile   */
+/* ========================================================================== */
+.users-page .responsive-data-list,
+.staff-operations-page .responsive-data-list{
+  min-width:0;
+}
+
+.users-page .responsive-data-list-heading,
+.staff-operations-page .responsive-data-list-heading{
+  min-width:0;
+}
+
+.users-page .responsive-data-list-heading>div,
+.staff-operations-page .responsive-data-list-heading>div{
+  min-width:0;
+}
+
+.staff-table-actions,
+.branch-table-actions,
+.role-table-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex-wrap:wrap;
+  min-width:max-content;
+}
+
+.staff-directory-card,
+.branch-directory-card,
+.role-directory-card,
+.commission-plan-card,
+.commission-payout-card{
+  min-width:0!important;
+  overflow:hidden!important;
+}
+
+.staff-directory-card>header,
+.branch-directory-card>header,
+.role-directory-card>header,
+.commission-plan-card>header,
+.commission-payout-card>header{
+  min-width:0!important;
+}
+
+.staff-directory-card-title,
+.branch-directory-card-title,
+.role-directory-card-title{
+  min-width:0!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:10px!important;
+}
+
+.staff-directory-card-title>span:last-child,
+.branch-directory-card-title>span:last-child,
+.role-directory-card-title>span:last-child{
+  min-width:0!important;
+  display:grid!important;
+  gap:3px!important;
+}
+
+.staff-directory-card-title strong,
+.staff-directory-card-title small,
+.branch-directory-card-title strong,
+.branch-directory-card-title small,
+.role-directory-card-title strong,
+.role-directory-card-title small,
+.role-directory-description,
+.commission-plan-card strong,
+.commission-plan-card small,
+.commission-payout-card strong,
+.commission-payout-card small{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+  white-space:normal!important;
+}
+
+.role-directory-card-title>svg{
+  flex:0 0 auto;
+  color:var(--accent);
+}
+
+.role-directory-description{
+  margin:0!important;
+  padding:10px 11px!important;
+  border-radius:11px!important;
+  background:var(--surface2)!important;
+  color:var(--muted)!important;
+  line-height:1.5!important;
+}
+
+.users-page .responsive-wide-table td,
+.users-page .responsive-wide-table th,
+.staff-operations-page .responsive-wide-table td,
+.staff-operations-page .responsive-wide-table th{
+  overflow-wrap:anywhere;
+  word-break:normal;
+}
+
+/* Roles used to let long names/descriptions escape the card on desktop. */
+.users-page .role-directory-card>header{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:start!important;
+}
+
+.users-page .role-directory-card>header>.status-pill{
+  justify-self:end!important;
+  align-self:start!important;
+  flex:0 0 auto!important;
+}
+
+.users-page .role-directory-card>footer,
+.users-page .staff-directory-card>footer,
+.users-page .branch-directory-card>footer{
+  min-width:0;
+}
+
+/* Plans & payouts get full-width responsive lists instead of two cramped panes. */
+.staff-plan-grid.staff-plan-grid-responsive{
+  grid-template-columns:1fr!important;
+  gap:16px!important;
+  min-width:0!important;
+}
+
+.staff-plan-grid-responsive .responsive-data-list{
+  width:100%!important;
+  overflow:hidden!important;
+}
+
+.staff-plan-grid-responsive .responsive-wide-table-wrap{
+  width:100%!important;
+  max-width:100%!important;
+  overflow-x:auto!important;
+  -webkit-overflow-scrolling:touch;
+}
+
+.staff-plan-grid-responsive .responsive-data-card-grid{
+  align-items:stretch!important;
+}
+
+.commission-payout-card>header>strong{
+  flex:0 0 auto;
+  text-align:right;
+}
+
+@media(max-width:760px){
+  .users-page .staff-toolbar{
+    grid-template-columns:1fr!important;
+  }
+
+  .users-page .staff-toolbar>*{
+    min-width:0!important;
+    width:100%!important;
+  }
+
+  .users-page .responsive-data-list-heading-right,
+  .staff-operations-page .responsive-data-list-heading-right{
+    width:100%!important;
+    display:grid!important;
+    gap:8px!important;
+  }
+
+  .users-page .responsive-data-list-heading-right>.primary-button,
+  .staff-operations-page .responsive-data-list-heading-right>.primary-button{
+    width:100%!important;
+  }
+
+  .staff-directory-card-title,
+  .branch-directory-card-title,
+  .role-directory-card-title{
+    align-items:flex-start!important;
+  }
+
+  .users-page .responsive-data-card>div,
+  .staff-operations-page .commission-plan-card>div,
+  .staff-operations-page .commission-payout-card>div{
+    min-width:0!important;
+  }
+
+  .users-page .responsive-data-card>footer,
+  .staff-operations-page .responsive-data-card>footer{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    width:100%!important;
+  }
+
+  .users-page .responsive-data-card>footer>*:only-child,
+  .staff-operations-page .responsive-data-card>footer>*:only-child{
+    grid-column:1/-1!important;
+  }
+
+  .users-page .responsive-data-card>footer .secondary-button,
+  .users-page .responsive-data-card>footer .danger-text-button,
+  .users-page .responsive-data-card>footer .success-text-button,
+  .staff-operations-page .responsive-data-card>footer .secondary-button{
+    width:100%!important;
+    justify-content:center!important;
+  }
+
+  .staff-plan-grid-responsive .list-view-controls{
+    width:100%!important;
+  }
+}
+
+@media(max-width:480px){
+  .users-page .responsive-data-card>header,
+  .staff-operations-page .commission-plan-card>header,
+  .staff-operations-page .commission-payout-card>header{
+    gap:8px!important;
+  }
+
+  .users-page .responsive-data-card>footer{
+    grid-template-columns:1fr!important;
+  }
+
+  .commission-payout-card>header{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+
+  .commission-payout-card>header>strong{
+    text-align:left!important;
+  }
+}
