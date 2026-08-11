@@ -63,7 +63,9 @@ export function shopFormFromSettings(shop) {
     invoice_show_received: shop?.invoice_show_received !== false,
     invoice_show_change: shop?.invoice_show_change !== false,
     invoice_show_signatures: shop?.invoice_show_signatures !== false,
-    invoice_show_product_code: shop?.invoice_show_product_code !== false,
+    invoice_show_product_code: shop?.invoice_show_product_code !== undefined
+      ? shop.invoice_show_product_code !== false
+      : (typeof window !== "undefined" && window.localStorage.getItem("invoice_show_product_code") === "false" ? false : true),
     label_width_mm: Number(shop?.label_width_mm || 50),
     label_height_mm: Number(shop?.label_height_mm || 30),
     label_columns: Number(shop?.label_columns || 3),
@@ -139,11 +141,31 @@ export async function saveShopSettings(supabase, values) {
   };
 
   // Try direct update on app_settings first
-  const { data: directData, error: directError } = await supabase
+  let { data: directData, error: directError } = await supabase
     .from("app_settings")
     .update(directPayload)
     .select()
     .single();
+
+  if (directError && (directError.message?.includes("invoice_show_product_code") || directError.message?.includes("schema cache"))) {
+    if (values.invoice_show_product_code !== undefined) {
+      try {
+        localStorage.setItem("invoice_show_product_code", String(values.invoice_show_product_code !== false));
+      } catch (e) { }
+    }
+    const safePayload = { ...directPayload };
+    delete safePayload.invoice_show_product_code;
+    const res = await supabase
+      .from("app_settings")
+      .update(safePayload)
+      .select()
+      .single();
+    directData = res.data;
+    directError = res.error;
+    if (directData) {
+      directData.invoice_show_product_code = values.invoice_show_product_code !== false;
+    }
+  }
 
   if (!directError && directData) {
     return directData;
