@@ -207,22 +207,23 @@ export async function updateCategory(supabase, categoryId, values) {
 }
 
 export async function createProduct(supabase, values) {
+  const str = (v) => String(v || "").trim();
   const { data, error } = await supabase.rpc("create_pos_product_v2", {
-    p_name: values.name.trim(),
+    p_name: str(values.name),
     p_category_id: values.category_id || null,
-    p_name_km: values.name_km.trim() || null,
-    p_sku: values.sku.trim() || null,
-    p_barcode: values.barcode.trim() || null,
-    p_description: values.description.trim() || null,
-    p_unit_name: values.unit_name.trim(),
+    p_name_km: str(values.name_km) || null,
+    p_sku: str(values.sku) || null,
+    p_barcode: str(values.barcode) || null,
+    p_description: str(values.description) || null,
+    p_unit_name: str(values.unit_name) || "pcs",
     p_selling_price: Number(values.selling_price || 0),
     p_default_cost: Number(values.default_cost || 0),
-    p_currency: values.currency,
-    p_track_stock: values.track_stock,
-    p_allow_negative_stock: values.allow_negative_stock,
+    p_currency: values.currency || "USD",
+    p_track_stock: Boolean(values.track_stock),
+    p_allow_negative_stock: Boolean(values.allow_negative_stock),
     p_low_stock_threshold: Number(values.low_stock_threshold || 0),
     p_opening_quantity: Number(values.opening_quantity || 0),
-    p_is_active: values.is_active
+    p_is_active: values.is_active !== false
   });
 
   if (error) throw error;
@@ -230,22 +231,23 @@ export async function createProduct(supabase, values) {
 }
 
 export async function updateProduct(supabase, productId, values) {
+  const str = (v) => String(v || "").trim();
   const { data, error } = await supabase.rpc("update_pos_product_v2", {
     p_product_id: productId,
-    p_name: values.name.trim(),
+    p_name: str(values.name),
     p_category_id: values.category_id || null,
-    p_name_km: values.name_km.trim() || null,
-    p_sku: values.sku.trim() || null,
-    p_barcode: values.barcode.trim() || null,
-    p_description: values.description.trim() || null,
-    p_unit_name: values.unit_name.trim(),
+    p_name_km: str(values.name_km) || null,
+    p_sku: str(values.sku) || null,
+    p_barcode: str(values.barcode) || null,
+    p_description: str(values.description) || null,
+    p_unit_name: str(values.unit_name) || "pcs",
     p_selling_price: Number(values.selling_price || 0),
     p_default_cost: Number(values.default_cost || 0),
-    p_currency: values.currency,
-    p_track_stock: values.track_stock,
-    p_allow_negative_stock: values.allow_negative_stock,
+    p_currency: values.currency || "USD",
+    p_track_stock: Boolean(values.track_stock),
+    p_allow_negative_stock: Boolean(values.allow_negative_stock),
     p_low_stock_threshold: Number(values.low_stock_threshold || 0),
-    p_is_active: values.is_active
+    p_is_active: values.is_active !== false
   });
 
   if (error) throw error;
