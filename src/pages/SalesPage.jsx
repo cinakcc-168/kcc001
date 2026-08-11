@@ -1359,14 +1359,6 @@ export default function SalesPage() {
       setCustomerId("");
     }
 
-    if (customerPricingBusy) {
-      announce(
-        "info",
-        "Updating customer pricing. Try Pay again in a moment."
-      );
-      return;
-    }
-
     setPaymentOpen(true);
   }
 
