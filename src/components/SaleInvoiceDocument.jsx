@@ -64,8 +64,8 @@ export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) 
   const paymentRows = Array.isArray(receipt.payments) ? receipt.payments : [];
   const paymentMethod = String(
     receipt.paymentMethod
-      || (paymentRows.length > 1 ? "split" : paymentRows[0]?.method)
-      || "other"
+    || (paymentRows.length > 1 ? "split" : paymentRows[0]?.method)
+    || "other"
   );
 
   const shopName = isKhmer
@@ -202,14 +202,14 @@ export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) 
           <div className="sale-invoice-grand-total"><span>{label("GRAND TOTAL (USD)", "ប្រាក់សរុប (USD)")}</span><strong>{money(totalUsd, "USD")}</strong></div>
           <div><span>{label("GRAND TOTAL (KHR)", "ប្រាក់សរុបជាប្រាក់រៀល")}</span><strong>{money(totalKhr, "KHR")}</strong></div>
           <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{paymentLabel(paymentMethod, isKhmer)}</strong></div>
-          
+
           {isCreditSale && (
             <div className="sale-invoice-credit-row">
               <span>{label("Credit Amount", "ប្រាក់ជំពាក់")}</span>
               <strong>{money(creditAmount || total, receipt.currency)}</strong>
             </div>
           )}
-          
+
           <div className="sale-invoice-total-divider" />
 
           {showReceived && paymentRows.length > 0 ? (
