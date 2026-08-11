@@ -31,6 +31,7 @@ import MediaImage from "../components/MediaImage";
 import MediaPreviewModal from "../components/MediaPreviewModal";
 import ManualAttendanceModal from "../components/ManualAttendanceModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import {
   attendanceCheckIn,
   attendanceCheckOut,
@@ -667,9 +668,66 @@ export default function StaffOperationsPage() {
       )}
 
       {tab === "plans" && canManageCommissions && (
-        <div className="staff-plan-grid">
-          <section className="panel"><div className="panel-title-row"><div><p className="eyebrow">RULES</p><h2>Commission plans</h2></div><button type="button" className="primary-button" onClick={() => setPlan(null)}><Plus size={18} />New plan</button></div><div className="staff-plan-list">{workspace.plans.map((row) => <button type="button" key={row.id} className="staff-plan-row" onClick={() => setPlan(row)}><span><strong>{row.name}</strong><small>{row.profiles?.full_name} · {row.branches?.name || "All branches"}</small></span><span>{row.currency} · {Number(row.rate_percent).toFixed(2)}% + {commissionMoney(row.fixed_per_sale, row.currency)}<small>{row.base_type.replaceAll("_", " ")} · {row.is_active ? "Active" : "Inactive"}</small></span></button>)}{!workspace.plans.length && <div className="empty-state compact"><p>No commission plans yet.</p></div>}</div></section>
-          <section className="panel"><div className="panel-title-row"><div><p className="eyebrow">PAYOUTS</p><h2>Payment history</h2></div>{canPayCommissions && <button type="button" className="primary-button" onClick={() => setPayout(true)}><Plus size={18} />Record payout</button>}</div><div className="staff-horizontal-scroll"><table><thead><tr><th>Paid at</th><th>Staff</th><th>Branch</th><th>Period</th><th>Method</th><th>Amount</th></tr></thead><tbody>{workspace.payouts.map((row) => <tr key={row.id}><td>{staffDateTime(row.paid_at)}</td><td>{row.profiles?.full_name}</td><td>{row.branches?.name}</td><td>{row.period_start} → {row.period_end}</td><td>{row.payment_method}<small>{row.reference_number || "—"}</small></td><td><strong>{commissionMoney(row.amount, row.currency)}</strong></td></tr>)}{!workspace.payouts.length && <tr><td colSpan="6" className="empty-table">No commission payouts in this period.</td></tr>}</tbody></table></div></section>
+        <div className="staff-plan-grid staff-plan-grid-responsive">
+          <ResponsiveDataList
+            storageKey="tiny-pos-commission-plans"
+            title="Commission plans"
+            subtitle="Commission rules for staff and branches."
+            rows={workspace.plans}
+            filename="tiny-pos-commission-plans.xls"
+            printTitle="Commission Plans"
+            emptyTitle="No commission plans yet"
+            emptyText="Create the first commission plan to start calculating staff commission."
+            headingExtra={<button type="button" className="primary-button" onClick={() => setPlan(null)}><Plus size={18} />New plan</button>}
+            columns={[
+              { label: "Plan", width: 180, value: (row) => row.name || "—", render: (row) => <><strong>{row.name || "—"}</strong><small>{row.base_type?.replaceAll("_", " ") || "—"}</small></> },
+              { label: "Staff", width: 160, value: (row) => row.profiles?.full_name || "All staff" },
+              { label: "Branch", width: 160, value: (row) => row.branches?.name || "All branches" },
+              { label: "Currency", width: 90, value: (row) => row.currency || "USD" },
+              { label: "Rate", width: 95, value: (row) => `${Number(row.rate_percent || 0).toFixed(2)}%` },
+              { label: "Fixed / sale", width: 120, value: (row) => commissionMoney(row.fixed_per_sale, row.currency) },
+              { label: "Status", width: 100, value: (row) => row.is_active ? "Active" : "Inactive", render: (row) => <span className={`status-pill ${row.is_active ? "active" : "inactive"}`}>{row.is_active ? "Active" : "Inactive"}</span> },
+              { label: "Actions", actionsOnly: true, excludeDocument: true, render: (row) => <button type="button" className="secondary-button compact-button" onClick={() => setPlan(row)}><Pencil size={16} />Edit</button> }
+            ]}
+            renderCard={(row) => (
+              <article className="responsive-data-card commission-plan-card">
+                <header><div><strong>{row.name || "—"}</strong><small>{row.profiles?.full_name || "All staff"} · {row.branches?.name || "All branches"}</small></div><span className={`status-pill ${row.is_active ? "active" : "inactive"}`}>{row.is_active ? "Active" : "Inactive"}</span></header>
+                <div><span>Base</span><strong>{row.base_type?.replaceAll("_", " ") || "—"}</strong></div>
+                <div><span>Rate</span><strong>{Number(row.rate_percent || 0).toFixed(2)}%</strong></div>
+                <div><span>Fixed / sale</span><strong>{commissionMoney(row.fixed_per_sale, row.currency)}</strong></div>
+                <div><span>Currency</span><strong>{row.currency || "USD"}</strong></div>
+                <footer><button type="button" className="secondary-button compact-button" onClick={() => setPlan(row)}><Pencil size={16} />Edit plan</button></footer>
+              </article>
+            )}
+          />
+
+          <ResponsiveDataList
+            storageKey="tiny-pos-commission-payouts"
+            title="Payment history"
+            subtitle="Commission payouts recorded for the selected period."
+            rows={workspace.payouts}
+            filename="tiny-pos-commission-payouts.xls"
+            printTitle="Commission Payouts"
+            emptyTitle="No commission payouts in this period"
+            emptyText="Change the date or staff filter, or record a new payout."
+            headingExtra={canPayCommissions ? <button type="button" className="primary-button" onClick={() => setPayout(true)}><Plus size={18} />Record payout</button> : null}
+            columns={[
+              { label: "Paid at", width: 170, value: (row) => staffDateTime(row.paid_at) },
+              { label: "Staff", width: 160, value: (row) => row.profiles?.full_name || "—" },
+              { label: "Branch", width: 160, value: (row) => row.branches?.name || "—" },
+              { label: "Period", width: 190, value: (row) => `${row.period_start || "—"} → ${row.period_end || "—"}` },
+              { label: "Method", width: 130, value: (row) => row.payment_method || "—", render: (row) => <>{row.payment_method || "—"}<small>{row.reference_number || "—"}</small></> },
+              { label: "Amount", width: 120, value: (row) => commissionMoney(row.amount, row.currency), render: (row) => <strong>{commissionMoney(row.amount, row.currency)}</strong> }
+            ]}
+            renderCard={(row) => (
+              <article className="responsive-data-card commission-payout-card">
+                <header><div><strong>{row.profiles?.full_name || "—"}</strong><small>{staffDateTime(row.paid_at)}</small></div><strong>{commissionMoney(row.amount, row.currency)}</strong></header>
+                <div><span>Branch</span><strong>{row.branches?.name || "—"}</strong></div>
+                <div><span>Period</span><strong>{row.period_start || "—"} → {row.period_end || "—"}</strong></div>
+                <div><span>Method</span><strong>{row.payment_method || "—"}</strong><small>{row.reference_number || "—"}</small></div>
+              </article>
+            )}
+          />
         </div>
       )}
 
