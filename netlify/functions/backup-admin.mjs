@@ -1,5 +1,6 @@
 import { hasEffectivePermission } from "./_permission.mjs";
 import { createClient } from "@supabase/supabase-js";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 
 // Step 45 security boundary: integration API keys, webhook secrets, external
@@ -405,6 +406,630 @@ function cleanFilenamePart(value) {
     .slice(0, 60) || "tiny-pos";
 }
 
+
+const GOOGLE_DRIVE_SCOPE = [
+  "https://www.googleapis.com/auth/drive",
+  "https://www.googleapis.com/auth/userinfo.email"
+].join(" ");
+
+function backupSecret() {
+  const value = process.env.BACKUP_TOKEN_ENCRYPTION_KEY;
+  if (!value || value.length < 24) {
+    throw Object.assign(
+      new Error("BACKUP_TOKEN_ENCRYPTION_KEY must be configured in Netlify."),
+      { status: 500 }
+    );
+  }
+  return value;
+}
+
+function encryptionKey() {
+  return createHash("sha256").update(backupSecret()).digest();
+}
+
+function encryptSecret(value) {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
+  const encrypted = Buffer.concat([
+    cipher.update(String(value), "utf8"),
+    cipher.final()
+  ]);
+  return {
+    ciphertext: encrypted.toString("base64"),
+    iv: iv.toString("base64"),
+    tag: cipher.getAuthTag().toString("base64")
+  };
+}
+
+function decryptSecret(row) {
+  const decipher = createDecipheriv(
+    "aes-256-gcm",
+    encryptionKey(),
+    Buffer.from(row.refresh_token_iv, "base64")
+  );
+  decipher.setAuthTag(Buffer.from(row.refresh_token_tag, "base64"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(row.refresh_token_ciphertext, "base64")),
+    decipher.final()
+  ]).toString("utf8");
+}
+
+function toBase64Url(value) {
+  return Buffer.from(value).toString("base64url");
+}
+
+function createOAuthState(profile, origin) {
+  const payload = {
+    organization_id: profile.organization_id,
+    user_id: profile.id,
+    origin,
+    exp: Date.now() + 10 * 60 * 1000,
+    nonce: randomBytes(12).toString("hex")
+  };
+  const encoded = toBase64Url(JSON.stringify(payload));
+  const signature = createHmac("sha256", backupSecret())
+    .update(encoded)
+    .digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
+function verifyOAuthState(state) {
+  const [encoded, signature] = String(state || "").split(".");
+  if (!encoded || !signature) throw new Error("Google Drive connection state is invalid.");
+  const expected = createHmac("sha256", backupSecret())
+    .update(encoded)
+    .digest("base64url");
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    throw new Error("Google Drive connection state could not be verified.");
+  }
+  const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
+  if (!payload.exp || Date.now() > Number(payload.exp)) {
+    throw new Error("Google Drive connection request expired. Try Connect again.");
+  }
+  return payload;
+}
+
+function googleOAuthConfig() {
+  const clientId = process.env.GOOGLE_BACKUP_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_BACKUP_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw Object.assign(
+      new Error("Google Drive backup is not configured. Add GOOGLE_BACKUP_CLIENT_ID and GOOGLE_BACKUP_CLIENT_SECRET in Netlify."),
+      { status: 503 }
+    );
+  }
+  return { clientId, clientSecret };
+}
+
+function parseDriveFolderId(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const folderMatch = text.match(/\/folders\/([a-zA-Z0-9_-]+)/i);
+  if (folderMatch) return folderMatch[1];
+  const idMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+  if (idMatch) return idMatch[1];
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(text)) return text;
+  throw new Error("Enter a valid Google Drive folder link or folder ID.");
+}
+
+async function refreshGoogleAccessToken(connection) {
+  const { clientId, clientSecret } = googleOAuthConfig();
+  const refreshToken = decryptSecret(connection);
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token"
+    })
+  });
+  const data = await response.json();
+  if (!response.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || "Google Drive access token refresh failed.");
+  }
+  return data.access_token;
+}
+
+async function loadDriveConnection(admin, organizationId) {
+  const { data, error } = await admin
+    .from("backup_google_drive_connections")
+    .select("*")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function ensureBackupSchedule(admin, profile) {
+  const { data: existing, error } = await admin
+    .from("backup_schedules")
+    .select("*")
+    .eq("organization_id", profile.organization_id)
+    .maybeSingle();
+  if (error) throw error;
+  if (existing) return existing;
+
+  const { data: settings } = await admin
+    .from("app_settings")
+    .select("timezone")
+    .eq("organization_id", profile.organization_id)
+    .maybeSingle();
+
+  const { data, error: insertError } = await admin
+    .from("backup_schedules")
+    .insert({
+      organization_id: profile.organization_id,
+      is_enabled: false,
+      frequency_days: 1,
+      backup_time: "23:00",
+      timezone: settings?.timezone || "Asia/Phnom_Penh",
+      created_by: profile.id,
+      updated_by: profile.id
+    })
+    .select("*")
+    .single();
+  if (insertError) throw insertError;
+  return data;
+}
+
+function timezoneParts(date, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+function zonedLocalToUtc({ year, month, day, hour, minute }, timeZone) {
+  const target = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  let guess = target;
+  for (let i = 0; i < 3; i += 1) {
+    const p = timezoneParts(new Date(guess), timeZone);
+    const rendered = Date.UTC(
+      Number(p.year),
+      Number(p.month) - 1,
+      Number(p.day),
+      Number(p.hour),
+      Number(p.minute),
+      Number(p.second || 0)
+    );
+    guess -= rendered - target;
+  }
+  return new Date(guess);
+}
+
+function nextBackupAt(schedule, fromDate = new Date(), afterSuccessfulRun = false) {
+  const timeZone = schedule.timezone || "Asia/Phnom_Penh";
+  const p = timezoneParts(fromDate, timeZone);
+  const [hourText, minuteText] = String(schedule.backup_time || "23:00").split(":");
+  const base = new Date(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)));
+  let addDays = afterSuccessfulRun ? Number(schedule.frequency_days || 1) : 0;
+  let localDate = new Date(base.getTime() + addDays * 86400000);
+  let candidate = zonedLocalToUtc({
+    year: localDate.getUTCFullYear(),
+    month: localDate.getUTCMonth() + 1,
+    day: localDate.getUTCDate(),
+    hour: Number(hourText || 23),
+    minute: Number(minuteText || 0)
+  }, timeZone);
+
+  if (!afterSuccessfulRun && candidate <= fromDate) {
+    localDate = new Date(base.getTime() + Number(schedule.frequency_days || 1) * 86400000);
+    candidate = zonedLocalToUtc({
+      year: localDate.getUTCFullYear(),
+      month: localDate.getUTCMonth() + 1,
+      day: localDate.getUTCDate(),
+      hour: Number(hourText || 23),
+      minute: Number(minuteText || 0)
+    }, timeZone);
+  }
+  return candidate.toISOString();
+}
+
+let serverCrcTable = null;
+function serverCrc32(bytes) {
+  if (!serverCrcTable) {
+    serverCrcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+      let c = n;
+      for (let k = 0; k < 8; k += 1) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      serverCrcTable[n] = c >>> 0;
+    }
+  }
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = serverCrcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function createStoredZipBuffer(entries) {
+  const normalized = entries.map((entry) => {
+    const name = Buffer.from(entry.name, "utf8");
+    const data = Buffer.isBuffer(entry.data) ? entry.data : Buffer.from(String(entry.data ?? ""), "utf8");
+    return { ...entry, name, data, crc: serverCrc32(data) };
+  });
+  const date = new Date();
+  const year = Math.max(1980, date.getFullYear());
+  const dosTime = (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2);
+  const dosDate = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate();
+  const locals = [];
+  const centrals = [];
+  let localOffset = 0;
+  for (const entry of normalized) {
+    const local = Buffer.alloc(30 + entry.name.length + entry.data.length);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x0800, 6);
+    local.writeUInt16LE(0, 8);
+    local.writeUInt16LE(dosTime, 10);
+    local.writeUInt16LE(dosDate, 12);
+    local.writeUInt32LE(entry.crc >>> 0, 14);
+    local.writeUInt32LE(entry.data.length, 18);
+    local.writeUInt32LE(entry.data.length, 22);
+    local.writeUInt16LE(entry.name.length, 26);
+    local.writeUInt16LE(0, 28);
+    entry.name.copy(local, 30);
+    entry.data.copy(local, 30 + entry.name.length);
+    locals.push(local);
+
+    const central = Buffer.alloc(46 + entry.name.length);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(0, 10);
+    central.writeUInt16LE(dosTime, 12);
+    central.writeUInt16LE(dosDate, 14);
+    central.writeUInt32LE(entry.crc >>> 0, 16);
+    central.writeUInt32LE(entry.data.length, 20);
+    central.writeUInt32LE(entry.data.length, 24);
+    central.writeUInt16LE(entry.name.length, 28);
+    central.writeUInt32LE(localOffset, 42);
+    entry.name.copy(central, 46);
+    centrals.push(central);
+    localOffset += local.length;
+  }
+  const centralSize = centrals.reduce((sum, item) => sum + item.length, 0);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(normalized.length, 8);
+  end.writeUInt16LE(normalized.length, 10);
+  end.writeUInt32LE(centralSize, 12);
+  end.writeUInt32LE(localOffset, 16);
+  return Buffer.concat([...locals, ...centrals, end]);
+}
+
+function collectCloudinaryUrls(value, path = "backup", output = [], seen = new Set()) {
+  if (value == null) return output;
+  if (typeof value === "string") {
+    if (/res\.cloudinary\.com\//i.test(value) && !seen.has(value)) {
+      seen.add(value);
+      output.push({ path, url: value });
+    }
+    return output;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectCloudinaryUrls(item, `${path}[${index}]`, output, seen));
+  } else if (typeof value === "object") {
+    Object.entries(value).forEach(([key, item]) => collectCloudinaryUrls(item, `${path}.${key}`, output, seen));
+  }
+  return output;
+}
+
+function buildBackupZipBuffer(backup) {
+  const assets = collectCloudinaryUrls(backup);
+  const csvCell = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const assetCsv = ["source_path,cloudinary_url", ...assets.map((item) => `${csvCell(item.path)},${csvCell(item.url)}`)].join("\n");
+  const manifest = {
+    format: "tiny-pos-backup-package",
+    package_version: 1,
+    created_at: backup.created_at,
+    source: backup.source,
+    business_backup_version: backup.version,
+    row_counts: backup.row_counts,
+    cloudinary_asset_count: assets.length,
+    excludes: ["Supabase Auth passwords", "Netlify/API secrets", "Cloudinary image binaries"]
+  };
+  const readme = [
+    "Tiny POS Backup Package",
+    "business-backup.json is used by Restore.",
+    "cloudinary-assets.csv lists external Cloudinary files referenced by the POS.",
+    "Passwords and private environment/API secrets are intentionally excluded."
+  ].join("\n");
+  return createStoredZipBuffer([
+    { name: "business-backup.json", data: JSON.stringify(backup, null, 2) },
+    { name: "manifest.json", data: JSON.stringify(manifest, null, 2) },
+    { name: "cloudinary-assets.csv", data: assetCsv },
+    { name: "README.txt", data: readme }
+  ]);
+}
+
+async function verifyOrCreateDriveFolder(admin, schedule, connection, accessToken) {
+  let folderId = schedule.google_drive_folder_id || "";
+  if (folderId) {
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(folderId)}?fields=id,name,mimeType,trashed&supportsAllDrives=true`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const data = await response.json();
+    if (!response.ok || data.trashed || data.mimeType !== "application/vnd.google-apps.folder") {
+      throw new Error("The saved Google Drive folder cannot be accessed. Choose another folder link.");
+    }
+    return { id: data.id, name: data.name };
+  }
+
+  const response = await fetch("https://www.googleapis.com/drive/v3/files?fields=id,name", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name: "Tiny POS Backups",
+      mimeType: "application/vnd.google-apps.folder"
+    })
+  });
+  const data = await response.json();
+  if (!response.ok || !data.id) throw new Error(data.error?.message || "Could not create Tiny POS Backups folder in Google Drive.");
+  await admin.from("backup_schedules").update({
+    google_drive_folder_id: data.id,
+    google_drive_folder_url: `https://drive.google.com/drive/folders/${data.id}`,
+    updated_at: new Date().toISOString()
+  }).eq("organization_id", schedule.organization_id);
+  schedule.google_drive_folder_id = data.id;
+  schedule.google_drive_folder_url = `https://drive.google.com/drive/folders/${data.id}`;
+  return { id: data.id, name: data.name };
+}
+
+async function uploadBackupToDrive(admin, profile, backup, schedule) {
+  const connection = await loadDriveConnection(admin, profile.organization_id);
+  if (!connection) throw new Error("Connect Google Drive before saving backups there.");
+  const accessToken = await refreshGoogleAccessToken(connection);
+  const folder = await verifyOrCreateDriveFolder(admin, schedule, connection, accessToken);
+  const date = new Date().toISOString().replace(/[:.]/g, "-");
+  const shop = cleanFilenamePart(backup.source.organization.name);
+  const filename = `${shop}-backup-${date}.zip`;
+  const zip = buildBackupZipBuffer(backup);
+  const boundary = `tinypos-${randomBytes(12).toString("hex")}`;
+  const metadata = Buffer.from(JSON.stringify({ name: filename, parents: [folder.id], mimeType: "application/zip" }), "utf8");
+  const body = Buffer.concat([
+    Buffer.from(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`),
+    metadata,
+    Buffer.from(`\r\n--${boundary}\r\nContent-Type: application/zip\r\n\r\n`),
+    zip,
+    Buffer.from(`\r\n--${boundary}--`)
+  ]);
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,size&supportsAllDrives=true", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": `multipart/related; boundary=${boundary}`
+    },
+    body
+  });
+  const data = await response.json();
+  if (!response.ok || !data.id) throw new Error(data.error?.message || "Google Drive backup upload failed.");
+  return {
+    filename,
+    size: zip.length,
+    drive_file_id: data.id,
+    drive_web_view_link: data.webViewLink || `https://drive.google.com/file/d/${data.id}/view`,
+    drive_folder_id: folder.id,
+    drive_folder_name: folder.name,
+    drive_folder_url: schedule.google_drive_folder_url || `https://drive.google.com/drive/folders/${folder.id}`
+  };
+}
+
+async function saveSchedule(admin, profile, incoming) {
+  const current = await ensureBackupSchedule(admin, profile);
+  const frequencyDays = Math.max(1, Math.min(90, Number(incoming.frequency_days || current.frequency_days || 1)));
+  const backupTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(incoming.backup_time || ""))
+    ? incoming.backup_time
+    : String(current.backup_time || "23:00").slice(0, 5);
+  const timezone = String(incoming.timezone || current.timezone || "Asia/Phnom_Penh").trim();
+  let folderId = current.google_drive_folder_id || null;
+  let folderUrl = current.google_drive_folder_url || null;
+  if (Object.prototype.hasOwnProperty.call(incoming, "google_drive_folder_url")) {
+    const raw = String(incoming.google_drive_folder_url || "").trim();
+    folderId = raw ? parseDriveFolderId(raw) : null;
+    folderUrl = folderId ? `https://drive.google.com/drive/folders/${folderId}` : null;
+  }
+  const nextSchedule = {
+    ...current,
+    frequency_days: frequencyDays,
+    backup_time: backupTime,
+    timezone,
+    is_enabled: Boolean(incoming.is_enabled),
+    google_drive_folder_id: folderId,
+    google_drive_folder_url: folderUrl
+  };
+  const nextAt = nextSchedule.is_enabled ? nextBackupAt(nextSchedule) : null;
+  const { data, error } = await admin.from("backup_schedules").upsert({
+    organization_id: profile.organization_id,
+    is_enabled: nextSchedule.is_enabled,
+    frequency_days: frequencyDays,
+    backup_time: backupTime,
+    timezone,
+    destination: "google_drive",
+    google_drive_folder_id: folderId,
+    google_drive_folder_url: folderUrl,
+    next_backup_at: nextAt,
+    updated_by: profile.id,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "organization_id" }).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
+async function backupCenterSettings(admin, profile) {
+  const schedule = await ensureBackupSchedule(admin, profile);
+  const connection = await loadDriveConnection(admin, profile.organization_id);
+  return {
+    ok: true,
+    schedule: {
+      is_enabled: schedule.is_enabled,
+      frequency_days: schedule.frequency_days,
+      backup_time: String(schedule.backup_time || "23:00").slice(0, 5),
+      timezone: schedule.timezone,
+      google_drive_folder_url: schedule.google_drive_folder_url || "",
+      last_backup_at: schedule.last_backup_at,
+      next_backup_at: schedule.next_backup_at,
+      last_status: schedule.last_status,
+      last_error: schedule.last_error
+    },
+    drive: {
+      configured: Boolean(process.env.GOOGLE_BACKUP_CLIENT_ID && process.env.GOOGLE_BACKUP_CLIENT_SECRET && process.env.BACKUP_TOKEN_ENCRYPTION_KEY),
+      connected: Boolean(connection),
+      account_email: connection?.account_email || "",
+      connected_at: connection?.connected_at || null
+    }
+  };
+}
+
+async function runDriveBackup(admin, profile, trigger = "manual") {
+  const schedule = await ensureBackupSchedule(admin, profile);
+  await admin.from("backup_schedules").update({
+    last_status: "running",
+    last_error: null,
+    updated_at: new Date().toISOString()
+  }).eq("organization_id", profile.organization_id);
+
+  try {
+    const backup = await createBackup(admin, profile);
+    const details = await uploadBackupToDrive(admin, profile, backup, schedule);
+    const completedAt = new Date();
+    const nextAt = schedule.is_enabled ? nextBackupAt(schedule, completedAt, true) : null;
+    await admin.from("backup_schedules").update({
+      last_backup_at: completedAt.toISOString(),
+      next_backup_at: nextAt,
+      last_status: "completed",
+      last_error: null,
+      updated_at: completedAt.toISOString()
+    }).eq("organization_id", profile.organization_id);
+    await logOperation(admin, profile, "export", "completed", backup, {
+      ...details,
+      destination: "google_drive",
+      trigger
+    });
+    return { ok: true, ...details, created_at: backup.created_at, next_backup_at: nextAt };
+  } catch (error) {
+    const retryAt = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+    await admin.from("backup_schedules").update({
+      last_status: "failed",
+      last_error: error.message,
+      next_backup_at: schedule.is_enabled ? retryAt : null,
+      updated_at: new Date().toISOString()
+    }).eq("organization_id", profile.organization_id);
+    throw error;
+  }
+}
+
+export async function runScheduledBackups() {
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+  const { data: schedules, error } = await admin
+    .from("backup_schedules")
+    .select("*")
+    .eq("is_enabled", true)
+    .lte("next_backup_at", now)
+    .order("next_backup_at", { ascending: true })
+    .limit(20);
+  if (error) throw error;
+
+  const results = [];
+  for (const schedule of schedules || []) {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("id,organization_id,branch_id,email,full_name,role,is_active")
+      .eq("organization_id", schedule.organization_id)
+      .eq("is_active", true)
+      .in("role", ["owner", "admin"])
+      .order("role", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!profile) {
+      await admin.from("backup_schedules").update({
+        last_status: "failed",
+        last_error: "No active owner/admin profile is available for scheduled backup.",
+        next_backup_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString()
+      }).eq("organization_id", schedule.organization_id);
+      results.push({ organization_id: schedule.organization_id, ok: false, error: "No owner/admin profile" });
+      continue;
+    }
+    try {
+      const result = await runDriveBackup(admin, profile, "scheduled");
+      results.push({ organization_id: schedule.organization_id, ok: true, filename: result.filename });
+    } catch (error) {
+      await logOperation(admin, profile, "export", "failed", null, {
+        destination: "google_drive",
+        trigger: "scheduled",
+        error: error.message
+      });
+      results.push({ organization_id: schedule.organization_id, ok: false, error: error.message });
+    }
+  }
+  return { ok: true, checked_at: now, processed: results.length, results };
+}
+
+export async function handleGoogleDriveCallback(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.searchParams.get("error")) throw new Error(url.searchParams.get("error_description") || url.searchParams.get("error"));
+    const code = url.searchParams.get("code");
+    const payload = verifyOAuthState(url.searchParams.get("state"));
+    if (!code) throw new Error("Google did not return an authorization code.");
+    const { clientId, clientSecret } = googleOAuthConfig();
+    const redirectUri = `${url.origin}/api/backup-google-drive-callback`;
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code"
+      })
+    });
+    const tokens = await tokenResponse.json();
+    if (!tokenResponse.ok || !tokens.refresh_token) {
+      throw new Error(tokens.error_description || "Google did not return a refresh token. Disconnect the app in Google and try Connect again.");
+    }
+    const userResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+    const userInfo = await userResponse.json();
+    const encrypted = encryptSecret(tokens.refresh_token);
+    const admin = createAdminClient();
+    const { error } = await admin.from("backup_google_drive_connections").upsert({
+      organization_id: payload.organization_id,
+      connected_by: payload.user_id,
+      account_email: userInfo.email || null,
+      refresh_token_ciphertext: encrypted.ciphertext,
+      refresh_token_iv: encrypted.iv,
+      refresh_token_tag: encrypted.tag,
+      scope: tokens.scope || GOOGLE_DRIVE_SCOPE,
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }, { onConflict: "organization_id" });
+    if (error) throw error;
+    await ensureBackupSchedule(admin, { id: payload.user_id, organization_id: payload.organization_id });
+    const html = `<!doctype html><html><body style="font-family:system-ui;padding:24px"><h2>Google Drive connected</h2><p>You can close this window.</p><script>if(window.opener){window.opener.postMessage({type:'tiny-pos-drive-connected'},${JSON.stringify(payload.origin)});window.close();}</script></body></html>`;
+    return new Response(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+  } catch (error) {
+    const safe = String(error.message || "Google Drive connection failed").replace(/[<>]/g, "");
+    return new Response(`<!doctype html><html><body style="font-family:system-ui;padding:24px"><h2>Connection failed</h2><p>${safe}</p></body></html>`, { status: 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+  }
+}
+
 function createAdminClient() {
   const url = process.env.SUPABASE_URL;
   const secret =
@@ -573,7 +1198,7 @@ async function createBackup(admin, caller) {
     created_at: new Date().toISOString(),
     source: {
       organization,
-      schema_step: 46
+      schema_step: "46.25"
     },
     staff: profiles,
     user_preferences: preferences,
@@ -1017,13 +1642,79 @@ export default async (request) => {
     body = await request.json();
     const action = String(body.action || "").trim();
 
+    if (action === "settings_get") {
+      return json(await backupCenterSettings(admin, caller));
+    }
+
+    if (action === "settings_save") {
+      const saved = await saveSchedule(admin, caller, body.settings || {});
+      const connection = await loadDriveConnection(admin, caller.organization_id);
+      if (saved.google_drive_folder_id && connection) {
+        const accessToken = await refreshGoogleAccessToken(connection);
+        await verifyOrCreateDriveFolder(admin, saved, connection, accessToken);
+      }
+      return json(await backupCenterSettings(admin, caller));
+    }
+
+    if (action === "drive_connect_url") {
+      const { clientId } = googleOAuthConfig();
+      const origin = new URL(request.url).origin;
+      const redirectUri = `${origin}/api/backup-google-drive-callback`;
+      const state = createOAuthState(caller, origin);
+      const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      authUrl.search = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        access_type: "offline",
+        prompt: "consent",
+        include_granted_scopes: "true",
+        scope: GOOGLE_DRIVE_SCOPE,
+        state
+      }).toString();
+      return json({ ok: true, auth_url: authUrl.toString() });
+    }
+
+    if (action === "drive_disconnect") {
+      const connection = await loadDriveConnection(admin, caller.organization_id);
+      if (connection) {
+        try {
+          const token = decryptSecret(connection);
+          await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+          });
+        } catch (revokeError) {
+          console.warn("Google token revoke failed:", revokeError.message);
+        }
+      }
+      const { error } = await admin
+        .from("backup_google_drive_connections")
+        .delete()
+        .eq("organization_id", caller.organization_id);
+      if (error) throw error;
+      await admin.from("backup_schedules").update({
+        is_enabled: false,
+        next_backup_at: null,
+        last_status: null,
+        last_error: null,
+        updated_by: caller.id,
+        updated_at: new Date().toISOString()
+      }).eq("organization_id", caller.organization_id);
+      return json({ ok: true, disconnected: true });
+    }
+
+    if (action === "export_drive") {
+      return json(await runDriveBackup(admin, caller, "manual"));
+    }
+
     if (action === "export") {
       const backup = await createBackup(admin, caller);
       const date = new Date().toISOString().slice(0, 10);
       const shop = cleanFilenamePart(
         backup.source.organization.name
       );
-      const filename = `${shop}-backup-${date}.json`;
+      const filename = `${shop}-backup-${date}.zip`;
 
       await logOperation(
         admin,
@@ -1031,7 +1722,7 @@ export default async (request) => {
         "export",
         "completed",
         backup,
-        { filename }
+        { filename, destination: "download", trigger: "manual" }
       );
 
       return json(backup, 200, {
