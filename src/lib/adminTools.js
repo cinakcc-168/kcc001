@@ -1,3 +1,5 @@
+import { downloadBackupArchive, readBusinessBackupArchive } from "./backupArchive";
+
 function authHeaders(session) {
   if (!session?.access_token) {
     throw new Error("Your login session is missing.");
@@ -167,30 +169,53 @@ export async function downloadBusinessBackup(session) {
     action: "export"
   });
 
-  const disposition =
-    response.headers.get("content-disposition") || "";
+  const disposition = response.headers.get("content-disposition") || "";
   const match = disposition.match(/filename="([^"]+)"/i);
-  const filename =
-    match?.[1] ||
-    `tiny-pos-backup-${new Date().toISOString().slice(0, 10)}.json`;
-
-  const blob = new Blob(
-    [JSON.stringify(data, null, 2)],
-    { type: "application/json" }
-  );
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
+  const serverFilename = match?.[1] || `tiny-pos-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = serverFilename.replace(/\.json$/i, ".zip");
+  const { size } = downloadBackupArchive(data, filename);
 
   return {
     filename,
+    size,
     backup: data
   };
+}
+
+export async function createDriveBackup(session) {
+  const { data } = await backupRequest(session, {
+    action: "export_drive"
+  });
+  return data;
+}
+
+export async function loadBackupCenterSettings(session) {
+  const { data } = await backupRequest(session, {
+    action: "settings_get"
+  });
+  return data;
+}
+
+export async function saveBackupCenterSettings(session, settings) {
+  const { data } = await backupRequest(session, {
+    action: "settings_save",
+    settings
+  });
+  return data;
+}
+
+export async function getGoogleDriveConnectUrl(session) {
+  const { data } = await backupRequest(session, {
+    action: "drive_connect_url"
+  });
+  return data.auth_url;
+}
+
+export async function disconnectGoogleDrive(session) {
+  const { data } = await backupRequest(session, {
+    action: "drive_disconnect"
+  });
+  return data;
 }
 
 export async function validateBusinessBackup(
@@ -222,21 +247,5 @@ export async function restoreBusinessBackup(
 }
 
 export async function readBackupFile(file) {
-  if (!file) {
-    throw new Error("Choose a Tiny POS JSON backup.");
-  }
-
-  if (file.size > 25 * 1024 * 1024) {
-    throw new Error("The backup file is larger than 25 MB.");
-  }
-
-  let parsed;
-
-  try {
-    parsed = JSON.parse(await file.text());
-  } catch {
-    throw new Error("The selected file is not valid JSON.");
-  }
-
-  return parsed;
+  return readBusinessBackupArchive(file);
 }
