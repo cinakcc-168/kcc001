@@ -8839,3 +8839,56 @@ html{
     text-align:left!important;
   }
 }
+
+/* ========================================================================== */
+/* Step 46.25 — Backup Center: one-file ZIP, Drive destination and scheduling */
+/* ========================================================================== */
+.backup-center-layout{align-items:start}
+.backup-progress-card{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:14px 16px!important;border-color:color-mix(in srgb,var(--accent) 32%,var(--border));background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.backup-progress-card>svg{flex:0 0 auto;color:var(--accent)}
+.backup-progress-card>div{display:grid;gap:3px;min-width:0}
+.backup-progress-card span{color:var(--muted);font-size:13px;line-height:1.4}
+.backup-create-card,.backup-drive-card,.backup-schedule-card{min-height:100%}
+.backup-card-heading-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.backup-card-heading-row h2{margin:0}
+.backup-primary-actions,.backup-drive-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.backup-primary-actions>button{flex:1 1 190px}
+.backup-drive-account{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid color-mix(in srgb,var(--success) 25%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--success) 6%,var(--surface))}
+.backup-drive-account>svg{color:var(--success);flex:0 0 auto}
+.backup-drive-account>div{display:grid;gap:2px;min-width:0}
+.backup-drive-account strong,.backup-drive-account span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.backup-drive-account span{color:var(--muted);font-size:12px}
+.backup-folder-input{min-height:44px;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;padding:0 11px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);min-width:0}
+.backup-folder-input:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent)}
+.backup-folder-input>svg{color:var(--muted);flex:0 0 auto}
+.backup-folder-input input{min-width:0;min-height:42px!important;border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
+.backup-config-notice{margin:0}
+.backup-auto-toggle{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center!important;gap:11px!important;padding:12px 13px;border:1px solid var(--border);border-radius:12px;background:var(--surface2)}
+.backup-auto-toggle input{width:20px!important;height:20px!important;min-height:20px!important;margin:0;accent-color:var(--accent)}
+.backup-auto-toggle>span{display:grid;gap:2px}
+.backup-auto-toggle small{color:var(--muted);font-weight:500}
+.backup-schedule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.backup-days-input{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+.backup-days-input>span{color:var(--muted);font-size:13px}
+.backup-schedule-status{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.backup-schedule-status>div{min-width:0;display:grid;gap:4px;padding:10px;border:1px solid var(--border);border-radius:11px;background:var(--surface2)}
+.backup-schedule-status span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.backup-schedule-status strong{font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.backup-log-list article>div:last-child a{font-size:12px;font-weight:800;color:var(--accent);text-decoration:none}
+.backup-log-list article>div:last-child a:hover{text-decoration:underline}
+
+@media(max-width:900px){
+  .backup-center-layout{grid-template-columns:1fr!important}
+  .backup-progress-card{grid-column:auto}
+}
+
+@media(max-width:700px){
+  .backup-card{padding:14px!important;gap:13px!important}
+  .backup-card-heading-row{align-items:center}
+  .backup-primary-actions,.backup-drive-actions{display:grid;grid-template-columns:1fr;width:100%}
+  .backup-primary-actions>button,.backup-drive-actions>button{width:100%;min-width:0}
+  .backup-schedule-grid{grid-template-columns:1fr}
+  .backup-schedule-status{grid-template-columns:1fr}
+  .backup-folder-input input{font-size:16px!important}
+  .backup-log-list article>div:last-child{width:100%;display:flex!important;flex-wrap:wrap;align-items:center;justify-content:flex-start!important;gap:8px}
+}
