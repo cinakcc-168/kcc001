@@ -164,259 +164,267 @@ export default function ReceiptModal({ receipt, onClose }) {
           {saleDocumentType === "invoice" ? (
             <SaleInvoiceDocument receipt={receipt} shop={shop} language={receiptLanguage} />
           ) : (
-          <article
-            className="receipt-document"
-            style={{ "--receipt-width": `${receiptWidth}mm` }}
-          >
-            <div className={`receipt-shop receipt-logo-${logoPosition}`}>
-              <div className="receipt-brand-line">
-                {showLogo && shop?.shop_logo_url && (
-                  <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
-                )}
-                <h2>{receiptShopName}</h2>
-              </div>
-              {receiptHeader && <p>{receiptHeader}</p>}
-              {showAddress && receiptAddress && (
-                <p>{receiptAddress}</p>
-              )}
-              {showPhone && (shop?.shop_phone || receipt.shopPhone) && (
-                <p>{shop?.shop_phone || receipt.shopPhone}</p>
-              )}
-              {showPhone && shop?.shop_email && <p>{shop.shop_email}</p>}
-              {shop?.tax_id && <p>{label("Tax ID", "លេខអត្តសញ្ញាណពន្ធ")}: {shop.tax_id}</p>}
-            </div>
-
-            <div className="receipt-meta">
-              <div><span>{label("Invoice", "វិក្កយបត្រ")}</span><strong>{receipt.invoiceNumber}</strong></div>
-              {receipt.sourceQuoteNumber && (
-                <div>
-                  <span>{label("Quotation", "សម្រង់តម្លៃ")}</span>
-                  <strong>{receipt.sourceQuoteNumber}</strong>
-                </div>
-              )}
-              {receipt.sourceSalesOrderNumber && (
-                <div>
-                  <span>{label("Sales Order", "បញ្ជាទិញលក់")}</span>
-                  <strong>{receipt.sourceSalesOrderNumber}</strong>
-                </div>
-              )}
-              {receipt.sourceDeliveryNumber && (
-                <div>
-                  <span>{label("Delivery Note", "ប័ណ្ណប្រគល់ទំនិញ")}</span>
-                  <strong>{receipt.sourceDeliveryNumber}</strong>
-                </div>
-              )}
-              <div><span>{label("Date", "កាលបរិច្ឆេទ")}</span><strong>{dateTime(receipt.completedAt, locale)}</strong></div>
-              {receipt.saleStatus && receipt.saleStatus !== "completed" && (
-                <div>
-                  <span>{label("Status", "ស្ថានភាព")}</span>
-                  <strong>
-                    {statusText(receipt.saleStatus)}
-                  </strong>
-                </div>
-              )}
-              {showCashier && (
-                <div><span>{label("Cashier", "អ្នកគិតលុយ")}</span><strong>{receipt.cashierName}</strong></div>
-              )}
-              {showCustomer && (
-                <div>
-                  <span>{label("Customer", "អតិថិជន")}</span>
-                  <strong>{receipt.customerName || label("Walk-in", "អតិថិជនទូទៅ")}</strong>
-                </div>
-              )}
-              {showCustomer && receipt.customerName && (
-                <div>
-                  <span>{label("Customer profile", "ប្រភេទអតិថិជន")}</span>
-                  <strong>
-                    {[receipt.customerCode, receipt.customerType]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </strong>
-                </div>
-              )}
-              {receipt.priceListName && (
-                <div>
-                  <span>{label("Price list", "បញ្ជីតម្លៃ")}</span>
-                  <strong>{receipt.priceListName}</strong>
-                </div>
-              )}
-            </div>
-
-            {showBarcode && (
-              <div className="receipt-invoice-barcode">
-                <ProductBarcode
-                  value={receipt.invoiceNumber}
-                  format="CODE128"
-                  height={28}
-                  width={1.15}
-                />
-                <small>{receipt.invoiceNumber}</small>
-              </div>
-            )}
-
-            <div className="receipt-lines">
-              {receipt.cart.map((item) => (
-                <div key={item.id}>
-                  <span>
-                    <strong>
-                      {receiptLanguage === "km"
-                        ? item.name_km || item.name
-                        : item.name}
-                    </strong>
-                    {receiptLanguage === "km"
-                      && item.name_km
-                      && item.name_km !== item.name && (
-                      <small>{item.name}</small>
-                    )}
-                    <small>
-                      {stockNumber(item.quantity)}{" "}
-                      {item.selected_unit_name || item.sale_unit_name || item.unit_name}
-                      {" × "}
-                      {money(item.selected_unit_price ?? item.selling_price, item.currency)}
-                    </small>
-                  </span>
-                  <strong>
-                    {money(
-                      Number(item.quantity) * Number(item.selected_unit_price ?? item.selling_price),
-                      item.currency
-                    )}
-                  </strong>
-                </div>
-              ))}
-            </div>
-
-            <div className="receipt-totals">
-              <div><span>{label("Subtotal", "សរុបរង")}</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
-              {Number(receipt.priceAdjustmentAmount || 0) !== 0 && (
-                <div>
-                  <span>
-                    {Number(receipt.priceAdjustmentAmount) > 0
-                      ? label("Price-list savings", "សន្សំពីបញ្ជីតម្លៃ")
-                      : label("Price-list markup", "តម្លៃបន្ថែមពីបញ្ជីតម្លៃ")}
-                  </span>
-                  <strong>
-                    {Number(receipt.priceAdjustmentAmount) > 0 ? "-" : "+"}
-                    {money(
-                      Math.abs(Number(receipt.priceAdjustmentAmount)),
-                      receipt.currency
-                    )}
-                  </strong>
-                </div>
-              )}
-              <div><span>{label("Discount", "បញ្ចុះតម្លៃ")}</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
-              {Number(receipt.taxAmount) > 0 && (
-                <div><span>{label("Tax", "ពន្ធ")}</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
-              )}
-              <div className="receipt-grand-total">
-                <span>{label("Total", "សរុប")}</span>
-                <strong>{money(receipt.totalAmount, receipt.currency)}</strong>
-                <small>≈ {money(alternateTotal, alternateCurrency)}</small>
-              </div>
-              {Number(receipt.refundedAmount || 0) > 0 && (
-                <>
-                  <div>
-                    <span>{label("Refunded", "បានសងប្រាក់")}</span>
-                    <strong>
-                      -{money(receipt.refundedAmount, receipt.currency)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>{label("Net after refunds", "សរុបក្រោយសងប្រាក់")}</span>
-                    <strong>
-                      {money(
-                        receipt.netTotal
-                        ?? Number(receipt.totalAmount || 0)
-                          - Number(receipt.refundedAmount || 0),
-                        receipt.currency
-                      )}
-                    </strong>
-                  </div>
-                </>
-              )}
-              <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{paymentText(paymentMethod)}</strong></div>
-              {paymentMethod === "credit" ? (
-                <>
-                  <div>
-                    <span>{label("Paid now", "បានបង់ឥឡូវ")}</span>
-                    <strong>{money(0, receipt.currency)}</strong>
-                  </div>
-                  <div>
-                    <span>{label("Credit due date", "ថ្ងៃផុតកំណត់ឥណទាន")}</span>
-                    <strong>{dateOnly(receipt.creditDueDate, locale)}</strong>
-                  </div>
-                  {receipt.creditOutstanding !== null
-                    && receipt.creditOutstanding !== undefined && (
-                    <div>
-                      <span>{label("Invoice outstanding", "ប្រាក់នៅសល់លើវិក្កយបត្រ")}</span>
-                      <strong>{money(receipt.creditOutstanding, receipt.currency)}</strong>
-                    </div>
+            <article
+              className="receipt-document"
+              style={{ "--receipt-width": `${receiptWidth}mm` }}
+            >
+              <div className={`receipt-shop receipt-logo-${logoPosition}`}>
+                <div className="receipt-brand-line">
+                  {showLogo && shop?.shop_logo_url && (
+                    <img className="receipt-logo" src={shop.shop_logo_url} alt="" />
                   )}
+                  <h2>{receiptShopName}</h2>
+                </div>
+                {receiptHeader && <p>{receiptHeader}</p>}
+                {showAddress && receiptAddress && (
+                  <p>{receiptAddress}</p>
+                )}
+                {showPhone && (shop?.shop_phone || receipt.shopPhone) && (
+                  <p>{shop?.shop_phone || receipt.shopPhone}</p>
+                )}
+                {showPhone && shop?.shop_email && <p>{shop.shop_email}</p>}
+                {shop?.tax_id && <p>{label("Tax ID", "លេខអត្តសញ្ញាណពន្ធ")}: {shop.tax_id}</p>}
+              </div>
+
+              <div className="receipt-meta">
+                <div><span>{label("Invoice", "វិក្កយបត្រ")}</span><strong>{receipt.invoiceNumber}</strong></div>
+                {receipt.sourceQuoteNumber && (
                   <div>
+                    <span>{label("Quotation", "សម្រង់តម្លៃ")}</span>
+                    <strong>{receipt.sourceQuoteNumber}</strong>
+                  </div>
+                )}
+                {receipt.sourceSalesOrderNumber && (
+                  <div>
+                    <span>{label("Sales Order", "បញ្ជាទិញលក់")}</span>
+                    <strong>{receipt.sourceSalesOrderNumber}</strong>
+                  </div>
+                )}
+                {receipt.sourceDeliveryNumber && (
+                  <div>
+                    <span>{label("Delivery Note", "ប័ណ្ណប្រគល់ទំនិញ")}</span>
+                    <strong>{receipt.sourceDeliveryNumber}</strong>
+                  </div>
+                )}
+                <div><span>{label("Date", "កាលបរិច្ឆេទ")}</span><strong>{dateTime(receipt.completedAt, locale)}</strong></div>
+                {receipt.saleStatus && receipt.saleStatus !== "completed" && (
+                  <div>
+                    <span>{label("Status", "ស្ថានភាព")}</span>
+                    <strong>
+                      {statusText(receipt.saleStatus)}
+                    </strong>
+                  </div>
+                )}
+                {showCashier && (
+                  <div><span>{label("Cashier", "អ្នកគិតលុយ")}</span><strong>{receipt.cashierName}</strong></div>
+                )}
+                {showCustomer && (
+                  <div>
+                    <span>{label("Customer", "អតិថិជន")}</span>
+                    <strong>{receipt.customerName || label("Walk-in", "អតិថិជនទូទៅ")}</strong>
+                  </div>
+                )}
+                {showCustomer && receipt.customerName && (
+                  <div>
+                    <span>{label("Customer profile", "ប្រភេទអតិថិជន")}</span>
+                    <strong>
+                      {[receipt.customerCode, receipt.customerType]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </strong>
+                  </div>
+                )}
+                {receipt.priceListName && (
+                  <div>
+                    <span>{label("Price list", "បញ្ជីតម្លៃ")}</span>
+                    <strong>{receipt.priceListName}</strong>
+                  </div>
+                )}
+              </div>
+
+              {showBarcode && (
+                <div className="receipt-invoice-barcode">
+                  <ProductBarcode
+                    value={receipt.invoiceNumber}
+                    format="CODE128"
+                    height={28}
+                    width={1.15}
+                  />
+                  <small>{receipt.invoiceNumber}</small>
+                </div>
+              )}
+
+              <div className="receipt-lines">
+                {receipt.cart.map((item) => (
+                  <div key={item.id}>
                     <span>
-                      {receipt.creditBalanceAfter !== null
-                        && receipt.creditBalanceAfter !== undefined
-                        ? label("Customer account balance", "សមតុល្យគណនីអតិថិជន")
-                        : label("Invoice credit amount", "ចំនួនឥណទានវិក្កយបត្រ")}
+                      <strong>
+                        {receiptLanguage === "km"
+                          ? item.name_km || item.name
+                          : item.name}
+                      </strong>
+                      {receiptLanguage === "km"
+                        && item.name_km
+                        && item.name_km !== item.name && (
+                          <small>{item.name}</small>
+                        )}
+                      <small>
+                        {stockNumber(item.quantity)}{" "}
+                        {item.selected_unit_name || item.sale_unit_name || item.unit_name}
+                        {" × "}
+                        {money(item.selected_unit_price ?? item.selling_price, item.currency)}
+                      </small>
                     </span>
                     <strong>
                       {money(
-                        receipt.creditBalanceAfter
-                        ?? receipt.creditAmount
-                        ?? receipt.totalAmount,
+                        Number(item.quantity) * Number(item.selected_unit_price ?? item.selling_price),
+                        item.currency
+                      )}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="receipt-totals">
+                <div><span>{label("Subtotal", "សរុបរង")}</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
+                {Number(receipt.priceAdjustmentAmount || 0) !== 0 && (
+                  <div>
+                    <span>
+                      {Number(receipt.priceAdjustmentAmount) > 0
+                        ? label("Price-list savings", "សន្សំពីបញ្ជីតម្លៃ")
+                        : label("Price-list markup", "តម្លៃបន្ថែមពីបញ្ជីតម្លៃ")}
+                    </span>
+                    <strong>
+                      {Number(receipt.priceAdjustmentAmount) > 0 ? "-" : "+"}
+                      {money(
+                        Math.abs(Number(receipt.priceAdjustmentAmount)),
                         receipt.currency
                       )}
                     </strong>
                   </div>
-                </>
-              ) : paymentRows.length ? (
-                <div className="receipt-payment-parts">
-                  {paymentRows.map((payment, index) => {
-                    const tenderCurrency = payment.tender_currency
-                      || payment.currency
-                      || receipt.currency;
-                    const tenderAmount = Number(
-                      payment.tender_amount
-                      ?? payment.amount_received
-                      ?? payment.settlement_amount
-                      ?? 0
-                    );
-                    const change = Number(
-                      payment.change_amount
-                      ?? payment.tender_change_amount
-                      ?? 0
-                    );
-                    return (
-                      <div className="receipt-payment-part" key={`${payment.method || "payment"}-${index}`}>
-                        <span>
-                          <strong>{paymentText(payment.method || "other")}</strong>
-                          {payment.reference_number && <small>{payment.reference_number}</small>}
-                        </span>
-                        <span>
-                          <strong>{money(tenderAmount, tenderCurrency)}</strong>
-                          {payment.settlement_amount !== undefined
-                            && tenderCurrency !== receipt.currency && (
-                            <small>={money(payment.settlement_amount, receipt.currency)}</small>
-                          )}
-                          {change > 0 && (
-                            <small>{label("Change", "ប្រាក់អាប់")}: {money(change, tenderCurrency)}</small>
-                          )}
-                        </span>
-                      </div>
-                    );
-                  })}
+                )}
+                <div><span>{label("Discount", "បញ្ចុះតម្លៃ")}</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
+                {Number(receipt.taxAmount) > 0 && (
+                  <div><span>{label("Tax", "ពន្ធ")}</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
+                )}
+                <div className="receipt-grand-total">
+                  <span>{label("Total", "សរុប")}</span>
+                  <strong>{money(receipt.totalAmount, receipt.currency)}</strong>
+                  <small>≈ {money(alternateTotal, alternateCurrency)}</small>
                 </div>
-              ) : (
-                <>
-                  <div><span>{label("Received", "ទទួល")}</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
-                  <div><span>{label("Change", "ប្រាក់អាប់")}</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
-                </>
-              )}
-            </div>
+                {Number(receipt.refundedAmount || 0) > 0 && (
+                  <>
+                    <div>
+                      <span>{label("Refunded", "បានសងប្រាក់")}</span>
+                      <strong>
+                        -{money(receipt.refundedAmount, receipt.currency)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>{label("Net after refunds", "សរុបក្រោយសងប្រាក់")}</span>
+                      <strong>
+                        {money(
+                          receipt.netTotal
+                          ?? Number(receipt.totalAmount || 0)
+                          - Number(receipt.refundedAmount || 0),
+                          receipt.currency
+                        )}
+                      </strong>
+                    </div>
+                  </>
+                )}
+                <div><span>{label("Payment", "ការទូទាត់")}</span><strong>{paymentText(paymentMethod)}</strong></div>
+                {(paymentMethod === "credit" || Number(receipt.creditAmount || 0) > 0) && (
+                  <div>
+                    <span>{label("Credit Amount", "ប្រាក់ជំពាក់")}</span>
+                    <strong>{money(receipt.creditAmount || receipt.totalAmount, receipt.currency)}</strong>
+                  </div>
+                )}
+                {paymentMethod === "credit" ? (
+                  <>
+                    <div>
+                      <span>{label("Paid now", "បានបង់ឥឡូវ")}</span>
+                      <strong>{money(0, receipt.currency)}</strong>
+                    </div>
+                    {receipt.creditDueDate && (
+                      <div>
+                        <span>{label("Credit due date", "ថ្ងៃផុតកំណត់ឥណទាន")}</span>
+                        <strong>{dateOnly(receipt.creditDueDate, locale)}</strong>
+                      </div>
+                    )}
+                    {receipt.creditOutstanding !== null
+                      && receipt.creditOutstanding !== undefined && (
+                        <div>
+                          <span>{label("Invoice outstanding", "ប្រាក់នៅសល់លើវិក្កយបត្រ")}</span>
+                          <strong>{money(receipt.creditOutstanding, receipt.currency)}</strong>
+                        </div>
+                      )}
+                    <div>
+                      <span>
+                        {receipt.creditBalanceAfter !== null
+                          && receipt.creditBalanceAfter !== undefined
+                          ? label("Customer account balance", "សមតុល្យគណនីអតិថិជន")
+                          : label("Invoice credit amount", "ចំនួនឥណទានវិក្កយបត្រ")}
+                      </span>
+                      <strong>
+                        {money(
+                          receipt.creditBalanceAfter
+                          ?? receipt.creditAmount
+                          ?? receipt.totalAmount,
+                          receipt.currency
+                        )}
+                      </strong>
+                    </div>
+                  </>
+                ) : paymentRows.length ? (
+                  <div className="receipt-payment-parts">
+                    {paymentRows.map((payment, index) => {
+                      const tenderCurrency = payment.tender_currency
+                        || payment.currency
+                        || receipt.currency;
+                      const tenderAmount = Number(
+                        payment.tender_amount
+                        ?? payment.amount_received
+                        ?? payment.settlement_amount
+                        ?? 0
+                      );
+                      const change = Number(
+                        payment.change_amount
+                        ?? payment.tender_change_amount
+                        ?? 0
+                      );
+                      return (
+                        <div className="receipt-payment-part" key={`${payment.method || "payment"}-${index}`}>
+                          <span>
+                            <strong>{paymentText(payment.method || "other")}</strong>
+                            {payment.reference_number && <small>{payment.reference_number}</small>}
+                          </span>
+                          <span>
+                            <strong>{money(tenderAmount, tenderCurrency)}</strong>
+                            {payment.settlement_amount !== undefined
+                              && tenderCurrency !== receipt.currency && (
+                                <small>={money(payment.settlement_amount, receipt.currency)}</small>
+                              )}
+                            {change > 0 && (
+                              <small>{label("Change", "ប្រាក់អាប់")}: {money(change, tenderCurrency)}</small>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <>
+                    <div><span>{label("Received", "ទទួល")}</span><strong>{money(receipt.amountReceived, receipt.currency)}</strong></div>
+                    <div><span>{label("Change", "ប្រាក់អាប់")}</span><strong>{money(receipt.changeAmount, receipt.currency)}</strong></div>
+                  </>
+                )}
+              </div>
 
-            <div className="receipt-footer">
-              {receiptFooter}
-            </div>
-          </article>
+              <div className="receipt-footer">
+                {receiptFooter}
+              </div>
+            </article>
           )}
         </div>
 
