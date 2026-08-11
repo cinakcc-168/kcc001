@@ -17,6 +17,59 @@ function lineId(item, index = 0) {
   return item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}:${index}`;
 }
 
+function getItemUnits(item) {
+  const rawUnits = [...(item.product_units || item.units || [])].filter(
+    (u) => u.is_active !== false
+  );
+
+  const baseUnitName = item.unit_name || "pcs";
+  const hasBase = rawUnits.some((u) => u.is_base);
+
+  let units = [...rawUnits];
+  if (!hasBase) {
+    const existing = units.find(
+      (u) => u.name?.toLowerCase() === baseUnitName.toLowerCase()
+    );
+    if (existing) {
+      existing.is_base = true;
+    } else {
+      units.unshift({
+        id: `base-${item.id}`,
+        name: baseUnitName,
+        short_name: baseUnitName,
+        conversion_factor: 1,
+        selling_price: Number(item.selling_price || 0),
+        is_base: true,
+        is_active: true
+      });
+    }
+  }
+
+  return units
+    .map((u) => {
+      const isProdName = u.name && (u.name === item.name || u.name === item.name_km);
+      const cleanName = isProdName
+        ? (u.short_name && u.short_name !== item.name ? u.short_name : baseUnitName)
+        : (u.name || baseUnitName);
+      const cleanShortName = u.short_name && u.short_name !== item.name
+        ? u.short_name
+        : cleanName;
+      return {
+        ...u,
+        id: String(u.id || `unit-${cleanName}`),
+        name: cleanName,
+        short_name: cleanShortName,
+        conversion_factor: Number(u.conversion_factor || 1),
+        selling_price: Number(u.selling_price ?? item.selling_price ?? 0)
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.is_base) - Number(a.is_base)
+        || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+    );
+}
+
 function CartLineList({
   cart,
   onQuantityChange,
@@ -36,14 +89,7 @@ function CartLineList({
         </div>
       ) : (
         cart.map((item, index) => {
-          const units = (item.product_units || item.units || [])
-            .filter((unit) => unit.is_active || unit.is_base)
-            .sort(
-              (a, b) =>
-                Number(b.is_base) - Number(a.is_base)
-                || Number(a.sort_order || 0) - Number(b.sort_order || 0)
-            );
-
+          const units = getItemUnits(item);
           const factor = Number(item.selected_unit_factor || 1);
           const selectedPrice = Number(
             item.selected_unit_price ?? item.selling_price ?? 0
@@ -80,7 +126,7 @@ function CartLineList({
               <div className="cart-line-unit-control">
                 {units.length > 1 ? (
                   <select
-                    value={item.selected_unit_id || ""}
+                    value={item.selected_unit_id || units[0]?.id || ""}
                     onChange={(event) => onUnitChange(currentLineId, event.target.value)}
                     aria-label={`${item.name} selling unit`}
                     disabled={fulfillmentLocked}
@@ -213,7 +259,23 @@ function CustomerPicker({
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setCustomerPickerOpen(false);
-            if (!selectedCustomer) setCustomerSearch("");
+            const trimmed = customerSearch.trim().toLowerCase();
+            if (!trimmed) {
+              selectCustomer(null);
+            } else {
+              const exactMatch = customers.find(c =>
+                c.name.toLowerCase() === trimmed || c.phone === trimmed
+              );
+              if (exactMatch) {
+                selectCustomer(exactMatch);
+              } else if (customerMatches.length === 1) {
+                selectCustomer(customerMatches[0]);
+              } else if (selectedCustomer) {
+                setCustomerSearch(
+                  `${selectedCustomer.name}${selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}`
+                );
+              }
+            }
           }
         }}
       >
@@ -225,7 +287,6 @@ function CustomerPicker({
             const value = event.target.value;
             setCustomerSearch(value);
             setCustomerPickerOpen(true);
-            if (customerId) onCustomerChange("");
           }}
           onKeyDown={(event) => {
             if (event.key === "Escape") setCustomerPickerOpen(false);
@@ -328,13 +389,13 @@ function CreditAndPriceInfo({
             Available {creditAccount.allow_unlimited_credit
               ? "Unlimited"
               : money(
-                  Math.max(
-                    0,
-                    Number(creditAccount.credit_limit || 0)
-                      - Number(creditAccount.balance_due || 0)
-                  ),
-                  creditAccount.currency || currency
-                )}
+                Math.max(
+                  0,
+                  Number(creditAccount.credit_limit || 0)
+                  - Number(creditAccount.balance_due || 0)
+                ),
+                creditAccount.currency || currency
+              )}
           </strong>
           {creditAccount.is_on_hold && <b>ON HOLD</b>}
         </div>
@@ -629,7 +690,6 @@ export function SaleCartLinesPanel({
         onUnitChange={onUnitChange}
         onRemove={onRemove}
         fulfillmentLocked={fulfillmentLocked}
-        compact
         unitNameOnly
       />
     </section>
