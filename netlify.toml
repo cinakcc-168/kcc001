@@ -21,6 +21,11 @@
 [functions."system-health"]
   schedule = "0 */6 * * *"
 
+# Step 46.25 / configurable automatic backups.
+# The function wakes hourly and only processes organizations whose stored next_backup_at is due.
+[functions."backup-scheduler"]
+  schedule = "0 * * * *"
+
 # Step 44 / Demand forecasting
 [functions."demand-forecast-schedule"]
   schedule = "0 * * * *"
@@ -66,6 +71,12 @@
 [[redirects]]
   from = "/api/backup-admin"
   to = "/.netlify/functions/backup-admin"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/backup-google-drive-callback"
+  to = "/.netlify/functions/backup-google-drive-callback"
   status = 200
   force = true
 
