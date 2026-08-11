@@ -182,11 +182,36 @@ export async function downloadBusinessBackup(session) {
   };
 }
 
-export async function createDriveBackup(session) {
-  const { data } = await backupRequest(session, {
-    action: "export_drive"
-  });
+export async function createStoredBackup(session) {
+  const { data } = await backupRequest(session, { action: "storage_backup" });
   return data;
+}
+
+export async function downloadStoredBackup(session, fileId) {
+  const response = await fetch("/api/backup-admin", {
+    method: "POST",
+    headers: authHeaders(session),
+    body: JSON.stringify({ action: "storage_download", file_id: fileId })
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    let message = text;
+    try { message = JSON.parse(text)?.error || text; } catch {}
+    throw new Error(message || "Backup download failed.");
+  }
+  const blob = await response.blob();
+  const disposition = response.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/i);
+  const filename = match?.[1] || `tiny-pos-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+  return { filename, size: blob.size };
 }
 
 export async function loadBackupCenterSettings(session) {
@@ -200,20 +225,6 @@ export async function saveBackupCenterSettings(session, settings) {
   const { data } = await backupRequest(session, {
     action: "settings_save",
     settings
-  });
-  return data;
-}
-
-export async function getGoogleDriveConnectUrl(session) {
-  const { data } = await backupRequest(session, {
-    action: "drive_connect_url"
-  });
-  return data.auth_url;
-}
-
-export async function disconnectGoogleDrive(session) {
-  const { data } = await backupRequest(session, {
-    action: "drive_disconnect"
   });
   return data;
 }
