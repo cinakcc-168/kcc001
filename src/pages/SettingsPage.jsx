@@ -420,23 +420,18 @@ export default function SettingsPage() {
               <footer className="receipt-center-default-document">
                 <div>
                   <strong>Document after completed sale</strong>
-                  <small>The New Sale buttons stay the same. This only changes the document shown and printed after payment.</small>
+                  <small>The New Sale buttons stay the same. Choose which document opens and prints after payment.</small>
                 </div>
                 <div className="receipt-center-document-choice" role="group" aria-label="Completed sale document">
-                  <button
-                    type="button"
-                    className={shopForm.sale_document_type !== "invoice" ? "active" : ""}
-                    onClick={() => updateShop("sale_document_type", "receipt")}
+                  <select
+                    value={shopForm.sale_document_type || "receipt"}
+                    onChange={(event) => updateShop("sale_document_type", event.target.value)}
+                    className="default-print-select"
                   >
-                    <ReceiptText size={18} /> Receipt
-                  </button>
-                  <button
-                    type="button"
-                    className={shopForm.sale_document_type === "invoice" ? "active" : ""}
-                    onClick={() => updateShop("sale_document_type", "invoice")}
-                  >
-                    <FileText size={18} /> Invoice
-                  </button>
+                    <option value="receipt">Receipt (80mm / 58mm)</option>
+                    <option value="invoice">Invoice (A5 / A4)</option>
+                    <option value="inline">Ask / Choice</option>
+                  </select>
                 </div>
                 <button type="button" className="primary-button" onClick={saveSaleDocumentPreference} disabled={savingShop}>
                   <Save size={18} /> {savingShop ? "Saving..." : "Save preference"}
@@ -530,7 +525,7 @@ export default function SettingsPage() {
                     <div className="invoice-settings-fields">
                       <div>
                         <h2>Invoice setup</h2>
-                        <p>The invoice uses Shop Identity for shop name, address, phone, email and logo. It follows the same default print language and can still switch English / Khmer after a sale.</p>
+                        <p>The invoice uses Shop Identity for shop name, address, phone, email and logo. It supports bilingual print view, totals, payment and signatures.</p>
                       </div>
 
                       <div className="form-grid two">
@@ -565,10 +560,12 @@ export default function SettingsPage() {
 
                       <div className="settings-toggle-list compact-toggles invoice-setup-toggles">
                         {[
-                          ["invoice_show_logo", "Shop logo", "Show the Shop Identity logo."],
+                          ["invoice_show_logo", "Shop logo", "Show the Shop Identity logo on the top left."],
+                          ["invoice_show_shop_name", "Shop / Store name", "Show shop name centered at top of invoice."],
                           ["invoice_show_address", "Shop address", "Show the selected-language address."],
                           ["invoice_show_contact", "Phone and email", "Show shop phone and email."],
                           ["invoice_show_tax_id", "Tax ID", "Show the shop tax ID when available."],
+                          ["invoice_show_product_code", "Product Code / Pic Column", "Show the Code/Pic column in invoice table."],
                           ["invoice_show_customer", "Customer", "Show customer name on the invoice."],
                           ["invoice_show_cashier", "Cashier", "Show the original cashier name."],
                           ["invoice_show_received", "Received payment", "Show received/tender amounts."],
