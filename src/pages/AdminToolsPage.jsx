@@ -3,31 +3,27 @@ import {
   ArchiveRestore,
   CheckCircle2,
   Cloud,
-  CloudUpload,
   DatabaseBackup,
   Download,
   Eye,
   FileCheck2,
   Filter,
-  FolderOpen,
   LoaderCircle,
   RefreshCw,
   Save,
   Search,
   ShieldCheck,
   TimerReset,
-  Unplug
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import AuditDetailModal from "../components/AuditDetailModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
-  createDriveBackup,
+  createStoredBackup,
   defaultAuditDates,
-  disconnectGoogleDrive,
   downloadBusinessBackup,
-  getGoogleDriveConnectUrl,
+  downloadStoredBackup,
   loadAdminToolsWorkspace,
   loadBackupCenterSettings,
   readBackupFile,
@@ -83,7 +79,6 @@ export default function AdminToolsPage() {
     frequency_days: 1,
     backup_time: "23:00",
     timezone: "Asia/Phnom_Penh",
-    google_drive_folder_url: ""
   });
   const [backupProgress, setBackupProgress] = useState("");
 
@@ -125,7 +120,6 @@ export default function AdminToolsPage() {
         frequency_days: Number(center.schedule?.frequency_days || 1),
         backup_time: center.schedule?.backup_time || "23:00",
         timezone: center.schedule?.timezone || "Asia/Phnom_Penh",
-        google_drive_folder_url: center.schedule?.google_drive_folder_url || ""
       });
     } catch (error) {
       setMessageType("error");
@@ -137,18 +131,6 @@ export default function AdminToolsPage() {
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    function handleDriveMessage(event) {
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "tiny-pos-drive-connected") return;
-      announce("success", "Google Drive connected successfully.");
-      refresh();
-    }
-
-    window.addEventListener("message", handleDriveMessage);
-    return () => window.removeEventListener("message", handleDriveMessage);
   }, [refresh]);
 
   const actions = useMemo(
@@ -210,17 +192,12 @@ export default function AdminToolsPage() {
     }
   }
 
-  async function handleDriveBackup() {
-    if (!backupCenter?.drive?.connected) {
-      announce("error", "Connect Google Drive first.");
-      return;
-    }
-
+  async function handleStoredBackup() {
     try {
-      setBusy("drive-backup");
-      setBackupProgress("Collecting data, packing the backup ZIP and uploading it to Google Drive…");
-      const result = await createDriveBackup(session);
-      announce("success", `${result.filename} saved to Google Drive.`);
+      setBusy("storage-backup");
+      setBackupProgress("Collecting Tiny POS data, building one backup ZIP and saving it securely…");
+      const result = await createStoredBackup(session);
+      announce("success", `${result.filename} saved to Backup Center storage.`);
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -230,31 +207,12 @@ export default function AdminToolsPage() {
     }
   }
 
-  async function handleDriveConnect() {
-    const popup = window.open("", "tiny-pos-google-drive", "width=560,height=720");
+  async function handleStoredDownload(fileId) {
     try {
-      setBusy("drive-connect");
-      setBackupProgress("Preparing Google Drive permission request…");
-      const authUrl = await getGoogleDriveConnectUrl(session);
-      if (popup) popup.location.href = authUrl;
-      else window.location.href = authUrl;
-    } catch (error) {
-      if (popup) popup.close();
-      announce("error", error.message);
-    } finally {
-      setBackupProgress("");
-      setBusy("");
-    }
-  }
-
-  async function handleDriveDisconnect() {
-    if (!window.confirm("Disconnect Google Drive and turn off automatic backup?")) return;
-    try {
-      setBusy("drive-disconnect");
-      setBackupProgress("Disconnecting Google Drive…");
-      await disconnectGoogleDrive(session);
-      announce("success", "Google Drive disconnected. Automatic backup is off.");
-      await refresh();
+      setBusy(`download-${fileId}`);
+      setBackupProgress("Downloading the selected backup ZIP…");
+      const result = await downloadStoredBackup(session, fileId);
+      announce("success", `${result.filename} downloaded.`);
     } catch (error) {
       announce("error", error.message);
     } finally {
@@ -264,14 +222,9 @@ export default function AdminToolsPage() {
   }
 
   async function handleSaveSchedule() {
-    if (scheduleForm.is_enabled && !backupCenter?.drive?.connected) {
-      announce("error", "Connect Google Drive before enabling automatic backup.");
-      return;
-    }
-
     try {
       setBusy("schedule");
-      setBackupProgress("Checking the backup location and saving the schedule…");
+      setBackupProgress("Saving the automatic backup schedule…");
       const center = await saveBackupCenterSettings(session, scheduleForm);
       setBackupCenter(center);
       setScheduleForm({
@@ -279,7 +232,6 @@ export default function AdminToolsPage() {
         frequency_days: Number(center.schedule?.frequency_days || 1),
         backup_time: center.schedule?.backup_time || "23:00",
         timezone: center.schedule?.timezone || "Asia/Phnom_Penh",
-        google_drive_folder_url: center.schedule?.google_drive_folder_url || ""
       });
       announce("success", scheduleForm.is_enabled ? "Automatic backup schedule saved." : "Backup settings saved. Automatic backup is off.");
     } catch (error) {
@@ -633,17 +585,15 @@ export default function AdminToolsPage() {
               <p className="eyebrow">ONE BACKUP FILE</p>
               <h2>Create Tiny POS backup</h2>
               <p className="muted">
-                Creates one ZIP package containing the Tiny POS business
-                backup, a manifest and a Cloudinary asset-link list.
+                Creates one ZIP package containing the Tiny POS business backup,
+                manifest and Cloudinary asset-link list.
               </p>
             </div>
-
             <div className="backup-warning">
               <AlertTriangle size={19} />
-              Login passwords, Netlify/API secrets and the actual Cloudinary
-              image binaries are intentionally not copied into the ZIP.
+              Login passwords, Netlify/API secrets and the actual Cloudinary image
+              binaries are intentionally not copied into the ZIP.
             </div>
-
             <div className="backup-primary-actions">
               <button
                 type="button"
@@ -654,15 +604,14 @@ export default function AdminToolsPage() {
                 <Download size={19} />
                 {busy === "download" ? "Creating…" : "Create & Download ZIP"}
               </button>
-
               <button
                 type="button"
                 className="secondary-button"
-                onClick={handleDriveBackup}
-                disabled={Boolean(busy) || !backupCenter?.drive?.connected}
+                onClick={handleStoredBackup}
+                disabled={Boolean(busy)}
               >
-                <CloudUpload size={19} />
-                {busy === "drive-backup" ? "Uploading…" : "Backup now to Drive"}
+                <DatabaseBackup size={19} />
+                {busy === "storage-backup" ? "Saving…" : "Backup now to secure storage"}
               </button>
             </div>
           </section>
@@ -674,77 +623,53 @@ export default function AdminToolsPage() {
             <div className="backup-card-heading-row">
               <div>
                 <p className="eyebrow">BACKUP LOCATION</p>
-                <h2>Google Drive</h2>
+                <h2>Tiny POS Secure Storage</h2>
               </div>
-              <span className={`status-pill ${backupCenter?.drive?.connected ? "active" : "inactive"}`}>
-                {backupCenter?.drive?.connected ? "Connected" : "Not connected"}
-              </span>
+              <span className="status-pill active">Ready</span>
             </div>
-
-            {!backupCenter?.drive?.configured && (
-              <div className="notice error backup-config-notice">
-                Add the Google backup Client ID, Client Secret and encryption
-                key in Netlify before using Connect Google Drive.
+            <p className="muted">
+              Automatic backups are stored inside the connected Tiny POS Supabase
+              project in a private backup bucket. No Google Cloud project, OAuth,
+              billing setup, or third-party drive connection is required.
+            </p>
+            <div className="backup-warning">
+              <ShieldCheck size={19} />
+              Only authorized Owner/Admin users can create or download stored backups.
+              The storage bucket is private.
+            </div>
+            <div className="backup-schedule-status">
+              <div>
+                <span>Stored backups</span>
+                <strong>{backupCenter?.storage?.files?.length || 0}</strong>
               </div>
-            )}
-
-            {backupCenter?.drive?.connected ? (
-              <div className="backup-drive-account">
-                <CheckCircle2 size={18} />
-                <div>
-                  <strong>{backupCenter.drive.account_email || "Google account"}</strong>
-                  <span>Connected {dateTime(backupCenter.drive.connected_at)}</span>
-                </div>
+              <div>
+                <span>Last backup</span>
+                <strong>{dateTime(backupCenter?.schedule?.last_backup_at)}</strong>
+              </div>
+            </div>
+            {backupCenter?.storage?.files?.length ? (
+              <div className="backup-file-history">
+                {backupCenter.storage.files.slice(0, 10).map((file) => (
+                  <div className="backup-file-row" key={file.id}>
+                    <div>
+                      <strong>{file.filename}</strong>
+                      <span>{readable(file.trigger)} · {dateTime(file.created_at)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-button"
+                      onClick={() => handleStoredDownload(file.id)}
+                      disabled={Boolean(busy)}
+                      title="Download backup"
+                    >
+                      <Download size={18} />
+                    </button>
+                  </div>
+                ))}
               </div>
             ) : (
-              <p className="muted">
-                Google will ask you to approve Drive access once. The saved
-                permission lets scheduled backups run even when Tiny POS is closed.
-              </p>
+              <p className="muted">No stored backup yet.</p>
             )}
-
-            <label>
-              <span>Google Drive backup folder link</span>
-              <div className="backup-folder-input">
-                <FolderOpen size={18} />
-                <input
-                  value={scheduleForm.google_drive_folder_url}
-                  onChange={(event) => setScheduleForm((current) => ({
-                    ...current,
-                    google_drive_folder_url: event.target.value
-                  }))}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  disabled={Boolean(busy)}
-                />
-              </div>
-              <small className="field-help">
-                Leave blank and Tiny POS will create a “Tiny POS Backups” folder automatically.
-              </small>
-            </label>
-
-            <div className="backup-drive-actions">
-              {!backupCenter?.drive?.connected ? (
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleDriveConnect}
-                  disabled={Boolean(busy) || !backupCenter?.drive?.configured}
-                >
-                  <Cloud size={18} />
-                  Connect Google Drive
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleDriveDisconnect}
-                  disabled={Boolean(busy)}
-                >
-                  <Unplug size={18} />
-                  Disconnect
-                </button>
-              )}
-            </div>
           </section>
 
           <section className="panel backup-card backup-schedule-card">
@@ -755,7 +680,7 @@ export default function AdminToolsPage() {
               <p className="eyebrow">AUTOMATIC BACKUP</p>
               <h2>Backup schedule</h2>
               <p className="muted">
-                Automatic backups are saved to the connected Google Drive folder.
+                Automatic backups are saved to Tiny POS Secure Storage. The POS does not need to stay open.
               </p>
             </div>
 
@@ -972,7 +897,7 @@ export default function AdminToolsPage() {
                       </span>
                       <small>
                         {entry.details?.trigger === "scheduled" ? "Automatic" : "Manual"}
-                        {entry.details?.destination === "google_drive" ? " · Google Drive" : " · Download / validation"}
+                        {entry.details?.destination === "supabase_storage" ? " · Secure storage" : " · Download / validation"}
                       </small>
                     </div>
                     <div>
@@ -980,11 +905,6 @@ export default function AdminToolsPage() {
                         {entry.status}
                       </span>
                       <small>{totalRows(entry.row_counts)} rows</small>
-                      {entry.details?.drive_web_view_link && (
-                        <a href={entry.details.drive_web_view_link} target="_blank" rel="noreferrer">
-                          Open in Drive
-                        </a>
-                      )}
                     </div>
                   </article>
                 ))}
