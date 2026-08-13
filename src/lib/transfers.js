@@ -98,7 +98,8 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
   const [branchResult, productResult, transferResult, purchaseResult, returnResult, metricsResult] = await Promise.all([
     supabase.from("branches").select("id,name,code,is_active").eq("organization_id", orgId).eq("is_active", true).order("name"),
     supabase.from("products").select(`
-      id,name,name_km,sku,barcode,unit_name,currency,is_active,track_stock,batch_tracking,expiry_tracking,picking_policy,
+      id,name,name_km,sku,barcode,unit_name,currency,is_active,track_stock,batch_tracking,expiry_tracking,picking_policy,category_id,
+      categories(id,name),
       inventory_balances(branch_id,quantity,average_cost),
       product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order)
     `).eq("organization_id", orgId).eq("is_active", true).eq("track_stock", true).order("name"),
