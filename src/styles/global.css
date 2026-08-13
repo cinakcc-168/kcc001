@@ -36603,3 +36603,92 @@ html {
   line-height: 1.25 !important;
   text-align: left !important;
 }
+
+/* New Sale product-card name behavior — final requested behavior
+   English: one line only; overflow is hidden inside the card.
+   Khmer: one line only; overflow is hidden inside the card.
+   The card has dedicated vertical space for both rows (EN + KH).
+   Product JSX/data are unchanged. */
+.sale-product-card {
+  min-height: var(--sale-card-height, 205px) !important;
+}
+
+.sale-product-content {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.sale-product-names {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-rows: 18px 18px auto !important;
+  row-gap: 2px !important;
+  min-height: 40px !important;
+  overflow: hidden !important;
+}
+
+.sale-product-name-primary,
+.sale-product-name-secondary,
+.sale-product-content > strong,
+.sale-product-content > span {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
+
+.sale-product-name-primary,
+.sale-product-content > strong {
+  font-size: 13px !important;
+  line-height: 18px !important;
+}
+
+.sale-product-name-secondary,
+.sale-product-content > span {
+  font-size: 10px !important;
+  line-height: 18px !important;
+  font-family: 'Noto Sans Khmer', 'Battambang', sans-serif !important;
+}
+
+.sale-product-code {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 700px) {
+  .sale-product-card {
+    height: 205px !important;
+    min-height: 205px !important;
+  }
+
+  .sale-product-names {
+    grid-template-rows: 17px 17px auto !important;
+    min-height: 38px !important;
+  }
+
+  .sale-product-name-primary,
+  .sale-product-content > strong {
+    font-size: 12px !important;
+    line-height: 17px !important;
+  }
+
+  .sale-product-name-secondary,
+  .sale-product-content > span {
+    font-size: 9px !important;
+    line-height: 17px !important;
+  }
+}
+
