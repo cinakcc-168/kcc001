@@ -26,6 +26,7 @@ import { useAuth } from "../context/AuthContext";
 import SalesOrderDeliveryModal from "../components/SalesOrderDeliveryModal";
 import SalesOrderDocumentModal from "../components/SalesOrderDocumentModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
+import ResponsiveDataList from "../components/ResponsiveDataList";
 import { money } from "../lib/catalog";
 import {
   cancelSalesOrder,
@@ -390,6 +391,30 @@ export default function SalesOrdersPage() {
     }
   }
 
+  function renderOrderActions(order) {
+    const draftDelivery = order.sales_order_deliveries.find((row) => row.status === "draft");
+    return (
+      <div className="sales-order-row-actions">
+        <button type="button" className="icon-button" onClick={() => setDocumentOrder(order)} title="View and print documents"><Eye size={18} /></button>
+        {canManage && order.status === "draft" && (
+          <button type="button" className="icon-button" onClick={() => handleConfirm(order)} disabled={busy === `confirm-${order.id}`} title="Confirm and reserve stock"><PackageCheck size={18} /></button>
+        )}
+        {canDeliver && ["confirmed", "partially_delivered"].includes(order.status) && !draftDelivery && (
+          <button type="button" className="icon-button" onClick={() => setDeliveryOrder(order)} title="Prepare partial delivery"><Truck size={18} /></button>
+        )}
+        {canDeliver && draftDelivery && (
+          <>
+            <button type="button" className="icon-button" onClick={() => resumeDelivery(order, draftDelivery)} title="Resume delivery checkout"><ShoppingCart size={18} /></button>
+            <button type="button" className="icon-button danger-icon" onClick={() => handleCancelDelivery(order, draftDelivery)} disabled={busy === `delivery-cancel-${draftDelivery.id}`} title="Cancel draft delivery"><Ban size={18} /></button>
+          </>
+        )}
+        {canManage && !["delivered", "cancelled"].includes(order.status) && (
+          <button type="button" className="icon-button danger-icon" onClick={() => handleCancelOrder(order)} disabled={busy === `cancel-${order.id}`} title="Cancel remaining order"><XCircle size={18} /></button>
+        )}
+      </div>
+    );
+  }
+
   if (!canManage && !canDeliver) {
     return (
       <section className="panel empty-state">
@@ -536,262 +561,123 @@ export default function SalesOrdersPage() {
         </label>
       </section>
 
-      <section className="panel sales-order-list-panel">
-        {loading ? (
-          <div className="empty-state">
-            <RefreshCw className="spin" size={35} />
-            <p>Loading sales orders...</p>
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="empty-state">
-            <ClipboardList size={48} />
-            <h2>No sales orders found</h2>
-            <p>
-              Open a customer quotation and create
-              a sales order.
-            </p>
-          </div>
-        ) : (
-          <div className="sales-order-table-wrap">
-            <table className="sales-order-table">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th>Requested delivery</th>
-                  <th>Status</th>
-                  <th>Fulfilment</th>
-                  <th>Deliveries</th>
-                  <th>Total</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {visible.map((order) => {
-                  const totalQuantity =
-                    order.sales_order_items.reduce(
-                      (sum, item) =>
-                        sum + item.quantity,
-                      0
-                    );
-                  const deliveredQuantity =
-                    order.sales_order_items.reduce(
-                      (sum, item) =>
-                        sum + item.delivered_quantity,
-                      0
-                    );
-                  const percent = totalQuantity > 0
-                    ? deliveredQuantity
-                      / totalQuantity * 100
-                    : 0;
-                  const draftDelivery =
-                    order.sales_order_deliveries.find(
-                      (row) => row.status === "draft"
-                    );
-                  const completedCount =
-                    order.sales_order_deliveries.filter(
-                      (row) => row.status === "completed"
-                    ).length;
-
-                  return (
-                    <tr key={order.id}>
-                      <td data-label="Order">
-                        <strong>
-                          {order.order_number}
-                        </strong>
-                        <small>
-                          {order.sales_quotes?.quote_number
-                            ? `From ${order.sales_quotes.quote_number}`
-                            : salesOrderDateTime(
-                                order.created_at
-                              )}
-                        </small>
-                      </td>
-
-                      <td data-label="Customer">
-                        <strong>
-                          {order.customers?.name}
-                        </strong>
-                        <small>
-                          {order.customers?.phone
-                            || order.customers?.customer_code
-                            || "No contact"}
-                        </small>
-                      </td>
-
-                      <td data-label="Requested delivery">
-                        {salesOrderDate(
-                          order.requested_delivery_date
-                        )}
-                      </td>
-
-                      <td data-label="Status">
-                        <span
-                          className={`sales-order-status ${order.status}`}
-                        >
-                          {salesOrderStatusLabel(
-                            order.status
-                          )}
-                        </span>
-                      </td>
-
-                      <td data-label="Fulfilment">
-                        <div className="sales-order-progress">
-                          <div>
-                            <span
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  percent
-                                )}%`
-                              }}
-                            />
-                          </div>
-                          <small>
-                            {percent.toLocaleString(
-                              "en-US",
-                              { maximumFractionDigits: 0 }
-                            )}
-                            % delivered
-                          </small>
-                        </div>
-                      </td>
-
-                      <td data-label="Deliveries">
-                        <strong>{completedCount}</strong>
-                        {draftDelivery && (
-                          <small>
-                            {draftDelivery.delivery_number}
-                            {" draft"}
-                          </small>
-                        )}
-                      </td>
-
-                      <td data-label="Total">
-                        <strong>
-                          {money(
-                            order.total_amount,
-                            order.currency
-                          )}
-                        </strong>
-                      </td>
-
-                      <td data-label="Actions">
-                        <div className="sales-order-row-actions">
-                          <button
-                            type="button"
-                            className="icon-button"
-                            onClick={() =>
-                              setDocumentOrder(order)
-                            }
-                            title="View and print documents"
-                          >
-                            <Eye size={18} />
-                          </button>
-
-                          {canManage
-                            && order.status === "draft" && (
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                handleConfirm(order)
-                              }
-                              disabled={
-                                busy
-                                  === `confirm-${order.id}`
-                              }
-                              title="Confirm and reserve stock"
-                            >
-                              <PackageCheck size={18} />
-                            </button>
-                          )}
-
-                          {canDeliver
-                            && [
-                              "confirmed",
-                              "partially_delivered"
-                            ].includes(order.status)
-                            && !draftDelivery && (
-                            <button
-                              type="button"
-                              className="icon-button"
-                              onClick={() =>
-                                setDeliveryOrder(order)
-                              }
-                              title="Prepare partial delivery"
-                            >
-                              <Truck size={18} />
-                            </button>
-                          )}
-
-                          {canDeliver && draftDelivery && (
-                            <>
-                              <button
-                                type="button"
-                                className="icon-button"
-                                onClick={() =>
-                                  resumeDelivery(
-                                    order,
-                                    draftDelivery
-                                  )
-                                }
-                                title="Resume delivery checkout"
-                              >
-                                <ShoppingCart size={18} />
-                              </button>
-
-                              <button
-                                type="button"
-                                className="icon-button danger-icon"
-                                onClick={() =>
-                                  handleCancelDelivery(
-                                    order,
-                                    draftDelivery
-                                  )
-                                }
-                                disabled={
-                                  busy
-                                    === `delivery-cancel-${draftDelivery.id}`
-                                }
-                                title="Cancel draft delivery"
-                              >
-                                <Ban size={18} />
-                              </button>
-                            </>
-                          )}
-
-                          {canManage
-                            && ![
-                              "delivered",
-                              "cancelled"
-                            ].includes(order.status) && (
-                            <button
-                              type="button"
-                              className="icon-button danger-icon"
-                              onClick={() =>
-                                handleCancelOrder(order)
-                              }
-                              disabled={
-                                busy
-                                  === `cancel-${order.id}`
-                              }
-                              title="Cancel remaining order"
-                            >
-                              <XCircle size={18} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <ResponsiveDataList
+        storageKey="sales-orders-list"
+        title="Sales order list"
+        subtitle={`${from} to ${to} · ${visible.length} matching order(s)`}
+        rows={visible}
+        filename={`tiny-pos-sales-orders-${from}-${to}.xls`}
+        summary={[
+          { label: "Date range", value: `${from} to ${to}` },
+          { label: "Status", value: status || "All statuses" },
+          { label: "Open USD", value: money(metrics.openUsd, "USD") },
+          { label: "Open KHR", value: money(metrics.openKhr, "KHR") }
+        ]}
+        emptyTitle={loading ? "Loading sales orders..." : "No sales orders found"}
+        emptyText="Open a customer quotation and create a sales order, or change the filters."
+        className="sales-order-responsive-list"
+        tableClassName="sales-order-table"
+        orientation="landscape"
+        columns={[
+          {
+            label: "Order",
+            render: (order) => (
+              <div>
+                <strong>{order.order_number}</strong>
+                <small>{order.sales_quotes?.quote_number ? `From ${order.sales_quotes.quote_number}` : salesOrderDateTime(order.created_at)}</small>
+              </div>
+            ),
+            documentValue: (order) => order.order_number
+          },
+          {
+            label: "Customer",
+            render: (order) => (
+              <div>
+                <strong>{order.customers?.name || "Walk-in / no customer"}</strong>
+                <small>{order.customers?.phone || order.customers?.customer_code || "No contact"}</small>
+              </div>
+            ),
+            documentValue: (order) => order.customers?.name || "Walk-in / no customer"
+          },
+          { label: "Requested delivery", render: (order) => salesOrderDate(order.requested_delivery_date) },
+          {
+            label: "Status",
+            render: (order) => <span className={`sales-order-status ${order.status}`}>{salesOrderStatusLabel(order.status)}</span>,
+            documentValue: (order) => salesOrderStatusLabel(order.status)
+          },
+          {
+            label: "Fulfilment",
+            render: (order) => {
+              const totalQuantity = order.sales_order_items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+              const deliveredQuantity = order.sales_order_items.reduce((sum, item) => sum + Number(item.delivered_quantity || 0), 0);
+              const percent = totalQuantity > 0 ? deliveredQuantity / totalQuantity * 100 : 0;
+              return (
+                <div className="sales-order-progress">
+                  <div><span style={{ width: `${Math.min(100, percent)}%` }} /></div>
+                  <small>{percent.toLocaleString("en-US", { maximumFractionDigits: 0 })}% delivered</small>
+                </div>
+              );
+            },
+            documentValue: (order) => {
+              const totalQuantity = order.sales_order_items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+              const deliveredQuantity = order.sales_order_items.reduce((sum, item) => sum + Number(item.delivered_quantity || 0), 0);
+              return `${totalQuantity > 0 ? (deliveredQuantity / totalQuantity * 100).toLocaleString("en-US", { maximumFractionDigits: 0 }) : 0}% delivered`;
+            }
+          },
+          {
+            label: "Deliveries",
+            render: (order) => {
+              const completedCount = order.sales_order_deliveries.filter((row) => row.status === "completed").length;
+              const draftDelivery = order.sales_order_deliveries.find((row) => row.status === "draft");
+              return <div><strong>{completedCount}</strong>{draftDelivery && <small>{draftDelivery.delivery_number} draft</small>}</div>;
+            },
+            documentValue: (order) => String(order.sales_order_deliveries.filter((row) => row.status === "completed").length)
+          },
+          {
+            label: "Total",
+            render: (order) => <strong>{money(order.total_amount, order.currency)}</strong>,
+            documentValue: (order) => money(order.total_amount, order.currency)
+          },
+          {
+            label: "Actions",
+            actionsOnly: true,
+            excludeDocument: true,
+            render: (order) => renderOrderActions(order)
+          }
+        ]}
+        renderCard={(order) => {
+          const totalQuantity = order.sales_order_items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+          const deliveredQuantity = order.sales_order_items.reduce((sum, item) => sum + Number(item.delivered_quantity || 0), 0);
+          const percent = totalQuantity > 0 ? deliveredQuantity / totalQuantity * 100 : 0;
+          const draftDelivery = order.sales_order_deliveries.find((row) => row.status === "draft");
+          const completedCount = order.sales_order_deliveries.filter((row) => row.status === "completed").length;
+          return (
+            <article className="responsive-data-card sales-order-card">
+              <header>
+                <div>
+                  <strong>{order.order_number}</strong>
+                  <span className="sales-order-card-meta">{order.sales_quotes?.quote_number ? `From ${order.sales_quotes.quote_number}` : salesOrderDateTime(order.created_at)}</span>
+                </div>
+                <span className={`sales-order-status ${order.status}`}>{salesOrderStatusLabel(order.status)}</span>
+              </header>
+              <div className="sales-order-card-customer">
+                <strong>{order.customers?.name || "Walk-in / no customer"}</strong>
+                <span>{order.customers?.phone || order.customers?.customer_code || "No contact"}</span>
+                <span className="sales-order-card-meta">Requested delivery: {salesOrderDate(order.requested_delivery_date)}</span>
+              </div>
+              <div className="sales-order-progress">
+                <div><span style={{ width: `${Math.min(100, percent)}%` }} /></div>
+                <small>{percent.toLocaleString("en-US", { maximumFractionDigits: 0 })}% delivered</small>
+              </div>
+              <div className="sales-order-card-summary">
+                <div><span>Deliveries</span><strong>{completedCount}{draftDelivery ? ` · ${draftDelivery.delivery_number} draft` : ""}</strong></div>
+                <div><span>Total</span><strong>{money(order.total_amount, order.currency)}</strong></div>
+              </div>
+              <footer className="sales-order-card-actions">{renderOrderActions(order)}</footer>
+            </article>
+          );
+        }}
+      />
 
       <SalesOrderDeliveryModal
         order={deliveryOrder}
