@@ -1868,7 +1868,7 @@ export default function SalesPage() {
                             const stock = productCardStock(product);
                             return (
                               <div className="sale-product-content">
-                                <div className="sale-product-names">
+                                <div className="sale-product-names no-translate">
                                   <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
                                   {secondaryName ? (
                                     <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
@@ -2069,7 +2069,7 @@ export default function SalesPage() {
                           const stock = productCardStock(product);
                           return (
                             <div className="sale-product-content">
-                              <div className="sale-product-names">
+                              <div className="sale-product-names no-translate">
                                 <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
                                 {secondaryName ? (
                                   <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
