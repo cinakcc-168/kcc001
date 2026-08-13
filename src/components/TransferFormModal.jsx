@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Plus, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { stockNumber } from "../lib/catalog";
@@ -28,6 +28,8 @@ export default function TransferFormModal({
   const [items, setItems] = useState([emptyItem()]);
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const [productSearch, setProductSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   useEffect(() => {
     if (transfer) {
@@ -47,6 +49,8 @@ export default function TransferFormModal({
       setNotes("");
     }
     setError("");
+    setProductSearch("");
+    setCategoryFilter("all");
   }, [transfer, currentBranchId]);
 
   const branchMap = useMemo(
@@ -54,19 +58,52 @@ export default function TransferFormModal({
     [branches]
   );
 
+  const categories = useMemo(() => {
+    const map = new Map();
+    for (const product of products || []) {
+      const category = product.categories?.name || product.category_name || "Uncategorized";
+      const categoryId = product.category_id || category;
+      if (!map.has(categoryId)) map.set(categoryId, { id: categoryId, name: category });
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  const filteredProductOptions = useMemo(() => {
+    const needle = productSearch.trim().toLowerCase();
+    return (products || []).filter((product) => {
+      const categoryId = product.category_id || product.categories?.id || product.category_name || product.categories?.name || "Uncategorized";
+      if (categoryFilter !== "all" && String(categoryId) !== String(categoryFilter)) return false;
+      if (!needle) return true;
+      return [product.name, product.name_km, product.sku, product.barcode]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    }).slice(0, 30);
+  }, [products, productSearch, categoryFilter]);
+
   function updateItem(index, changes) {
     setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...changes } : item));
     setError("");
   }
 
-  function chooseProduct(index, productId) {
+  function addProduct(productId) {
     const product = products.find((row) => row.id === productId);
-    const baseUnit = baseProductUnit(product);
-    updateItem(index, {
-      product_id: productId,
-      product_unit_id: baseUnit?.id || "",
-      quantity: 1
-    });
+    if (!product) return;
+    const existingIndex = items.findIndex((item) => item.product_id === productId);
+    if (existingIndex >= 0) {
+      updateItem(existingIndex, { quantity: Number(items[existingIndex].quantity || 0) + 1 });
+    } else {
+      const baseUnit = baseProductUnit(product);
+      setItems((current) => {
+        const hasBlank = current.length === 1 && !current[0].product_id;
+        const next = hasBlank ? [] : [...current];
+        next.push({ product_id: productId, product_unit_id: baseUnit?.id || "", quantity: 1 });
+        return next;
+      });
+    }
+    setProductSearch("");
+    setError("");
   }
 
   function removeItem(index) {
@@ -187,55 +224,83 @@ export default function TransferFormModal({
           <span>A transfer can be requested even when the source does not currently have the full requested quantity. The actual amount is confirmed in Count before approval.</span>
         </div>
 
+        <div className="transfer-product-search-row">
+          <div className="transfer-product-search">
+            <span>Search product</span>
+            <label className="search-box">
+              <Search size={18} />
+              <input
+                value={productSearch}
+                onChange={(event) => setProductSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && filteredProductOptions.length === 1) {
+                    event.preventDefault();
+                    addProduct(filteredProductOptions[0].id);
+                  }
+                }}
+                placeholder="Product name, code or barcode · type or scan"
+                autoComplete="off"
+                inputMode="search"
+              />
+              {productSearch.trim() && filteredProductOptions.length > 0 && (
+                <div className="transfer-product-search-results">
+                  {filteredProductOptions.map((product) => (
+                    <button type="button" className="transfer-product-search-option" key={product.id} onClick={() => addProduct(product.id)}>
+                      <div>
+                        <strong>{product.name}</strong>
+                        {product.name_km && <small>{product.name_km}</small>}
+                        <small>{product.sku || "No code"}{product.barcode ? ` · ${product.barcode}` : ""}</small>
+                      </div>
+                      <span>{stockNumber(branchStock(product, sourceBranchId))} {product.unit_name || "pcs"}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </label>
+          </div>
+          <label className="transfer-category-filter">
+            <span>Category</span>
+            <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+              <option value="all">All categories</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </label>
+        </div>
+
         <div className="transfer-item-list">
-          {items.map((item, index) => {
+          {items.length === 0 ? (
+            <div className="empty-state compact-empty-state">Search and select products above.</div>
+          ) : items.map((item, index) => {
             const selected = products.find((product) => product.id === item.product_id);
             const units = sortedProductUnits(selected);
             const selectedUnit = findProductUnit(selected, item.product_unit_id);
             const availableBase = branchStock(selected, sourceBranchId);
             const requestedBase = Number(item.quantity || 0) * Number(selectedUnit?.conversion_factor || 1);
             return (
-              <div className="transfer-item-row transfer-item-row-with-unit" key={`${index}-${item.product_id}`}>
-                <label className="transfer-product-field">
-                  <span>Product</span>
-                  <select value={item.product_id} onChange={(event) => chooseProduct(index, event.target.value)}>
-                    <option value="">Choose product</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} · {product.sku || "No code"} · Source stock {stockNumber(branchStock(product, sourceBranchId))} {product.unit_name || "pcs"}
-                      </option>
-                    ))}
-                  </select>
-                  {selected && (
-                    <small className={requestedBase > availableBase ? "transfer-stock-warning" : "muted"}>
-                      Available: {stockNumber(availableBase)} {selected.unit_name || "pcs"} · Request: {stockNumber(requestedBase)} {selected.unit_name || "pcs"} base
-                    </small>
-                  )}
-                </label>
-                <label>
+              <div className="transfer-selected-item-row" key={`${item.product_id}-${index}`}>
+                <div className="transfer-selected-item-main">
+                  <strong>{index + 1} {selected?.name || "Product"}</strong>
+                  <small>{selected?.sku || "No code"}{selected?.barcode ? ` · ${selected.barcode}` : ""} · Available {stockNumber(availableBase)} {selected?.unit_name || "pcs"}</small>
+                  {selected && requestedBase > availableBase && <small className="transfer-stock-warning">Requested base quantity {stockNumber(requestedBase)} exceeds available stock.</small>}
+                </div>
+                <label className="transfer-selected-item-qty">
                   <span>Quantity</span>
                   <input type="number" min="0.001" step="0.001" value={item.quantity} onChange={(event) => updateItem(index, { quantity: event.target.value })} inputMode="decimal" />
                 </label>
-                <label>
+                <label className="transfer-selected-item-unit">
                   <span>Unit</span>
                   <select value={selectedUnit?.id || ""} onChange={(event) => updateItem(index, { product_unit_id: event.target.value })} disabled={!selected}>
                     {units.length === 0 && <option value="">{selected?.unit_name || "Base"}</option>}
-                    {units.map((unit) => (
-                      <option value={unit.id} key={unit.id}>{unit.short_name || unit.name}</option>
-                    ))}
+                    {units.map((unit) => <option value={unit.id} key={unit.id}>{unit.short_name || unit.name}</option>)}
                   </select>
                 </label>
-                <button type="button" className="icon-button danger-icon" onClick={() => removeItem(index)} disabled={items.length === 1} title="Remove product">
-                  <Trash2 size={19} />
+                <button type="button" className="icon-button danger-icon" onClick={() => removeItem(index)} title="Remove product">
+                  <X size={19} />
                 </button>
               </div>
             );
           })}
         </div>
-
-        <button type="button" className="secondary-button transfer-add-item" onClick={() => setItems((current) => [...current, emptyItem()])}>
-          <Plus size={17} /> Add another product
-        </button>
 
         <label>
           <span>Transfer notes</span>
