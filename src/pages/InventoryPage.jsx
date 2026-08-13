@@ -305,7 +305,7 @@ export default function InventoryPage() {
       </div>
 
       {adjustment && (
-        <Modal title={adjustment.mode === "set" ? "Count stock" : "Adjust inventory"} onClose={() => !busy && setAdjustment(null)}>
+        <Modal title={adjustment.mode === "set" ? "Count stock" : "Adjust inventory"} onClose={() => !busy && setAdjustment(null)} className="inventory-adjust-modal">
           <InventoryAdjustmentForm product={adjustment.product} initialMode={adjustment.mode} busy={busy} onCancel={() => setAdjustment(null)} onSave={saveAdjustment} />
         </Modal>
       )}
