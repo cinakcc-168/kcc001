@@ -134,44 +134,44 @@ export default function PurchaseOrderPrintModal({
               {(purchase.purchase_items || []).map(
                 (item, index) => (
                   <tr key={item.id}>
-                    <td>{index + 1}</td>
-                    <td>
+                    <td data-label="#">{index + 1}</td>
+                    <td data-label="Product">
                       {item.products?.name || "Product"}
                     </td>
-                    <td>
+                    <td data-label="Code">
                       {item.products?.sku
                         || item.products?.barcode
                         || "—"}
                     </td>
-                    <td>
+                    <td data-label="Ordered">
                       {stockNumber(item.quantity)}
                       {" "}
                       {item.purchase_unit_name || "pcs"}
                     </td>
-                    <td>
+                    <td data-label="Received">
                       {stockNumber(item.received_quantity)}
                       {" "}
                       {item.purchase_unit_name || "pcs"}
                     </td>
-                    <td>
+                    <td data-label="Remaining">
                       {stockNumber(
                         purchaseItemRemainingQuantity(item)
                       )}
                       {" "}
                       {item.purchase_unit_name || "pcs"}
                     </td>
-                    <td>
+                    <td data-label="Base received">
                       {stockNumber(item.base_received_quantity)}
                       {" "}
                       {item.products?.unit_name || "pcs"}
                     </td>
-                    <td>
+                    <td data-label="Cost / unit">
                       {money(
                         item.unit_cost,
                         purchase.currency
                       )}
                     </td>
-                    <td>
+                    <td data-label="Total">
                       {money(
                         item.line_total,
                         purchase.currency
