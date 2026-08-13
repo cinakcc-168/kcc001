@@ -36,6 +36,7 @@ export default function CreditStatementModal({
       }
       onClose={onClose}
       wide
+      className="credit-statement-modal"
     >
       {loading ? (
         <div className="empty-state">

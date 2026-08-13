@@ -121,7 +121,7 @@ export default function ProductInsightsModal({ supabase, product, onClose }) {
 
   return (
     <Modal
-      title={`${product.name} · ${product.sku || "Product"}`}
+      title={`${product.name || "Product"} · ${product.sku || "Product"}`}
       onClose={onClose}
       wide
       className="product-insights-modal"
