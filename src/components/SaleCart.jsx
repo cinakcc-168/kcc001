@@ -216,7 +216,7 @@ function CustomerPicker({
   online = true
 }) {
   const selectedCustomer = useMemo(
-    () => customers.find((customer) => customer.id === customerId) || null,
+    () => customers.find((customer) => String(customer.id) === String(customerId)) || null,
     [customers, customerId]
   );
   const [customerSearch, setCustomerSearch] = useState("");
@@ -254,8 +254,11 @@ function CustomerPicker({
 
   return (
     <div className="customer-select-row">
-      <label
+      <div
         className="customer-search-picker"
+        role="combobox"
+        aria-expanded={customerPickerOpen}
+        aria-haspopup="listbox"
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setCustomerPickerOpen(false);
@@ -286,6 +289,12 @@ function CustomerPicker({
           onChange={(event) => {
             const value = event.target.value;
             setCustomerSearch(value);
+            // Typing after a selected customer must not leave a stale customerId
+            // that can later be replaced by Walk-in during payment preparation.
+            if (selectedCustomer) {
+              const selectedLabel = `${selectedCustomer.name}${selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}`;
+              if (value !== selectedLabel) onCustomerChange("");
+            }
             setCustomerPickerOpen(true);
           }}
           onKeyDown={(event) => {
@@ -313,7 +322,7 @@ function CustomerPicker({
             {customerMatches.length === 0 && <span>No matching customer</span>}
           </div>
         )}
-      </label>
+      </div>
       <button
         type="button"
         className="icon-button customer-add-button"
