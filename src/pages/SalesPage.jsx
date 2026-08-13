@@ -1812,7 +1812,7 @@ export default function SalesPage() {
 
                 <div className="sale-product-summary">
                   <span><strong>{visibleProducts.length}</strong> products available</span>
-                  <div>
+                  <div className="sale-summary-actions">
                     <small>Tap a product to add one unit.</small>
                     <label className="layout-two-row-control" title="Choose how many product rows are visible before scrolling">
                       <span>Default view</span>
@@ -1868,7 +1868,7 @@ export default function SalesPage() {
                             const stock = productCardStock(product);
                             return (
                               <div className="sale-product-content">
-                                <div className="sale-product-names no-translate">
+                                <div className="sale-product-names">
                                   <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
                                   {secondaryName ? (
                                     <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
@@ -2069,7 +2069,7 @@ export default function SalesPage() {
                           const stock = productCardStock(product);
                           return (
                             <div className="sale-product-content">
-                              <div className="sale-product-names no-translate">
+                              <div className="sale-product-names">
                                 <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
                                 {secondaryName ? (
                                   <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
