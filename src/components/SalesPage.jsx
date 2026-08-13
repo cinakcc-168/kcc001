@@ -1756,20 +1756,25 @@ export default function SalesPage() {
                           />
                           </div>
                           <div className="sale-product-content">
-                            <strong className="sale-product-name-en" title={product.name}>{product.name}</strong>
-                            <span className="sale-product-name-km" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
-                            {saleShowProductCode ? (
-                              <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
-                            ) : (
-                              <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
-                            )}
-                            <div className="sale-product-price-stock">
-                              <b className="sale-product-price">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                              <span className={`sale-product-stock ${outOfStock ? "out" : ""}`}>
+                            <div className="sale-product-names no-translate" data-i18n-skip>
+                              <strong className="sale-product-name-en sale-product-name-primary" title={product.name}>{product.name}</strong>
+                              <span className="sale-product-name-km sale-product-name-secondary" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
+                              {saleShowProductCode ? (
+                                <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
+                              ) : (
+                                <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
+                              )}
+                            </div>
+                            <div className="sale-product-footer">
+                              <div className="sale-product-price-stock">
+                                <b className="sale-product-price sale-product-price-value">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
+                              </div>
+                              <span className={`sale-product-stock sale-product-meta ${outOfStock ? "out" : ""}`}>
                                 <small>Stock</small>
                                 <em>{productStockLabel(product)}</em>
                               </span>
                             </div>
+
                           </div>
                         </button>
                       );
@@ -1962,20 +1967,43 @@ export default function SalesPage() {
                           />
                         </div>
                         <div className="sale-product-content">
-                          <strong className="sale-product-name-en" title={product.name}>{product.name}</strong>
-                          <span className="sale-product-name-km" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
-                          {saleShowProductCode ? (
-                            <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
-                          ) : (
-                            <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
-                          )}
-                          <div className="sale-product-price-stock">
-                            <b className="sale-product-price">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
-                            <span className={`sale-product-stock ${outOfStock ? "out" : ""}`}>
-                              <small>Stock</small>
-                              <em>{productStockLabel(product)}</em>
-                            </span>
+
+                          <div className="sale-product-names no-translate" data-i18n-skip>
+
+                            <strong className="sale-product-name-en sale-product-name-primary" title={product.name}>{product.name}</strong>
+
+                            <span className="sale-product-name-km sale-product-name-secondary" title={product.name_km || ""}>{product.name_km || "\u00a0"}</span>
+
+                            {saleShowProductCode ? (
+
+                              <small className="sale-product-code">{product.sku || product.barcode || "No code"}</small>
+
+                            ) : (
+
+                              <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
+
+                            )}
+
                           </div>
+
+                          <div className="sale-product-footer">
+
+                            <div className="sale-product-price-stock">
+
+                              <b className="sale-product-price sale-product-price-value">{money(saleUnitForProduct(product).selling_price, product.currency)}</b>
+
+                            </div>
+
+                            <span className={`sale-product-stock sale-product-meta ${outOfStock ? "out" : ""}`}>
+
+                              <small>Stock</small>
+
+                              <em>{productStockLabel(product)}</em>
+
+                            </span>
+
+                          </div>
+
                         </div>
                       </button>
                     );

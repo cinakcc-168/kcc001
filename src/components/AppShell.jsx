@@ -392,7 +392,7 @@ export default function AppShell() {
         </div>
 
         <nav className="side-nav-scroll" aria-label={t("Main navigation")}>
-          <div className="side-primary-links">
+          <div className="side-primary-links side-nav-items">
             {standaloneLinks.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
@@ -410,7 +410,7 @@ export default function AppShell() {
             ))}
           </div>
 
-          <div className="side-menu-groups">
+          <div className="side-menu-groups side-nav-items">
             {visibleGroups.map((group) => {
               const GroupIcon = group.icon;
               const expanded = openGroup === group.id;

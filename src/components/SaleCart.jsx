@@ -22,21 +22,28 @@ function getItemUnits(item) {
     (u) => u.is_active !== false
   );
 
-  const baseUnitName = item.unit_name || "pcs";
-  const hasBase = rawUnits.some((u) => u.is_base);
+  const productName = String(item.name || "").trim().toLowerCase();
+  const productNameKm = String(item.name_km || "").trim().toLowerCase();
+  const rawBaseUnitName = String(item.unit_name || "pcs").trim();
+  const safeBaseUnitName = [rawBaseUnitName, "pcs"].find((value) => {
+    const lower = String(value).trim().toLowerCase();
+    return lower && lower !== productName && lower !== productNameKm;
+  }) || "pcs";
 
-  let units = [...rawUnits];
+  const hasBase = rawUnits.some((u) => u.is_base);
+  let units = rawUnits.map((u) => ({ ...u }));
+
   if (!hasBase) {
     const existing = units.find(
-      (u) => u.name?.toLowerCase() === baseUnitName.toLowerCase()
+      (u) => String(u.name || "").trim().toLowerCase() === rawBaseUnitName.toLowerCase()
     );
     if (existing) {
       existing.is_base = true;
     } else {
       units.unshift({
         id: `base-${item.id}`,
-        name: baseUnitName,
-        short_name: baseUnitName,
+        name: safeBaseUnitName,
+        short_name: safeBaseUnitName,
         conversion_factor: 1,
         selling_price: Number(item.selling_price || 0),
         is_base: true,
@@ -45,29 +52,41 @@ function getItemUnits(item) {
     }
   }
 
-  return units
+  const normalized = units
     .map((u) => {
-      const isProdName = u.name && (u.name === item.name || u.name === item.name_km);
-      const cleanName = isProdName
-        ? (u.short_name && u.short_name !== item.name ? u.short_name : baseUnitName)
-        : (u.name || baseUnitName);
-      const cleanShortName = u.short_name && u.short_name !== item.name
-        ? u.short_name
-        : cleanName;
+      const rawName = String(u.name || "").trim();
+      const rawShortName = String(u.short_name || "").trim();
+      const nameLower = rawName.toLowerCase();
+      const shortLower = rawShortName.toLowerCase();
+      const looksLikeProductName =
+        nameLower === productName
+        || nameLower === productNameKm
+        || shortLower === productName
+        || shortLower === productNameKm;
+      const displayName = looksLikeProductName
+        ? (rawShortName && shortLower !== productName && shortLower !== productNameKm
+          ? rawShortName
+          : (u.is_base ? safeBaseUnitName : rawBaseUnitName || "pcs"))
+        : (rawShortName || rawName || (u.is_base ? safeBaseUnitName : "pcs"));
+
       return {
         ...u,
-        id: String(u.id || `unit-${cleanName}`),
-        name: cleanName,
-        short_name: cleanShortName,
+        id: String(u.id || `unit-${displayName}`),
+        name: displayName,
+        short_name: displayName,
         conversion_factor: Number(u.conversion_factor || 1),
         selling_price: Number(u.selling_price ?? item.selling_price ?? 0)
       };
     })
-    .sort(
-      (a, b) =>
-        Number(b.is_base) - Number(a.is_base)
-        || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+    .filter((u, index, list) =>
+      list.findIndex((candidate) => candidate.id === u.id) === index
     );
+
+  return normalized.sort(
+    (a, b) =>
+      Number(b.is_base) - Number(a.is_base)
+      || Number(a.sort_order || 0) - Number(b.sort_order || 0)
+  );
 }
 
 function CartLineList({
@@ -100,7 +119,10 @@ function CartLineList({
           const availableSelectedUnits = factor > 0
             ? Number(item.stock_quantity || 0) / factor
             : Number(item.stock_quantity || 0);
+          const selectedUnit = units.find((unit) => String(unit.id) === String(item.selected_unit_id)) || units[0];
+          const selectedUnitDisplay = selectedUnit?.short_name || selectedUnit?.name || item.unit_name || "pcs";
           const currentLineId = lineId(item, index);
+          const lineTotal = selectedPrice * Number(item.quantity);
 
           return (
             <article
@@ -119,9 +141,13 @@ function CartLineList({
                     <del>{money(standardPrice, item.currency)}</del>
                   )}
                   {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} = {" "}
-                  <b>{money(selectedPrice * Number(item.quantity), item.currency)}</b>
+                  <b>{money(lineTotal, item.currency)}</b>
                 </span>
               </div>
+
+              <span className="cart-line-mobile-summary no-translate" data-i18n-skip>
+                {index + 1} {item.name} {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} = {money(lineTotal, item.currency)}
+              </span>
 
               <div className="cart-line-unit-control">
                 {units.length > 1 ? (
@@ -142,8 +168,8 @@ function CartLineList({
                 ) : (
                   <span className="single-unit-label">
                     {unitNameOnly
-                      ? (item.selected_unit_short_name || item.selected_unit_name || item.unit_name)
-                      : (item.selected_unit_name || item.unit_name)}
+                      ? selectedUnitDisplay
+                      : selectedUnitDisplay}
                   </span>
                 )}
               </div>
@@ -190,7 +216,7 @@ function CartLineList({
               <div className="cart-line-stock">
                 <small>
                   Available: {item.track_stock
-                    ? `${stockNumber(availableSelectedUnits)} ${item.selected_unit_name || item.unit_name}`
+                    ? `${stockNumber(availableSelectedUnits)} ${selectedUnitDisplay}`
                     : "Not tracked"}
                 </small>
                 {factor !== 1 && (
@@ -216,7 +242,7 @@ function CustomerPicker({
   online = true
 }) {
   const selectedCustomer = useMemo(
-    () => customers.find((customer) => String(customer.id) === String(customerId)) || null,
+    () => customers.find((customer) => customer.id === customerId) || null,
     [customers, customerId]
   );
   const [customerSearch, setCustomerSearch] = useState("");
@@ -254,11 +280,8 @@ function CustomerPicker({
 
   return (
     <div className="customer-select-row">
-      <div
+      <label
         className="customer-search-picker"
-        role="combobox"
-        aria-expanded={customerPickerOpen}
-        aria-haspopup="listbox"
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setCustomerPickerOpen(false);
@@ -289,12 +312,6 @@ function CustomerPicker({
           onChange={(event) => {
             const value = event.target.value;
             setCustomerSearch(value);
-            // Typing after a selected customer must not leave a stale customerId
-            // that can later be replaced by Walk-in during payment preparation.
-            if (selectedCustomer) {
-              const selectedLabel = `${selectedCustomer.name}${selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}`;
-              if (value !== selectedLabel) onCustomerChange("");
-            }
             setCustomerPickerOpen(true);
           }}
           onKeyDown={(event) => {
@@ -322,7 +339,7 @@ function CustomerPicker({
             {customerMatches.length === 0 && <span>No matching customer</span>}
           </div>
         )}
-      </div>
+      </label>
       <button
         type="button"
         className="icon-button customer-add-button"

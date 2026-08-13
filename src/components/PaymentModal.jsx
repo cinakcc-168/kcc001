@@ -75,8 +75,6 @@ export default function PaymentModal({
   creditAccount,
   cashRegisterOpen = true,
   offline = false,
-  bankQrUrl = "",
-  bankQrComment = "",
   onClose,
   onSubmit
 }) {
@@ -91,7 +89,6 @@ export default function PaymentModal({
   const [bankCurrency, setBankCurrency] = useState("USD");
   const [bankReceived, setBankReceived] = useState("");
   const [bankReference, setBankReference] = useState("");
-  const [bankQrOpen, setBankQrOpen] = useState(false);
   const [error, setError] = useState("");
 
   const unlimitedCredit = Boolean(creditAccount?.allow_unlimited_credit);
@@ -134,7 +131,6 @@ export default function PaymentModal({
     setBankCurrency("USD");
     setBankReceived(exactTender(totalDue, currency, "USD", rate));
     setBankReference("");
-    setBankQrOpen(false);
     setError("");
   }, [open, totalDue, currency, rate, cashRegisterOpen]);
 
