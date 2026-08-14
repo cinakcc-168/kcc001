@@ -19772,8 +19772,6 @@ body {
 }
 
 .scanner-card {
-  width: 100% !important;
-  max-width: none !important;
   height: 100dvh !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -29582,8 +29580,6 @@ html.language-switch-complete .modal-backdrop {
 
 .sale-cart-line .cart-line-unit-control select,
 .sale-cart-line .single-unit-label {
-  width: 100% !important;
-  max-width: none !important;
   min-width: 0 !important;
   height: 32px !important;
   min-height: 32px !important;
@@ -31004,8 +31000,6 @@ html.language-switch-complete .modal-backdrop {
 }
 
 .sales-page {
-  width: 100% !important;
-  max-width: none !important;
   gap: 8px !important;
   --sale-card-image-height: 72px !important;
   --sale-card-height: 160px !important;
@@ -36692,3 +36686,108 @@ html {
   }
 }
 
+
+/* ========================================================================== */
+/* Step 46.32 — universal viewport-fixed modal scroll isolation               */
+/* Source of truth: shared Modal.jsx + active src/styles/global.css           */
+/* ========================================================================== */
+.tiny-pos-modal-open,
+.tiny-pos-modal-open body {
+  overscroll-behavior: none !important;
+}
+
+.tiny-pos-modal-open body {
+  overflow: hidden !important;
+}
+
+.modal-layer {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  isolation: isolate !important;
+  box-sizing: border-box !important;
+}
+
+.modal-card {
+  width: min(100%, 520px) !important;
+  max-width: 100% !important;
+  max-height: calc(100dvh - 40px) !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+
+.modal-card.wide {
+  width: min(100%, 1040px) !important;
+  max-width: 1040px !important;
+}
+
+.modal-header {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+}
+
+.modal-header h2 {
+  min-width: 0 !important;
+  max-width: calc(100% - 52px) !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  touch-action: pan-y !important;
+  scrollbar-gutter: stable !important;
+}
+
+.modal-card .modal-body > :first-child {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .modal-layer {
+    align-items: flex-end !important;
+    justify-content: stretch !important;
+    padding: 8px !important;
+  }
+
+  .modal-card,
+  .modal-card.wide {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 18px 18px 12px 12px !important;
+  }
+
+  .modal-header {
+    min-height: 58px !important;
+    padding: 12px 14px !important;
+  }
+
+  .modal-body {
+    padding: 14px !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .modal-actions {
+    flex-wrap: wrap !important;
+  }
+}
