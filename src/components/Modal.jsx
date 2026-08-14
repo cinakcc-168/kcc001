@@ -1,3 +1,6 @@
+let activeModalLocks = 0;
+let previousModalBodyStyles = null;
+
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -15,10 +18,22 @@ export default function Modal({
 
   useEffect(() => {
     const main = document.querySelector(".shell > main");
-    const previousOverflow = document.body.style.overflow;
-    const previousOverscroll = document.body.style.overscrollBehavior;
-    document.body.style.overflow = "hidden";
-    document.body.style.overscrollBehavior = "contain";
+    if (activeModalLocks === 0) {
+      previousModalBodyStyles = {
+        overflow: document.body.style.overflow,
+        overscrollBehavior: document.body.style.overscrollBehavior,
+        paddingRight: document.body.style.paddingRight
+      };
+      const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+      document.documentElement.classList.add("tiny-pos-modal-open");
+      document.body.classList.add("tiny-pos-modal-open");
+      document.body.style.overflow = "hidden";
+      document.body.style.overscrollBehavior = "none";
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+    }
+    activeModalLocks += 1;
 
     function updateBounds() {
       if (!main) {
@@ -39,8 +54,15 @@ export default function Modal({
     return () => {
       observer?.disconnect();
       window.removeEventListener("resize", updateBounds);
-      document.body.style.overflow = previousOverflow;
-      document.body.style.overscrollBehavior = previousOverscroll;
+      activeModalLocks = Math.max(0, activeModalLocks - 1);
+      if (activeModalLocks === 0) {
+        document.documentElement.classList.remove("tiny-pos-modal-open");
+        document.body.classList.remove("tiny-pos-modal-open");
+        document.body.style.overflow = previousModalBodyStyles?.overflow || "";
+        document.body.style.overscrollBehavior = previousModalBodyStyles?.overscrollBehavior || "";
+        document.body.style.paddingRight = previousModalBodyStyles?.paddingRight || "";
+        previousModalBodyStyles = null;
+      }
     };
   }, []);
 
