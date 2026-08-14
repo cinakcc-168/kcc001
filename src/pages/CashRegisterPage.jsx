@@ -75,7 +75,8 @@ function DrawerBreakdown({ summary, currency }) {
 }
 
 export default function CashRegisterPage() {
-  const { supabase, session, profile, shop, canAny } = useAuth();
+  const { supabase, session, profile, shop, canAny, can } = useAuth();
+  const canOverride = can("cash_register.override");
   const canOperate = canAny([
     "cash_register.use",
     "cash_register.close"
@@ -218,6 +219,32 @@ export default function CashRegisterPage() {
         sessionId
       );
       setReport(result);
+    } catch (error) {
+      announce("error", error.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function openOverrideClose(sessionId) {
+    if (!canOverride) {
+      announce("error", "Cash-register override permission is required.");
+      return;
+    }
+
+    try {
+      setBusy(`prepare-close-${sessionId}`);
+      const result = await getCashRegisterSessionSummary(
+        supabase,
+        sessionId
+      );
+      if (!result?.session || result.session.status !== "open") {
+        announce("error", "That register session is no longer open.");
+        await refresh();
+        return;
+      }
+      setOpenSummary(result);
+      setCloseOpen(true);
     } catch (error) {
       announce("error", error.message);
     } finally {
@@ -496,9 +523,16 @@ export default function CashRegisterPage() {
           { label: "Expected KHR", width: 120, documentValue: (row) => money(row.expected_cash_khr || 0, "KHR"), render: (row) => money(row.expected_cash_khr || 0, "KHR") },
           { label: "Variance USD", width: 110, documentValue: (row) => row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—", render: (row) => <strong className={Number(row.variance_usd || 0) === 0 ? "variance-balanced" : Number(row.variance_usd || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong> },
           { label: "Variance KHR", width: 120, documentValue: (row) => row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—", render: (row) => <strong className={Number(row.variance_khr || 0) === 0 ? "variance-balanced" : Number(row.variance_khr || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</strong> },
-          { label: "Report", actionsOnly: true, excludeDocument: true, render: (row) => <button type="button" className="icon-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`} title="View report"><Eye size={18} /></button> }
+          { label: "Report", actionsOnly: true, excludeDocument: true, render: (row) => (
+            <div className="register-session-row-actions">
+              <button type="button" className="icon-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`} title="View report"><Eye size={18} /></button>
+              {canOverride && row.status === "open" && (
+                <button type="button" className="icon-button danger-text" onClick={() => openOverrideClose(row.id)} disabled={busy === `prepare-close-${row.id}`} title="Override close register"><LockKeyhole size={18} /></button>
+              )}
+            </div>
+          ) }
         ]}
-        renderCard={(row) => <article className="responsive-data-card register-session-card"><header><div><strong>{row.session_number}</strong><small>{row.register_name}</small></div><span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{row.status}</span></header><div><span>Opened</span><strong>{dateTime(row.opened_at)}</strong></div><div><span>Closed</span><strong>{dateTime(row.closed_at)}</strong></div><div><span>Opened by</span><strong>{row.opened_by_profile?.full_name || "POS Staff"}</strong></div><div><span>Expected</span><strong>{money(row.expected_cash_usd || 0, "USD")}</strong><small>{money(row.expected_cash_khr || 0, "KHR")}</small></div><div><span>Variance</span><strong>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong><small>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</small></div><footer><button type="button" className="secondary-button compact-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`}><Eye size={18} />View report</button></footer></article>}
+        renderCard={(row) => <article className="responsive-data-card register-session-card"><header><div><strong>{row.session_number}</strong><small>{row.register_name}</small></div><span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{row.status}</span></header><div><span>Opened</span><strong>{dateTime(row.opened_at)}</strong></div><div><span>Closed</span><strong>{dateTime(row.closed_at)}</strong></div><div><span>Opened by</span><strong>{row.opened_by_profile?.full_name || "POS Staff"}</strong></div><div><span>Expected</span><strong>{money(row.expected_cash_usd || 0, "USD")}</strong><small>{money(row.expected_cash_khr || 0, "KHR")}</small></div><div><span>Variance</span><strong>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong><small>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</small></div><footer><button type="button" className="secondary-button compact-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`}><Eye size={18} />View report</button>{canOverride && row.status === "open" && <button type="button" className="danger-button compact-button" onClick={() => openOverrideClose(row.id)} disabled={busy === `prepare-close-${row.id}`}><LockKeyhole size={17} />Override close</button>}</footer></article>}
       />
 
       <CashRegisterCloseModal
