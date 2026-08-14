@@ -196,7 +196,7 @@ export async function downloadStoredBackup(session, fileId) {
   if (!response.ok) {
     const text = await response.text();
     let message = text;
-    try { message = JSON.parse(text)?.error || text; } catch {}
+    try { message = JSON.parse(text)?.error || text; } catch { /* response body was not JSON — use the raw text as-is */ }
     throw new Error(message || "Backup download failed.");
   }
   const blob = await response.blob();

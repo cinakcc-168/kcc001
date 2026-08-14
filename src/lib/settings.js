@@ -151,7 +151,7 @@ export async function saveShopSettings(supabase, values) {
     if (values.invoice_show_product_code !== undefined) {
       try {
         localStorage.setItem("invoice_show_product_code", String(values.invoice_show_product_code !== false));
-      } catch (e) { }
+      } catch (e) { /* localStorage unavailable (private browsing, quota, etc.) — best-effort fallback only, safe to ignore */ }
     }
     const safePayload = { ...directPayload };
     delete safePayload.invoice_show_product_code;
