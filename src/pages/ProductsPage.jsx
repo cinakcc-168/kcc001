@@ -126,6 +126,31 @@ export default function ProductsPage() {
     };
   }
 
+  function isLowStock(product) {
+    return ["low_stock", "out_of_stock"].includes(product.stock_status);
+  }
+
+  function activeUnitCount(product) {
+    return (product.product_units || []).filter((unit) => unit.is_active).length;
+  }
+
+  // Shared by both the card view and the table view below — previously this
+  // exact block (thumbnail + primary/secondary name + code/unit line) was
+  // copy-pasted in two places and had to be edited twice for any change.
+  function ProductIdentityCell({ product }) {
+    const { primaryName, secondaryName } = productDisplayNames(product);
+    return (
+      <div className="product-cell">
+        <div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div>
+        <div>
+          <strong className="product-name-primary" title={primaryName}>{primaryName}</strong>
+          {secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}
+          <small>{product.sku || "No code"} · {product.unit_name}</small>
+        </div>
+      </div>
+    );
+  }
+
   const productReportColumns = [
     { label: "Code", value: (row) => row.sku || "—" },
     { label: "Barcode", value: (row) => row.barcode || "—" },
@@ -305,17 +330,17 @@ export default function ProductsPage() {
           viewMode === "cards" ? (
             <div className="list-card-grid product-directory-card-grid">
               {pagedProducts.map((product) => {
-                const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
+                const low = isLowStock(product);
                 return (
                   <article className="list-record-card product-directory-card" key={product.id}>
-                    <header><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div>{(() => { const { primaryName, secondaryName } = productDisplayNames(product); return <><strong className="product-name-primary" title={primaryName}>{primaryName}</strong>{secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></>; })()}</div></div><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
+                    <header><ProductIdentityCell product={product} /><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
                     <div className="list-card-fields">
                       <div><span>Barcode</span><strong>{product.barcode || "—"}</strong></div>
                       <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
                       <div><span>Price</span><strong>{money(product.selling_price, product.currency)}</strong></div>
                       <div><span>Cost</span><strong>{money(product.average_cost || product.default_cost, product.currency)}</strong></div>
                       <div><span>Stock</span><strong className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</strong><small>Low at {stockNumber(product.effective_low_stock_threshold)}</small></div>
-                      <div><span>Units</span><strong>{(product.product_units || []).filter((unit) => unit.is_active).length}</strong></div>
+                      <div><span>Units</span><strong>{activeUnitCount(product)}</strong></div>
                     </div>
                     <div className="list-card-actions product-directory-actions"><button type="button" className="secondary-button compact-button" onClick={() => setUnitsProduct(product)} disabled={!canManage}><PackageOpen size={17} /> Units</button><button type="button" className="secondary-button compact-button" onClick={() => setInsightsProduct(product)}><Eye size={17} /> View</button><button className="secondary-button compact-button" onClick={() => setProductModal(product)} disabled={!canManage}><Pencil size={17} /> Edit</button></div>
                   </article>
@@ -327,16 +352,16 @@ export default function ProductsPage() {
               <table className="product-table">
                 <thead><tr><th>Product</th><th>Barcode</th><th>Category</th><th>Price</th><th>Cost</th><th>Stock</th><th>Status</th><th>Units</th><th></th></tr></thead>
                 <tbody>{pagedProducts.map((product) => {
-                  const low = ["low_stock", "out_of_stock"].includes(product.stock_status);
+                  const low = isLowStock(product);
                   return <tr key={product.id}>
-                    <td data-label="Product"><div className="product-cell"><div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div><div>{(() => { const { primaryName, secondaryName } = productDisplayNames(product); return <><strong className="product-name-primary" title={primaryName}>{primaryName}</strong>{secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}<small>{product.sku || "No code"} · {product.unit_name}</small></>; })()}</div></div></td>
+                    <td data-label="Product"><ProductIdentityCell product={product} /></td>
                     <td data-label="Barcode">{product.barcode || "—"}</td>
                     <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
                     <td data-label="Price"><strong>{money(product.selling_price, product.currency)}</strong></td>
                     <td data-label="Cost">{money(product.average_cost || product.default_cost, product.currency)}</td>
                     <td data-label="Stock"><span className={low ? "stock-badge low" : "stock-badge"}>{product.track_stock ? `${stockNumber(product.stock_quantity)} ${product.unit_name}` : "Not tracked"}</span><small className="stock-threshold-note">Low at {stockNumber(product.effective_low_stock_threshold)}</small></td>
                     <td data-label="Status"><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></td>
-                    <td data-label="Units"><div className="product-table-unit-actions"><button type="button" className="secondary-button product-units-button" onClick={() => setUnitsProduct(product)} disabled={!canManage} title="Manage selling units"><PackageOpen size={17} />{(product.product_units || []).filter((unit) => unit.is_active).length}</button><button type="button" className="secondary-button compact-button product-view-button" onClick={() => setInsightsProduct(product)} title="View product history and stock summary"><Eye size={17} /> View</button></div></td>
+                    <td data-label="Units"><div className="product-table-unit-actions"><button type="button" className="secondary-button product-units-button" onClick={() => setUnitsProduct(product)} disabled={!canManage} title="Manage selling units"><PackageOpen size={17} />{activeUnitCount(product)}</button><button type="button" className="secondary-button compact-button product-view-button" onClick={() => setInsightsProduct(product)} title="View product history and stock summary"><Eye size={17} /> View</button></div></td>
                     <td><button className="icon-button table-action" onClick={() => setProductModal(product)} disabled={!canManage} title="Edit product"><Pencil size={18} /></button></td>
                   </tr>;
                 })}</tbody>
