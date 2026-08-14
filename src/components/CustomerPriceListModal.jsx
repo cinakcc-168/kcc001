@@ -57,8 +57,8 @@ export default function CustomerPriceListModal({
   if (!open) return null;
 
   const customer = customers.find(
-    (row) => row.id === customerId
-  );
+    (row) => String(row.id) === String(customerId)
+  ) || null;
 
   async function submit(event) {
     event.preventDefault();
@@ -101,7 +101,7 @@ export default function CustomerPriceListModal({
             <label
               key={row.id}
               className={
-                row.id === customerId
+                String(row.id) === String(customerId)
                   ? "selected"
                   : ""
               }
@@ -110,7 +110,7 @@ export default function CustomerPriceListModal({
                 type="radio"
                 name="customer-price-list-customer"
                 value={row.id}
-                checked={row.id === customerId}
+                checked={String(row.id) === String(customerId)}
                 onChange={() => {
                   setCustomerId(row.id);
                   setPriceListId(

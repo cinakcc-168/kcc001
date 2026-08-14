@@ -242,7 +242,7 @@ function CustomerPicker({
   online = true
 }) {
   const selectedCustomer = useMemo(
-    () => customers.find((customer) => customer.id === customerId) || null,
+    () => customers.find((customer) => String(customer.id) === String(customerId)) || null,
     [customers, customerId]
   );
   const [customerSearch, setCustomerSearch] = useState("");
