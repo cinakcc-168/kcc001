@@ -174,7 +174,7 @@ export default function CustomerPriceListModal({
 
         <div className="notice info">
           A direct assignment takes priority over the
-          customer's Regular, VIP or Wholesale group.
+          customer&apos;s Regular, VIP or Wholesale group.
           Select Automatic to remove the direct override.
         </div>
 

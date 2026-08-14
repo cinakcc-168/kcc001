@@ -229,6 +229,10 @@ export default function BarcodeScanner({
             : "Place the barcode inside the white box."
         );
 
+        // Intentional: scoped to this effect's try block, only used within it, and
+        // relies on ES6 block-scoped function hoisting, which is standard in all
+        // supported browsers.
+        // eslint-disable-next-line no-inner-declarations
         async function scanFrame(timestamp) {
           if (cancelled) return;
           animationRef.current = requestAnimationFrame(scanFrame);
