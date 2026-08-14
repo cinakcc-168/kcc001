@@ -55,24 +55,38 @@ export async function requireManager(request, permissionKey = "products.manage")
   let allowed =
     profile.role === "owner";
 
-  try {
-    const { data: accessData } =
-      await supabase.rpc(
-        "get_my_access"
-      );
+  const { data: accessData, error: accessError } =
+    await supabase.rpc(
+      "get_my_access"
+    );
 
+  if (!accessError) {
     allowed = Boolean(
       accessData?.permissions?.["*"]
       || accessData?.permissions?.[
         permissionKey
       ]
     );
-  } catch {
+  } else if (
+    accessError.code === "42883"
+    || accessError.code === "PGRST202"
+  ) {
+    // get_my_access does not exist yet on this database (organization has
+    // not run the granular-permissions migration). Fall back to the coarse
+    // role check so older schemas keep working.
     allowed = [
       "owner",
       "admin",
       "manager"
     ].includes(profile.role);
+  } else {
+    // Any other RPC failure (network blip, timeout, unexpected server
+    // error) must NOT silently grant access — fail closed instead.
+    const error = new Error(
+      "Could not verify permissions. Please try again."
+    );
+    error.status = 503;
+    throw error;
   }
 
   if (!allowed) {
