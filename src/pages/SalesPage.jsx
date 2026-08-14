@@ -781,8 +781,8 @@ export default function SalesPage() {
   );
 
   const selectedCustomer = customers.find(
-    (customer) => customer.id === customerId
-  );
+    (customer) => String(customer.id) === String(customerId)
+  ) || null;
   const selectedCreditAccount = creditAccountForCustomer(
     selectedCustomer,
     currency
@@ -1356,7 +1356,8 @@ export default function SalesPage() {
     }
 
     if (customerId && !selectedCustomer) {
-      setCustomerId("");
+      announce("error", "The selected customer is no longer available. Refresh customers before payment.");
+      return;
     }
 
     setPaymentOpen(true);
@@ -1868,7 +1869,7 @@ export default function SalesPage() {
                             const stock = productCardStock(product);
                             return (
                               <div className="sale-product-content">
-                                <div className="sale-product-names no-translate" data-i18n-skip>
+                                <div className="sale-product-names">
                                   <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
                                   {secondaryName ? (
                                     <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
@@ -2069,7 +2070,7 @@ export default function SalesPage() {
                           const stock = productCardStock(product);
                           return (
                             <div className="sale-product-content">
-                              <div className="sale-product-names no-translate" data-i18n-skip>
+                              <div className="sale-product-names">
                                 <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
                                 {secondaryName ? (
                                   <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
