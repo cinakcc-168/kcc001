@@ -23,6 +23,10 @@ describe("permission regression guards", () => {
   it("keeps unrelated permissions out of a manager fallback", () => {
     const access = fallbackAccessForRole("manager");
     expect(accessAllows(access, "system.super_admin")).toBe(false);
-    expect(accessAllows(access, "accounting.manage")).toBe(true);
+    // accounting.manage is a critical, owner/admin-only permission (chart of
+    // accounts, manual journals, period locks — see 34_accounting_export_general_ledger.sql).
+    // Managers keep accounting.export, which they are meant to have.
+    expect(accessAllows(access, "accounting.manage")).toBe(false);
+    expect(accessAllows(access, "accounting.export")).toBe(true);
   });
 });
