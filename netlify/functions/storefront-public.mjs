@@ -216,7 +216,7 @@ async function trackOrder(service, slug, url) {
   return json({ ok: true, order: data });
 }
 
-async function phoneOrders(service, slug, url) {
+async function phoneOrders(service, request, slug, url) {
   const phone = String(url.searchParams.get("phone") || "").trim();
   if (phone.replace(/\D/g, "").length < 7) {
     throw Object.assign(new Error("Enter a valid phone number."), { status: 400 });
@@ -224,9 +224,15 @@ async function phoneOrders(service, slug, url) {
 
   const { data, error } = await service.rpc("find_public_orders_by_phone", {
     p_slug: slug,
-    p_phone: phone
+    p_phone: phone,
+    p_source_ip_hash: clientFingerprint(request)
   });
-  if (error) throw error;
+  if (error) {
+    if (/too many recent lookup attempts/i.test(error.message || "")) {
+      throw Object.assign(new Error(error.message), { status: 429 });
+    }
+    throw error;
+  }
   return json({ ok: true, orders: Array.isArray(data) ? data : [] });
 }
 
@@ -239,7 +245,7 @@ export default async (request) => {
 
     if (request.method === "GET") {
       if (action === "track") return await trackOrder(service, slug, url);
-      if (action === "phone-orders") return await phoneOrders(service, slug, url);
+      if (action === "phone-orders") return await phoneOrders(service, request, slug, url);
       return await catalog(service, slug);
     }
 
