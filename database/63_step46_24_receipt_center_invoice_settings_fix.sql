@@ -2,6 +2,15 @@
 -- Tiny POS Patch 46.24 — Receipt Center invoice visibility settings repair.
 -- Additive migration. Do not rerun earlier migrations.
 --
+-- NOTE ON FILE NUMBERING: this file and 63_step46_25_backup_center_
+-- scheduling_drive.sql both carry the "63_" prefix. They were packaged as
+-- separate add-on patches without cross-checking the next free number, so
+-- the outer prefix collided. This one (patch 46.24) is the earlier of the
+-- two and must be applied first; the step46_24 vs step46_25 suffix — and
+-- plain alphabetical sort of the filenames — already puts them in the
+-- correct order, so nothing needs to be renamed to run migrations safely.
+-- See VERIFY.sql for a current post-migration checklist.
+--
 -- Fixes: PostgREST error about missing app_settings.invoice_show_shop_name.
 -- Also adds invoice_show_product_code, which the UI already uses for the
 -- optional Product Code / Pic column on A4/A5 invoices.

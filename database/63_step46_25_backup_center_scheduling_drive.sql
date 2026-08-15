@@ -1,7 +1,14 @@
 -- ============================================================================
 -- Tiny POS - Step 46.25: Backup Center scheduling + Google Drive destination
--- Run once after Step 46.24 / migration 62.
+-- Run once after Step 46.24 / migration 63_step46_24_receipt_center_
+-- invoice_settings_fix.sql.
 -- Additive only. Does not delete or rewrite POS business records.
+--
+-- NOTE ON FILE NUMBERING: this file shares the "63_" prefix with
+-- 63_step46_24_receipt_center_invoice_settings_fix.sql (see that file's
+-- header for why). This one — patch 46.25 — is the later of the two and
+-- must be applied second; it is safe to install by filename, as sorting
+-- the two by name already applies them in the right order.
 -- ============================================================================
 
 begin;
