@@ -1,3 +1,4 @@
+import { normalizeMediaUrl } from "../lib/media";
 import { printElementDocument } from "../lib/listDocuments";
 import { Languages, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -97,20 +98,30 @@ export default function ReturnReceiptModal({ receipt, onClose }) {
           )}
 
           <div className="receipt-lines">
-            {(receipt.items || []).map((item) => (
-              <div key={`${item.sale_item_id}-${item.product_name}`}>
-                <span>
-                  <strong>{isKhmer ? (item.product_name_km || item.product_name) : item.product_name}</strong>
-                  <small>
-                    {stockNumber(item.quantity)}{" "}
-                    {item.unit_name || item.return_unit_name || "pcs"}
-                    {" × "}{money(item.unit_refund, receipt.currency)}
-                    {item.restock ? label(" · Restocked", " · បានបញ្ចូលស្តុកវិញ") : label(" · Not restocked", " · មិនបានបញ្ចូលស្តុកវិញ")}
-                  </small>
-                </span>
-                <strong>-{money(item.line_refund, receipt.currency)}</strong>
-              </div>
-            ))}
+            {(receipt.items || []).map((item, index) => {
+              const rawImg = item.image_url || item.image || item.product_image_url || item.photo_url || item.thumbnail;
+              const thumbUrl = normalizeMediaUrl(rawImg);
+              return (
+                <div key={`${item.sale_item_id || index}-${item.product_name}`} className="receipt-line-with-img">
+                  {thumbUrl && (
+                    <img src={thumbUrl} alt="" className="receipt-item-thumb" />
+                  )}
+                  <div className="receipt-line-info">
+                    <span>
+                      <strong>{isKhmer ? (item.product_name_km || item.product_name) : item.product_name}</strong>
+                      {item.code && <small className="receipt-item-code">[{item.code}]</small>}
+                      <small>
+                        {stockNumber(item.quantity)}{" "}
+                        {item.unit_name || item.return_unit_name || "pcs"}
+                        {" × "}{money(item.unit_refund, receipt.currency)}
+                        {item.restock ? label(" · Restocked", " · បានបញ្ចូលស្តុកវិញ") : label(" · Not restocked", " · មិនបានបញ្ចូលស្តុកវិញ")}
+                      </small>
+                    </span>
+                  </div>
+                  <strong>-{money(item.line_refund, receipt.currency)}</strong>
+                </div>
+              );
+            })}
           </div>
 
           <div className="receipt-totals">

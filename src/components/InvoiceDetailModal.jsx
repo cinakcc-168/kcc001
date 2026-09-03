@@ -6,6 +6,7 @@ import {
   Table2
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { normalizeMediaUrl } from "../lib/media";
 import Modal from "./Modal";
 import {
   money,
@@ -17,6 +18,39 @@ import {
   invoiceStatusLabel,
   paymentMethodLabel
 } from "../lib/invoices";
+
+function getPromoLabel(item, currency = "USD") {
+  const promo = item.active_promotion || item.promotion;
+  if (promo) {
+    const type = String(promo.discount_type || promo.type || "").toLowerCase();
+    const val = Number(promo.discount_value || promo.discount_amount || 0);
+    if (type === "percent" && val > 0) return `PRO -${val}%`;
+    if ((type === "fixed" || type === "amount") && val > 0) return `PRO -${money(val, currency)}`;
+  }
+
+  const promoDiscount = Number(item.promotion_discount_amount || 0);
+  const qty = Number(item.quantity || 1);
+  if (promoDiscount > 0 && qty > 0) {
+    if (item.promotion_discount_type === "percent" && item.promotion_discount_value > 0) {
+      return `PRO -${item.promotion_discount_value}%`;
+    }
+    const unitDiscount = promoDiscount / qty;
+    return `PRO -${money(unitDiscount, currency)}`;
+  }
+
+  const stdPrice = Number(item.list_price || item.standard_unit_price || 0);
+  const sellingPrice = Number(item.unit_price || item.selected_unit_price || 0);
+  if (stdPrice > sellingPrice && sellingPrice > 0) {
+    const unitDiscount = stdPrice - sellingPrice;
+    const pct = Math.round((unitDiscount / stdPrice) * 100);
+    if (Math.abs((unitDiscount / stdPrice) * 100 - pct) < 0.1 && pct > 0) {
+      return `PRO -${pct}%`;
+    }
+    return `PRO -${money(unitDiscount, currency)}`;
+  }
+
+  return null;
+}
 
 export default function InvoiceDetailModal({
   invoice,
@@ -42,6 +76,48 @@ export default function InvoiceDetailModal({
   }, [invoice?.id]);
 
   if (!invoice) return null;
+
+  const items = invoice.items || [];
+
+  const explicitPromo = Number(invoice.promotion_discount_amount || invoice.promotionDiscountAmount || 0);
+  const itemsPromoSum = items.reduce((sum, item) => {
+    const promoDiscount = Number(item.promotion_discount_amount || 0);
+    if (promoDiscount > 0) return sum + promoDiscount;
+
+    const qty = Number(item.quantity || 0);
+    const listPrice = Number(item.list_price || item.standard_unit_price || 0);
+    const unitPrice = Number(item.unit_price || item.selected_unit_price || 0);
+    if (listPrice > unitPrice && unitPrice > 0) {
+      return sum + ((listPrice - unitPrice) * qty);
+    }
+    return sum;
+  }, 0);
+
+  const totalPromotionDiscount = Math.max(explicitPromo, itemsPromoSum);
+
+  const calculatedGrossSubtotal = items.reduce((sum, item) => {
+    const qty = Number(item.quantity || 0);
+    const promoDiscount = Number(item.promotion_discount_amount || 0);
+    const sellingPrice = Number(item.unit_price || item.selected_unit_price || 0);
+    const stdPrice = Number(
+      item.list_price
+      ?? item.standard_unit_price
+      ?? (promoDiscount > 0 && qty > 0 ? sellingPrice + (promoDiscount / qty) : sellingPrice)
+    );
+    return sum + (qty * stdPrice);
+  }, 0);
+
+  const subtotalDisplay = calculatedGrossSubtotal > 0
+    ? calculatedGrossSubtotal
+    : Number(invoice.subtotal || 0) + totalPromotionDiscount;
+
+  const totalTax = Number(invoice.tax_amount || 0);
+  const totalAmount = Number(invoice.total_amount || 0);
+
+  const genericDiscount = Math.max(
+    0,
+    Math.round((subtotalDisplay - totalPromotionDiscount + totalTax - totalAmount + Number.EPSILON) * 100) / 100
+  );
 
   async function copyNumber() {
     try {
@@ -168,24 +244,37 @@ export default function InvoiceDetailModal({
 
           {itemViewMode === "cards" ? (
             <div className="invoice-detail-item-card-grid">
-              {(invoice.items || []).map((item) => (
-                <article className="invoice-detail-item-card" key={item.id}>
-                  <header>
-                    <div>
-                      <strong>{item.product_name}</strong>
-                      <small>{item.barcode || "No barcode"}</small>
+              {(invoice.items || []).map((item) => {
+                const codeVal = item.product_code || item.code || item.sku || item.barcode || "";
+                const rawImg = item.image_url || item.image || item.product_image_url || item.photo_url || item.thumbnail;
+                const thumbUrl = normalizeMediaUrl(rawImg);
+                return (
+                  <article className="invoice-detail-item-card" key={item.id}>
+                    <header>
+                      <div className="invoice-detail-card-head">
+                        {thumbUrl ? (
+                          <img src={thumbUrl} alt="" className="invoice-detail-item-thumb" />
+                        ) : null}
+                        <div className="invoice-detail-card-title">
+                          <strong>{item.product_name}</strong>
+                          <small>{codeVal ? `[${codeVal}]` : "No code"}</small>
+                          {getPromoLabel(item, invoice.currency) && (
+                            <div className="promotion-inline-tag">{getPromoLabel(item, invoice.currency)}</div>
+                          )}
+                        </div>
+                      </div>
+                      <strong>{money(item.line_total, invoice.currency)}</strong>
+                    </header>
+                    <div className="invoice-detail-item-fields">
+                      <div><span>Quantity</span><strong>{stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}</strong><small>{stockNumber(item.base_quantity)} base units</small></div>
+                      <div><span>List price</span><strong>{money(item.list_price, invoice.currency)}</strong></div>
+                      <div><span>Sale price</span><strong>{money(item.unit_price, invoice.currency)}</strong></div>
+                      <div><span>Discount</span><strong>{money(item.discount_amount, invoice.currency)}</strong></div>
+                      {canViewProfit && <div><span>Profit</span><strong>{money(item.line_profit, invoice.currency)}</strong></div>}
                     </div>
-                    <strong>{money(item.line_total, invoice.currency)}</strong>
-                  </header>
-                  <div className="invoice-detail-item-fields">
-                    <div><span>Quantity</span><strong>{stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}</strong><small>{stockNumber(item.base_quantity)} base units</small></div>
-                    <div><span>List price</span><strong>{money(item.list_price, invoice.currency)}</strong></div>
-                    <div><span>Sale price</span><strong>{money(item.unit_price, invoice.currency)}</strong></div>
-                    <div><span>Discount</span><strong>{money(item.discount_amount, invoice.currency)}</strong></div>
-                    {canViewProfit && <div><span>Profit</span><strong>{money(item.line_profit, invoice.currency)}</strong></div>}
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <div className="invoice-detail-table-wrap">
@@ -203,23 +292,38 @@ export default function InvoiceDetailModal({
                 </thead>
 
                 <tbody>
-                  {(invoice.items || []).map((item) => (
-                    <tr key={item.id}>
-                      <td data-label="Product">
-                        <strong>{item.product_name}</strong>
-                        <small>{item.barcode || "No barcode"}</small>
-                      </td>
-                      <td data-label="Quantity">
-                        {stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}
-                        <small>{stockNumber(item.base_quantity)} base units</small>
-                      </td>
-                      <td data-label="List price">{money(item.list_price, invoice.currency)}</td>
-                      <td data-label="Sale price">{money(item.unit_price, invoice.currency)}</td>
-                      <td data-label="Discount">{money(item.discount_amount, invoice.currency)}</td>
-                      <td data-label="Total"><strong>{money(item.line_total, invoice.currency)}</strong></td>
-                      {canViewProfit && <td data-label="Profit">{money(item.line_profit, invoice.currency)}</td>}
-                    </tr>
-                  ))}
+                  {(invoice.items || []).map((item) => {
+                    const codeVal = item.product_code || item.code || item.sku || item.barcode || "";
+                    const rawImg = item.image_url || item.image || item.product_image_url || item.photo_url || item.thumbnail;
+                    const thumbUrl = normalizeMediaUrl(rawImg);
+                    return (
+                      <tr key={item.id}>
+                        <td data-label="Product">
+                          <div className="invoice-detail-product-cell">
+                            {thumbUrl ? (
+                              <img src={thumbUrl} alt="" className="invoice-detail-item-thumb" />
+                            ) : null}
+                            <div className="invoice-detail-product-text">
+                              <strong>{item.product_name}</strong>
+                              <small>{codeVal ? `[${codeVal}]` : "No code"}</small>
+                              {getPromoLabel(item, invoice.currency) && (
+                                <div className="promotion-inline-tag">{getPromoLabel(item, invoice.currency)}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td data-label="Quantity">
+                          {stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}
+                          <small>{stockNumber(item.base_quantity)} base units</small>
+                        </td>
+                        <td data-label="List price">{money(item.list_price, invoice.currency)}</td>
+                        <td data-label="Sale price">{money(item.unit_price, invoice.currency)}</td>
+                        <td data-label="Discount">{money(item.discount_amount, invoice.currency)}</td>
+                        <td data-label="Total"><strong>{money(item.line_total, invoice.currency)}</strong></td>
+                        {canViewProfit && <td data-label="Profit">{money(item.line_profit, invoice.currency)}</td>}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -353,44 +457,62 @@ export default function InvoiceDetailModal({
 
         <section className="invoice-detail-total-grid">
           <div>
-            <span>Subtotal</span>
+            <span>Sub-Total</span>
             <strong>
               {money(
-                invoice.subtotal,
+                subtotalDisplay,
                 invoice.currency
               )}
             </strong>
           </div>
 
-          <div>
-            <span>Price adjustment</span>
-            <strong>
-              {money(
-                invoice.price_adjustment_amount,
-                invoice.currency
-              )}
-            </strong>
-          </div>
+          {Number(invoice.price_adjustment_amount || 0) !== 0 && (
+            <div>
+              <span>Price adjustment</span>
+              <strong>
+                {money(
+                  invoice.price_adjustment_amount,
+                  invoice.currency
+                )}
+              </strong>
+            </div>
+          )}
 
-          <div>
-            <span>Discount</span>
-            <strong>
-              -{money(
-                invoice.discount_amount,
-                invoice.currency
-              )}
-            </strong>
-          </div>
+          {totalPromotionDiscount > 0 && (
+            <div>
+              <span>Promotion Discount</span>
+              <strong>
+                -{money(
+                  totalPromotionDiscount,
+                  invoice.currency
+                )}
+              </strong>
+            </div>
+          )}
 
-          <div>
-            <span>Tax</span>
-            <strong>
-              {money(
-                invoice.tax_amount,
-                invoice.currency
-              )}
-            </strong>
-          </div>
+          {genericDiscount > 0 && (
+            <div>
+              <span>Discount</span>
+              <strong>
+                -{money(
+                  genericDiscount,
+                  invoice.currency
+                )}
+              </strong>
+            </div>
+          )}
+
+          {totalTax > 0 && (
+            <div>
+              <span>Tax</span>
+              <strong>
+                {money(
+                  totalTax,
+                  invoice.currency
+                )}
+              </strong>
+            </div>
+          )}
 
           <div>
             <span>Gross total</span>

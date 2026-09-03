@@ -1,4 +1,5 @@
 import {
+  Ban,
   Camera,
   CheckCircle2,
   Clock3,
@@ -97,6 +98,8 @@ export default function TransferWorkflowModal({
   const [batchOptions, setBatchOptions] = useState([]);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchError, setBatchError] = useState("");
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [cancelReasonInput, setCancelReasonInput] = useState("");
 
   useEffect(() => {
     if (!transfer) return;
@@ -108,6 +111,8 @@ export default function TransferWorkflowModal({
     setReviewing(false);
     setScannerOpen(false);
     setScanMessage("");
+    setConfirmCancelOpen(false);
+    setCancelReasonInput("");
     setBatchError("");
   }, [transfer, mode]);
 
@@ -598,11 +603,67 @@ export default function TransferWorkflowModal({
     });
   }
 
-  async function cancelTransfer() {
+  function countAllRequested() {
+    setError("");
+    const nextCounts = { ...counts };
+    for (const item of rows) {
+      const product = item.products || {};
+      const reqUnit = requestedUnit(item);
+      const reqQty = item.requested_unit_quantity ?? item.quantity ?? 0;
+      const reqQtyStr = String(reqQty);
+      const unitId = reqUnit?.id || "";
+
+      const factor = Number(reqUnit?.conversion_factor || 1);
+      const requestedBase = Number((Number(reqQty) * factor).toFixed(3));
+
+      let allocations = [];
+      if (product.batch_tracking && requestedBase > 0) {
+        let remaining = requestedBase;
+        const opts = optionsForItem(item);
+        for (const option of opts) {
+          if (remaining <= 0.0005) break;
+          const avail = Number(option.available_quantity || 0);
+          const take = Math.min(remaining, avail);
+          if (take <= 0) continue;
+          allocations.push({
+            source_batch_id: option.source_batch_id,
+            base_quantity: String(Number(take.toFixed(3)))
+          });
+          remaining = Number((remaining - take).toFixed(3));
+        }
+      }
+
+      nextCounts[item.product_id] = {
+        quantity: reqQtyStr,
+        product_unit_id: unitId,
+        note: nextCounts[item.product_id]?.note || item.count_note || "",
+        batch_allocations: allocations.length > 0 ? allocations : (nextCounts[item.product_id]?.batch_allocations || normalizedSavedBatchAllocations(item))
+      };
+    }
+
+    setCounts(nextCounts);
+    setScanMessage("Counted all items with requested quantities.");
+  }
+
+  function cancelTransfer() {
     if (!onCancel) return;
     setError("");
+    setCancelReasonInput("");
+    setConfirmCancelOpen(true);
+  }
+
+  async function submitCancellation(event) {
+    if (event) event.preventDefault();
+    if (!onCancel) return;
+    const reason = cancelReasonInput.trim();
+    if (reason.length < 3) {
+      setError("Enter a cancellation reason (at least 3 characters).");
+      return;
+    }
+    setError("");
     try {
-      await onCancel(transfer);
+      await onCancel(transfer, reason);
+      setConfirmCancelOpen(false);
     } catch (cancelError) {
       setError(cancelError?.message || "The transfer could not be cancelled.");
     }
@@ -795,6 +856,7 @@ export default function TransferWorkflowModal({
           <>
             <div className="stock-count-workspace-actions" data-print-hide>
               <button type="button" className="secondary-button" onClick={() => setScannerOpen(true)} disabled={busy}><Camera size={18} />Scan product</button>
+              <button type="button" className="secondary-button" onClick={countAllRequested} disabled={busy} title="Fill all counted quantities with requested amounts"><CheckCircle2 size={18} />Counted all</button>
               <button type="button" className="primary-button" onClick={savePending} disabled={busy || totals.changed === 0}><Save size={18} />{busy ? "Saving..." : `Save all counts (${totals.changed})`}</button>
               <button type="button" className="secondary-button" onClick={openReview} disabled={busy}><CheckCircle2 size={18} />Review & submit</button>
               <button type="button" className="secondary-button" onClick={exportCount} disabled={busy}><Download size={18} />Export Excel</button>
@@ -899,6 +961,49 @@ export default function TransferWorkflowModal({
           </div>
         )}
       </div>
+
+      {confirmCancelOpen && (
+        <Modal
+          title={`Cancel stock transfer ${transfer.transfer_number}`}
+          onClose={() => setConfirmCancelOpen(false)}
+        >
+          <form className="transfer-action-form" onSubmit={submitCancellation}>
+            <div className="transfer-action-summary">
+              <strong>{transfer.transfer_number}</strong>
+              <span>
+                {transfer.source_branch?.name || "Source"} → {transfer.destination_branch?.name || "Destination"}
+              </span>
+            </div>
+
+            <p style={{ margin: "12px 0 4px", fontSize: "13px", color: "var(--muted)" }}>
+              Are you sure you want to cancel this transfer? No stock will be moved.
+            </p>
+
+            <label style={{ display: "grid", gap: "6px", margin: "12px 0 16px" }}>
+              <span style={{ fontWeight: 700, fontSize: "13px" }}>Cancellation reason *</span>
+              <textarea
+                rows="3"
+                value={cancelReasonInput}
+                onChange={(event) => setCancelReasonInput(event.target.value)}
+                placeholder="Reason for cancelling this transfer (e.g. requested by mistake)"
+                autoFocus
+                required
+              />
+            </label>
+
+            {error && <div className="notice error" onClick={() => setError("")}>{error}</div>}
+
+            <div className="transfer-modal-actions">
+              <button type="button" className="secondary-button" onClick={() => setConfirmCancelOpen(false)} disabled={busy}>
+                Keep transfer
+              </button>
+              <button type="submit" className="danger-button" disabled={busy || cancelReasonInput.trim().length < 3}>
+                <Ban size={18} /> Confirm cancellation
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </Modal>
   );
 }

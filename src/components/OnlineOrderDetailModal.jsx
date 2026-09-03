@@ -8,6 +8,7 @@ import {
 } from "../lib/onlineStore";
 import MediaImage from "./MediaImage";
 import MediaPreviewModal from "./MediaPreviewModal";
+import Modal from "./Modal";
 import { downloadMediaFile } from "../lib/media";
 
 const nextStatuses = [
@@ -53,19 +54,37 @@ export default function OnlineOrderDetailModal({
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal wide online-order-detail">
-        <div className="modal-head">
-          <div>
-            <p className="eyebrow">CUSTOMER WEB ORDER</p>
-            <h2>{order.order_number}</h2>
+    <>
+      <Modal
+        title={`Customer Web Order · ${order.order_number}`}
+        onClose={onClose}
+        wide
+        className="online-order-modal-dialog"
+      >
+        <div className="online-order-top-banner">
+          <div className="online-order-status-header">
+            <div>
+              <p className="eyebrow">CUSTOMER WEB ORDER</p>
+              <h2>{order.order_number}</h2>
+            </div>
             <span className={`status-badge ${order.status}`}>{onlineStatusLabel(order.status)}</span>
           </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">×</button>
         </div>
 
         <div className="online-order-summary-grid">
-          <div><small>Customer</small><strong>{order.customer_name}</strong><span>{order.customer_phone}</span>{order.customer_email && <span>{order.customer_email}</span>}</div>
+          <div>
+            <small>Customer</small>
+            <strong>{order.customer_name}</strong>
+            <span>{order.customer_phone}</span>
+            {order.customers?.customer_code && (
+              <small style={{ display: "block", color: "var(--color-primary, #0284c7)", fontWeight: 600, marginTop: "2px" }}>
+                {order.customers.name !== order.customer_name
+                  ? `Linked POS: ${order.customers.name} (${order.customers.customer_code})`
+                  : `POS Account: ${order.customers.customer_code}`}
+              </small>
+            )}
+            {order.customer_email && <span>{order.customer_email}</span>}
+          </div>
           <div><small>Fulfilment</small><strong>{order.fulfilment_type === "delivery" ? "Delivery" : "Branch pickup"}</strong><span>Requested: {onlineDate(order.requested_date)}</span></div>
           <div><small>Payment</small><strong>{String(order.payment_method).replaceAll("_", " ")}</strong><span>{String(order.payment_status).replaceAll("_", " ")}</span>{order.bank_reference && <span>Ref: {order.bank_reference}</span>}</div>
           <div><small>Created</small><strong>{onlineDateTime(order.created_at)}</strong><span>{order.branches?.name || "Current branch"}</span></div>
@@ -182,7 +201,7 @@ export default function OnlineOrderDetailModal({
         )}
 
         <div className="modal-actions"><button type="button" className="secondary" onClick={onClose}>Close</button></div>
-      </div>
+      </Modal>
       <MediaPreviewModal
         open={previewOpen}
         src={order.bank_slip_url}
@@ -190,6 +209,6 @@ export default function OnlineOrderDetailModal({
         downloadName={`${order.order_number}-bank-slip`}
         onClose={() => setPreviewOpen(false)}
       />
-    </div>
+    </>
   );
 }

@@ -57,7 +57,21 @@ const SKIP_SELECTOR = [
   "textarea",
   "[contenteditable='true']",
   "[data-i18n-skip]",
-  ".no-translate"
+  ".no-translate",
+  ".sale-product-card",
+  ".sale-product-content",
+  ".sale-product-names",
+  ".sale-product-name-primary",
+  ".sale-product-name-secondary",
+  ".sale-product-meta",
+  ".sale-cart-lines",
+  ".sale-cart-line",
+  ".receipt-document",
+  ".return-receipt-document",
+  ".sale-invoice-document",
+  ".receipt-lines",
+  ".public-product-card",
+  ".online-admin-product-card"
 ].join(",");
 
 const ATTRIBUTES = [

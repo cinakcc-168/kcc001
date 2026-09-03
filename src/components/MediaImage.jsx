@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PRODUCT_IMAGE_PLACEHOLDER,
   cloudinaryImageUrl,
-  normalizeMediaUrl
+  normalizeMediaUrl,
+  isMediaUrlCached,
+  isMediaUrlFailed,
+  markMediaUrlLoaded,
+  markMediaUrlFailed
 } from "../lib/media";
 
 export default function MediaImage({
@@ -25,15 +29,54 @@ export default function MediaImage({
     () => cloudinaryImageUrl(normalized, { width, height, crop, gravity, quality }),
     [normalized, width, height, crop, gravity, quality]
   );
-  const [status, setStatus] = useState(displayUrl ? "loading" : "fallback");
+
+  const isFallbackOrEmpty = !displayUrl || isMediaUrlFailed(displayUrl);
+
+  const [status, setStatus] = useState(() => {
+    if (isFallbackOrEmpty) return "fallback";
+    if (isMediaUrlCached(displayUrl)) return "ready";
+    return "loading";
+  });
+  const imgRef = useRef(null);
 
   useEffect(() => {
-    setStatus(displayUrl ? "loading" : "fallback");
+    if (!displayUrl || isMediaUrlFailed(displayUrl)) {
+      setStatus("fallback");
+      return;
+    }
+    if (isMediaUrlCached(displayUrl)) {
+      setStatus("ready");
+      return;
+    }
+
+    if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
+      markMediaUrlLoaded(displayUrl);
+      setStatus("ready");
+      return;
+    }
+
+    setStatus("loading");
   }, [displayUrl]);
 
-  const shownUrl = status === "error" || status === "fallback"
+  const shownUrl = (status === "error" || status === "fallback" || !displayUrl)
     ? placeholder
     : displayUrl;
+
+  const handleLoad = () => {
+    // If we are showing the fallback placeholder or there is no displayUrl, do not flip to "ready"
+    if (!displayUrl || status === "fallback" || isMediaUrlFailed(displayUrl)) {
+      return;
+    }
+    markMediaUrlLoaded(displayUrl);
+    setStatus("ready");
+  };
+
+  const handleError = () => {
+    if (displayUrl && !isMediaUrlFailed(displayUrl)) {
+      markMediaUrlFailed(displayUrl);
+    }
+    setStatus("fallback");
+  };
 
   return (
     <span
@@ -48,13 +91,14 @@ export default function MediaImage({
     >
       {status === "loading" && <span className="media-image-loader" aria-hidden="true" />}
       <img
+        ref={imgRef}
         src={shownUrl}
         alt={alt}
         className={imgClassName}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
-        onLoad={() => setStatus((current) => current === "loading" ? "ready" : current)}
-        onError={() => setStatus((current) => current === "error" ? "fallback" : "error")}
+        onLoad={handleLoad}
+        onError={handleError}
       />
     </span>
   );

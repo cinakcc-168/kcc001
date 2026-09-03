@@ -7,6 +7,7 @@ import {
   Plus,
   TicketPercent,
   FileText,
+  Trash2,
   UserPlus,
   Wallet,
   X
@@ -22,16 +23,9 @@ function getItemUnits(item) {
     (u) => u.is_active !== false
   );
 
-  const productName = String(item.name || "").trim().toLowerCase();
-  const productNameKm = String(item.name_km || "").trim().toLowerCase();
-  const rawBaseUnitName = String(item.unit_name || "pcs").trim();
-  const safeBaseUnitName = [rawBaseUnitName, "pcs"].find((value) => {
-    const lower = String(value).trim().toLowerCase();
-    return lower && lower !== productName && lower !== productNameKm;
-  }) || "pcs";
-
-  const hasBase = rawUnits.some((u) => u.is_base);
+  const rawBaseUnitName = String(item.unit_name || "").trim() || "pcs";
   let units = rawUnits.map((u) => ({ ...u }));
+  const hasBase = units.some((u) => u.is_base);
 
   if (!hasBase) {
     const existing = units.find(
@@ -42,8 +36,8 @@ function getItemUnits(item) {
     } else {
       units.unshift({
         id: `base-${item.id}`,
-        name: safeBaseUnitName,
-        short_name: safeBaseUnitName,
+        name: rawBaseUnitName,
+        short_name: rawBaseUnitName,
         conversion_factor: 1,
         selling_price: Number(item.selling_price || 0),
         is_base: true,
@@ -56,23 +50,12 @@ function getItemUnits(item) {
     .map((u) => {
       const rawName = String(u.name || "").trim();
       const rawShortName = String(u.short_name || "").trim();
-      const nameLower = rawName.toLowerCase();
-      const shortLower = rawShortName.toLowerCase();
-      const looksLikeProductName =
-        nameLower === productName
-        || nameLower === productNameKm
-        || shortLower === productName
-        || shortLower === productNameKm;
-      const displayName = looksLikeProductName
-        ? (rawShortName && shortLower !== productName && shortLower !== productNameKm
-          ? rawShortName
-          : (u.is_base ? safeBaseUnitName : rawBaseUnitName || "pcs"))
-        : (rawShortName || rawName || (u.is_base ? safeBaseUnitName : "pcs"));
+      const displayName = rawShortName || rawName || (u.is_base ? rawBaseUnitName : "Unit");
 
       return {
         ...u,
         id: String(u.id || `unit-${displayName}`),
-        name: displayName,
+        name: rawName || displayName,
         short_name: displayName,
         conversion_factor: Number(u.conversion_factor || 1),
         selling_price: Number(u.selling_price ?? item.selling_price ?? 0)
@@ -95,8 +78,7 @@ function CartLineList({
   onUnitChange,
   onRemove,
   fulfillmentLocked = false,
-  compact = false,
-  unitNameOnly = false
+  compact = false
 }) {
   return (
     <div className={`sale-cart-lines ${compact ? "compact-layout" : ""}`}>
@@ -145,13 +127,10 @@ function CartLineList({
                 </span>
               </div>
 
-              <span className="cart-line-mobile-summary no-translate" data-i18n-skip>
-                {index + 1} {item.name} {money(selectedPrice, item.currency)} × {stockNumber(item.quantity)} = {money(lineTotal, item.currency)}
-              </span>
-
               <div className="cart-line-unit-control">
                 {units.length > 1 ? (
                   <select
+                    className="cart-line-unit-select"
                     value={item.selected_unit_id || units[0]?.id || ""}
                     onChange={(event) => onUnitChange(currentLineId, event.target.value)}
                     aria-label={`${item.name} selling unit`}
@@ -159,57 +138,63 @@ function CartLineList({
                   >
                     {units.map((unit) => (
                       <option value={unit.id} key={unit.id}>
-                        {unitNameOnly
-                          ? (unit.short_name || unit.name)
-                          : `${unit.name} · ${money(unit.selling_price, item.currency)}`}
+                        {unit.short_name || unit.name}
                       </option>
                     ))}
                   </select>
                 ) : (
                   <span className="single-unit-label">
-                    {unitNameOnly
-                      ? selectedUnitDisplay
-                      : selectedUnitDisplay}
+                    {selectedUnitDisplay}
                   </span>
                 )}
               </div>
 
               <div className="cart-quantity-controls">
+                <div className="cart-stepper-pill">
+                  <button
+                    type="button"
+                    className="stepper-btn stepper-minus"
+                    onClick={() => onQuantityChange(currentLineId, Number(item.quantity) - 1)}
+                    disabled={fulfillmentLocked}
+                    aria-label={`Reduce ${item.name}`}
+                  >
+                    <Minus size={13} strokeWidth={2.5} />
+                  </button>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={item.quantity}
+                    onChange={(event) => onQuantityChange(currentLineId, event.target.value)}
+                    onBlur={(event) => {
+                      const val = Number(event.target.value);
+                      if (!val || val <= 0) {
+                        onQuantityChange(currentLineId, 1);
+                      }
+                    }}
+                    disabled={fulfillmentLocked}
+                    aria-label={`${item.name} quantity`}
+                    className="stepper-input"
+                  />
+                  <button
+                    type="button"
+                    className="stepper-btn stepper-plus"
+                    onClick={() => onQuantityChange(currentLineId, Number(item.quantity) + 1)}
+                    disabled={fulfillmentLocked}
+                    aria-label={`Add ${item.name}`}
+                  >
+                    <Plus size={13} strokeWidth={2.5} />
+                  </button>
+                </div>
                 <button
                   type="button"
-                  className="icon-button"
-                  onClick={() => onQuantityChange(currentLineId, Number(item.quantity) - 1)}
-                  disabled={fulfillmentLocked}
-                  aria-label={`Reduce ${item.name}`}
-                >
-                  <Minus size={17} />
-                </button>
-                <input
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value={item.quantity}
-                  onChange={(event) => onQuantityChange(currentLineId, event.target.value)}
-                  disabled={fulfillmentLocked}
-                  aria-label={`${item.name} quantity`}
-                />
-                <button
-                  type="button"
-                  className="icon-button"
-                  onClick={() => onQuantityChange(currentLineId, Number(item.quantity) + 1)}
-                  disabled={fulfillmentLocked}
-                  aria-label={`Add ${item.name}`}
-                >
-                  <Plus size={17} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-button danger-icon"
+                  className="cart-line-delete-btn"
                   onClick={() => onRemove(currentLineId)}
                   disabled={fulfillmentLocked}
                   aria-label={`Remove ${item.name}`}
+                  title="Remove item"
                 >
-                  <X size={17} />
+                  <Trash2 size={16} />
                 </button>
               </div>
 
@@ -305,7 +290,6 @@ function CustomerPicker({
           }
         }}
       >
-        <span>Customer</span>
         <input
           value={customerSearch}
           onFocus={() => setCustomerPickerOpen(true)}
@@ -587,10 +571,18 @@ function CheckoutControls({
           <span>Subtotal</span>
           <strong>{money(totals.subtotal, currency)}</strong>
         </div>
-        <div>
-          <span>{appliedCoupon ? "Coupon discount" : "Discount"}</span>
-          <strong>-{money(totals.discountAmount, currency)}</strong>
-        </div>
+        {Number(totals.promotionDiscountAmount || 0) > 0 && (
+          <div>
+            <span>Promotion discount</span>
+            <strong>-{money(totals.promotionDiscountAmount, currency)}</strong>
+          </div>
+        )}
+        {Number(totals.discountAmount || 0) > 0 && (
+          <div>
+            <span>{appliedCoupon ? "Coupon discount" : "Discount"}</span>
+            <strong>-{money(totals.discountAmount, currency)}</strong>
+          </div>
+        )}
         {Number(taxPercent) > 0 && (
           <div>
             <span>Tax ({Number(taxPercent)}%)</span>

@@ -70,12 +70,8 @@ export default function Modal({
     if (!closeDisabled) onClose?.();
   }
 
-  const layerStyle = mainBounds
-    ? { left: `${mainBounds.left}px`, width: `${mainBounds.width}px` }
-    : undefined;
-
   const content = (
-    <div className="modal-layer" style={layerStyle} role="presentation" onMouseDown={requestClose}>
+    <div className="modal-layer" role="presentation" onMouseDown={requestClose}>
       <section
         className={`modal-card ${wide ? "wide" : ""} ${className}`.trim()}
         role="dialog"

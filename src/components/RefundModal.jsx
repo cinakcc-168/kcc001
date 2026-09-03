@@ -58,18 +58,22 @@ export default function RefundModal({
   useEffect(() => {
     if (!sale) return;
 
+    const rawItems = sale.sale_items || sale.items || [];
     setItems(
-      (sale.sale_items || []).map((item) => ({
-        sale_item_id: item.id,
-        quantity: 0,
-        restock: Boolean(item.product_id),
-        available: Number(
-          item.returnable_quantity || 0
-        ),
-        product_name: item.product_name,
-        unit_name:
-          item.sale_unit_name || "pcs"
-      }))
+      rawItems.map((item) => {
+        const available = item.returnable_quantity !== undefined
+          ? Number(item.returnable_quantity || 0)
+          : Math.max(0, Number(item.quantity || 0) - Number(item.returned_quantity || 0));
+        return {
+          sale_item_id: item.id,
+          quantity: 0,
+          restock: Boolean(item.product_id),
+          available,
+          product_name: item.product_name,
+          unit_name:
+            item.sale_unit_name || item.unit_name || "pcs"
+        };
+      })
     );
 
     setRefundMethod(
@@ -294,15 +298,15 @@ export default function RefundModal({
         </div>
 
         <div className="refund-items">
-          {(sale.sale_items || []).map(
+          {(sale.sale_items || sale.items || []).map(
             (saleItem) => {
               const current = items.find(
                 (item) =>
                   item.sale_item_id === saleItem.id
               );
-              const available = Number(
-                saleItem.returnable_quantity || 0
-              );
+              const available = saleItem.returnable_quantity !== undefined
+                ? Number(saleItem.returnable_quantity || 0)
+                : Math.max(0, Number(saleItem.quantity || 0) - Number(saleItem.returned_quantity || 0));
 
               return (
                 <article

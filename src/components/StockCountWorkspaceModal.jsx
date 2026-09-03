@@ -37,6 +37,7 @@ export default function StockCountWorkspaceModal({
   onCategoryChange,
   onCountFilterChange,
   onDraftChange,
+  onCountAllExpected,
   onSaveAll,
   onScan,
   onComplete,
@@ -69,6 +70,19 @@ export default function StockCountWorkspaceModal({
             <Camera size={18} />
             Scan product
           </button>
+
+          {onCountAllExpected && (
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={onCountAllExpected}
+              disabled={loading || busy === "save-all"}
+              title="Set all counted quantities to match expected stock"
+            >
+              <CheckCircle2 size={18} />
+              Counted all
+            </button>
+          )}
 
           <button
             type="button"

@@ -1,4 +1,5 @@
 import { money, stockNumber } from "../lib/catalog";
+import { normalizeMediaUrl } from "../lib/media";
 
 function formatDateTime(value, locale = "en-US") {
   if (!value) return "—";
@@ -43,10 +44,70 @@ function lineDiscount(item) {
   return Number(item.line_discount_amount ?? item.discount_amount ?? 0);
 }
 
-function lineAmount(item) {
-  const known = item.line_total ?? item.total_amount;
-  if (known !== undefined && known !== null) return Number(known || 0);
-  return Number(item.quantity || 0) * linePrice(item) - lineDiscount(item);
+function lineAmount(item, promoLabel) {
+  const sellingPrice = Number(item.selected_unit_price ?? item.selling_price ?? item.unit_price ?? 0);
+  const qty = Number(item.quantity || 0);
+  const promoDiscount = Number(item.promotion_discount_amount || 0);
+
+  const normalUnitPrice = promoLabel
+    ? Number(
+        item.standard_unit_price
+        ?? item.list_price
+        ?? item.selling_price
+        ?? (sellingPrice + (promoDiscount / Math.max(1, qty)))
+        ?? sellingPrice
+      )
+    : Number(
+        item.standard_unit_price
+        ?? item.list_price
+        ?? sellingPrice
+      );
+
+  if (promoLabel) {
+    if (promoDiscount > 0) {
+      return qty * normalUnitPrice - promoDiscount;
+    }
+    return qty * sellingPrice;
+  }
+
+  return qty * normalUnitPrice;
+}
+
+function getProductPromotionLabel(item, currency = "USD") {
+  const promo = item.active_promotion || item.promotion || item.promo;
+  if (promo) {
+    const type = String(promo.discount_type || promo.type || "").toLowerCase();
+    const val = Number(promo.discount_value || promo.discount_amount || promo.value || promo.amount || 0);
+    if (type === "percent" && val > 0) {
+      return `PRO -${val}%`;
+    }
+    if ((type === "fixed" || type === "amount") && val > 0) {
+      return `PRO -${money(val, currency)}`;
+    }
+  }
+
+  const promoDiscount = Number(item.promotion_discount_amount || 0);
+  const qty = Number(item.quantity || 1);
+  if (promoDiscount > 0 && qty > 0) {
+    if (item.promotion_discount_type === "percent" && item.promotion_discount_value > 0) {
+      return `PRO -${item.promotion_discount_value}%`;
+    }
+    const unitDiscount = promoDiscount / qty;
+    return `PRO -${money(unitDiscount, currency)}`;
+  }
+
+  const stdPrice = Number(item.standard_unit_price ?? item.list_price ?? 0);
+  const sellingPrice = Number(item.selected_unit_price ?? item.unit_price ?? item.selling_price ?? 0);
+  if (stdPrice > sellingPrice && sellingPrice > 0) {
+    const unitDiscount = stdPrice - sellingPrice;
+    const pct = Math.round((unitDiscount / stdPrice) * 100);
+    if (Math.abs((unitDiscount / stdPrice) * 100 - pct) < 0.1 && pct > 0) {
+      return `PRO -${pct}%`;
+    }
+    return `PRO -${money(unitDiscount, currency)}`;
+  }
+
+  return null;
 }
 
 export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) {
@@ -106,6 +167,50 @@ export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) 
   );
   const isCreditSale = paymentMethod === "credit" || paymentRows.some(p => p.method === "credit") || creditAmount > 0;
 
+  const explicitPromo = Number(receipt.promotionDiscountAmount || receipt.promotion_discount_amount || 0);
+  const cartItemPromoSum = (receipt.cart || []).reduce((sum, item) => {
+    const promoDiscount = Number(item.promotion_discount_amount || 0);
+    if (promoDiscount > 0) return sum + promoDiscount;
+
+    const qty = Number(item.quantity || 0);
+    const sellingPrice = Number(item.selected_unit_price ?? item.selling_price ?? item.unit_price ?? 0);
+    const stdPrice = Number(item.standard_unit_price ?? item.list_price ?? 0);
+    if (stdPrice > sellingPrice && sellingPrice > 0) {
+      return sum + ((stdPrice - sellingPrice) * qty);
+    }
+
+    if (item.active_promotion || item.promotion) {
+      const normal = Number(item.standard_unit_price ?? item.list_price ?? sellingPrice);
+      return sum + Math.max(0, normal - sellingPrice) * qty;
+    }
+    return sum;
+  }, 0);
+
+  const totalPromotionDiscount = Math.max(explicitPromo, cartItemPromoSum);
+
+  const calculatedGrossSubtotal = (receipt.cart || []).reduce((sum, item) => {
+    const qty = Number(item.quantity || 0);
+    const promoDiscount = Number(item.promotion_discount_amount || 0);
+    const sellingPrice = Number(item.selected_unit_price ?? item.selling_price ?? item.unit_price ?? 0);
+    const stdPrice = Number(
+      item.standard_unit_price
+      ?? item.list_price
+      ?? (promoDiscount > 0 && qty > 0 ? sellingPrice + (promoDiscount / qty) : sellingPrice)
+    );
+    return sum + (qty * stdPrice);
+  }, 0);
+
+  const subtotalDisplay = calculatedGrossSubtotal > 0
+    ? calculatedGrossSubtotal
+    : Number(receipt.subtotal || 0) + totalPromotionDiscount;
+
+  const totalTax = Number(receipt.taxAmount || receipt.tax_amount || 0);
+
+  const genericDiscount = Math.max(
+    0,
+    Math.round((subtotalDisplay - totalPromotionDiscount + totalTax - total + Number.EPSILON) * 100) / 100
+  );
+
   return (
     <article
       className={`sale-invoice-document ${isKhmer ? "khmer" : "english"} paper-${paperSize.toLowerCase()}`}
@@ -149,43 +254,95 @@ export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) 
       </section>
 
       <div className="sale-invoice-table-wrap">
-        <table className="sale-invoice-table">
+        <table className={`sale-invoice-table ${showProductCode ? "has-code-pic" : "no-code-pic"}`}>
+          <colgroup>
+            <col className="invoice-col-no" />
+            {showProductCode && <col className="invoice-col-code-pic" />}
+            <col className="invoice-col-desc" />
+            <col className="invoice-col-qty" />
+            <col className="invoice-col-unit" />
+            <col className="invoice-col-unit-price" />
+            <col className="invoice-col-amount" />
+          </colgroup>
           <thead>
             <tr>
               <th className="invoice-col-no">{label("No.", "ល.រ")}</th>
-              {showProductCode && <th className="invoice-col-code-pic">{label("Code/Pic", "កូដ/រូបភាព")}</th>}
-              <th>{label("Item Description", "បរិយាយមុខទំនិញ")}</th>
+              {showProductCode && <th className="invoice-col-code-pic">{label("Code / Pic", "កូដ / រូបភាព")}</th>}
+              <th className="invoice-col-desc">{label("Item Description", "បរិយាយមុខទំនិញ")}</th>
               <th className="invoice-col-qty">{label("Qty", "ចំនួន")}</th>
               <th className="invoice-col-unit">{label("Unit", "ឯកតា")}</th>
-              <th className="invoice-col-money">{label("Unit Price", "តម្លៃឯកតា")}</th>
-              <th className="invoice-col-money">{label("Discount", "បញ្ចុះតម្លៃ")}</th>
-              <th className="invoice-col-money">{label("Amount", "ទឹកប្រាក់")}</th>
+              <th className="invoice-col-unit-price invoice-col-money">{label("Unit Price", "តម្លៃឯកតា")}</th>
+              <th className="invoice-col-amount invoice-col-money">{label("Amount", "ទឹកប្រាក់")}</th>
             </tr>
           </thead>
           <tbody>
             {(receipt.cart || []).map((item, index) => {
+              const promoLabel = getProductPromotionLabel(item, receipt.currency);
+              const normalUnitPrice = promoLabel
+                ? Number(
+                    item.standard_unit_price
+                    ?? item.list_price
+                    ?? item.selling_price
+                    ?? (linePrice(item) + (Number(item.promotion_discount_amount || 0) / Math.max(1, Number(item.quantity || 1))))
+                    ?? linePrice(item)
+                  )
+                : linePrice(item);
               const description = isKhmer && item.name_km
                 ? `${item.name_km}${item.name && item.name !== item.name_km ? ` (${item.name})` : ""}`
                 : item.name || item.name_km || "—";
-              const codeStr = item.code || item.sku || item.product_code || item.barcode || "";
-              const thumbUrl = item.image_url || item.image || item.photo_url || "";
+              const codeStr = item.code || item.sku || item.product_code || item.barcode || item.product?.sku || item.product?.barcode || "";
+              const rawImageCandidate =
+                item.image_url
+                || item.image
+                || item.product_image_url
+                || item.product_images
+                || item.photo_url
+                || item.thumbnail
+                || item.product?.image_url
+                || item.product?.image
+                || item.product?.product_images
+                || item.product?.photo_url
+                || item.product?.thumbnail;
+              const thumbUrl = normalizeMediaUrl(rawImageCandidate);
               return (
                 <tr key={item.id || `${item.product_id || "item"}-${index}`}>
                   <td className="invoice-col-no">{String(index + 1)}</td>
                   {showProductCode && (
                     <td className="invoice-col-code-pic">
-                      <div className="invoice-code-pic-box">
-                        {codeStr && <strong>{codeStr}</strong>}
-                        {thumbUrl && <img src={thumbUrl} alt="" className="invoice-product-thumb" />}
+                      <div className="invoice-code-pic-cell">
+                        <div className="invoice-code-part">
+                          <span className="invoice-product-code-text">{codeStr || "—"}</span>
+                        </div>
+                        <div className="invoice-image-part">
+                          {thumbUrl ? (
+                            <img
+                              src={thumbUrl}
+                              alt={item.name || "Product"}
+                              className="invoice-product-img"
+                              loading="eager"
+                            />
+                          ) : (
+                            <div className="invoice-product-img-empty">
+                              <span className="invoice-empty-dash">—</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                   )}
-                  <td><strong>{description}</strong></td>
+                  <td className="invoice-col-desc">
+                    <strong className="invoice-item-name">{description}</strong>
+                    {item.variant_name && <span className="invoice-item-sub">{item.variant_name}</span>}
+                    {promoLabel && (
+                      <span className="invoice-item-promo" style={{ display: "block", fontSize: "0.85em", color: "#374151", fontWeight: 600, marginTop: "2px" }}>
+                        {promoLabel}
+                      </span>
+                    )}
+                  </td>
                   <td className="invoice-col-qty">{stockNumber(item.quantity)}</td>
                   <td className="invoice-col-unit">{lineUnit(item)}</td>
-                  <td className="invoice-col-money">{money(linePrice(item), receipt.currency)}</td>
-                  <td className="invoice-col-money">{money(lineDiscount(item), receipt.currency)}</td>
-                  <td className="invoice-col-money"><strong>{money(lineAmount(item), receipt.currency)}</strong></td>
+                  <td className="invoice-col-unit-price invoice-col-money">{money(normalUnitPrice, receipt.currency)}</td>
+                  <td className="invoice-col-amount invoice-col-money"><strong>{money(lineAmount(item, promoLabel), receipt.currency)}</strong></td>
                 </tr>
               );
             })}
@@ -195,8 +352,13 @@ export default function SaleInvoiceDocument({ receipt, shop, language = "en" }) 
 
       <section className="sale-invoice-settlement">
         <div className="sale-invoice-totals-box">
-          <div><span>{label("Sub-Total", "សរុបរង")}</span><strong>{money(receipt.subtotal, receipt.currency)}</strong></div>
-          <div><span>{label("Discount", "បញ្ចុះតម្លៃ")}</span><strong>-{money(receipt.discountAmount, receipt.currency)}</strong></div>
+          <div><span>{label("Sub-Total", "សរុបរង")}</span><strong>{money(subtotalDisplay, receipt.currency)}</strong></div>
+          {totalPromotionDiscount > 0 && (
+            <div><span>{label("Promotion Discount", "បញ្ចុះតម្លៃប្រូម៉ូសិន")}</span><strong>-{money(totalPromotionDiscount, receipt.currency)}</strong></div>
+          )}
+          {genericDiscount > 0 && (
+            <div><span>{label("Discount", "បញ្ចុះតម្លៃ")}</span><strong>-{money(genericDiscount, receipt.currency)}</strong></div>
+          )}
           {Number(receipt.taxAmount || 0) > 0 && (
             <div><span>{label("Tax", "ពន្ធ")}</span><strong>{money(receipt.taxAmount, receipt.currency)}</strong></div>
           )}
