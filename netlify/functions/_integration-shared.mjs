@@ -4,10 +4,6 @@ import dns from "node:dns/promises";
 import net from "node:net";
 import { hasEffectivePermission } from "./_permission.mjs";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-
 export const API_SCOPES = [
   ["meta.read","Read API metadata"],["branches.read","Read branches"],["catalog.read","Read products and units"],
   ["inventory.read","Read branch inventory"],["inventory.cost.read","Read average inventory cost"],
@@ -17,7 +13,12 @@ export const API_SCOPES = [
 ];
 export const WEBHOOK_EVENTS = ["product.created","product.updated","inventory.changed","customer.created","customer.updated","sale.completed","sale.voided","return.completed","online_order.created","online_order.updated","sales_order.updated","purchase.received","integration.test"];
 
-export function serviceClient(){ return createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false}}); }
+export function serviceClient(){
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  return createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+}
 export function sha256(value){ return createHash("sha256").update(String(value)).digest("hex"); }
 export function randomToken(prefix,bytes=32){ return `${prefix}${randomBytes(bytes).toString("base64url")}`; }
 export function hmac(secret,value){ return `sha256=${createHmac("sha256",secret).update(value).digest("hex")}`; }
