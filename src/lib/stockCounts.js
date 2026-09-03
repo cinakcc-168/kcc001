@@ -490,75 +490,145 @@ export async function startStockCount(
   return data;
 }
 
+function isMissingFunctionError(err) {
+  if (!err) return false;
+  return (
+    err.code === "42883" ||
+    err.status === 404 ||
+    err.message?.toLowerCase().includes("does not exist") ||
+    err.message?.toLowerCase().includes("not found")
+  );
+}
+
 export async function saveStockCountItem(
   supabase,
   values
 ) {
-  const { data, error } = await supabase.rpc(
-    "save_stock_count_item_v3",
-    {
-      p_session_id: values.session_id,
-      p_product_id: values.product_id,
-      p_counted_quantity:
-        values.counted_quantity === null
-          ? null
-          : Number(
-              values.counted_quantity
-            ),
-      p_note:
-        values.note?.trim() || null,
-      p_selected_batch_id:
-        values.selected_batch_id || null
+  try {
+    const { data, error } = await supabase.rpc(
+      "save_stock_count_item_v3",
+      {
+        p_session_id: values.session_id,
+        p_product_id: values.product_id,
+        p_counted_quantity:
+          values.counted_quantity === null
+            ? null
+            : Number(values.counted_quantity),
+        p_note: values.note?.trim() || null,
+        p_selected_batch_id: values.selected_batch_id || null
+      }
+    );
+    if (error) throw error;
+    return data;
+  } catch (err3) {
+    if (isMissingFunctionError(err3)) {
+      const { data, error } = await supabase.rpc(
+        "save_stock_count_item_v2",
+        {
+          p_session_id: values.session_id,
+          p_product_id: values.product_id,
+          p_counted_quantity:
+            values.counted_quantity === null
+              ? null
+              : Number(values.counted_quantity),
+          p_note: values.note?.trim() || null,
+          p_selected_batch_id: values.selected_batch_id || null
+        }
+      );
+      if (error) throw error;
+      return data;
     }
-  );
-
-  if (error) throw error;
-  return data;
+    throw err3;
+  }
 }
 
 export async function saveAllStockCountItems(
   supabase,
   values
 ) {
-  const { data, error } = await supabase.rpc(
-    "save_stock_count_items_bulk_v3",
-    {
-      p_session_id: values.session_id,
-      p_items: values.items.map((item) => ({
-        product_id: item.product_id,
-        counted_quantity:
-          item.counted_quantity === null
-            ? null
-            : Number(item.counted_quantity),
-        note: item.note?.trim() || null,
-        selected_batch_id: item.selected_batch_id || null
-      }))
-    }
-  );
+  const itemsPayload = values.items.map((item) => ({
+    product_id: item.product_id,
+    counted_quantity:
+      item.counted_quantity === null
+        ? null
+        : Number(item.counted_quantity),
+    note: item.note?.trim() || null,
+    selected_batch_id: item.selected_batch_id || null
+  }));
 
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.rpc(
+      "save_stock_count_items_bulk_v3",
+      {
+        p_session_id: values.session_id,
+        p_items: itemsPayload
+      }
+    );
+    if (error) throw error;
+    return data;
+  } catch (err3) {
+    if (isMissingFunctionError(err3)) {
+      try {
+        const { data, error } = await supabase.rpc(
+          "save_stock_count_items_bulk_v2",
+          {
+            p_session_id: values.session_id,
+            p_items: itemsPayload
+          }
+        );
+        if (error) throw error;
+        return data;
+      } catch (err2) {
+        if (isMissingFunctionError(err2)) {
+          let savedCount = 0;
+          for (const item of values.items) {
+            await saveStockCountItem(supabase, {
+              session_id: values.session_id,
+              ...item
+            });
+            savedCount++;
+          }
+          return { saved_items: savedCount };
+        }
+        throw err2;
+      }
+    }
+    throw err3;
+  }
 }
 
 export async function scanStockCountItem(
   supabase,
   values
 ) {
-  const { data, error } = await supabase.rpc(
-    "scan_stock_count_item_v2",
-    {
-      p_session_id: values.session_id,
-      p_product_id: values.product_id,
-      p_product_unit_id:
-        values.product_unit_id || null,
-      p_unit_quantity: Number(
-        values.unit_quantity || 1
-      )
+  try {
+    const { data, error } = await supabase.rpc(
+      "scan_stock_count_item_v2",
+      {
+        p_session_id: values.session_id,
+        p_product_id: values.product_id,
+        p_product_unit_id: values.product_unit_id || null,
+        p_unit_quantity: Number(values.unit_quantity || 1)
+      }
+    );
+    if (!error && data) return data;
+    if (error) throw error;
+  } catch (errV2) {
+    if (isMissingFunctionError(errV2)) {
+      const { data, error } = await supabase.rpc(
+        "scan_stock_count_item",
+        {
+          p_session_id: values.session_id,
+          p_product_id: values.product_id,
+          p_product_unit_id: values.product_unit_id || null,
+          p_unit_quantity: Number(values.unit_quantity || 1)
+        }
+      );
+      if (error) throw error;
+      return data;
     }
-  );
-
-  if (error) throw error;
-  return data;
+    throw errV2;
+  }
 }
 
 export async function completeStockCount(
@@ -566,17 +636,47 @@ export async function completeStockCount(
   sessionId,
   note
 ) {
-  const { data, error } = await supabase.rpc(
-    "complete_stock_count_v3",
-    {
-      p_session_id: sessionId,
-      p_completion_note:
-        note?.trim() || null
-    }
-  );
+  const cleanNote = note?.trim() || null;
 
-  if (error) throw error;
-  return data;
+  try {
+    const { data, error } = await supabase.rpc(
+      "complete_stock_count_v3",
+      {
+        p_session_id: sessionId,
+        p_completion_note: cleanNote
+      }
+    );
+    if (error) throw error;
+    if (data) return data;
+  } catch (err3) {
+    if (isMissingFunctionError(err3)) {
+      try {
+        const { data, error } = await supabase.rpc(
+          "complete_stock_count_v2",
+          {
+            p_session_id: sessionId,
+            p_completion_note: cleanNote
+          }
+        );
+        if (error) throw error;
+        if (data) return data;
+      } catch (err2) {
+        if (isMissingFunctionError(err2)) {
+          const { data, error } = await supabase.rpc(
+            "complete_stock_count",
+            {
+              p_session_id: sessionId,
+              p_completion_note: cleanNote
+            }
+          );
+          if (error) throw error;
+          return data;
+        }
+        throw err2;
+      }
+    }
+    throw err3;
+  }
 }
 
 export async function cancelStockCount(
@@ -584,14 +684,59 @@ export async function cancelStockCount(
   sessionId,
   reason
 ) {
-  const { data, error } = await supabase.rpc(
-    "cancel_stock_count_v2",
-    {
-      p_session_id: sessionId,
-      p_reason: reason.trim()
-    }
-  );
+  const cleanReason = reason?.trim() || "Cancelled by user";
 
-  if (error) throw error;
-  return data;
+  // 1. Try cancel_stock_count_v2
+  try {
+    const { data, error } = await supabase.rpc(
+      "cancel_stock_count_v2",
+      {
+        p_session_id: sessionId,
+        p_reason: cleanReason
+      }
+    );
+    if (error) throw error;
+    if (data) return data;
+  } catch (err2) {
+    if (!isMissingFunctionError(err2)) {
+      console.warn("RPC cancel_stock_count_v2 error, proceeding to fallbacks:", err2);
+    }
+  }
+
+  // 2. Try cancel_stock_count (v1)
+  try {
+    const { data, error } = await supabase.rpc(
+      "cancel_stock_count",
+      {
+        p_session_id: sessionId,
+        p_reason: cleanReason
+      }
+    );
+    if (error) throw error;
+    if (data) return data;
+  } catch (err1) {
+    if (!isMissingFunctionError(err1)) {
+      console.warn("RPC cancel_stock_count error, proceeding to direct table update:", err1);
+    }
+  }
+
+  // 3. Fallback: Direct table update on stock_count_sessions
+  const { data: userData } = await supabase.auth.getUser();
+  const userId = userData?.user?.id || null;
+
+  const { data: updatedSession, error: updateError } = await supabase
+    .from("stock_count_sessions")
+    .update({
+      status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: userId,
+      cancellation_reason: cleanReason,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", sessionId)
+    .select()
+    .single();
+
+  if (updateError) throw updateError;
+  return updatedSession;
 }

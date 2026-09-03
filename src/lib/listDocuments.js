@@ -98,7 +98,7 @@ function waitForPrintableAssets(doc) {
 
       link.addEventListener("load", finish, { once: true });
       link.addEventListener("error", finish, { once: true });
-      window.setTimeout(finish, 4000);
+      window.setTimeout(finish, 100);
     });
   });
 
@@ -108,14 +108,14 @@ function waitForPrintableAssets(doc) {
       const finish = () => resolve();
       image.addEventListener("load", finish, { once: true });
       image.addEventListener("error", finish, { once: true });
-      window.setTimeout(finish, 3000);
+      window.setTimeout(finish, 150);
     });
   });
 
   const fonts = doc.fonts?.ready
     ? Promise.race([
         doc.fonts.ready.catch(() => undefined),
-        new Promise((resolve) => window.setTimeout(resolve, 2500))
+        new Promise((resolve) => window.setTimeout(resolve, 100))
       ])
     : Promise.resolve();
 
@@ -137,14 +137,14 @@ function printInPlace({ title, html, styles = "", page = "auto", includeAppStyle
   frame.setAttribute("aria-hidden", "true");
   Object.assign(frame.style, {
     position: "fixed",
-    right: "0",
-    bottom: "0",
-    width: "1px",
-    height: "1px",
+    left: "0",
+    top: "0",
+    width: "100%",
+    height: "100%",
     border: "0",
-    opacity: "0.001",
+    opacity: "0",
     pointerEvents: "none",
-    zIndex: "-1"
+    zIndex: "-9999"
   });
   document.body.appendChild(frame);
 
@@ -186,7 +186,7 @@ ${appStyles}
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
-    window.setTimeout(() => frame.remove(), 250);
+    window.setTimeout(() => frame.remove(), 350);
   };
 
   frame.contentWindow?.addEventListener("afterprint", cleanup, { once: true });
@@ -198,18 +198,21 @@ ${appStyles}
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
       return true;
-    } catch {
+    } catch (err) {
+      console.warn("Direct iframe print encountered an issue:", err);
+      try {
+        window.print();
+      } catch (e) {
+        void e;
+      }
       cleanup();
       return false;
     }
   };
 
-  // The request still originates from the user's Print button. The short RAF
-  // lets the iframe finish layout without opening another page or popup.
+  // Immediate frame trigger preserves user activation token
   window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      void run();
-    });
+    void run();
   });
 
   return true;

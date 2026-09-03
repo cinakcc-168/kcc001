@@ -247,6 +247,8 @@ export function fallbackAccessForRole(role) {
 export function accessAllows(access, permissionKey) {
   if (!permissionKey) return true;
 
+  if (access?.authorizationUnavailable) return false;
+
   if (
     access?.permissions?.["*"]
     || access?.role === "owner"
@@ -266,6 +268,40 @@ export function accessAllowsAny(
   return permissionKeys.some((key) =>
     accessAllows(access, key)
   );
+}
+
+function isMissingGetMyAccessFunctionError(error) {
+  if (!error) return false;
+  const code = String(error.code || "");
+  const status = Number(error.status || 0);
+  const message = String(error.message || "").toLowerCase();
+
+  return (
+    code === "42883"
+    || status === 404
+    || code === "PGRST202"
+    || message.includes("does not exist")
+    || message.includes("function public.get_my_access")
+    || message.includes("could not find the function public.get_my_access")
+  );
+}
+
+function denyAccessAfterAuthorizationFailure(role, error) {
+  const safeRole = String(role || "viewer").trim().toLowerCase() || "viewer";
+  return {
+    role: safeRole,
+    permissions: {},
+    limits: {
+      max_discount_percent: 0,
+      max_discount_amount_usd: 0,
+      max_discount_amount_khr: 0,
+      max_refund_amount_usd: 0,
+      max_refund_amount_khr: 0
+    },
+    fallback: false,
+    authorizationUnavailable: true,
+    authorizationErrorCode: error?.code || null
+  };
 }
 
 export async function loadMyAccess(
@@ -289,10 +325,15 @@ export async function loadMyAccess(
         ...ROLE_LIMIT_FALLBACKS[role],
         ...(data?.limits || {})
       },
-      fallback: false
+      fallback: false,
+      authorizationUnavailable: false
     };
-  } catch {
-    return fallbackAccessForRole(role);
+  } catch (error) {
+    if (isMissingGetMyAccessFunctionError(error)) {
+      return fallbackAccessForRole(role);
+    }
+
+    return denyAccessAfterAuthorizationFailure(role, error);
   }
 }
 

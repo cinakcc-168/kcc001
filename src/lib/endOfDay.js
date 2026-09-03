@@ -181,18 +181,135 @@ function summaryRows(report, language) {
   }));
 }
 
-export function printEndOfDayReport(report, language = "en") {
+export const DEFAULT_EOD_PRINT_OPTIONS = {
+  receipts: true,
+  khrSummary: true,
+  usdSummary: true,
+  otherSummary: true,
+  collections: true,
+  refundDetail: true,
+  cashActivity: true,
+  supplierPayments: true,
+  staffPerformance: true,
+  registers: true,
+  saleDetail: true
+};
+
+export function printEndOfDayReport(report, language = "en", printOptions = DEFAULT_EOD_PRINT_OPTIONS) {
+  const opts = { ...DEFAULT_EOD_PRINT_OPTIONS, ...printOptions };
   const labels = endOfDayLabels(language);
   const receiptCounts = report?.receipt_counts || {};
   const summaries = summaryRows(report, language);
   const userLabel = endOfDayUserLabel(report, language);
   const period = endOfDayPeriodLabel(report, language);
 
-  const summaryHtml = summaries.map((group) => `
-    <section class="eod-print-summary-card">
-      <h2>${escapeHtml(group.currency)} ${escapeHtml(labels.summary)}</h2>
-      <table>${group.metrics.map(([label, value], index) => `<tr class="${index === 2 || index === group.metrics.length - 1 ? "strong" : ""}"><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</table>
-    </section>`).join("");
+  const receiptsHtml = opts.receipts
+    ? `<section class="eod-print-receipts">
+        <h2>${escapeHtml(labels.receipts)}</h2>
+        <div><span>${escapeHtml(labels.saleReceipts)}</span><strong>${escapeHtml(number(receiptCounts.sales))}</strong></div>
+        <div><span>${escapeHtml(labels.refundReceipts)}</span><strong>${escapeHtml(number(receiptCounts.refunds))}</strong></div>
+      </section>`
+    : "";
+
+  const filteredSummaries = summaries.filter((group) => {
+    const curr = (group.currency || "").toUpperCase();
+    if (curr === "KHR") return opts.khrSummary;
+    if (curr === "USD") return opts.usdSummary;
+    return opts.otherSummary;
+  });
+
+  const summaryHtml = filteredSummaries.length > 0
+    ? `<div class="eod-print-summary-grid">
+        ${filteredSummaries.map((group) => `
+          <section class="eod-print-summary-card">
+            <h2>${escapeHtml(group.currency)} ${escapeHtml(labels.summary)}</h2>
+            <table>${group.metrics.map(([label, value], index) => `<tr class="${index === 2 || index === group.metrics.length - 1 ? "strong" : ""}"><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</table>
+          </section>`).join("")}
+      </div>`
+    : "";
+
+  const collectionsHtml = opts.collections
+    ? detailTableHtml(labels.collections, [
+        { label: "Method", value: (row) => String(row.method || "other").toUpperCase() },
+        { label: "Currency", value: (row) => row.currency },
+        { label: "Transactions", value: (row) => number(row.transaction_count) },
+        { label: "Amount", value: (row) => amount(row.amount, row.currency) }
+      ], report?.payments || [])
+    : "";
+
+  const refundDetailHtml = opts.refundDetail
+    ? detailTableHtml(labels.refundDetail, [
+        { label: "Refund", value: (row) => row.return_number || "—" },
+        { label: "Invoice", value: (row) => row.invoice_number || "—" },
+        { label: "Date", value: (row) => dateTime(row.processed_at, language) },
+        { label: "User", value: (row) => row.processed_by_name || "—" },
+        { label: "Method", value: (row) => String(row.method || "").toUpperCase() },
+        { label: "Currency", value: (row) => row.currency },
+        { label: "Amount", value: (row) => amount(row.refund_amount, row.currency) },
+        { label: "Reason", value: (row) => row.reason || "—" }
+      ], report?.refunds_detail || [])
+    : "";
+
+  const cashActivityHtml = opts.cashActivity
+    ? detailTableHtml(labels.cashActivity, [
+        { label: "Entry", value: (row) => row.entry_number || "—" },
+        { label: "Date", value: (row) => dateTime(row.entry_at, language) },
+        { label: "Type", value: (row) => row.direction || "—" },
+        { label: "Category", value: (row) => row.category_name || "—" },
+        { label: "Method", value: (row) => String(row.method || "").toUpperCase() },
+        { label: "Currency", value: (row) => row.currency },
+        { label: "Amount", value: (row) => amount(row.amount, row.currency) },
+        { label: "User", value: (row) => row.created_by_name || "—" }
+      ], report?.expenses_detail || [])
+    : "";
+
+  const supplierPaymentsHtml = opts.supplierPayments
+    ? detailTableHtml(labels.supplierPayments, [
+        { label: "Method", value: (row) => String(row.method || "").toUpperCase() },
+        { label: "Currency", value: (row) => row.currency },
+        { label: "Transactions", value: (row) => number(row.transaction_count) },
+        { label: "Amount", value: (row) => amount(row.amount, row.currency) }
+      ], report?.supplier_payments || [])
+    : "";
+
+  const staffPerformanceHtml = opts.staffPerformance
+    ? detailTableHtml(labels.staffPerformance, [
+        { label: "User", value: (row) => row.cashier_name || "POS Staff" },
+        { label: "Currency", value: (row) => row.currency },
+        { label: "Invoices", value: (row) => number(row.invoice_count) },
+        { label: "Sales", value: (row) => amount(row.gross_sales, row.currency) },
+        { label: "Refunds", value: (row) => amount(row.refunds, row.currency) },
+        { label: "Net", value: (row) => amount(row.net_sales, row.currency) }
+      ], report?.cashiers || [])
+    : "";
+
+  const registersHtml = opts.registers
+    ? detailTableHtml(labels.registers, [
+        { label: "Counter", value: (row) => row.register_name || "—" },
+        { label: "User", value: (row) => row.opened_by_name || "—" },
+        { label: "Status", value: (row) => row.status || "—" },
+        { label: "Expected USD", value: (row) => amount(row.expected_cash_usd, "USD") },
+        { label: "Counted USD", value: (row) => row.counted_cash_usd == null ? "—" : amount(row.counted_cash_usd, "USD") },
+        { label: "Variance USD", value: (row) => row.variance_usd == null ? "—" : amount(row.variance_usd, "USD") },
+        { label: "Expected KHR", value: (row) => amount(row.expected_cash_khr, "KHR") },
+        { label: "Counted KHR", value: (row) => row.counted_cash_khr == null ? "—" : amount(row.counted_cash_khr, "KHR") },
+        { label: "Variance KHR", value: (row) => row.variance_khr == null ? "—" : amount(row.variance_khr, "KHR") }
+      ], report?.registers || [])
+    : "";
+
+  const saleDetailHtml = opts.saleDetail
+    ? detailTableHtml(labels.saleDetail, [
+        { label: "Invoice", value: (row) => row.invoice_number || "—" },
+        { label: "Date", value: (row) => dateTime(row.completed_at, language) },
+        { label: "Customer", value: (row) => row.customer_name || "—" },
+        { label: "User", value: (row) => row.cashier_name || "—" },
+        { label: "Payment", value: (row) => row.payment_methods || "—" },
+        { label: "Currency", value: (row) => row.currency },
+        { label: "Sales", value: (row) => amount(row.gross_total, row.currency) },
+        { label: "Refund", value: (row) => amount(row.refund_total, row.currency) },
+        { label: "Net", value: (row) => amount(row.net_total, row.currency) }
+      ], report?.sales || [])
+    : "";
 
   const html = `
     <article class="eod-master-print">
@@ -203,82 +320,15 @@ export function printEndOfDayReport(report, language = "en") {
         <p><strong>${escapeHtml(labels.user)}:</strong> ${escapeHtml(userLabel)}</p>
       </header>
 
-      <section class="eod-print-receipts">
-        <h2>${escapeHtml(labels.receipts)}</h2>
-        <div><span>${escapeHtml(labels.saleReceipts)}</span><strong>${escapeHtml(number(receiptCounts.sales))}</strong></div>
-        <div><span>${escapeHtml(labels.refundReceipts)}</span><strong>${escapeHtml(number(receiptCounts.refunds))}</strong></div>
-      </section>
-
-      <div class="eod-print-summary-grid">${summaryHtml}</div>
-
-      ${detailTableHtml(labels.collections, [
-        { label: "Method", value: (row) => String(row.method || "other").toUpperCase() },
-        { label: "Currency", value: (row) => row.currency },
-        { label: "Transactions", value: (row) => number(row.transaction_count) },
-        { label: "Amount", value: (row) => amount(row.amount, row.currency) }
-      ], report?.payments || [])}
-
-      ${detailTableHtml(labels.refundDetail, [
-        { label: "Refund", value: (row) => row.return_number || "—" },
-        { label: "Invoice", value: (row) => row.invoice_number || "—" },
-        { label: "Date", value: (row) => dateTime(row.processed_at, language) },
-        { label: "User", value: (row) => row.processed_by_name || "—" },
-        { label: "Method", value: (row) => String(row.method || "").toUpperCase() },
-        { label: "Currency", value: (row) => row.currency },
-        { label: "Amount", value: (row) => amount(row.refund_amount, row.currency) },
-        { label: "Reason", value: (row) => row.reason || "—" }
-      ], report?.refunds_detail || [])}
-
-      ${detailTableHtml(labels.cashActivity, [
-        { label: "Entry", value: (row) => row.entry_number || "—" },
-        { label: "Date", value: (row) => dateTime(row.entry_at, language) },
-        { label: "Type", value: (row) => row.direction || "—" },
-        { label: "Category", value: (row) => row.category_name || "—" },
-        { label: "Method", value: (row) => String(row.method || "").toUpperCase() },
-        { label: "Currency", value: (row) => row.currency },
-        { label: "Amount", value: (row) => amount(row.amount, row.currency) },
-        { label: "User", value: (row) => row.created_by_name || "—" }
-      ], report?.expenses_detail || [])}
-
-      ${detailTableHtml(labels.supplierPayments, [
-        { label: "Method", value: (row) => String(row.method || "").toUpperCase() },
-        { label: "Currency", value: (row) => row.currency },
-        { label: "Transactions", value: (row) => number(row.transaction_count) },
-        { label: "Amount", value: (row) => amount(row.amount, row.currency) }
-      ], report?.supplier_payments || [])}
-
-      ${detailTableHtml(labels.staffPerformance, [
-        { label: "User", value: (row) => row.cashier_name || "POS Staff" },
-        { label: "Currency", value: (row) => row.currency },
-        { label: "Invoices", value: (row) => number(row.invoice_count) },
-        { label: "Sales", value: (row) => amount(row.gross_sales, row.currency) },
-        { label: "Refunds", value: (row) => amount(row.refunds, row.currency) },
-        { label: "Net", value: (row) => amount(row.net_sales, row.currency) }
-      ], report?.cashiers || [])}
-
-      ${detailTableHtml(labels.registers, [
-        { label: "Counter", value: (row) => row.register_name || "—" },
-        { label: "User", value: (row) => row.opened_by_name || "—" },
-        { label: "Status", value: (row) => row.status || "—" },
-        { label: "Expected USD", value: (row) => amount(row.expected_cash_usd, "USD") },
-        { label: "Counted USD", value: (row) => row.counted_cash_usd == null ? "—" : amount(row.counted_cash_usd, "USD") },
-        { label: "Variance USD", value: (row) => row.variance_usd == null ? "—" : amount(row.variance_usd, "USD") },
-        { label: "Expected KHR", value: (row) => amount(row.expected_cash_khr, "KHR") },
-        { label: "Counted KHR", value: (row) => row.counted_cash_khr == null ? "—" : amount(row.counted_cash_khr, "KHR") },
-        { label: "Variance KHR", value: (row) => row.variance_khr == null ? "—" : amount(row.variance_khr, "KHR") }
-      ], report?.registers || [])}
-
-      ${detailTableHtml(labels.saleDetail, [
-        { label: "Invoice", value: (row) => row.invoice_number || "—" },
-        { label: "Date", value: (row) => dateTime(row.completed_at, language) },
-        { label: "Customer", value: (row) => row.customer_name || "—" },
-        { label: "User", value: (row) => row.cashier_name || "—" },
-        { label: "Payment", value: (row) => row.payment_methods || "—" },
-        { label: "Currency", value: (row) => row.currency },
-        { label: "Sales", value: (row) => amount(row.gross_total, row.currency) },
-        { label: "Refund", value: (row) => amount(row.refund_total, row.currency) },
-        { label: "Net", value: (row) => amount(row.net_total, row.currency) }
-      ], report?.sales || [])}
+      ${receiptsHtml}
+      ${summaryHtml}
+      ${collectionsHtml}
+      ${refundDetailHtml}
+      ${cashActivityHtml}
+      ${supplierPaymentsHtml}
+      ${staffPerformanceHtml}
+      ${registersHtml}
+      ${saleDetailHtml}
     </article>`;
 
   const styles = `
@@ -334,64 +384,109 @@ function xlsRow(cells, style = "Body") {
   return `<Row>${cells.map((cell) => `<Cell ss:StyleID="${style}"><Data ss:Type="String">${escapeXml(cell)}</Data></Cell>`).join("")}</Row>`;
 }
 
-function xlsSection(title, headers, rows) {
+function xlsSection(title, headers, rows, maxCols) {
+  const mergeAcross = Math.max(0, (maxCols || headers.length) - 1);
   return [
-    `<Row><Cell ss:MergeAcross="${Math.max(0, headers.length - 1)}" ss:StyleID="Section"><Data ss:Type="String">${escapeXml(title)}</Data></Cell></Row>`,
+    `<Row><Cell ss:MergeAcross="${mergeAcross}" ss:StyleID="Section"><Data ss:Type="String">${escapeXml(title)}</Data></Cell></Row>`,
     xlsRow(headers, "Header"),
     ...(rows?.length ? rows.map((row) => xlsRow(row)) : [xlsRow(["No records"])]),
     `<Row/>`
   ].join("");
 }
 
-export function exportEndOfDayWorkbook(report, language = "en") {
+export function exportEndOfDayWorkbook(report, language = "en", exportOptions = DEFAULT_EOD_PRINT_OPTIONS) {
+  const opts = { ...DEFAULT_EOD_PRINT_OPTIONS, ...exportOptions };
   const labels = endOfDayLabels(language);
   const receiptCounts = report?.receipt_counts || {};
   const period = endOfDayPeriodLabel(report, language);
   const user = endOfDayUserLabel(report, language);
+
+  const filteredSummaries = summaryRows(report, language).filter((group) => {
+    const curr = (group.currency || "").toUpperCase();
+    if (curr === "KHR") return opts.khrSummary;
+    if (curr === "USD") return opts.usdSummary;
+    return opts.otherSummary;
+  });
+
+  // Calculate the maximum number of columns dynamically from selected sections
+  let maxCols = 2; // Baseline minimum width (A:B)
+  if (opts.receipts) maxCols = Math.max(maxCols, 2);
+  if (filteredSummaries.length > 0) maxCols = Math.max(maxCols, 2);
+  if (opts.collections) maxCols = Math.max(maxCols, 4);
+  if (opts.supplierPayments) maxCols = Math.max(maxCols, 4);
+  if (opts.staffPerformance) maxCols = Math.max(maxCols, 8);
+  if (opts.refundDetail) maxCols = Math.max(maxCols, 9);
+  if (opts.cashActivity) maxCols = Math.max(maxCols, 10);
+  if (opts.registers) maxCols = Math.max(maxCols, 10);
+  if (opts.saleDetail) maxCols = Math.max(maxCols, 12);
+
+  const mergeAcross = Math.max(0, maxCols - 1);
   const rows = [];
 
-  rows.push(`<Row><Cell ss:MergeAcross="11" ss:StyleID="Title"><Data ss:Type="String">${escapeXml(labels.title)}</Data></Cell></Row>`);
-  rows.push(`<Row><Cell ss:MergeAcross="11" ss:StyleID="Subtitle"><Data ss:Type="String">${escapeXml(`${labels.branch}: ${report?.branch_name || "—"}`)}</Data></Cell></Row>`);
-  rows.push(`<Row><Cell ss:MergeAcross="11" ss:StyleID="Subtitle"><Data ss:Type="String">${escapeXml(`${labels.date}: ${period}`)}</Data></Cell></Row>`);
-  rows.push(`<Row><Cell ss:MergeAcross="11" ss:StyleID="Subtitle"><Data ss:Type="String">${escapeXml(`${labels.user}: ${user}`)}</Data></Cell></Row>`);
+  rows.push(`<Row><Cell ss:MergeAcross="${mergeAcross}" ss:StyleID="Title"><Data ss:Type="String">${escapeXml(labels.title)}</Data></Cell></Row>`);
+  rows.push(`<Row><Cell ss:MergeAcross="${mergeAcross}" ss:StyleID="Subtitle"><Data ss:Type="String">${escapeXml(`${labels.branch}: ${report?.branch_name || "—"}`)}</Data></Cell></Row>`);
+  rows.push(`<Row><Cell ss:MergeAcross="${mergeAcross}" ss:StyleID="Subtitle"><Data ss:Type="String">${escapeXml(`${labels.date}: ${period}`)}</Data></Cell></Row>`);
+  rows.push(`<Row><Cell ss:MergeAcross="${mergeAcross}" ss:StyleID="Subtitle"><Data ss:Type="String">${escapeXml(`${labels.user}: ${user}`)}</Data></Cell></Row>`);
   rows.push(`<Row/>`);
 
-  rows.push(xlsSection(labels.receipts, ["Type", "Count"], [
-    [labels.saleReceipts, number(receiptCounts.sales)],
-    [labels.refundReceipts, number(receiptCounts.refunds)]
-  ]));
-
-  for (const group of summaryRows(report, language)) {
-    rows.push(xlsSection(`${group.currency} ${labels.summary}`, ["Metric", "Amount"], group.metrics));
+  if (opts.receipts) {
+    rows.push(xlsSection(labels.receipts, ["Type", "Count"], [
+      [labels.saleReceipts, number(receiptCounts.sales)],
+      [labels.refundReceipts, number(receiptCounts.refunds)]
+    ], maxCols));
   }
 
-  rows.push(xlsSection(labels.collections, ["Method", "Currency", "Transactions", "Amount"], (report?.payments || []).map((row) => [
-    String(row.method || "other").toUpperCase(), row.currency, number(row.transaction_count), amount(row.amount, row.currency)
-  ])));
+  for (const group of filteredSummaries) {
+    rows.push(xlsSection(`${group.currency} ${labels.summary}`, ["Metric", "Amount"], group.metrics, maxCols));
+  }
 
-  rows.push(xlsSection(labels.refundDetail, ["Refund", "Invoice", "Date", "Customer", "User", "Method", "Currency", "Amount", "Reason"], (report?.refunds_detail || []).map((row) => [
-    row.return_number || "—", row.invoice_number || "—", dateTime(row.processed_at, language), row.customer_name || "—", row.processed_by_name || "—", String(row.method || "").toUpperCase(), row.currency, amount(row.refund_amount, row.currency), row.reason || "—"
-  ])));
+  if (opts.collections) {
+    rows.push(xlsSection(labels.collections, ["Method", "Currency", "Transactions", "Amount"], (report?.payments || []).map((row) => [
+      String(row.method || "other").toUpperCase(), row.currency, number(row.transaction_count), amount(row.amount, row.currency)
+    ]), maxCols));
+  }
 
-  rows.push(xlsSection(labels.cashActivity, ["Entry", "Date", "Type", "Category", "Method", "Currency", "Amount", "User", "Reference", "Remark"], (report?.expenses_detail || []).map((row) => [
-    row.entry_number || "—", dateTime(row.entry_at, language), row.direction || "—", row.category_name || "—", String(row.method || "").toUpperCase(), row.currency, amount(row.amount, row.currency), row.created_by_name || "—", row.reference_number || "—", row.remark || "—"
-  ])));
+  if (opts.refundDetail) {
+    rows.push(xlsSection(labels.refundDetail, ["Refund", "Invoice", "Date", "Customer", "User", "Method", "Currency", "Amount", "Reason"], (report?.refunds_detail || []).map((row) => [
+      row.return_number || "—", row.invoice_number || "—", dateTime(row.processed_at, language), row.customer_name || "—", row.processed_by_name || "—", String(row.method || "").toUpperCase(), row.currency, amount(row.refund_amount, row.currency), row.reason || "—"
+    ]), maxCols));
+  }
 
-  rows.push(xlsSection(labels.supplierPayments, ["Method", "Currency", "Transactions", "Amount"], (report?.supplier_payments || []).map((row) => [
-    String(row.method || "").toUpperCase(), row.currency, number(row.transaction_count), amount(row.amount, row.currency)
-  ])));
+  if (opts.cashActivity) {
+    rows.push(xlsSection(labels.cashActivity, ["Entry", "Date", "Type", "Category", "Method", "Currency", "Amount", "User", "Reference", "Remark"], (report?.expenses_detail || []).map((row) => [
+      row.entry_number || "—", dateTime(row.entry_at, language), row.direction || "—", row.category_name || "—", String(row.method || "").toUpperCase(), row.currency, amount(row.amount, row.currency), row.created_by_name || "—", row.reference_number || "—", row.remark || "—"
+    ]), maxCols));
+  }
 
-  rows.push(xlsSection(labels.staffPerformance, ["User", "Currency", "Invoices", "Sales", "Refunds", "Net", "Cash", "Non-cash"], (report?.cashiers || []).map((row) => [
-    row.cashier_name || "POS Staff", row.currency, number(row.invoice_count), amount(row.gross_sales, row.currency), amount(row.refunds, row.currency), amount(row.net_sales, row.currency), amount(row.cash_sales, row.currency), amount(row.non_cash_sales, row.currency)
-  ])));
+  if (opts.supplierPayments) {
+    rows.push(xlsSection(labels.supplierPayments, ["Method", "Currency", "Transactions", "Amount"], (report?.supplier_payments || []).map((row) => [
+      String(row.method || "").toUpperCase(), row.currency, number(row.transaction_count), amount(row.amount, row.currency)
+    ]), maxCols));
+  }
 
-  rows.push(xlsSection(labels.registers, ["Counter", "Session", "User", "Status", "Expected USD", "Counted USD", "Variance USD", "Expected KHR", "Counted KHR", "Variance KHR"], (report?.registers || []).map((row) => [
-    row.register_name || "—", row.session_number || "—", row.opened_by_name || "—", row.status || "—", amount(row.expected_cash_usd, "USD"), row.counted_cash_usd == null ? "—" : amount(row.counted_cash_usd, "USD"), row.variance_usd == null ? "—" : amount(row.variance_usd, "USD"), amount(row.expected_cash_khr, "KHR"), row.counted_cash_khr == null ? "—" : amount(row.counted_cash_khr, "KHR"), row.variance_khr == null ? "—" : amount(row.variance_khr, "KHR")
-  ])));
+  if (opts.staffPerformance) {
+    rows.push(xlsSection(labels.staffPerformance, ["User", "Currency", "Invoices", "Sales", "Refunds", "Net", "Cash", "Non-cash"], (report?.cashiers || []).map((row) => [
+      row.cashier_name || "POS Staff", row.currency, number(row.invoice_count), amount(row.gross_sales, row.currency), amount(row.refunds, row.currency), amount(row.net_sales, row.currency), amount(row.cash_sales, row.currency), amount(row.non_cash_sales, row.currency)
+    ]), maxCols));
+  }
 
-  rows.push(xlsSection(labels.saleDetail, ["Invoice", "Date", "Branch", "Customer", "User", "Counter", "Payment", "Currency", "Sales", "Refund", "Net", "Status"], (report?.sales || []).map((row) => [
-    row.invoice_number || "—", dateTime(row.completed_at, language), row.branch_name || "—", row.customer_name || "—", row.cashier_name || "—", row.register_names || "—", row.payment_methods || "—", row.currency, amount(row.gross_total, row.currency), amount(row.refund_total, row.currency), amount(row.net_total, row.currency), row.status || "—"
-  ])));
+  if (opts.registers) {
+    rows.push(xlsSection(labels.registers, ["Counter", "Session", "User", "Status", "Expected USD", "Counted USD", "Variance USD", "Expected KHR", "Counted KHR", "Variance KHR"], (report?.registers || []).map((row) => [
+      row.register_name || "—", row.session_number || "—", row.opened_by_name || "—", row.status || "—", amount(row.expected_cash_usd, "USD"), row.counted_cash_usd == null ? "—" : amount(row.counted_cash_usd, "USD"), row.variance_usd == null ? "—" : amount(row.variance_usd, "USD"), amount(row.expected_cash_khr, "KHR"), row.counted_cash_khr == null ? "—" : amount(row.counted_cash_khr, "KHR"), row.variance_khr == null ? "—" : amount(row.variance_khr, "KHR")
+    ]), maxCols));
+  }
+
+  if (opts.saleDetail) {
+    rows.push(xlsSection(labels.saleDetail, ["Invoice", "Date", "Branch", "Customer", "User", "Counter", "Payment", "Currency", "Sales", "Refund", "Net", "Status"], (report?.sales || []).map((row) => [
+      row.invoice_number || "—", dateTime(row.completed_at, language), row.branch_name || "—", row.customer_name || "—", row.cashier_name || "—", row.register_names || "—", row.payment_methods || "—", row.currency, amount(row.gross_total, row.currency), amount(row.refund_total, row.currency), amount(row.net_total, row.currency), row.status || "—"
+    ]), maxCols));
+  }
+
+  const colWidths = [115, 115, 120, 130, 120, 105, 105, 105, 150, 150, 105, 95];
+  const columnDefs = colWidths
+    .slice(0, maxCols)
+    .map((w) => `<Column ss:Width="${w}"/>`)
+    .join("");
 
   const xml = `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -409,7 +504,7 @@ export function exportEndOfDayWorkbook(report, language = "en") {
  </Styles>
  <Worksheet ss:Name="End of Day">
   <Table>
-   <Column ss:Width="115"/><Column ss:Width="115"/><Column ss:Width="120"/><Column ss:Width="130"/><Column ss:Width="120"/><Column ss:Width="105"/><Column ss:Width="105"/><Column ss:Width="105"/><Column ss:Width="150"/><Column ss:Width="150"/><Column ss:Width="105"/><Column ss:Width="95"/>
+   ${columnDefs}
    ${rows.join("")}
   </Table>
   <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><Selected/><ProtectObjects>False</ProtectObjects><ProtectScenarios>False</ProtectScenarios></WorksheetOptions>

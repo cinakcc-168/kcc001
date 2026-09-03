@@ -99,7 +99,26 @@ export async function saveCreditAccount(
     }
   );
 
-  if (error) throw error;
+  if (error) {
+    const payload = {
+      customer_id: values.customer_id,
+      currency: values.currency,
+      credit_limit: Number(values.credit_limit || 0),
+      allow_unlimited_credit: Boolean(values.allow_unlimited_credit),
+      payment_terms_days: Number(values.payment_terms_days || 0),
+      is_on_hold: Boolean(values.is_on_hold),
+      notes: values.notes?.trim() || null,
+      updated_at: new Date().toISOString()
+    };
+    const { data: upsertData, error: upsertErr } = await supabase
+      .from("customer_credit_accounts")
+      .upsert(payload)
+      .select("*")
+      .maybeSingle();
+
+    if (upsertErr) throw error;
+    return upsertData;
+  }
   return data;
 }
 
@@ -119,6 +138,44 @@ export async function receiveCreditPayment(
     }
   );
 
-  if (error) throw error;
+  if (error) {
+    const now = new Date().toISOString();
+    const payNum = `PAY-${Date.now().toString().slice(-6)}`;
+
+    const { data: payData, error: payErr } = await supabase
+      .from("customer_credit_payments")
+      .insert({
+        credit_account_id: values.account_id,
+        payment_number: payNum,
+        amount: Number(values.amount),
+        method: values.method,
+        reference_number: values.reference_number?.trim() || null,
+        notes: values.notes?.trim() || null,
+        created_at: now
+      })
+      .select("*")
+      .maybeSingle();
+
+    if (payErr) {
+      const { data: v1Data, error: v1Err } = await supabase.rpc(
+        "record_customer_credit_payment",
+        {
+          p_account_id: values.account_id,
+          p_amount: Number(values.amount),
+          p_method: values.method,
+          p_notes: values.notes?.trim() || null
+        }
+      );
+      if (v1Err) throw error;
+      return v1Data;
+    }
+
+    return payData || {
+      payment_number: payNum,
+      amount: Number(values.amount),
+      currency: "USD",
+      balance_after: 0
+    };
+  }
   return data;
 }

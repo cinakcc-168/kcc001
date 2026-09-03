@@ -101,7 +101,8 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
       id,name,name_km,sku,barcode,unit_name,currency,is_active,track_stock,batch_tracking,expiry_tracking,picking_policy,category_id,
       categories(id,name),
       inventory_balances(branch_id,quantity,average_cost),
-      product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order)
+      product_units(id,name,short_name,conversion_factor,selling_price,barcode,is_base,is_active,sort_order),
+      inventory_batches(id,branch_id,batch_number,expiry_date,quantity,status)
     `).eq("organization_id", orgId).eq("is_active", true).eq("track_stock", true).order("name"),
     transferQuery,
     supabase.from("purchases").select(`
@@ -138,6 +139,10 @@ export async function loadTransferWorkspace(supabase, profile, options = {}) {
     return {
       ...product,
       inventory_balances: balances,
+      inventory_batches: (product.inventory_batches || []).map((b) => ({
+        ...b,
+        quantity: Number(b.quantity || 0)
+      })),
       product_units: normalizeUnits(product.product_units || []),
       stock_by_branch: Object.fromEntries(balances.map((row) => [row.branch_id, row])),
       stock_quantity: Number(balance?.quantity || 0),
@@ -242,6 +247,237 @@ export async function updateStockTransfer(supabase, values) {
   return data;
 }
 
+async function upsertDestinationBranchBatch(supabase, {
+  orgId,
+  destBranchId,
+  productId,
+  batchNumber,
+  expiryDate,
+  quantity,
+  unitCost
+}) {
+  if (!destBranchId || !productId || !batchNumber || quantity <= 0) return;
+
+  const normExpiry = expiryDate ? expiryDate.slice(0, 10) : null;
+
+  const { data: existingBatches } = await supabase
+    .from("inventory_batches")
+    .select("*")
+    .eq("branch_id", destBranchId)
+    .eq("product_id", productId)
+    .eq("batch_number", batchNumber);
+
+  const exactMatch = (existingBatches || []).find((b) => {
+    const bExp = b.expiry_date ? b.expiry_date.slice(0, 10) : null;
+    return bExp === normExpiry;
+  });
+
+  if (exactMatch) {
+    await supabase
+      .from("inventory_batches")
+      .update({
+        quantity: Number(exactMatch.quantity || 0) + quantity,
+        status: "active",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", exactMatch.id);
+    return;
+  }
+
+  const { error: insertErr } = await supabase
+    .from("inventory_batches")
+    .insert({
+      organization_id: orgId,
+      branch_id: destBranchId,
+      product_id: productId,
+      batch_number: batchNumber,
+      expiry_date: normExpiry,
+      initial_quantity: quantity,
+      quantity: quantity,
+      unit_cost: unitCost || null,
+      received_date: new Date().toISOString().slice(0, 10),
+      status: "active",
+      notes: `Transferred lot ${batchNumber}`
+    });
+
+  if (insertErr) {
+    const dateTag = normExpiry ? normExpiry.replace(/-/g, "") : "NEW";
+    const fallbackBatchNum = `${batchNumber}-${dateTag}`;
+
+    const { data: fallbackBatches } = await supabase
+      .from("inventory_batches")
+      .select("*")
+      .eq("branch_id", destBranchId)
+      .eq("product_id", productId)
+      .eq("batch_number", fallbackBatchNum);
+
+    const fallbackMatch = (fallbackBatches || []).find((b) => {
+      const bExp = b.expiry_date ? b.expiry_date.slice(0, 10) : null;
+      return bExp === normExpiry;
+    });
+
+    if (fallbackMatch) {
+      await supabase
+        .from("inventory_batches")
+        .update({
+          quantity: Number(fallbackMatch.quantity || 0) + quantity,
+          status: "active",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", fallbackMatch.id);
+    } else {
+      await supabase
+        .from("inventory_batches")
+        .insert({
+          organization_id: orgId,
+          branch_id: destBranchId,
+          product_id: productId,
+          batch_number: fallbackBatchNum,
+          expiry_date: normExpiry,
+          initial_quantity: quantity,
+          quantity: quantity,
+          unit_cost: unitCost || null,
+          received_date: new Date().toISOString().slice(0, 10),
+          status: "active",
+          notes: `Transferred lot ${batchNumber} (${normExpiry || "no expiry"})`
+        });
+    }
+  }
+}
+
+export async function syncTransferBatchDeductions(supabase, transferId) {
+  if (!transferId) return;
+
+  const { data: transfer, error: transferErr } = await supabase
+    .from("stock_transfers")
+    .select(`
+      id,
+      source_branch_id,
+      destination_branch_id,
+      organization_id,
+      status,
+      stock_transfer_items (
+        id,
+        product_id,
+        quantity,
+        counted_quantity,
+        approved_quantity,
+        stock_transfer_item_batches (
+          id,
+          source_batch_id,
+          base_quantity
+        )
+      )
+    `)
+    .eq("id", transferId)
+    .maybeSingle();
+
+  if (transferErr || !transfer) return;
+
+  const sourceBranchId = transfer.source_branch_id;
+  const destBranchId = transfer.destination_branch_id;
+  const orgId = transfer.organization_id;
+
+  for (const item of (transfer.stock_transfer_items || [])) {
+    const qtyToTransfer = Number(
+      item.approved_quantity ?? item.counted_quantity ?? item.quantity ?? 0
+    );
+    if (qtyToTransfer <= 0) continue;
+
+    const allocations = item.stock_transfer_item_batches || [];
+
+    if (allocations.length > 0) {
+      for (const alloc of allocations) {
+        if (!alloc.source_batch_id || !Number(alloc.base_quantity)) continue;
+        const allocQty = Number(alloc.base_quantity);
+
+        const { data: sourceBatch } = await supabase
+          .from("inventory_batches")
+          .select("*")
+          .eq("id", alloc.source_batch_id)
+          .maybeSingle();
+
+        if (sourceBatch) {
+          const newSourceQty = Math.max(0, Number(sourceBatch.quantity || 0) - allocQty);
+          const newSourceStatus = newSourceQty === 0 ? "depleted" : sourceBatch.status;
+
+          await supabase
+            .from("inventory_batches")
+            .update({
+              quantity: newSourceQty,
+              status: newSourceStatus,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", sourceBatch.id);
+
+          if (destBranchId) {
+            await upsertDestinationBranchBatch(supabase, {
+              orgId: orgId || sourceBatch.organization_id,
+              destBranchId,
+              productId: item.product_id,
+              batchNumber: sourceBatch.batch_number,
+              expiryDate: sourceBatch.expiry_date,
+              quantity: allocQty,
+              unitCost: sourceBatch.unit_cost
+            });
+          }
+        }
+      }
+    } else {
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, batch_tracking")
+        .eq("id", item.product_id)
+        .maybeSingle();
+
+      if (product?.batch_tracking) {
+        let remainingDeduction = qtyToTransfer;
+
+        const { data: sourceBatches } = await supabase
+          .from("inventory_batches")
+          .select("*")
+          .eq("branch_id", sourceBranchId)
+          .eq("product_id", item.product_id)
+          .neq("status", "depleted")
+          .gt("quantity", 0)
+          .order("expiry_date", { ascending: true, nullsFirst: false })
+          .order("received_date", { ascending: true });
+
+        for (const batch of (sourceBatches || [])) {
+          if (remainingDeduction <= 0) break;
+          const currentQty = Number(batch.quantity || 0);
+          const deduct = Math.min(currentQty, remainingDeduction);
+          const newQty = currentQty - deduct;
+          remainingDeduction -= deduct;
+
+          const newStatus = newQty === 0 ? "depleted" : batch.status;
+
+          await supabase
+            .from("inventory_batches")
+            .update({
+              quantity: newQty,
+              status: newStatus,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", batch.id);
+
+          if (destBranchId) {
+            await upsertDestinationBranchBatch(supabase, {
+              orgId: orgId || batch.organization_id,
+              destBranchId,
+              productId: item.product_id,
+              batchNumber: batch.batch_number,
+              expiryDate: batch.expiry_date,
+              quantity: deduct,
+              unitCost: batch.unit_cost
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
 export async function saveStockTransferCount(supabase, values) {
   const { data, error } = await supabase.rpc("save_stock_transfer_count_v6", {
     p_transfer_id: values.transfer_id,
@@ -260,6 +496,7 @@ export async function saveStockTransferCount(supabase, values) {
     p_notes: values.notes?.trim() || null,
     p_submit: Boolean(values.submit)
   });
+
   if (error) throw error;
   return data;
 }
@@ -269,7 +506,8 @@ export async function approveStockTransfer(supabase, transferId, note) {
     p_transfer_id: transferId,
     p_note: note?.trim() || null
   });
-  if (error) throw error;
+
+  if (error && !data) throw error;
   return data;
 }
 
@@ -287,7 +525,8 @@ export async function receiveStockTransfer(supabase, transferId, notes) {
     p_transfer_id: transferId,
     p_notes: notes?.trim() || null
   });
-  if (error) throw error;
+
+  if (error && !data) throw error;
   return data;
 }
 

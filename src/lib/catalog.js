@@ -370,3 +370,71 @@ export async function removePrimaryImage({ supabase, session, image }) {
 
   if (error) throw error;
 }
+
+export async function fetchProductsMetaMap(supabase, productIds) {
+  if (!supabase || !Array.isArray(productIds) || productIds.length === 0) {
+    return {};
+  }
+  const cleanIds = Array.from(new Set(productIds.filter(Boolean)));
+  if (cleanIds.length === 0) return {};
+
+  try {
+    const { data: productsData, error } = await supabase
+      .from("products")
+      .select(`
+        id,
+        name,
+        name_km,
+        sku,
+        barcode,
+        product_images (
+          secure_url,
+          is_primary,
+          sort_order
+        ),
+        product_units (
+          barcode,
+          is_base
+        )
+      `)
+      .in("id", cleanIds);
+
+    if (error) throw error;
+
+    const map = {};
+    for (const p of productsData || []) {
+      const sortedImages = [...(p.product_images || [])].sort(
+        (a, b) =>
+          Number(b.is_primary) - Number(a.is_primary) ||
+          Number(a.sort_order || 0) - Number(b.sort_order || 0)
+      );
+      const primaryImage =
+        sortedImages[0]?.secure_url ||
+        sortedImages[0]?.image_url ||
+        sortedImages[0]?.url ||
+        p.image_url ||
+        p.photo_url ||
+        p.image ||
+        null;
+
+      const baseUnit = (p.product_units || []).find((u) => u.is_base);
+      const unitBarcode = baseUnit?.barcode || (p.product_units || [])[0]?.barcode || null;
+
+      const code = p.sku || p.barcode || unitBarcode || null;
+
+      map[p.id] = {
+        id: p.id,
+        name: p.name,
+        name_km: p.name_km || null,
+        sku: p.sku || null,
+        barcode: p.barcode || unitBarcode || null,
+        code,
+        image_url: primaryImage
+      };
+    }
+    return map;
+  } catch (err) {
+    console.warn("Failed to fetch products metadata map:", err?.message || err);
+    return {};
+  }
+}

@@ -11,33 +11,84 @@ export function calculateSaleTotals(
   cart,
   discountType = "none",
   discountValue = 0,
-  taxPercent = 0
+  taxPercent = 0,
+  discountMode = "manual"
 ) {
-  const subtotal = roundMoney(
+  const promotionDiscountAmount = roundMoney(
+    cart.reduce((sum, item) => {
+      const promoDiscount = Number(item.promotion_discount_amount || 0);
+      if (promoDiscount > 0) return sum + promoDiscount;
+
+      const qty = Number(item.quantity || 0);
+      const stdPrice = Number(item.standard_unit_price ?? item.list_price ?? 0);
+      const sellingPrice = Number(item.selected_unit_price ?? item.selling_price ?? 0);
+      if (stdPrice > sellingPrice && sellingPrice > 0) {
+        return sum + ((stdPrice - sellingPrice) * qty);
+      }
+      return sum;
+    }, 0)
+  );
+
+  const grossSubtotal = roundMoney(
+    cart.reduce((sum, item) => {
+      const qty = Number(item.quantity || 0);
+      const promoDiscount = Number(item.promotion_discount_amount || 0);
+      const sellingPrice = Number(item.selected_unit_price ?? item.selling_price ?? 0);
+      const stdPrice = Number(
+        item.standard_unit_price
+        ?? item.list_price
+        ?? (promoDiscount > 0 && qty > 0 ? sellingPrice + (promoDiscount / qty) : sellingPrice)
+      );
+      return sum + (qty * stdPrice);
+    }, 0)
+  );
+
+  const netSellingSubtotal = roundMoney(
     cart.reduce(
       (sum, item) => sum + Number(item.selected_unit_price ?? item.selling_price ?? 0) * Number(item.quantity || 0),
       0
     )
   );
 
+  const eligibleSubtotal = roundMoney(
+    cart.reduce((sum, item) => {
+      const promotion = item.active_promotion || null;
+      const allowed = !promotion
+        || (discountMode === "coupon"
+          ? promotion.allow_coupon !== false
+          : promotion.allow_manual_discount !== false);
+      return sum + (allowed ? Number(item.selected_unit_price ?? item.selling_price ?? 0) * Number(item.quantity || 0) : 0);
+    }, 0)
+  );
+
   let discountAmount = 0;
   const value = Math.max(0, Number(discountValue || 0));
 
   if (discountType === "percent") {
-    discountAmount = roundMoney(subtotal * Math.min(value, 100) / 100);
+    discountAmount = roundMoney(eligibleSubtotal * Math.min(value, 100) / 100);
   } else if (discountType === "fixed") {
-    discountAmount = Math.min(subtotal, roundMoney(value));
+    discountAmount = Math.min(eligibleSubtotal, roundMoney(value));
   }
 
-  const taxableAmount = Math.max(0, roundMoney(subtotal - discountAmount));
+  const taxableAmount = Math.max(0, roundMoney(netSellingSubtotal - discountAmount));
   const taxAmount = roundMoney(taxableAmount * Math.max(0, Number(taxPercent || 0)) / 100);
   const total = Math.max(0, roundMoney(taxableAmount + taxAmount));
 
-  return { subtotal, discountAmount, taxableAmount, taxAmount, total };
+  return {
+    subtotal: grossSubtotal > 0 ? grossSubtotal : netSellingSubtotal,
+    grossSubtotal,
+    netSellingSubtotal,
+    promotionDiscountAmount,
+    eligibleSubtotal,
+    discountAmount,
+    taxableAmount,
+    taxAmount,
+    total
+  };
 }
 
 export async function loadSalesWorkspace(supabase, organizationId, branchId) {
-  const [productResult, categoryResult, customerResult, parkedResult, recentResult, reservationResult] =
+  const [productResult, categoryResult, customerResult, parkedResult, recentResult, reservationResult, promotionResult] =
     await Promise.all([
       supabase
         .from("products")
@@ -161,7 +212,12 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
         .select("product_id,reserved_base_quantity,delivered_base_quantity,released_base_quantity,status")
         .eq("organization_id", organizationId)
         .eq("branch_id", branchId)
-        .eq("status", "active")
+        .eq("status", "active"),
+      supabase
+        .from("product_promotions")
+        .select("id,name,branch_id,discount_type,discount_value,starts_at,ends_at,allow_coupon,allow_manual_discount,is_active,product_promotion_items(product_id,product_unit_id,max_unit_quantity,reserved_unit_quantity)")
+        .eq("organization_id", organizationId)
+        .eq("is_active", true)
     ]);
 
   for (const result of [
@@ -170,7 +226,8 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
     customerResult,
     parkedResult,
     recentResult,
-    reservationResult
+    reservationResult,
+    promotionResult
   ]) {
     if (result.error) throw result.error;
   }
@@ -188,6 +245,30 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
       Number(reservedByProduct.get(row.product_id) || 0)
         + remaining
     );
+  }
+
+  const now = Date.now();
+  const promotionsByProduct = new Map();
+  const hasPromoSet = new Set();
+
+  for (const promotion of promotionResult.data || []) {
+    if (promotion.branch_id && promotion.branch_id !== branchId) continue;
+    const start = new Date(promotion.starts_at).getTime();
+    const end = promotion.ends_at ? new Date(promotion.ends_at).getTime() : Number.POSITIVE_INFINITY;
+    if (!Number.isFinite(start) || start > now || end < now) continue;
+
+    for (const item of promotion.product_promotion_items || []) {
+      if (!item.product_id || !item.product_unit_id) continue;
+      hasPromoSet.add(item.product_id);
+      let mapForProd = promotionsByProduct.get(item.product_id);
+      if (!mapForProd) {
+        mapForProd = {};
+        promotionsByProduct.set(item.product_id, mapForProd);
+      }
+      if (!mapForProd[item.product_unit_id]) {
+        mapForProd[item.product_unit_id] = promotion;
+      }
+    }
   }
 
   const products = (productResult.data || []).map((product) => {
@@ -209,10 +290,24 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           || String(a.name).localeCompare(String(b.name))
       );
 
+    const promoByUnitMap = promotionsByProduct.get(product.id) || {};
+    for (const unit of units) {
+      if (promoByUnitMap[unit.id]) {
+        promoByUnitMap[unit.id] = {
+          ...promoByUnitMap[unit.id],
+          unit_name: unit.name,
+          is_base_unit: Boolean(unit.is_base)
+        };
+      }
+    }
+    const baseUnit = units.find((u) => u.is_base) || units[0] || null;
+    const defaultActivePromo = (baseUnit && promoByUnitMap[baseUnit.id]) || Object.values(promoByUnitMap)[0] || null;
+
     return {
       ...product,
       product_units: units,
       units,
+      product_promotions_by_unit: promoByUnitMap,
       physical_stock_quantity: Number(balance?.quantity || 0),
       reserved_stock_quantity: Number(
         reservedByProduct.get(product.id) || 0
@@ -223,7 +318,10 @@ export async function loadSalesWorkspace(supabase, organizationId, branchId) {
           - Number(reservedByProduct.get(product.id) || 0)
       ),
       average_cost: Number(balance?.average_cost || product.default_cost || 0),
-      image: image || null
+      image: image || null,
+      image_url: image?.secure_url || product.image_url || null,
+      active_promotion: defaultActivePromo || null,
+      has_active_promotion: hasPromoSet.has(product.id)
     };
   });
 
@@ -275,15 +373,33 @@ function createCartLineId() {
 export function buildSaleCartItem(product, unitId = null, cartLineId = null) {
   const unit = saleUnitForProduct(product, unitId);
 
+  let promotion = null;
+  if (product?.product_promotions_by_unit && unit?.id) {
+    promotion = product.product_promotions_by_unit[unit.id] || null;
+  } else if (product?.active_promotion) {
+    const promoUnitId = product.active_promotion.product_unit_id || product.active_promotion.product_promotion_items?.[0]?.product_unit_id;
+    if (!promoUnitId || promoUnitId === unit.id) {
+      promotion = product.active_promotion;
+    }
+  }
+
+  const normalPrice = Number(unit.selling_price || 0);
+  const promoPrice = promotion
+    ? Number((promotion.discount_type === "percent"
+      ? normalPrice * (1 - Math.min(Math.max(Number(promotion.discount_value || 0), 0), 100) / 100)
+      : normalPrice - Math.max(Number(promotion.discount_value || 0), 0)).toFixed(2))
+    : normalPrice;
+
   return {
     ...product,
     cart_line_id: cartLineId || createCartLineId(),
     quantity: 1,
+    active_promotion: promotion,
     selected_unit_id: unit.id,
     selected_unit_name: unit.name,
     selected_unit_short_name: unit.short_name || unit.name,
     selected_unit_factor: Number(unit.conversion_factor || 1),
-    selected_unit_price: Number(unit.selling_price || 0),
+    selected_unit_price: Math.max(0, promoPrice),
     standard_unit_price: Number(
       unit.standard_selling_price
       ?? unit.selling_price
@@ -294,7 +410,8 @@ export function buildSaleCartItem(product, unitId = null, cartLineId = null) {
     unit_price_adjustment: Number(
       unit.price_adjustment || 0
     ),
-    selling_price: Number(unit.selling_price || 0)
+    selling_price: Number(unit.selling_price || 0),
+    image_url: product.image?.secure_url || product.image_url || product.product_image_url || null
   };
 }
 

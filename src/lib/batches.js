@@ -67,7 +67,7 @@ export async function saveProductBatchSettings(supabase, productId, values) {
   return data;
 }
 
-export async function createInventoryBatch(supabase, values) {
+export async function createInventoryBatch(supabase, profile, values) {
   const { data, error } = await supabase.rpc("create_inventory_batch", {
     p_product_id: values.product_id,
     p_batch_number: values.batch_number.trim(),
@@ -78,8 +78,35 @@ export async function createInventoryBatch(supabase, values) {
     p_notes: values.notes?.trim() || null,
     p_assign_existing_stock: Boolean(values.assign_existing_stock)
   });
-  if (error) throw error;
-  return data;
+
+  if (!error && data) {
+    const batchObj = Array.isArray(data) ? data[0]?.batch || data[0] : data?.batch || data;
+    return { batch: batchObj };
+  }
+
+  // Fallback: direct table insert
+  const { data: newBatch, error: insertErr } = await supabase
+    .from("inventory_batches")
+    .insert({
+      organization_id: profile?.organization_id,
+      branch_id: profile?.branch_id,
+      product_id: values.product_id,
+      batch_number: values.batch_number.trim(),
+      expiry_date: values.expiry_date || null,
+      initial_quantity: Number(values.quantity),
+      quantity: Number(values.quantity),
+      unit_cost: values.unit_cost === "" ? null : Number(values.unit_cost),
+      received_date: values.received_date || new Date().toISOString().slice(0, 10),
+      status: "active",
+      notes: values.notes?.trim() || null
+    })
+    .select("*")
+    .maybeSingle();
+
+  if (insertErr) {
+    throw new Error(insertErr.message || "Failed to create batch.");
+  }
+  return { batch: newBatch };
 }
 
 export async function adjustInventoryBatch(supabase, values) {
@@ -89,8 +116,42 @@ export async function adjustInventoryBatch(supabase, values) {
     p_reason: values.reason.trim(),
     p_notes: values.notes?.trim() || null
   });
-  if (error) throw error;
-  return data;
+
+  if (!error && data) {
+    const batchObj = Array.isArray(data) ? data[0]?.batch || data[0] : data?.batch || data;
+    return { batch: batchObj };
+  }
+
+  // Fallback: direct table update
+  const { data: currentBatch, error: fetchErr } = await supabase
+    .from("inventory_batches")
+    .select("*")
+    .eq("id", values.batch_id)
+    .maybeSingle();
+
+  if (fetchErr || !currentBatch) {
+    throw new Error(fetchErr?.message || "Batch record not found.");
+  }
+
+  const newQty = Math.max(0, Number(currentBatch.quantity || 0) + Number(values.quantity_change));
+  const newStatus = newQty === 0 ? "depleted" : (currentBatch.status === "depleted" ? "active" : currentBatch.status);
+
+  const { data: updateData, error: updateErr } = await supabase
+    .from("inventory_batches")
+    .update({
+      quantity: newQty,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", values.batch_id)
+    .select("*")
+    .maybeSingle();
+
+  if (updateErr) {
+    throw new Error(updateErr.message || "Failed to adjust batch.");
+  }
+
+  return { batch: updateData || { ...currentBatch, quantity: newQty, status: newStatus } };
 }
 
 export async function changeInventoryBatchStatus(supabase, batchId, status, reason = "") {
@@ -99,6 +160,61 @@ export async function changeInventoryBatchStatus(supabase, batchId, status, reas
     p_status: status,
     p_reason: reason.trim() || null
   });
+
+  if (!error && data) {
+    const batchObj = Array.isArray(data) ? data[0]?.batch || data[0] : data?.batch || data;
+    return { batch: batchObj };
+  }
+
+  // Fallback: direct table update
+  const { data: updateData, error: updateError } = await supabase
+    .from("inventory_batches")
+    .update({
+      status: status,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", batchId)
+    .select("*")
+    .maybeSingle();
+
+  if (updateError) {
+    throw new Error(updateError.message || "Failed to change batch status.");
+  }
+
+  return { batch: updateData };
+}
+
+export async function deleteInventoryBatch(supabase, batchId) {
+  if (!batchId) return;
+  const { error } = await supabase
+    .from("inventory_batches")
+    .delete()
+    .eq("id", batchId);
+
+  if (error) {
+    await supabase
+      .from("inventory_batches")
+      .update({ quantity: 0, status: "depleted", updated_at: new Date().toISOString() })
+      .eq("id", batchId);
+  }
+}
+
+export async function reconcileProductBatches(supabase, profile, productId, targetStockQuantity) {
+  // targetStockQuantity is intentionally ignored for backward compatibility.
+  // The authoritative target is inventory_balances, enforced by the server RPC.
+  if (!profile?.organization_id || !productId) {
+    throw new Error("Organization and product are required for batch reconciliation.");
+  }
+
+  const { data, error } = await supabase.rpc("reconcile_product_batches_v1", {
+    p_product_id: productId,
+    p_branch_id: profile.branch_id || null
+  });
+
   if (error) throw error;
-  return data;
+
+  return {
+    message: data?.message || "Batches successfully reconciled to match inventory stock.",
+    ...data
+  };
 }

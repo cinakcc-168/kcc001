@@ -17,7 +17,7 @@ export function defaultReturnDateRange() {
 }
 
 export function estimateRefund(sale, selections) {
-  const saleItems = sale?.sale_items || [];
+  const saleItems = sale?.sale_items || sale?.items || [];
   const saleLineTotal = saleItems.reduce(
     (sum, item) => sum + Number(item.line_total || 0),
     0

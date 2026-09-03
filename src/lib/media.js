@@ -1,8 +1,73 @@
 export const PRODUCT_IMAGE_PLACEHOLDER = "/assets/tiny-pos-product-placeholder.png";
 export const MEDIA_SOURCE_LIMIT = 30 * 1024 * 1024;
 
+const loadedMediaUrls = new Set();
+const failedMediaUrls = new Set();
+const preloadedImageElements = new Map();
+
+export function isMediaUrlCached(url) {
+  if (!url) return false;
+  return loadedMediaUrls.has(url);
+}
+
+export function isMediaUrlFailed(url) {
+  if (!url) return false;
+  return failedMediaUrls.has(url);
+}
+
+export function markMediaUrlLoaded(url) {
+  if (!url) return;
+  loadedMediaUrls.add(url);
+  failedMediaUrls.delete(url);
+}
+
+export function markMediaUrlFailed(url) {
+  if (!url) return;
+  failedMediaUrls.add(url);
+}
+
+export function preloadMediaUrl(src, options = {}) {
+  const normalized = normalizeMediaUrl(src);
+  const displayUrl = cloudinaryImageUrl(normalized, options);
+  if (!displayUrl || loadedMediaUrls.has(displayUrl) || failedMediaUrls.has(displayUrl)) {
+    return displayUrl;
+  }
+  if (typeof window === "undefined" || typeof Image === "undefined") {
+    return displayUrl;
+  }
+
+  if (!preloadedImageElements.has(displayUrl)) {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => {
+      loadedMediaUrls.add(displayUrl);
+    };
+    img.onerror = () => {
+      failedMediaUrls.add(displayUrl);
+    };
+    img.src = displayUrl;
+    preloadedImageElements.set(displayUrl, img);
+  }
+
+  return displayUrl;
+}
+
+export function preloadProductImages(products, options = { width: 360, height: 220 }) {
+  if (!Array.isArray(products) || products.length === 0) return;
+  for (const product of products) {
+    const raw = product?.image || product?.product_images?.[0] || product?.product_image_url || product?.image_url;
+    if (raw) {
+      preloadMediaUrl(raw, options);
+    }
+  }
+}
+
 function extractUrl(value) {
   if (!value) return "";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "";
+    return extractUrl(value[0]);
+  }
   if (typeof value === "object") {
     return extractUrl(
       value.secure_url

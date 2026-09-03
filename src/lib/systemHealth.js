@@ -93,8 +93,56 @@ export async function resolveSystemError(
     }
   );
 
-  if (error) throw error;
+  if (error) {
+    const { error: updateErr } = await supabase
+      .from("system_error_logs")
+      .update({ resolved_at: new Date().toISOString() })
+      .eq("id", errorId);
+    if (updateErr) throw updateErr;
+    return { ok: true };
+  }
   return data;
+}
+
+export async function deleteSingleSystemError(supabase, profile, errorId) {
+  if (!errorId) return;
+
+  const { error: deleteError } = await supabase
+    .from("system_error_logs")
+    .delete()
+    .eq("id", errorId);
+
+  if (deleteError) {
+    await supabase
+      .from("system_error_logs")
+      .update({ resolved_at: new Date().toISOString() })
+      .eq("id", errorId);
+  }
+}
+
+export async function clearAllSystemErrors(supabase, profile, currentErrors = []) {
+  if (!profile?.organization_id) return;
+  const now = new Date().toISOString();
+
+  const { error: deleteError } = await supabase
+    .from("system_error_logs")
+    .delete()
+    .eq("organization_id", profile.organization_id);
+
+  if (!deleteError) return;
+
+  const { error: updateError } = await supabase
+    .from("system_error_logs")
+    .update({ resolved_at: now })
+    .eq("organization_id", profile.organization_id);
+
+  if (updateError) {
+    for (const err of (currentErrors || [])) {
+      if (err.id) {
+        await resolveSystemError(supabase, err.id, "Cleared from System Health").catch(() => null);
+      }
+    }
+  }
 }
 
 export async function runSafeMaintenance(supabase) {

@@ -53,6 +53,10 @@ describe("calculateSaleTotals", () => {
       )
     ).toEqual({
       subtotal: 2.75,
+      grossSubtotal: 2.75,
+      netSellingSubtotal: 2.75,
+      promotionDiscountAmount: 0,
+      eligibleSubtotal: 2.75,
       discountAmount: 0.25,
       taxableAmount: 2.5,
       taxAmount: 0.25,
@@ -63,6 +67,10 @@ describe("calculateSaleTotals", () => {
   it("caps percentage discount at 100 percent and never produces a negative total", () => {
     expect(calculateSaleTotals([{ selected_unit_price: 5, quantity: 1 }], "percent", 150, 10)).toEqual({
       subtotal: 5,
+      grossSubtotal: 5,
+      netSellingSubtotal: 5,
+      promotionDiscountAmount: 0,
+      eligibleSubtotal: 5,
       discountAmount: 5,
       taxableAmount: 0,
       taxAmount: 0,
