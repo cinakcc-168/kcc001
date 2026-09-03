@@ -1064,14 +1064,14 @@ for (const [english, khmer] of Object.entries(EXACT_KM)) {
   }
 }
 
-const sortedExactKhmer = Object.entries(EXACT_KM)
+const _sortedExactKhmer = Object.entries(EXACT_KM)
   .map(([english, khmer]) => [khmer, english])
   .sort((left, right) => right[0].length - left[0].length);
 
 const sortedTerms = Object.entries(TERM_KM)
   .sort((left, right) => right[0].length - left[0].length);
 
-const sortedKhmerTerms = Object.entries(TERM_KM)
+const _sortedKhmerTerms = Object.entries(TERM_KM)
   .map(([english, khmer]) => [khmer, english])
   .sort((left, right) => right[0].length - left[0].length);
 
@@ -1176,22 +1176,7 @@ export function recoverEnglishUiText(value) {
     return preserveOuterWhitespace(source, exact);
   }
 
-  let recovered = trimmed;
-
-  // Recover complete translated phrases first, then shorter UI terms. This
-  // gives the DOM language bridge a stable English source even when the page
-  // was initially rendered in Khmer or React replaces a node with t(...).
-  for (const [khmer, english] of sortedExactKhmer) {
-    if (!khmer || !recovered.includes(khmer)) continue;
-    recovered = recovered.split(khmer).join(english);
-  }
-
-  for (const [khmer, english] of sortedKhmerTerms) {
-    if (!khmer || !recovered.includes(khmer)) continue;
-    recovered = recovered.split(khmer).join(english);
-  }
-
-  return preserveOuterWhitespace(source, recovered);
+  return source;
 }
 
 export function translateUiText(
@@ -1206,6 +1191,12 @@ export function translateUiText(
 
   const trimmed = source.trim();
   if (!trimmed) return source;
+
+  // If text already contains Khmer characters, it is already in Khmer (or user entered)
+  // and MUST NOT be translated or modified.
+  if (/[\u1780-\u17ff]/.test(trimmed)) {
+    return source;
+  }
 
   const exact = EXACT_KM[trimmed]
     || exactLower.get(trimmed.toLowerCase());
