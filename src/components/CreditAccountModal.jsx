@@ -102,21 +102,6 @@ export default function CreditAccountModal({
       return;
     }
 
-    if (
-      account
-      && !form.allow_unlimited_credit
-      && limit < Number(account.balance_due || 0)
-    ) {
-      const confirmed = window.confirm(
-        `The new limit ${money(limit, form.currency)} is below the current balance ${money(
-          account.balance_due,
-          form.currency
-        )}. New credit sales will be blocked until the balance is lower. Continue?`
-      );
-
-      if (!confirmed) return;
-    }
-
     await onSubmit(form);
   }
 

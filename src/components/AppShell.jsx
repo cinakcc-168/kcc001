@@ -68,6 +68,7 @@ const navigationItems = {
   crm: { to: "/crm", label: "CRM & Campaigns", icon: HeartHandshake, permission: "crm.view" },
   creditAccounts: { to: "/credit-accounts", label: "Credit Accounts", icon: BadgeDollarSign, any: ["credit_accounts.manage", "credit_accounts.collect"] },
   coupons: { to: "/coupons", label: "Coupons", icon: TicketPercent, permission: "coupons.manage" },
+  productPromotions: { to: "/product-promotions", label: "Product Promotions", icon: BadgeDollarSign, permission: "coupons.manage" },
   priceLists: { to: "/price-lists", label: "Price Lists", icon: Tags, permission: "price_lists.manage" },
   products: { to: "/products", label: "Products", icon: Boxes, permission: "products.manage" },
   labels: { to: "/labels", label: "Barcode Labels", icon: Barcode, permission: "labels.print" },
@@ -114,7 +115,7 @@ const navigationGroups = [
     id: "products",
     label: "Products & Inventory",
     icon: Boxes,
-    items: ["products", "priceLists", "labels", "inventory", "batches", "stockCounts", "transfers", "reorder", "demandPlanning"]
+    items: ["products", "productPromotions", "priceLists", "labels", "inventory", "batches", "stockCounts", "transfers", "reorder", "demandPlanning"]
   },
   {
     id: "purchasing",
@@ -174,6 +175,9 @@ export default function AppShell() {
     }
   });
   const [flyoutGroup, setFlyoutGroup] = useState("");
+  const [renderedFlyoutGroup, setRenderedFlyoutGroup] = useState(null);
+  const [isFlyoutClosing, setIsFlyoutClosing] = useState(false);
+  const flyoutCloseTimeoutRef = useRef(null);
   const [flyoutPosition, setFlyoutPosition] = useState({ top: 84, left: 94 });
   const groupButtonRefs = useRef(new Map());
   const [branches, setBranches] = useState([]);
@@ -209,28 +213,62 @@ export default function AppShell() {
 
   const canSwitchBranch = can("branches.switch");
 
+  // Sync rendered flyout group with exit animation
+  useEffect(() => {
+    if (flyoutGroup) {
+      if (flyoutCloseTimeoutRef.current) {
+        clearTimeout(flyoutCloseTimeoutRef.current);
+        flyoutCloseTimeoutRef.current = null;
+      }
+      setIsFlyoutClosing(false);
+      const group = visibleGroups.find((g) => g.id === flyoutGroup);
+      if (group) setRenderedFlyoutGroup(group);
+    } else if (renderedFlyoutGroup && !isFlyoutClosing) {
+      setIsFlyoutClosing(true);
+      flyoutCloseTimeoutRef.current = setTimeout(() => {
+        setRenderedFlyoutGroup(null);
+        setIsFlyoutClosing(false);
+        flyoutCloseTimeoutRef.current = null;
+      }, 280);
+    }
+  }, [flyoutGroup, visibleGroups, renderedFlyoutGroup, isFlyoutClosing]);
+
+  useEffect(() => {
+    return () => {
+      if (flyoutCloseTimeoutRef.current) {
+        clearTimeout(flyoutCloseTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const closeFlyout = () => {
+    setFlyoutGroup("");
+  };
+
   useEffect(() => {
     if (!activeGroupId) return;
     setOpenGroup(activeGroupId);
   }, [activeGroupId]);
 
   useEffect(() => {
-    setFlyoutGroup("");
+    closeFlyout();
   }, [location.pathname]);
 
   useEffect(() => {
-    if (!collapsed) setFlyoutGroup("");
+    if (!collapsed) closeFlyout();
   }, [collapsed]);
 
+  const activeFlyoutTargetId = flyoutGroup || renderedFlyoutGroup?.id || "";
+
   useEffect(() => {
-    if (!flyoutGroup) return undefined;
+    if (!activeFlyoutTargetId) return undefined;
 
     const refreshPosition = () => {
-      const button = groupButtonRefs.current.get(flyoutGroup);
+      const button = groupButtonRefs.current.get(activeFlyoutTargetId);
       if (!button) return;
 
       const rect = button.getBoundingClientRect();
-      const group = visibleGroups.find((entry) => entry.id === flyoutGroup);
+      const group = visibleGroups.find((entry) => entry.id === activeFlyoutTargetId);
       const estimatedHeight = Math.min(
         82 + ((group?.links.length || 1) * 46),
         window.innerHeight * 0.74
@@ -249,7 +287,7 @@ export default function AppShell() {
     window.addEventListener("scroll", refreshPosition, true);
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape") setFlyoutGroup("");
+      if (event.key === "Escape") closeFlyout();
     };
     window.addEventListener("keydown", onKeyDown);
 
@@ -258,7 +296,7 @@ export default function AppShell() {
       window.removeEventListener("scroll", refreshPosition, true);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [flyoutGroup, visibleGroups]);
+  }, [activeFlyoutTargetId, visibleGroups]);
 
   useEffect(() => {
     try {
@@ -368,7 +406,7 @@ export default function AppShell() {
     setOpen(false);
   }
 
-  const FlyoutGroupIcon = flyoutNavigationGroup?.icon || Settings;
+  const FlyoutGroupIcon = renderedFlyoutGroup?.icon || Settings;
 
   return (
     <div className={`shell ${collapsed ? "collapsed" : ""}`}>
@@ -435,18 +473,25 @@ export default function AppShell() {
                     <ChevronDown className="side-group-chevron side-label" size={18} />
                   </button>
 
-                  <div id={`side-group-${group.id}`} className="side-submenu" hidden={!expanded}>
-                    {group.links.map(({ to, label, icon: Icon }) => (
-                      <NavLink
-                        key={to}
-                        to={to}
-                        onClick={closeMobileMenu}
-                        className={({ isActive }) => (isActive ? "active" : "")}
-                      >
-                        <Icon size={18} />
-                        <span className="side-label">{t(label)}</span>
-                      </NavLink>
-                    ))}
+                  <div
+                    id={`side-group-${group.id}`}
+                    className={`side-submenu-wrapper ${expanded ? "expanded" : "collapsed"}`}
+                    aria-hidden={!expanded}
+                  >
+                    <div className="side-submenu">
+                      {group.links.map(({ to, label, icon: Icon }, index) => (
+                        <NavLink
+                          key={to}
+                          to={to}
+                          onClick={closeMobileMenu}
+                          style={{ "--sub-index": index }}
+                          className={({ isActive }) => (isActive ? "active" : "")}
+                        >
+                          <Icon size={18} />
+                          <span className="side-label">{t(label)}</span>
+                        </NavLink>
+                      ))}
+                    </div>
                   </div>
                 </section>
               );
@@ -478,29 +523,30 @@ export default function AppShell() {
         </div>
       </aside>
 
-      {collapsed && flyoutNavigationGroup && typeof document !== "undefined" && createPortal(
+      {collapsed && renderedFlyoutGroup && typeof document !== "undefined" && createPortal(
         <>
           <button
             type="button"
-            className="side-flyout-dismiss"
+            className={`side-flyout-dismiss ${isFlyoutClosing ? "flyout-dismiss-closing" : "flyout-dismiss-opening"}`}
             aria-label={t("Close menu")}
-            onClick={() => setFlyoutGroup("")}
+            onClick={closeFlyout}
           />
           <nav
-            className="side-collapsed-flyout"
+            className={`side-collapsed-flyout ${isFlyoutClosing ? "flyout-closing" : "flyout-opening"}`}
             style={{ top: flyoutPosition.top, left: flyoutPosition.left }}
-            aria-label={t(flyoutNavigationGroup.label)}
+            aria-label={t(renderedFlyoutGroup.label)}
           >
             <header>
               <FlyoutGroupIcon size={21} />
-              <strong>{t(flyoutNavigationGroup.label)}</strong>
+              <strong>{t(renderedFlyoutGroup.label)}</strong>
             </header>
             <div className="side-collapsed-flyout-links">
-              {flyoutNavigationGroup.links.map(({ to, label, icon: Icon }) => (
+              {renderedFlyoutGroup.links.map(({ to, label, icon: Icon }, index) => (
                 <NavLink
                   key={to}
                   to={to}
-                  onClick={() => setFlyoutGroup("")}
+                  style={{ animationDelay: `${Math.min(index * 22, 140)}ms` }}
+                  onClick={closeFlyout}
                   className={({ isActive }) => (isActive ? "active" : "")}
                 >
                   <Icon size={18} />
