@@ -510,7 +510,7 @@ export default function CreditAccountsPage() {
                   </div>
                   <div className="list-card-actions credit-account-actions">
                     <button type="button" className="icon-button" onClick={() => openStatement(account)} title="View statement"><Eye size={18} /></button>
-                    {canReceivePayment && Number(account.balance_due || 0) > 0 && <button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title="Receive payment"><HandCoins size={18} /></button>}
+                    <button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title="Receive payment"><HandCoins size={18} /></button>
                     {canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title="Credit settings"><Settings2 size={18} /></button>}
                   </div>
                 </article>
@@ -531,7 +531,7 @@ export default function CreditAccountsPage() {
                     <td data-label="Invoices"><strong>{Number(account.open_invoice_count || 0)}</strong><small>{Number(account.overdue_invoice_count || 0)} overdue</small></td>
                     <td data-label="Oldest due">{creditDate(account.oldest_due_date)}</td>
                     <td data-label="Last activity">{creditDateTime(account.last_activity_at || account.updated_at)}</td>
-                    <td data-label="Actions"><div className="credit-account-actions"><button type="button" className="icon-button" onClick={() => openStatement(account)} title="View statement"><Eye size={18} /></button>{canReceivePayment && Number(account.balance_due || 0) > 0 && <button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title="Receive payment"><HandCoins size={18} /></button>}{canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title="Credit settings"><Settings2 size={18} /></button>}</div></td>
+                    <td data-label="Actions"><div className="credit-account-actions"><button type="button" className="icon-button" onClick={() => openStatement(account)} title="View statement"><Eye size={18} /></button><button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title="Receive payment"><HandCoins size={18} /></button>{canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title="Credit settings"><Settings2 size={18} /></button>}</div></td>
                   </tr>
                 ))}</tbody>
               </table>

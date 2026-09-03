@@ -13,6 +13,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import Modal from "../components/Modal";
 import BarcodeScanner from "../components/BarcodeScanner";
 import StockCountCompleteModal from "../components/StockCountCompleteModal";
 import StockCountHistoryModal from "../components/StockCountHistoryModal";
@@ -81,6 +82,7 @@ export default function StockCountsPage() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   const [historySession, setHistorySession] = useState(null);
   const [historyItems, setHistoryItems] = useState([]);
@@ -267,6 +269,22 @@ export default function StockCountsPage() {
     });
   }
 
+  function handleCountAllExpected() {
+    const nextDraft = { ...draftItems };
+    for (const item of items) {
+      const expectedQty = Number(item.expected_quantity || 0);
+      const defaultBatch = (item.products?.inventory_batches || [])[0]?.id || item.selected_batch_id || null;
+      nextDraft[item.product_id] = {
+        product_id: item.product_id,
+        counted_quantity: expectedQty,
+        note: nextDraft[item.product_id]?.note || item.note || "",
+        selected_batch_id: defaultBatch
+      };
+    }
+    setDraftItems(nextDraft);
+    announce("success", "All items set to expected quantities.");
+  }
+
   async function handleSaveAll() {
     const pending = Object.values(draftItems);
     if (pending.length === 0) {
@@ -373,20 +391,17 @@ export default function StockCountsPage() {
     }
   }
 
-  async function handleCancel() {
+  function handleCancel() {
     if (!activeSession) return;
-    const reason = window.prompt(
-      `Enter a cancellation reason for ${activeSession.count_number}:`
-    );
-    if (reason === null) return;
-    if (reason.trim().length < 3) {
-      announce("error", "A cancellation reason is required.");
-      return;
-    }
+    setCancelOpen(true);
+  }
 
+  async function handleConfirmCancel(reason) {
+    if (!activeSession) return;
     try {
       setBusy("cancel");
       await cancelStockCount(supabase, activeSession.id, reason);
+      setCancelOpen(false);
       setWorkspaceOpen(false);
       announce(
         "success",
@@ -645,6 +660,7 @@ export default function StockCountsPage() {
         onCategoryChange={setCategoryFilter}
         onCountFilterChange={setCountFilter}
         onDraftChange={handleDraftChange}
+        onCountAllExpected={handleCountAllExpected}
         onSaveAll={handleSaveAll}
         onScan={() => setScannerOpen(true)}
         onComplete={() => setCompleteOpen(true)}
@@ -660,6 +676,14 @@ export default function StockCountsPage() {
         busy={busy === "complete"}
         onClose={() => setCompleteOpen(false)}
         onSubmit={handleComplete}
+      />
+
+      <StockCountCancelModal
+        open={cancelOpen}
+        session={activeSession}
+        busy={busy}
+        onClose={() => setCancelOpen(false)}
+        onSubmit={handleConfirmCancel}
       />
 
       <StockCountHistoryModal
@@ -680,5 +704,55 @@ export default function StockCountsPage() {
         continuous
       />
     </div>
+  );
+}
+
+function StockCountCancelModal({ open, session, busy, onClose, onSubmit }) {
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (open) setReason("");
+  }, [open]);
+
+  if (!open || !session) return null;
+
+  return (
+    <Modal
+      title={`Cancel stock count ${session.count_number}`}
+      onClose={onClose}
+      closeDisabled={Boolean(busy)}
+    >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit(reason);
+        }}
+        className="form-grid"
+      >
+        <p className="muted" style={{ margin: "0 0 12px", fontSize: "13px" }}>
+          Cancelling this count will stop session <strong>{session.count_number} · {session.name}</strong> without changing inventory levels.
+        </p>
+        <label style={{ display: "grid", gap: "6px" }}>
+          <span style={{ fontWeight: 700, fontSize: "13px" }}>Cancellation reason *</span>
+          <textarea
+            rows="3"
+            required
+            minLength={3}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Started by mistake or incorrect store scope"
+            autoFocus
+          />
+        </label>
+        <div className="modal-actions" style={{ marginTop: "16px" }}>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={Boolean(busy)}>
+            Keep counting
+          </button>
+          <button type="submit" className="danger-button" disabled={Boolean(busy) || reason.trim().length < 3}>
+            {busy === "cancel" ? "Cancelling..." : "Confirm cancellation"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -23,8 +23,10 @@ import PaymentModal from "../components/PaymentModal";
 import ReceiptModal from "../components/ReceiptModal";
 import QuoteSaveModal from "../components/QuoteSaveModal";
 import ApprovalRequestModal from "../components/ApprovalRequestModal";
+import ProductPromotionTag from "../components/ProductPromotionTag";
 import SaleCart, { SaleCartLinesPanel, SaleCheckoutPanel } from "../components/SaleCart";
 import { money, stockNumber } from "../lib/catalog";
+import { triggerFlyToCart } from "../lib/flyToCart";
 import {
   buildSaleCartItem,
   calculateSaleTotals,
@@ -41,6 +43,7 @@ import {
   saveParkedSale
 } from "../lib/sales";
 import { getOpenCashRegisterSummary } from "../lib/cashRegister";
+import { preloadProductImages } from "../lib/media";
 import {
   clearLocalSaleDraft,
   detachQuoteFromLocalSaleDraft,
@@ -85,6 +88,8 @@ function dateTime(value) {
 
 const emptyCustomer = { customer_type: "regular", name: "", phone: "", email: "", notes: "" };
 
+let salesWorkspaceCache = null;
+
 export default function SalesPage() {
   const {
     supabase,
@@ -101,20 +106,21 @@ export default function SalesPage() {
   const canDiscount = can(
     "sales.discount.apply"
   );
-  const [baseProducts, setBaseProducts] = useState([]);
+  const [baseProducts, setBaseProducts] = useState(() => salesWorkspaceCache?.products || []);
   const [priceCatalogs, setPriceCatalogs] = useState({
     USD: null,
     KHR: null
   });
   const [customerPricingBusy, setCustomerPricingBusy] = useState(false);
   const [customerPricingReadyFor, setCustomerPricingReadyFor] = useState("");
-  const [categories, setCategories] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [parkedSales, setParkedSales] = useState([]);
-  const [recentSales, setRecentSales] = useState([]);
+  const [categories, setCategories] = useState(() => salesWorkspaceCache?.categories || []);
+  const [customers, setCustomers] = useState(() => salesWorkspaceCache?.customers || []);
+  const [parkedSales, setParkedSales] = useState(() => salesWorkspaceCache?.parkedSales || []);
+  const [recentSales, setRecentSales] = useState(() => salesWorkspaceCache?.recentSales || []);
   const [cashRegisterOpen, setCashRegisterOpen] = useState(false);
   const [bankQr, setBankQr] = useState({ url: "", comment: "" });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !salesWorkspaceCache?.products?.length);
+  const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -271,11 +277,14 @@ export default function SalesPage() {
     };
   }, [activeQuote?.id, isOnline, profile?.id, profile?.organization_id, profile?.branch_id, supabase]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (isSilent = false) => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;
 
     try {
-      setLoading(true);
+      if (!salesWorkspaceCache?.products?.length && !isSilent) {
+        setLoading(true);
+      }
+      setRefreshing(true);
 
       if (typeof navigator !== "undefined" && !navigator.onLine) {
         const bundle = await loadOfflineCheckoutBundle(profile);
@@ -284,6 +293,14 @@ export default function SalesPage() {
         }
         const localSales = await listOfflineSales(profile);
         const data = workspaceFromOfflineBundle(bundle, localSales);
+        salesWorkspaceCache = {
+          products: data.products,
+          categories: data.categories,
+          customers: data.customers,
+          parkedSales: [],
+          recentSales: []
+        };
+        preloadProductImages(data.products);
         setOfflineBundle(bundle);
         setPriceCatalogs({ USD: null, KHR: null });
         setBaseProducts(data.products);
@@ -304,6 +321,16 @@ export default function SalesPage() {
         ),
         getOpenCashRegisterSummary(supabase)
       ]);
+
+      salesWorkspaceCache = {
+        products: data.products,
+        categories: data.categories,
+        customers: data.customers,
+        parkedSales: data.parkedSales,
+        recentSales: data.recentSales
+      };
+
+      preloadProductImages(data.products);
 
       setBaseProducts(data.products);
       setCategories(data.categories);
@@ -331,6 +358,7 @@ export default function SalesPage() {
       setMessage(error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [supabase, profile]);
 
@@ -753,7 +781,8 @@ export default function SalesPage() {
             String(value).toLowerCase().includes(needle)
           );
       const matchesCategory =
-        categoryFilter === "all" || product.category_id === categoryFilter;
+        categoryFilter === "all"
+        || (categoryFilter === "promotion" ? Boolean(product.has_active_promotion) : product.category_id === categoryFilter);
       return matchesSearch && matchesCategory;
     }).sort((a, b) => {
       if (productSort === "name_za") {
@@ -775,9 +804,10 @@ export default function SalesPage() {
       cart,
       discountType,
       discountValue,
-      Number(shop?.tax_percent || 0)
+      Number(shop?.tax_percent || 0),
+      appliedCoupon ? "coupon" : "manual"
     ),
-    [cart, discountType, discountValue, shop]
+    [cart, discountType, discountValue, shop, appliedCoupon]
   );
 
   const selectedCustomer = customers.find(
@@ -791,64 +821,103 @@ export default function SalesPage() {
   const saleShowProductCode = preferences?.sale_show_product_code !== false;
   const saleWorkspaceStyle = {
     "--layout2-product-rows": layout2ProductRows,
-    "--layout2-products-height": `${96 + layout2ProductRows * 186}px`
+    "--layout2-products-height": `${45 + layout2ProductRows * 195}px`
   };
 
   function cleanProductName(nameStr) {
     if (!nameStr) return "";
     return String(nameStr)
       .replace(/^(KH|Kh|kh|EN|En|en)\s*:\s*/i, "")
+      .replace(/^(KH|Kh|kh|EN|En|en)\s+/i, "")
+      .replace(/\s*(KH|Kh|kh|EN|En|en)\s*:\s*/gi, " ")
       .trim();
   }
 
   function productCardNames(product) {
-    const englishName = cleanProductName(product?.name || "");
-    const khmerName = cleanProductName(product?.name_km || "");
+    let rawEnglish = cleanProductName(product?.name || "");
+    let rawKhmer = cleanProductName(product?.name_km || "");
 
-    const nameHasKhmer = /[\u1780-\u17FF]/.test(englishName);
+    // If Khmer name is missing or identical to rawEnglish, try extracting from rawEnglish
+    if (!rawKhmer || rawKhmer.toLowerCase() === rawEnglish.toLowerCase()) {
+      const hasKhmer = /[\u1780-\u17FF]/.test(rawEnglish);
+      const hasLatin = /[A-Za-z]/.test(rawEnglish);
 
-    if (language === "km") {
-      if (khmerName) {
-        return {
-          primaryName: khmerName,
-          secondaryName: englishName && englishName !== khmerName ? englishName : ""
-        };
-      }
-      if (nameHasKhmer) {
-        return { primaryName: englishName, secondaryName: "" };
+      if (hasKhmer && hasLatin) {
+        // Delimiter patterns e.g. "English / Khmer", "English (Khmer)", "English - Khmer", "English KH: Khmer"
+        const enDelimKh = rawEnglish.match(/^([A-Za-z0-9\s.,&'"+#%!-]+?)\s*(?:\/|\(|\bKH:|\bkh:|-|–|—|\[)\s*([\u1780-\u17FF].*?)(?:\)|\])?$/i);
+        if (enDelimKh) {
+          rawEnglish = cleanProductName(enDelimKh[1]);
+          rawKhmer = cleanProductName(enDelimKh[2]);
+        } else {
+          // Khmer first then English delimiter
+          const khDelimEn = rawEnglish.match(/^([\u1780-\u17FF\s.,&'"+#%!-]+?)\s*(?:\/|\(|\bEN:|\ben:|-|–|—|\[)\s*([A-Za-z0-9].*?)(?:\)|\])?$/i);
+          if (khDelimEn) {
+            rawKhmer = cleanProductName(khDelimEn[1]);
+            rawEnglish = cleanProductName(khDelimEn[2]);
+          } else {
+            // Space separated English then Khmer
+            const enSpaceKh = rawEnglish.match(/^([A-Za-z0-9\s.,&'"+#%!-]+?)\s+([\u1780-\u17FF].*)$/);
+            if (enSpaceKh) {
+              rawEnglish = cleanProductName(enSpaceKh[1]);
+              rawKhmer = cleanProductName(enSpaceKh[2]);
+            } else {
+              // Space separated Khmer then English
+              const khSpaceEn = rawEnglish.match(/^([\u1780-\u17FF\s.,&'"+#%!-]+?)\s+([A-Za-z0-9].*)$/);
+              if (khSpaceEn) {
+                rawKhmer = cleanProductName(khSpaceEn[1]);
+                rawEnglish = cleanProductName(khSpaceEn[2]);
+              }
+            }
+          }
+        }
       }
     }
 
-    if (khmerName && khmerName !== englishName) {
+    rawEnglish = cleanProductName(rawEnglish);
+    rawKhmer = cleanProductName(rawKhmer);
+
+    // If rawEnglish contains ONLY Khmer characters and rawKhmer is empty
+    if (/^[\u1780-\u17FF\s0-9.,&'"+#%!-]+$/.test(rawEnglish) && !rawKhmer) {
       return {
-        primaryName: englishName || khmerName || "Unnamed product",
-        secondaryName: khmerName
+        primaryName: rawEnglish,
+        secondaryName: ""
       };
     }
 
+    const primaryName = rawEnglish || rawKhmer || "Unnamed product";
+    const secondaryName = rawKhmer && rawKhmer.toLowerCase() !== rawEnglish.toLowerCase() ? rawKhmer : "";
+
     return {
-      primaryName: englishName || khmerName || "Unnamed product",
-      secondaryName: ""
+      primaryName,
+      secondaryName
     };
   }
 
   function productCardPrice(product) {
     const unit = saleUnitForProduct(product);
-    const value = Number(unit?.selling_price || 0);
+    const normalValue = Number(unit?.selling_price || 0);
+    const promotion = product?.product_promotions_by_unit?.[unit?.id] || null;
+    const value = promotion
+      ? (promotion.discount_type === "percent"
+        ? normalValue * (1 - Math.min(Math.max(Number(promotion.discount_value || 0), 0), 100) / 100)
+        : Math.max(0, normalValue - Math.max(Number(promotion.discount_value || 0), 0)))
+      : normalValue;
     const currencyCode = String(product?.currency || "USD").toUpperCase();
     const isUsd = currencyCode === "USD";
     const amount = new Intl.NumberFormat("en-US", {
       minimumFractionDigits: isUsd ? 2 : 0,
       maximumFractionDigits: isUsd ? 2 : 0
     }).format(value);
-    const digitCount = amount.replace(/[^0-9]/g, "").length;
-    const sizeClass = digitCount >= 9
-      ? "price-xxl"
-      : digitCount >= 7
-        ? "price-xl"
-        : digitCount >= 5
-          ? "price-lg"
-          : "price-normal";
+    const charCount = amount.length;
+    const sizeClass = charCount >= 12
+      ? "price-xxxl"
+      : charCount >= 10
+        ? "price-xxl"
+        : charCount >= 8
+          ? "price-xl"
+          : charCount >= 6
+            ? "price-lg"
+            : "price-normal";
 
     return {
       amount,
@@ -860,12 +929,32 @@ export default function SalesPage() {
 
   function productCardStock(product) {
     const stockValue = Number(product.stock_quantity || 0);
-    if (!product.track_stock) return { label: "Stock", value: "∞", out: false };
+    const stockDisplay = preferences?.sale_stock_display || "exact";
+
+    if (!product.track_stock) {
+      return {
+        label: "Stock",
+        value: stockDisplay === "status" ? "In stock" : "∞",
+        out: false,
+        inStock: stockDisplay === "status"
+      };
+    }
+
+    if (stockDisplay === "status") {
+      const isOut = stockValue <= 0;
+      return {
+        label: "Stock",
+        value: isOut ? "Out" : "In stock",
+        out: isOut,
+        inStock: !isOut
+      };
+    }
 
     return {
       label: "Stock",
       value: `${stockNumber(stockValue)} ${product.unit_name || ""}`.trim(),
-      out: stockValue <= 0
+      out: stockValue <= 0,
+      inStock: false
     };
   }
 
@@ -944,44 +1033,10 @@ export default function SalesPage() {
     return item.cart_line_id || `${item.id}:${item.selected_unit_id || "base"}`;
   }
 
-  function validateQuantity(product, unit, quantity, excludingLineIds = []) {
+  function validateQuantity(_product, _unit, quantity, _excludingLineIds = []) {
     const next = Number(quantity);
     if (!Number.isFinite(next) || next <= 0) {
       throw new Error("Quantity must be greater than zero.");
-    }
-
-    const factor = Number(unit?.conversion_factor || 1);
-    const requestedBase = next * factor;
-    const excluded = new Set(
-      Array.isArray(excludingLineIds)
-        ? excludingLineIds.filter(Boolean)
-        : [excludingLineIds].filter(Boolean)
-    );
-    const otherBaseQuantity = cart
-      .filter((item) =>
-        item.id === product.id
-        && !excluded.has(lineKey(item))
-      )
-      .reduce(
-        (total, item) => total + (
-          Number(item.quantity || 0)
-          * Number(item.selected_unit_factor || 1)
-        ),
-        0
-      );
-    const totalRequestedBase = requestedBase + otherBaseQuantity;
-
-    if (
-      product.track_stock
-      && !product.allow_negative_stock
-      && !shop?.allow_negative_stock
-      && totalRequestedBase > Number(product.stock_quantity || 0)
-    ) {
-      throw new Error(
-        `${product.name} has only ${stockNumber(
-          Number(product.stock_quantity || 0) / factor
-        )} ${unit?.name || product.unit_name} available across this bill.`
-      );
     }
 
     return next;
@@ -1043,11 +1098,17 @@ export default function SalesPage() {
     const product = cart.find((item) => lineKey(item) === cartLineId);
     if (!product) return;
 
+    if (value === "" || value === null || value === undefined) {
+      setCart((current) => current.map((item) =>
+        lineKey(item) === cartLineId ? { ...item, quantity: "" } : item
+      ));
+      return;
+    }
+
     const number = Number(value);
     if (!Number.isFinite(number) || number <= 0) {
-      invalidateCoupon();
-      setCart((current) => current.filter(
-        (item) => lineKey(item) !== cartLineId
+      setCart((current) => current.map((item) =>
+        lineKey(item) === cartLineId ? { ...item, quantity: value } : item
       ));
       return;
     }
@@ -1584,6 +1645,7 @@ export default function SalesPage() {
         cart: cart.map((item) => ({ ...item })),
         subtotal: Number(result.subtotal ?? totals.subtotal),
         discountAmount: Number(result.discount_amount ?? totals.discountAmount),
+        promotionDiscountAmount: Number(result.promotion_discount_amount ?? totals.promotionDiscountAmount ?? 0),
         taxAmount: Number(result.tax_amount ?? totals.taxAmount),
         totalAmount: Number(result.total_amount ?? totals.total),
         amountReceived: Number(
@@ -1792,6 +1854,7 @@ export default function SalesPage() {
                     aria-label="Filter products by category"
                   >
                     <option value="all">All categories</option>
+                    <option value="promotion">Promotion</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
@@ -1829,15 +1892,15 @@ export default function SalesPage() {
                     <button
                       type="button"
                       className="icon-button refresh-button"
-                      onClick={refresh}
+                      onClick={() => refresh()}
                       title="Refresh products"
                     >
-                      <RefreshCw className={loading ? "spin" : ""} size={19} />
+                      <RefreshCw className={loading || refreshing ? "spin" : ""} size={19} />
                     </button>
                   </div>
                 </div>
 
-                {loading ? (
+                {loading && baseProducts.length === 0 ? (
                   <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
                 ) : visibleProducts.length === 0 ? (
                   <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
@@ -1848,12 +1911,21 @@ export default function SalesPage() {
                       return (
                         <button
                           type="button"
-                          className="sale-product-card"
+                          className="sale-product-card no-translate"
+                          data-i18n-skip="true"
                           key={product.id}
-                          onClick={() => addProduct(product)}
+                          onClick={(event) => {
+                            const ok = addProduct(product);
+                            if (ok) {
+                              triggerFlyToCart({ event, product });
+                            }
+                          }}
                           disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
                         >
-                          <div className="sale-product-image">
+                          <div className="sale-product-image no-translate" data-i18n-skip="true">
+                            {product.active_promotion ? (
+                              <ProductPromotionTag promotion={product.active_promotion} currency={product.currency} />
+                            ) : null}
                             <MediaImage
                               src={product.image}
                               alt={product.name}
@@ -1867,29 +1939,29 @@ export default function SalesPage() {
                             const { primaryName, secondaryName } = productCardNames(product);
                             const price = productCardPrice(product);
                             const stock = productCardStock(product);
+                            const code = saleShowProductCode ? (product.sku || product.barcode || "") : "";
                             return (
-                              <div className="sale-product-content">
-                                <div className="sale-product-names">
+                              <div className="sale-product-content no-translate" data-i18n-skip="true">
+                                <div className="sale-product-names no-translate" data-i18n-skip="true">
                                   <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
-                                  {secondaryName ? (
-                                    <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
-                                  ) : (
-                                    <span className="sale-product-name-secondary sale-product-name-empty" aria-hidden="true">&nbsp;</span>
-                                  )}
+                                  <span
+                                    className={`sale-product-name-secondary ${!secondaryName ? "is-empty" : ""}`}
+                                    title={secondaryName || ""}
+                                    aria-hidden={!secondaryName}
+                                  >
+                                    {secondaryName || "\u00A0"}
+                                  </span>
                                 </div>
-                                <div className="sale-product-footer">
+                                <div className="sale-product-footer no-translate" data-i18n-skip="true">
                                   <div className={`sale-product-price-block ${price.sizeClass}`}>
                                     <span className={`sale-product-price-symbol ${price.isUsd ? "usd" : ""}`}>{price.symbol}</span>
                                     <b className="sale-product-price-value" title={money(saleUnitForProduct(product).selling_price, product.currency)}>{price.amount}</b>
                                   </div>
-                                  <div className="sale-product-meta">
-                                    {saleShowProductCode ? (
-                                      <small className="sale-product-code" title={product.sku || product.barcode || "No code"}>{product.sku || product.barcode || "No code"}</small>
-                                    ) : (
-                                      <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
-                                    )}
-                                    <small className="sale-product-stock-label">{stock.label}</small>
-                                    <em className={`sale-product-stock-value ${stock.out ? "out" : ""}`} title={stock.value}>{stock.value}</em>
+                                  <div className="sale-product-meta no-translate" data-i18n-skip="true">
+                                    {code ? (
+                                      <small className="sale-product-code" title={code}>{code}</small>
+                                    ) : null}
+                                    <em className={`sale-product-stock-value ${stock.out ? "out" : ""} ${stock.inStock ? "in-stock" : ""}`} title={stock.value}>{stock.value}</em>
                                   </div>
                                 </div>
                               </div>
@@ -2004,6 +2076,7 @@ export default function SalesPage() {
                   aria-label="Filter products by category"
                 >
                   <option value="all">All categories</option>
+                    <option value="promotion">Promotion</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>{category.name}</option>
                   ))}
@@ -2025,20 +2098,20 @@ export default function SalesPage() {
 
               <div className="sale-product-summary">
                 <span><strong>{visibleProducts.length}</strong> products available</span>
-                <div>
+                <div className="sale-summary-actions">
                   <small>Tap a product to add one unit.</small>
                   <button
                     type="button"
                     className="icon-button refresh-button"
-                    onClick={refresh}
+                    onClick={() => refresh()}
                     title="Refresh products"
                   >
-                    <RefreshCw className={loading ? "spin" : ""} size={19} />
+                    <RefreshCw className={loading || refreshing ? "spin" : ""} size={19} />
                   </button>
                 </div>
               </div>
 
-              {loading ? (
+              {loading && baseProducts.length === 0 ? (
                 <div className="empty-state"><RefreshCw className="spin" size={34} /><p>Loading products...</p></div>
               ) : visibleProducts.length === 0 ? (
                 <div className="empty-state"><ShoppingCart size={46} /><h2>No sale products found</h2><p>Change the filters or add stock first.</p></div>
@@ -2049,12 +2122,21 @@ export default function SalesPage() {
                     return (
                       <button
                         type="button"
-                        className="sale-product-card"
+                        className="sale-product-card no-translate"
+                        data-i18n-skip="true"
                         key={product.id}
-                        onClick={() => addProduct(product)}
+                        onClick={(event) => {
+                          const ok = addProduct(product);
+                          if (ok) {
+                            triggerFlyToCart({ event, product });
+                          }
+                        }}
                         disabled={Boolean(activeOrderDelivery) || (outOfStock && !product.allow_negative_stock && !shop?.allow_negative_stock)}
                       >
-                        <div className="sale-product-image">
+                        <div className="sale-product-image no-translate" data-i18n-skip="true">
+                          {product.active_promotion ? (
+                            <ProductPromotionTag promotion={product.active_promotion} currency={product.currency} />
+                          ) : null}
                           <MediaImage
                             src={product.image}
                             alt={product.name}
@@ -2068,29 +2150,29 @@ export default function SalesPage() {
                           const { primaryName, secondaryName } = productCardNames(product);
                           const price = productCardPrice(product);
                           const stock = productCardStock(product);
+                          const code = saleShowProductCode ? (product.sku || product.barcode || "") : "";
                           return (
-                            <div className="sale-product-content">
-                              <div className="sale-product-names">
-                                <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
-                                {secondaryName ? (
-                                  <span className="sale-product-name-secondary" title={secondaryName}>{secondaryName}</span>
-                                ) : (
-                                  <span className="sale-product-name-secondary sale-product-name-empty" aria-hidden="true">&nbsp;</span>
-                                )}
-                              </div>
-                              <div className="sale-product-footer">
+                              <div className="sale-product-content no-translate" data-i18n-skip="true">
+                                <div className="sale-product-names no-translate" data-i18n-skip="true">
+                                  <strong className="sale-product-name-primary" title={primaryName}>{primaryName}</strong>
+                                  <span
+                                    className={`sale-product-name-secondary ${!secondaryName ? "is-empty" : ""}`}
+                                    title={secondaryName || ""}
+                                    aria-hidden={!secondaryName}
+                                  >
+                                    {secondaryName || "\u00A0"}
+                                  </span>
+                                </div>
+                              <div className="sale-product-footer no-translate" data-i18n-skip="true">
                                 <div className={`sale-product-price-block ${price.sizeClass}`}>
                                   <span className={`sale-product-price-symbol ${price.isUsd ? "usd" : ""}`}>{price.symbol}</span>
                                   <b className="sale-product-price-value" title={money(saleUnitForProduct(product).selling_price, product.currency)}>{price.amount}</b>
                                 </div>
-                                <div className="sale-product-meta">
-                                  {saleShowProductCode ? (
-                                    <small className="sale-product-code" title={product.sku || product.barcode || "No code"}>{product.sku || product.barcode || "No code"}</small>
-                                  ) : (
-                                    <small className="sale-product-code sale-product-code-hidden" aria-hidden="true">&nbsp;</small>
-                                  )}
-                                  <small className="sale-product-stock-label">{stock.label}</small>
-                                  <em className={`sale-product-stock-value ${stock.out ? "out" : ""}`} title={stock.value}>{stock.value}</em>
+                                <div className="sale-product-meta no-translate" data-i18n-skip="true">
+                                  {code ? (
+                                    <small className="sale-product-code" title={code}>{code}</small>
+                                  ) : null}
+                                  <em className={`sale-product-stock-value ${stock.out ? "out" : ""} ${stock.inStock ? "in-stock" : ""}`} title={stock.value}>{stock.value}</em>
                                 </div>
                               </div>
                             </div>

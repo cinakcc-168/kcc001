@@ -325,11 +325,16 @@ export default function OnlineStorePage() {
     {
       label: "Customer",
       width: 190,
-      documentValue: (order) => `${order.customer_name} · ${order.customer_phone}`,
+      documentValue: (order) => `${order.customer_name} · ${order.customer_phone}${order.customers?.customer_code ? ` · ${order.customers.customer_code}` : ""}`,
       render: (order) => (
         <div className="online-order-customer-cell">
           <strong>{order.customer_name}</strong>
           <small>{order.customer_phone}</small>
+          {order.customers?.customer_code && (
+            <small style={{ color: "var(--color-primary, #0284c7)", fontWeight: 500 }}>
+              {order.customers.customer_code}
+            </small>
+          )}
         </div>
       )
     },
@@ -606,7 +611,15 @@ export default function OnlineStorePage() {
                   <div><strong>{order.order_number}</strong><small>{onlineDateTime(order.created_at)}</small></div>
                   <span className={`status-badge ${order.status}`}>{onlineStatusLabel(order.status)}</span>
                 </header>
-                <div className="online-order-card-customer"><strong>{order.customer_name}</strong><span>{order.customer_phone}</span></div>
+                <div className="online-order-card-customer">
+                  <strong>{order.customer_name}</strong>
+                  <span>{order.customer_phone}</span>
+                  {order.customers?.customer_code && (
+                    <small style={{ color: "var(--color-primary, #0284c7)", fontWeight: 500, marginLeft: "4px" }}>
+                      ({order.customers.customer_code})
+                    </small>
+                  )}
+                </div>
                 <div className="online-order-card-grid">
                   <div><small>Payment</small><strong>{paymentLabel(order.payment_method)}</strong><span>{paymentLabel(order.payment_status)}</span></div>
                   <div><small>Fulfilment</small><strong>{order.fulfilment_type === "delivery" ? "Delivery" : "Pickup"}</strong></div>

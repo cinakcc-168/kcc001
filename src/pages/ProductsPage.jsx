@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Boxes,
   Download,
-  ImageOff,
   Eye,
   Pencil,
   Plus,
@@ -33,7 +32,36 @@ import {
   updateProduct,
   uploadPrimaryImage
 } from "../lib/catalog";
+import { preloadProductImages } from "../lib/media";
 import { saveProductBatchSettings } from "../lib/batches";
+
+function productDisplayNames(product, language) {
+  const englishName = String(product?.name || "").trim();
+  const khmerName = String(product?.name_km || "").trim();
+
+  if (language === "km" && khmerName) {
+    return { primaryName: khmerName, secondaryName: englishName };
+  }
+
+  return {
+    primaryName: englishName || khmerName || "Unnamed product",
+    secondaryName: khmerName && khmerName !== englishName ? khmerName : ""
+  };
+}
+
+function ProductIdentityCell({ product, language }) {
+  const { primaryName, secondaryName } = productDisplayNames(product, language);
+  return (
+    <div className="product-cell">
+      <div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div>
+      <div>
+        <strong className="product-name-primary" title={primaryName}>{primaryName}</strong>
+        {secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}
+        <small>{product.sku || "No code"} · {product.unit_name}</small>
+      </div>
+    </div>
+  );
+}
 
 export default function ProductsPage() {
   const { supabase, session, profile, can } = useAuth();
@@ -53,15 +81,17 @@ export default function ProductsPage() {
   const [showCategories, setShowCategories] = useState(false);
   const [unitsProduct, setUnitsProduct] = useState(null);
   const [insightsProduct, setInsightsProduct] = useState(null);
-  const [viewMode, setViewMode] = useState(defaultListView);
+  const [viewMode, setViewMode] = useState(() => defaultListView());
   const [pageSize, setPageSize] = useState(30);
   const [page, setPage] = useState(1);
+
 
   const refresh = useCallback(async () => {
     if (!supabase || !profile?.organization_id || !profile?.branch_id) return;
     try {
-      setLoading(true);
+      if (products.length === 0) setLoading(true);
       const data = await loadCatalog(supabase, profile.organization_id, profile.branch_id);
+      preloadProductImages(data.products);
       setCategories(data.categories);
       setProducts(data.products);
     } catch (error) {
@@ -69,7 +99,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [supabase, profile]);
+  }, [supabase, profile, products.length]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -112,43 +142,12 @@ export default function ProductsPage() {
   const currentPage = Math.min(page, totalPages);
   const pagedProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  function productDisplayNames(product) {
-    const englishName = String(product?.name || "").trim();
-    const khmerName = String(product?.name_km || "").trim();
-
-    if (language === "km" && khmerName) {
-      return { primaryName: khmerName, secondaryName: englishName };
-    }
-
-    return {
-      primaryName: englishName || khmerName || "Unnamed product",
-      secondaryName: khmerName && khmerName !== englishName ? khmerName : ""
-    };
-  }
-
   function isLowStock(product) {
     return ["low_stock", "out_of_stock"].includes(product.stock_status);
   }
 
   function activeUnitCount(product) {
     return (product.product_units || []).filter((unit) => unit.is_active).length;
-  }
-
-  // Shared by both the card view and the table view below — previously this
-  // exact block (thumbnail + primary/secondary name + code/unit line) was
-  // copy-pasted in two places and had to be edited twice for any change.
-  function ProductIdentityCell({ product }) {
-    const { primaryName, secondaryName } = productDisplayNames(product);
-    return (
-      <div className="product-cell">
-        <div className="product-thumb"><MediaImage src={product.image} alt={product.name} width={96} height={96} /></div>
-        <div>
-          <strong className="product-name-primary" title={primaryName}>{primaryName}</strong>
-          {secondaryName && <span className="product-name-secondary" title={secondaryName}>{secondaryName}</span>}
-          <small>{product.sku || "No code"} · {product.unit_name}</small>
-        </div>
-      </div>
-    );
   }
 
   const productReportColumns = [
@@ -333,7 +332,7 @@ export default function ProductsPage() {
                 const low = isLowStock(product);
                 return (
                   <article className="list-record-card product-directory-card" key={product.id}>
-                    <header><ProductIdentityCell product={product} /><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
+                    <header><ProductIdentityCell product={product} language={language} /><span className={`status-pill ${product.is_active ? "active" : "inactive"}`}>{product.is_active ? "Active" : "Inactive"}</span></header>
                     <div className="list-card-fields">
                       <div><span>Barcode</span><strong>{product.barcode || "—"}</strong></div>
                       <div><span>Category</span><strong>{product.categories?.name || "Uncategorized"}</strong></div>
@@ -354,7 +353,7 @@ export default function ProductsPage() {
                 <tbody>{pagedProducts.map((product) => {
                   const low = isLowStock(product);
                   return <tr key={product.id}>
-                    <td data-label="Product"><ProductIdentityCell product={product} /></td>
+                    <td data-label="Product"><ProductIdentityCell product={product} language={language} /></td>
                     <td data-label="Barcode">{product.barcode || "—"}</td>
                     <td data-label="Category">{product.categories?.name || "Uncategorized"}</td>
                     <td data-label="Price"><strong>{money(product.selling_price, product.currency)}</strong></td>

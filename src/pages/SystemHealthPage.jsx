@@ -7,6 +7,7 @@ import {
   ServerCog,
   ShieldCheck,
   Sparkles,
+  Trash2,
   Wrench,
   XCircle
 } from "lucide-react";
@@ -19,6 +20,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import SystemHealthCheckCard from "../components/SystemHealthCheckCard";
 import {
+  clearAllSystemErrors,
+  deleteSingleSystemError,
   downloadDiagnostics,
   healthDateTime,
   loadEnvironmentHealth,
@@ -68,7 +71,24 @@ export default function SystemHealthPage() {
         profile
       );
       setRuns(workspace.runs);
-      setErrors(workspace.errors);
+
+      const orgKey = profile.organization_id;
+      const clearedAllAtStr = localStorage.getItem(`tinypos_cleared_errors_at_${orgKey}`);
+      const clearedAllAt = clearedAllAtStr ? new Date(clearedAllAtStr).getTime() : 0;
+      const clearedIdsStr = localStorage.getItem(`tinypos_cleared_error_ids_${orgKey}`) || "[]";
+      let clearedIds = [];
+      try { clearedIds = JSON.parse(clearedIdsStr); } catch (e) { clearedIds = []; }
+
+      const filteredErrors = (workspace.errors || []).filter((row) => {
+        if (clearedIds.includes(row.id)) return false;
+        if (clearedAllAt && row.last_seen_at) {
+          const rowTime = new Date(row.last_seen_at).getTime();
+          if (rowTime <= clearedAllAt) return false;
+        }
+        return true;
+      });
+
+      setErrors(filteredErrors);
       setCurrentRun((current) => current || workspace.runs[0] || null);
     } catch (error) {
       setMessageType("error");
@@ -119,10 +139,6 @@ export default function SystemHealthPage() {
   }
 
   async function maintain() {
-    if (!window.confirm(
-      "Run safe housekeeping? This expires temporary approvals and quotations, removes old link codes, and closes stale pending notifications. It does not change stock or money."
-    )) return;
-
     try {
       setBusy("maintenance");
       const result = await runSafeMaintenance(supabase);
@@ -152,6 +168,47 @@ export default function SystemHealthPage() {
     } catch (error) {
       setMessageType("error");
       setMessage(error.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function deleteSingleError(errorId) {
+    try {
+      setBusy(`delete-${errorId}`);
+      await deleteSingleSystemError(supabase, profile, errorId);
+      if (profile?.organization_id && errorId) {
+        const orgKey = profile.organization_id;
+        const key = `tinypos_cleared_error_ids_${orgKey}`;
+        let existing = [];
+        try { existing = JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { existing = []; }
+        if (!existing.includes(errorId)) existing.push(errorId);
+        localStorage.setItem(key, JSON.stringify(existing));
+      }
+      setErrors((prev) => prev.filter((row) => row.id !== errorId));
+      setMessageType("success");
+      setMessage("Application error deleted.");
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error.message || "Failed to delete error.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function clearErrors() {
+    try {
+      setBusy("clear-errors");
+      await clearAllSystemErrors(supabase, profile, errors);
+      if (profile?.organization_id) {
+        localStorage.setItem(`tinypos_cleared_errors_at_${profile.organization_id}`, new Date().toISOString());
+      }
+      setErrors([]);
+      setMessageType("success");
+      setMessage("All captured application errors cleared.");
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error.message || "Failed to clear errors.");
     } finally {
       setBusy("");
     }
@@ -348,7 +405,21 @@ export default function SystemHealthPage() {
               Repeated identical errors are grouped for ten minutes to prevent log flooding.
             </span>
           </div>
-          <XCircle size={23} />
+          <button
+            type="button"
+            className="secondary-button compact danger-button"
+            onClick={clearErrors}
+            disabled={busy === "clear-errors" || errors.length === 0}
+            title="Clear all application errors"
+            style={{
+              color: "#ef4444",
+              borderColor: "color-mix(in srgb, #ef4444 40%, var(--border))",
+              background: "color-mix(in srgb, #ef4444 8%, var(--surface))"
+            }}
+          >
+            <XCircle size={20} style={{ color: "#ef4444" }} />
+            <span>{busy === "clear-errors" ? "Clearing..." : "Clear all errors"}</span>
+          </button>
         </div>
 
         {errors.length === 0 ? (
@@ -377,17 +448,33 @@ export default function SystemHealthPage() {
                   {row.release ? ` · ${row.release}` : ""}
                 </small>
                 {row.stack && <details><summary>Technical details</summary><pre>{row.stack}</pre></details>}
-                {!row.resolved_at && (
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "4px" }}>
+                  {!row.resolved_at && (
+                    <button
+                      type="button"
+                      className="secondary-button compact"
+                      onClick={() => resolve(row)}
+                      disabled={busy === `resolve-${row.id}`}
+                    >
+                      <CheckCircle2 size={16} />
+                      Mark resolved
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="secondary-button"
-                    onClick={() => resolve(row)}
-                    disabled={busy === `resolve-${row.id}`}
+                    className="secondary-button compact danger-button"
+                    onClick={() => deleteSingleError(row.id)}
+                    disabled={busy === `delete-${row.id}`}
+                    style={{
+                      color: "#ef4444",
+                      borderColor: "color-mix(in srgb, #ef4444 40%, var(--border))",
+                      background: "color-mix(in srgb, #ef4444 8%, var(--surface))"
+                    }}
                   >
-                    <CheckCircle2 size={17} />
-                    Mark resolved
+                    <Trash2 size={15} style={{ color: "#ef4444" }} />
+                    <span>Delete</span>
                   </button>
-                )}
+                </div>
               </article>
             ))}
           </div>

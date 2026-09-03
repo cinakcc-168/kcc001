@@ -1,6 +1,7 @@
 import {
   Eye,
   FileSearch,
+  Printer,
   RefreshCw,
   Search
 } from "lucide-react";
@@ -21,6 +22,7 @@ import { money } from "../lib/catalog";
 import {
   buildInvoiceReceipt,
   defaultInvoiceDateRange,
+  fetchCompleteInvoice,
   invoiceDateTime,
   invoiceStatusLabel,
   loadInvoiceCenter,
@@ -262,57 +264,22 @@ export default function InvoicesPage() {
     setMessage(text);
   }
 
+  async function selectInvoice(invoice) {
+    if (!invoice) {
+      setSelected(null);
+      return;
+    }
+    const fullInvoice = await fetchCompleteInvoice(supabase, invoice, invoice);
+    setSelected(fullInvoice || invoice);
+  }
+
   async function openReceipt(invoice) {
     try {
-      const { data, error } = await supabase
-        .from("payments")
-        .select(`
-          id,
-          method,
-          currency,
-          amount,
-          tendered_amount,
-          change_amount,
-          reference_number,
-          paid_at,
-          notes,
-          credit_payment_id,
-          tender_currency,
-          tender_amount,
-          tender_change_amount,
-          exchange_rate
-        `)
-        .eq("sale_id", invoice.id)
-        .order("paid_at")
-        .order("id");
-      if (error) throw error;
-
-      let receiptContext = null;
-      try {
-        const { data: contextData, error: contextError } = await supabase.rpc(
-          "get_sale_receipt_context",
-          { p_sale_id: invoice.id }
-        );
-        if (contextError) throw contextError;
-        receiptContext = contextData || null;
-      } catch (contextError) {
-        console.warn("Could not load exact invoice receipt context:", contextError.message);
+      if (!invoice) return;
+      const fullInvoice = await fetchCompleteInvoice(supabase, invoice, invoice);
+      if (fullInvoice) {
+        setReceipt(buildInvoiceReceipt(fullInvoice, shop));
       }
-
-      const khmerNames = receiptContext?.product_names_km || {};
-
-      setReceipt(buildInvoiceReceipt({
-        ...invoice,
-        cashier_name: receiptContext?.cashier_name || invoice.cashier_name,
-        items: (invoice.items || []).map((item) => ({
-          ...item,
-          product_name_km: item.product_name_km || khmerNames[item.product_id] || null
-        })),
-        payments: (data || []).map((payment) => ({
-          ...payment,
-          is_credit_collection: Boolean(payment.credit_payment_id)
-        }))
-      }, shop));
     } catch (error) {
       announce("error", error.message);
     }
@@ -754,14 +721,17 @@ export default function InvoicesPage() {
                     <div><span>Refund</span><strong>{money(invoice.refunded_amount, invoice.currency)}</strong></div>
                     <div><span>Net</span><strong>{money(invoice.net_total, invoice.currency)}</strong>{Number(invoice.credit_outstanding) > 0 && <small>{money(invoice.credit_outstanding, invoice.currency)} due</small>}</div>
                   </div>
-                  <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setSelected(invoice)}><Eye size={17} /> View invoice</button></div>
+                  <div className="list-card-actions">
+                    <button type="button" className="secondary-button compact-button" onClick={() => selectInvoice(invoice)}><Eye size={17} /> View details</button>
+                    <button type="button" className="secondary-button compact-button" onClick={() => openReceipt(invoice)}><Printer size={17} /> Print receipt / invoice</button>
+                  </div>
                 </article>
               ))}
             </div>
           ) : (
             <div className="invoice-table-wrap wide-list-scroll">
               <table className="invoice-table">
-                <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th>{result.meta?.all_branches && <th>Branch</th>}<th>Payment</th><th>Status</th><th>Gross</th><th>Refund</th><th>Net</th><th /></tr></thead>
+                <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th>{result.meta?.all_branches && <th>Branch</th>}<th>Payment</th><th>Status</th><th>Gross</th><th>Refund</th><th>Net</th><th>Actions</th></tr></thead>
                 <tbody>{result.rows.map((invoice) => (
                   <tr key={invoice.id}>
                     <td data-label="Invoice"><strong>{invoice.invoice_number}</strong>{invoice.source_quote_number && <small>Quote {invoice.source_quote_number}</small>}</td>
@@ -773,7 +743,12 @@ export default function InvoicesPage() {
                     <td data-label="Gross">{money(invoice.total_amount, invoice.currency)}</td>
                     <td data-label="Refund">{money(invoice.refunded_amount, invoice.currency)}</td>
                     <td data-label="Net"><strong>{money(invoice.net_total, invoice.currency)}</strong>{Number(invoice.credit_outstanding) > 0 && <small>{money(invoice.credit_outstanding, invoice.currency)} due</small>}</td>
-                    <td data-label="View"><button type="button" className="icon-button" onClick={() => setSelected(invoice)} title="View invoice details"><Eye size={18} /></button></td>
+                    <td data-label="Actions">
+                      <div className="table-actions">
+                        <button type="button" className="icon-button" onClick={() => selectInvoice(invoice)} title="View invoice details"><Eye size={18} /></button>
+                        <button type="button" className="icon-button" onClick={() => openReceipt(invoice)} title="Print / View receipt & invoice"><Printer size={18} /></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>

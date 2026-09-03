@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { CreditCard, FileText, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, CreditCard, FileText, Receipt, ReceiptText, Save, Settings2, SlidersHorizontal, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { shopFormFromSettings, uploadShopLogo } from "../lib/settings";
@@ -78,8 +78,10 @@ const invoicePreviewReceipt = {
   cart: [
     {
       id: "preview-1",
+      code: "BEV-001",
       name: "Coca-Cola 330ml",
       name_km: "កូកាខូឡា",
+      image_url: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=160&auto=format&fit=crop&q=80",
       quantity: 10,
       selected_unit_name: "can",
       selected_unit_price: 1,
@@ -171,6 +173,20 @@ export default function SettingsPage() {
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [receiptCenterModal, setReceiptCenterModal] = useState(null);
+  const [saleDocDropdownOpen, setSaleDocDropdownOpen] = useState(false);
+  const docDropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (docDropdownRef.current && !docDropdownRef.current.contains(event.target)) {
+        setSaleDocDropdownOpen(false);
+      }
+    }
+    if (saleDocDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [saleDocDropdownOpen]);
 
   useEffect(() => {
     if (shop) setShopForm({ ...emptyShop, ...shopFormFromSettings(shop), ...shop });
@@ -247,11 +263,13 @@ export default function SettingsPage() {
   }
 
   async function saveSaleDocumentPreference() {
-    await persistShopForm(
-      shopForm.sale_document_type === "invoice"
-        ? "Completed sales will now open the invoice print view."
-        : "Completed sales will now open the receipt print view."
-    );
+    const docType = shopForm.sale_document_type;
+    const feedback = docType === "invoice"
+      ? "Completed sales will now open the invoice print view."
+      : (docType === "inline" || docType === "ask" || docType === "choice")
+      ? "Completed sales will prompt cashier to choose receipt or invoice."
+      : "Completed sales will now open the receipt print view.";
+    await persistShopForm(feedback);
   }
 
   async function handlePersonalSave(event) {
@@ -422,16 +440,63 @@ export default function SettingsPage() {
                   <strong>Document after completed sale</strong>
                   <small>The New Sale buttons stay the same. Choose which document opens and prints after payment.</small>
                 </div>
-                <div className="receipt-center-document-choice" role="group" aria-label="Completed sale document">
-                  <select
-                    value={shopForm.sale_document_type || "receipt"}
-                    onChange={(event) => updateShop("sale_document_type", event.target.value)}
-                    className="default-print-select"
+                <div className="receipt-center-document-dropdown-wrap" ref={docDropdownRef}>
+                  <button
+                    type="button"
+                    className="receipt-center-dropdown-trigger"
+                    onClick={() => setSaleDocDropdownOpen((prev) => !prev)}
+                    aria-expanded={saleDocDropdownOpen}
+                    aria-haspopup="listbox"
                   >
-                    <option value="receipt">Receipt (80mm / 58mm)</option>
-                    <option value="invoice">Invoice (A5 / A4)</option>
-                    <option value="inline">Ask / Choice</option>
-                  </select>
+                    {(() => {
+                      const selected = [
+                        { value: "receipt", label: "Receipt (80mm)", icon: Receipt },
+                        { value: "invoice", label: "Invoice (A5/A4)", icon: FileText },
+                        { value: "inline", label: "Ask / Choice", icon: SlidersHorizontal }
+                      ].find((opt) => opt.value === (shopForm.sale_document_type || "receipt")) || { value: "receipt", label: "Receipt (80mm)", icon: Receipt };
+                      const SelectedIcon = selected.icon;
+                      return (
+                        <div className="receipt-center-dropdown-selection">
+                          <SelectedIcon size={17} className="receipt-center-dropdown-icon" />
+                          <span className="receipt-center-dropdown-label">{selected.label}</span>
+                        </div>
+                      );
+                    })()}
+                    <ChevronDown size={17} className={`receipt-center-dropdown-arrow ${saleDocDropdownOpen ? "open" : ""}`} />
+                  </button>
+
+                  {saleDocDropdownOpen && (
+                    <div className="receipt-center-dropdown-menu" role="listbox">
+                      {[
+                        { value: "receipt", label: "Receipt (80mm)", icon: Receipt, desc: "Standard 80mm thermal receipt roll" },
+                        { value: "invoice", label: "Invoice (A5/A4)", icon: FileText, desc: "A5 or A4 printable invoice sheet" },
+                        { value: "inline", label: "Ask / Choice", icon: SlidersHorizontal, desc: "Prompt cashier to choose on each sale" }
+                      ].map((option) => {
+                        const OptionIcon = option.icon;
+                        const isSelected = (shopForm.sale_document_type || "receipt") === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`receipt-center-dropdown-item ${isSelected ? "selected" : ""}`}
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              updateShop("sale_document_type", option.value);
+                              setSaleDocDropdownOpen(false);
+                            }}
+                          >
+                            <OptionIcon size={17} className="dropdown-item-icon" />
+                            <div className="dropdown-item-text">
+                              <strong>{option.label}</strong>
+                              <small>{option.desc}</small>
+                            </div>
+                            {isSelected && <span className="dropdown-item-check">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <button type="button" className="primary-button" onClick={saveSaleDocumentPreference} disabled={savingShop}>
                   <Save size={18} /> {savingShop ? "Saving..." : "Save preference"}
@@ -565,7 +630,7 @@ export default function SettingsPage() {
                           ["invoice_show_address", "Shop address", "Show the selected-language address."],
                           ["invoice_show_contact", "Phone and email", "Show shop phone and email."],
                           ["invoice_show_tax_id", "Tax ID", "Show the shop tax ID when available."],
-                          ["invoice_show_product_code", "Product Code / Pic Column", "Show the Code/Pic column in invoice table."],
+                          ["invoice_show_product_code", "Product Code / Pic column", "Show the Code & Image column in the invoice table."],
                           ["invoice_show_customer", "Customer", "Show customer name on the invoice."],
                           ["invoice_show_cashier", "Cashier", "Show the original cashier name."],
                           ["invoice_show_received", "Received payment", "Show received/tender amounts."],
@@ -710,8 +775,8 @@ export default function SettingsPage() {
                 <label>
                   <span>Stock display style</span>
                   <select value={personal.sale_stock_display || "exact"} onChange={(event) => updatePersonal("sale_stock_display", event.target.value)}>
-                    <option value="exact">Show exact units</option>
-                    <option value="status">Show only In stock / Out</option>
+                    <option value="exact">Show exact units / amount</option>
+                    <option value="status">{'Show only "In stock" or "Out" status'}</option>
                   </select>
                 </label>
               </div>

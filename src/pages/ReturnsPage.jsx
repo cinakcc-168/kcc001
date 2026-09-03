@@ -12,17 +12,19 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import ReceiptModal from "../components/ReceiptModal";
 import RefundModal from "../components/RefundModal";
+import InvoiceDetailModal from "../components/InvoiceDetailModal";
 import ApprovalRequestModal from "../components/ApprovalRequestModal";
 import ListViewControls, { defaultListView } from "../components/ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import ReturnReceiptModal from "../components/ReturnReceiptModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
-import { money, stockNumber } from "../lib/catalog";
+import { fetchProductsMetaMap, money } from "../lib/catalog";
 import {
   defaultReturnDateRange,
   loadReturnsWorkspace,
   processSaleReturn
 } from "../lib/returns";
+import { buildInvoiceReceipt, fetchCompleteInvoice } from "../lib/invoices";
 import {
   estimateReturnAmount,
   refundApprovalRequirement,
@@ -99,6 +101,7 @@ export default function ReturnsPage() {
   const [returns, setReturns] = useState([]);
   const [refundPolicy, setRefundPolicy] = useState(null);
   const [selectedSale, setSelectedSale] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [refundReceipt, setRefundReceipt] = useState(null);
   const [saleReceipt, setSaleReceipt] = useState(null);
   const [historyReceipt, setHistoryReceipt] = useState(null);
@@ -229,81 +232,43 @@ export default function ReturnsPage() {
     });
   }
 
-  async function openSaleReceipt(sale) {
-    let receiptContext = null;
-
-    try {
-      const { data, error } = await supabase.rpc(
-        "get_sale_receipt_context",
-        { p_sale_id: sale.id }
-      );
-      if (error) throw error;
-      receiptContext = data || null;
-    } catch (error) {
-      console.warn("Could not load exact receipt context:", error.message);
+  async function selectInvoice(sale) {
+    if (!sale) {
+      setSelectedInvoice(null);
+      return;
     }
-
-    const payments = (sale.payments || []).map((payment) => ({
-      id: payment.id,
-      method: payment.method,
-      settlement_currency: payment.currency || sale.currency,
-      settlement_amount: Number(payment.amount || 0),
-      tender_currency: payment.tender_currency || payment.currency || sale.currency,
-      tender_amount: Number(payment.tender_amount ?? payment.tendered_amount ?? payment.amount ?? 0),
-      change_amount: Number(payment.tender_change_amount ?? payment.change_amount ?? 0),
-      exchange_rate: Number(payment.exchange_rate || shop?.usd_to_khr_rate || 4100),
-      reference_number: payment.reference_number || null
-    }));
-    const payment = payments[0];
-    const khmerNames = receiptContext?.product_names_km || {};
-
-    setSaleReceipt({
-      invoiceNumber: sale.invoice_number,
-      completedAt: sale.completed_at || sale.created_at,
-      shopName: shop?.shop_name || "Tiny POS",
-      shopPhone: shop?.shop_phone,
-      shopAddress: shop?.shop_address,
-      footer: shop?.receipt_footer,
-      cashierName: receiptContext?.cashier_name || sale.cashier_name || "POS Staff",
-      customerName: sale.customers?.name,
-      customerCode: sale.customers?.customer_code || null,
-      customerType: sale.customers?.customer_type || null,
-      cart: (sale.sale_items || []).map((item) => ({
-        id: item.id,
-        name: item.product_name,
-        name_km: khmerNames[item.product_id] || null,
-        quantity: Number(item.quantity),
-        selling_price: Number(item.unit_price),
-        selected_unit_price: Number(item.unit_price),
-        selected_unit_name: item.sale_unit_name || "pcs",
-        currency: sale.currency
-      })),
-      subtotal: Number(sale.subtotal || 0),
-      discountAmount: Number(sale.discount_amount || 0),
-      taxAmount: Number(sale.tax_amount || 0),
-      totalAmount: Number(sale.total_amount || 0),
-      refundedAmount: Number(sale.refunded_amount || 0),
-      netTotal: Number(sale.net_total ?? Number(sale.total_amount || 0) - Number(sale.refunded_amount || 0)),
-      amountReceived: sale.credit_account_id ? 0 : Number(payment?.tender_amount || sale.paid_amount || 0),
-      changeAmount: sale.credit_account_id ? 0 : Number(payment?.change_amount || sale.change_amount || 0),
-      paymentMethod: sale.credit_account_id
-        ? "credit"
-        : payments.length > 1
-          ? "split"
-          : payment?.method || "other",
-      payments,
-      exchangeRate: Number(payment?.exchange_rate || shop?.usd_to_khr_rate || 4100),
-      creditDueDate: sale.credit_due_date || null,
-      creditAmount: Number(sale.credit_amount || 0),
-      creditOutstanding: Number(sale.credit_outstanding || 0),
-      creditBalanceAfter: null,
-      currency: sale.currency,
-      saleStatus: sale.status
-    });
+    const fullInvoice = await fetchCompleteInvoice(supabase, sale, sale);
+    setSelectedInvoice(fullInvoice || sale);
   }
 
-  function buildHistoryReceipt(refund) {
-    return {
+  async function openSaleReceipt(sale) {
+    if (!sale) return;
+    const fullInvoice = await fetchCompleteInvoice(supabase, sale, sale);
+    if (fullInvoice) {
+      setSaleReceipt(buildInvoiceReceipt(fullInvoice, shop));
+    }
+  }
+
+  async function openReturnRefund(sale) {
+    if (!sale) {
+      setSelectedSale(null);
+      return;
+    }
+    const fullInvoice = await fetchCompleteInvoice(supabase, sale, sale);
+    setSelectedSale(fullInvoice || sale);
+  }
+
+  async function openHistoryReceipt(refund) {
+    const productIds = Array.from(
+      new Set(
+        (refund.return_items || [])
+          .map((item) => item.sale_items?.product_id || item.product_id)
+          .filter(Boolean)
+      )
+    );
+    const productsMetaMap = await fetchProductsMetaMap(supabase, productIds);
+
+    setHistoryReceipt({
       returnNumber: refund.return_number,
       invoiceNumber: refund.sales?.invoice_number || "—",
       processedAt: refund.processed_at,
@@ -318,17 +283,23 @@ export default function ReturnsPage() {
       refundMethod: refund.refund_method,
       refundReference: refund.refund_reference,
       reason: refund.reason,
-      items: (refund.return_items || []).map((item) => ({
-        sale_item_id: item.sale_item_id,
-        product_name:
-          item.sale_items?.product_name || "Returned item",
-        quantity: Number(item.quantity || 0),
-        unit_refund: Number(item.unit_refund || 0),
-        line_refund: Number(item.line_refund || 0),
-        unit_name: item.return_unit_name || item.sale_items?.sale_unit_name || "pcs",
-        restock: Boolean(item.restock)
-      }))
-    };
+      items: (refund.return_items || []).map((item) => {
+        const pid = item.sale_items?.product_id || item.product_id;
+        const meta = productsMetaMap[pid] || {};
+        return {
+          sale_item_id: item.sale_item_id,
+          product_name: item.sale_items?.product_name || item.product_name || "Returned item",
+          product_name_km: item.sale_items?.product_name_km || meta.name_km || null,
+          code: item.sale_items?.product_code || item.sale_items?.barcode || meta.code || null,
+          image_url: item.sale_items?.image_url || meta.image_url || null,
+          quantity: Number(item.quantity || 0),
+          unit_refund: Number(item.unit_refund || 0),
+          line_refund: Number(item.line_refund || 0),
+          unit_name: item.return_unit_name || item.sale_items?.sale_unit_name || "pcs",
+          restock: Boolean(item.restock)
+        };
+      })
+    });
   }
 
   async function submitRefund(
@@ -400,10 +371,20 @@ export default function ReturnsPage() {
           }
         );
 
+      const refundProductIds = Array.from(
+        new Set(
+          values.items
+            .map((selected) => selectedSale.sale_items?.find((item) => item.id === selected.sale_item_id)?.product_id)
+            .filter(Boolean)
+        )
+      );
+      const refundMetaMap = await fetchProductsMetaMap(supabase, refundProductIds);
+
       const receiptItems = values.items.map((selected) => {
         const saleItem = selectedSale.sale_items.find(
           (item) => item.id === selected.sale_item_id
         );
+        const meta = refundMetaMap[saleItem?.product_id] || {};
 
         const portion =
           Number(saleItem?.quantity || 0) > 0
@@ -430,6 +411,9 @@ export default function ReturnsPage() {
         return {
           sale_item_id: selected.sale_item_id,
           product_name: saleItem?.product_name || "Returned item",
+          product_name_km: saleItem?.product_name_km || meta.name_km || null,
+          code: saleItem?.product_code || saleItem?.barcode || meta.code || null,
+          image_url: saleItem?.image_url || meta.image_url || null,
           quantity: Number(selected.quantity),
           unit_refund:
             Number(selected.quantity) > 0
@@ -627,8 +611,9 @@ export default function ReturnsPage() {
                         <div><span>Returnable lines</span><strong>{remainingItems.length}</strong></div>
                       </div>
                       <div className="list-card-actions return-sale-actions">
-                        <button type="button" className="secondary-button compact-button" onClick={() => openSaleReceipt(sale)}><Printer size={17} /> Original receipt</button>
-                        <button type="button" className="danger-button compact-button" disabled={refundDisabled} title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} onClick={() => setSelectedSale(sale)}><RotateCcw size={17} /> {fullyRefunded ? "Fully refunded" : !refundAllowed ? "Outside refund window" : "Refund items"}</button>
+                        <button type="button" className="secondary-button compact-button" onClick={() => selectInvoice(sale)}><Eye size={17} /> View details</button>
+                        <button type="button" className="secondary-button compact-button" onClick={() => openSaleReceipt(sale)}><Printer size={17} /> Print receipt / invoice</button>
+                        <button type="button" className="danger-button compact-button" disabled={refundDisabled} title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} onClick={() => openReturnRefund(sale)}><RotateCcw size={17} /> {fullyRefunded ? "Fully refunded" : !refundAllowed ? "Outside refund window" : "Refund items"}</button>
                       </div>
                     </article>
                   );
@@ -652,7 +637,13 @@ export default function ReturnsPage() {
                       <td>{money(sale.total_amount, sale.currency)}</td>
                       <td>{money(sale.refunded_amount, sale.currency)}</td>
                       <td>{remainingItems.length}</td>
-                      <td><div className="table-actions"><button type="button" title="Original receipt" onClick={() => openSaleReceipt(sale)}><Printer size={17} /></button><button type="button" title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} disabled={refundDisabled} onClick={() => setSelectedSale(sale)}><RotateCcw size={17} /></button></div></td>
+                      <td>
+                        <div className="table-actions">
+                          <button type="button" className="icon-button" title="View invoice details" onClick={() => selectInvoice(sale)}><Eye size={18} /></button>
+                          <button type="button" className="icon-button" title="Print receipt / invoice" onClick={() => openSaleReceipt(sale)}><Printer size={18} /></button>
+                          <button type="button" className="icon-button" title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} disabled={refundDisabled} onClick={() => openReturnRefund(sale)}><RotateCcw size={18} /></button>
+                        </div>
+                      </td>
                     </tr>;
                   })}</tbody>
                 </table>
@@ -685,7 +676,7 @@ export default function ReturnsPage() {
                       <div><span>Amount</span><strong>{money(refund.refund_amount, refund.currency)}</strong></div>
                       <div><span>Reason</span><strong>{refund.reason || "—"}</strong></div>
                     </div>
-                    <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => setHistoryReceipt(buildHistoryReceipt(refund))}><Eye size={17} /> View receipt</button></div>
+                    <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => openHistoryReceipt(refund)}><Eye size={17} /> View receipt</button></div>
                   </article>
                 ))}
               </div>
@@ -702,7 +693,7 @@ export default function ReturnsPage() {
                       <td data-label="Method">{String(refund.refund_method).toUpperCase()}</td>
                       <td data-label="Amount"><strong>{money(refund.refund_amount, refund.currency)}</strong></td>
                       <td data-label="Reason">{refund.reason || "—"}</td>
-                      <td data-label="Receipt"><button type="button" className="icon-button" title="View refund receipt" onClick={() => setHistoryReceipt(buildHistoryReceipt(refund))}><Eye size={18} /></button></td>
+                      <td data-label="Receipt"><button type="button" className="icon-button" title="View refund receipt" onClick={() => openHistoryReceipt(refund)}><Eye size={18} /></button></td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -737,6 +728,23 @@ export default function ReturnsPage() {
         busy={busy}
         onClose={() => setSelectedSale(null)}
         onSubmit={submitRefund}
+      />
+
+      <InvoiceDetailModal
+        invoice={selectedInvoice}
+        canViewProfit={Boolean(
+          access?.permissions?.["reports.profit.view"] || access?.role === "owner" || access?.role === "admin"
+        )}
+        canRefund={canRefund}
+        onClose={() => setSelectedInvoice(null)}
+        onPrint={(invoice) => {
+          setSelectedInvoice(null);
+          openSaleReceipt(invoice);
+        }}
+        onOpenReturn={(invoice) => {
+          setSelectedInvoice(null);
+          setSelectedSale(invoice);
+        }}
       />
 
       <ReceiptModal

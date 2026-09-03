@@ -243,18 +243,23 @@ export default function TransfersPage() {
     }
   }
 
-  async function cancelWorkflowTransfer(transfer) {
-    const reason = window.prompt(`Enter a cancellation reason for ${transfer.transfer_number}:`);
-    if (reason === null) return null;
-    if (reason.trim().length < 3) throw new Error("A cancellation reason is required.");
+  async function cancelWorkflowTransfer(transfer, reason) {
+    if (!reason || typeof reason !== "string" || reason.trim().length < 3) {
+      setWorkflow(null);
+      setTransferAction({ transfer, action: "cancel" });
+      return;
+    }
 
     setBusy(true);
     try {
-      const result = await cancelStockTransfer(supabase, transfer, reason);
+      const result = await cancelStockTransfer(supabase, transfer, reason.trim());
       setWorkflow(null);
       announce("success", `${result.transfer_number} cancelled. No stock was moved for this workflow transfer.`);
       await refresh();
       return result;
+    } catch (error) {
+      announce("error", error.message);
+      throw error;
     } finally {
       setBusy(false);
     }

@@ -18,6 +18,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import MediaImage from "../components/MediaImage";
+import ProductPromotionTag from "../components/ProductPromotionTag";
+import { triggerFlyToCart } from "../lib/flyToCart";
 import {
   findPublicOrdersByPhone,
   loadPublicStorefront,
@@ -27,6 +29,22 @@ import {
   trackPublicOrder,
   uploadPublicBankSlip
 } from "../lib/onlineStore";
+
+export function unitEffectivePrice(unit, product = null) {
+  if (!unit) return 0;
+  const listPrice = Number(unit.price ?? unit.selling_price ?? 0);
+  const promo = unit.promotion || (product?.product_promotions_by_unit ? product.product_promotions_by_unit[unit.id] : null);
+  if (!promo) return listPrice;
+  if (promo.discount_type === "percent") {
+    const pct = Math.min(Math.max(Number(promo.discount_value || 0), 0), 100);
+    return Math.max(0, Number((listPrice * (1 - pct / 100)).toFixed(2)));
+  }
+  if (promo.discount_type === "fixed") {
+    const amt = Math.max(Number(promo.discount_value || 0), 0);
+    return Math.max(0, Number((listPrice - amt).toFixed(2)));
+  }
+  return listPrice;
+}
 
 function initialOrder(store = null) {
   const fulfilment = store?.allow_pickup === false ? "delivery" : "pickup";
@@ -55,8 +73,13 @@ function initialOrder(store = null) {
 }
 
 function unitFor(product, unitId) {
-  return (product.units || []).find((unit) => String(unit.id) === String(unitId))
-    || (product.units || [])[0]
+  if (!product?.units?.length) return null;
+  if (unitId) {
+    const found = product.units.find((unit) => String(unit.id) === String(unitId));
+    if (found) return found;
+  }
+  return product.units.find((unit) => Number(unit.available_quantity || 0) > 0)
+    || product.units[0]
     || null;
 }
 
@@ -207,10 +230,21 @@ export default function PublicStorefrontPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.store?.slug]);
 
+  const hasPromotions = useMemo(() => {
+    return (data?.products || []).some(
+      (product) => Boolean(product.has_active_promotion || product.active_promotion || product.units?.some((u) => u.promotion))
+    );
+  }, [data?.products]);
+
   const products = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (data?.products || []).filter((product) => {
-      if (category !== "all" && product.category_id !== category) return false;
+      if (category === "promotion") {
+        const isPromo = Boolean(product.has_active_promotion || product.active_promotion || product.units?.some((u) => u.promotion));
+        if (!isPromo) return false;
+      } else if (category !== "all" && product.category_id !== category) {
+        return false;
+      }
       if (!term) return true;
       return [product.name, product.name_km, product.description]
         .filter(Boolean)
@@ -220,7 +254,7 @@ export default function PublicStorefrontPage() {
 
   const currency = cart[0]?.currency || "USD";
   const subtotal = cart.reduce(
-    (sum, item) => sum + Number(item.quantity) * Number(item.unit.price),
+    (sum, item) => sum + Number(item.quantity) * unitEffectivePrice(item.unit, item.product),
     0
   );
   const deliveryFee = orderValues.fulfilment_type === "delivery"
@@ -244,10 +278,41 @@ export default function PublicStorefrontPage() {
       return;
     }
 
+    const isTracked = product.track_stock !== false;
     const available = Number(selected.available_quantity || 0);
-    if (available <= 0) {
+    if (isTracked && available <= 0) {
       window.alert(label("This product is currently out of stock.", "ផលិតផលនេះអស់ពីស្តុក។"));
       return;
+    }
+
+    const existingIndex = cart.findIndex(
+      (item) => item.product.id === product.id && item.unit.id === selected.id
+    );
+    const currentQty = existingIndex >= 0 ? Number(cart[existingIndex].quantity || 0) : 0;
+
+    if (isTracked && currentQty + 1 > available) {
+      window.alert(label(
+        `Cannot add more. Only ${available} available in stock.`,
+        `មិនអាចបន្ថែមទៀតបានទេ! មានស្តុកតែ ${available} ប៉ុណ្ណោះ។`
+      ));
+      return;
+    }
+
+    // Check combined base quantity across multiple units of this product in cart
+    if (isTracked) {
+      const selectedFactor = Number(selected.factor || selected.conversion_factor || 1) || 1;
+      const otherUnitsBaseQty = cart
+        .filter((item, idx) => idx !== existingIndex && item.product.id === product.id)
+        .reduce((sum, item) => sum + (Number(item.quantity) * (Number(item.unit.factor || item.unit.conversion_factor || 1) || 1)), 0);
+      const totalRequestedBase = otherUnitsBaseQty + ((currentQty + 1) * selectedFactor);
+      const availableBase = Number(product.available_base ?? (available * selectedFactor));
+      if (totalRequestedBase > availableBase + 0.0005) {
+        window.alert(label(
+          `Cannot add more. Combined units for this product exceed available branch stock.`,
+          `មិនអាចបន្ថែមទៀតបានទេ! សរុបឯកតាទាំងអស់លើសពីស្តុកដែលមាននៅសាខា។`
+        ));
+        return;
+      }
     }
 
     setCart((current) => {
@@ -256,7 +321,7 @@ export default function PublicStorefrontPage() {
       );
       if (index >= 0) {
         return current.map((item, itemIndex) => itemIndex === index
-          ? { ...item, quantity: Math.min(available, Number(item.quantity) + 1) }
+          ? { ...item, quantity: isTracked ? Math.min(available, Number(item.quantity) + 1) : Number(item.quantity) + 1 }
           : item);
       }
       return [...current, { product, unit: selected, currency: product.currency, quantity: 1 }];
@@ -265,12 +330,15 @@ export default function PublicStorefrontPage() {
 
   function updateQuantity(index, quantity) {
     setCart((current) => current
-      .map((item, itemIndex) => itemIndex !== index ? item : {
-        ...item,
-        quantity: Math.min(
-          Number(item.unit.available_quantity || 0),
-          Math.max(0, Number(quantity || 0))
-        )
+      .map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+        const isTracked = item.product.track_stock !== false;
+        const maxAvail = isTracked ? Number(item.unit.available_quantity || 0) : 99999;
+        const requested = Math.max(0, Number(quantity || 0));
+        return {
+          ...item,
+          quantity: isTracked ? Math.min(maxAvail, requested) : requested
+        };
       })
       .filter((item) => item.quantity > 0));
   }
@@ -303,6 +371,43 @@ export default function PublicStorefrontPage() {
         "សូមបញ្ចូលរូបសន្លឹកបង់ប្រាក់មុនពេលផ្ញើការបញ្ជាទិញ។"
       ));
       return;
+    }
+
+    // Pre-checkout stock validation to prevent checkout errors
+    for (const item of cart) {
+      const isTracked = item.product.track_stock !== false;
+      const avail = Number(item.unit.available_quantity || 0);
+      if (isTracked && avail <= 0) {
+        setError(label(
+          `"${item.product.name} (${publicUnitName(item.unit)})" is out of stock. Please remove it from your cart.`,
+          `"${item.product.name} (${publicUnitName(item.unit)})" អស់ពីស្តុកហើយ។ សូមលុបចេញពីកន្ត្រក។`
+        ));
+        return;
+      }
+      if (isTracked && Number(item.quantity) > avail) {
+        setError(label(
+          `Requested quantity for "${item.product.name} (${publicUnitName(item.unit)})" exceeds available stock (${avail} available).`,
+          `ចំនួនដែលបានស្នើសុំសម្រាប់ "${item.product.name} (${publicUnitName(item.unit)})" លើសពីស្តុក (${avail} ដែលមាន)។`
+        ));
+        return;
+      }
+    }
+
+    // Combined base stock check per product
+    const baseByProduct = {};
+    for (const item of cart) {
+      if (item.product.track_stock === false) continue;
+      const factor = Number(item.unit.factor || item.unit.conversion_factor || 1) || 1;
+      const baseReq = Number(item.quantity) * factor;
+      baseByProduct[item.product.id] = (baseByProduct[item.product.id] || 0) + baseReq;
+      const availBase = Number(item.product.available_base ?? (Number(item.unit.available_quantity || 0) * factor));
+      if (baseByProduct[item.product.id] > availBase + 0.0005) {
+        setError(label(
+          `Combined requested quantity for "${item.product.name}" exceeds available branch stock.`,
+          `ចំនួនសរុបដែលបានស្នើសុំសម្រាប់ "${item.product.name}" លើសពីស្តុកសាខាដែលមាន។`
+        ));
+        return;
+      }
     }
 
     try {
@@ -476,6 +581,9 @@ export default function PublicStorefrontPage() {
           <label><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={label("Search products", "ស្វែងរកផលិតផល")} /></label>
           <select value={category} onChange={(event) => setCategory(event.target.value)}>
             <option value="all">{label("All categories", "គ្រប់ប្រភេទ")}</option>
+            {hasPromotions && (
+              <option value="promotion">🔥 {label("Promotions / On Sale", "ការបញ្ចុះតម្លៃពិសេស")}</option>
+            )}
             {(data.categories || []).map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}
           </select>
         </div>
@@ -483,33 +591,67 @@ export default function PublicStorefrontPage() {
         <div className="public-product-grid">
           {products.map((product) => {
             const selected = unitFor(product, unitChoices[product.id]);
-            const soldOut = !selected || Number(selected.available_quantity || 0) <= 0;
+            const isTracked = product.track_stock !== false;
+            const availableQty = selected ? Number(selected.available_quantity ?? 0) : 0;
+            const soldOut = !selected || (isTracked && availableQty <= 0);
+            const promoUnit = (product.units || []).find((u) => u.promotion);
+            const promoFromUnit = promoUnit ? { ...promoUnit.promotion, unit_name: promoUnit.name } : null;
+            const selectedPromo = selected?.promotion ? { ...selected.promotion, unit_name: selected.name } : null;
+            const onlinePromotion = selectedPromo || promoFromUnit || product.active_promotion || product.promotion || null;
+            const effectivePrice = unitEffectivePrice(selected, product);
+            const listPrice = Number(selected?.list_price || selected?.price || 0);
+            const hasDiscount = Boolean(selectedPromo && (effectivePrice < listPrice || (selected && Number(selected.list_price) > Number(selected.price))));
             return (
               <article className="public-product-card" key={product.id}>
                 <div className="public-product-image">
                   <MediaImage src={product.image_url} alt={product.name} width={520} height={360} className="public-product-media" imgClassName={!product.image_url ? "placeholder" : ""} />
                   {product.featured && <span className="public-product-featured-badge">{label("Featured", "ពេញនិយម")}</span>}
+                  {onlinePromotion && (
+                    <ProductPromotionTag promotion={onlinePromotion} currency={product.currency} />
+                  )}
                 </div>
                 <div className="public-product-content">
                   <div className="public-product-title-row">
                     <h2>{language === "km" && product.name_km ? product.name_km : product.name}</h2>
-                    <small className={soldOut ? "out" : "available"}>{soldOut ? label("Out of stock", "អស់ពីស្តុក") : label("Available", "មានស្តុក")}</small>
+                    <small className={soldOut ? "out" : "available"}>
+                      {soldOut
+                        ? label("Out of stock", "អស់ពីស្តុក")
+                        : label("Available", "មានស្តុក")}
+                    </small>
                   </div>
                   {product.description && <p>{product.description}</p>}
                   <div className="public-price-unit-row">
                     <div className="public-product-price">
-                      <strong>{selected ? onlineMoney(selected.price, product.currency) : "—"}</strong>
-                      {selected && Number(selected.list_price) > Number(selected.price) && <del>{onlineMoney(selected.list_price, product.currency)}</del>}
+                      <strong>{selected ? onlineMoney(effectivePrice, product.currency) : "—"}</strong>
+                      {selected && hasDiscount && <del>{onlineMoney(listPrice > effectivePrice ? listPrice : (selected.price || effectivePrice), product.currency)}</del>}
                     </div>
                     <select
                       value={selected?.id || ""}
                       onChange={(event) => setUnitChoices((current) => ({ ...current, [product.id]: event.target.value }))}
                       aria-label={label("Selling unit", "ឯកតាលក់")}
                     >
-                      {(product.units || []).map((unit) => <option value={unit.id} key={unit.id}>{publicUnitName(unit)}</option>)}
+                      {(product.units || []).map((unit) => {
+                        const uQty = Number(unit.available_quantity ?? 0);
+                        const uSoldOut = isTracked && uQty <= 0;
+                        return (
+                          <option value={unit.id} key={unit.id}>
+                            {publicUnitName(unit)}{uSoldOut ? ` (${label("Out of stock", "អស់ស្តុក")})` : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
-                  <button type="button" onClick={() => addProduct(product)} disabled={soldOut}><Plus size={18} />{label("Add to Cart", "បន្ថែមទៅកន្ត្រក")}</button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      triggerFlyToCart({ event, product });
+                      addProduct(product);
+                    }}
+                    disabled={soldOut}
+                    title={soldOut ? label("Out of stock", "អស់ពីស្តុក") : label("Add to Cart", "បន្ថែមទៅកន្ត្រក")}
+                  >
+                    <Plus size={18} />{soldOut ? label("Out of stock", "អស់ពីស្តុក") : label("Add to Cart", "បន្ថែមទៅកន្ត្រក")}
+                  </button>
                 </div>
               </article>
             );
@@ -582,17 +724,38 @@ export default function PublicStorefrontPage() {
             </div>
 
             <div className="public-cart-lines">
-              {cart.map((item, index) => (
-                <div key={`${item.product.id}-${item.unit.id}`}>
-                  <div><strong>{language === "km" && item.product.name_km ? item.product.name_km : item.product.name}</strong><small>{publicUnitName(item.unit)}</small></div>
-                  <div className="public-qty">
-                    <button type="button" onClick={() => updateQuantity(index, item.quantity - 1)}><Minus size={15} /></button>
-                    <input type="number" min="0" max={item.unit.available_quantity} value={item.quantity} onChange={(event) => updateQuantity(index, event.target.value)} />
-                    <button type="button" onClick={() => updateQuantity(index, item.quantity + 1)}><Plus size={15} /></button>
+              {cart.map((item, index) => {
+                const promo = item.unit.promotion || item.product?.active_promotion || item.product?.promotion || null;
+                const itemEffPrice = unitEffectivePrice(item.unit, item.product);
+                const itemOriginalPrice = Number(item.unit.list_price || item.unit.price || 0);
+                const hasItemPromo = Boolean(promo && itemEffPrice < itemOriginalPrice);
+                return (
+                  <div key={`${item.product.id}-${item.unit.id}`}>
+                    <div>
+                      <strong>{language === "km" && item.product.name_km ? item.product.name_km : item.product.name}</strong>
+                      <div className="public-cart-unit-row">
+                        <small>{publicUnitName(item.unit)}</small>
+                        {hasItemPromo && promo && (
+                          <span className="public-cart-promo-badge">
+                            {promo.discount_type === "percent"
+                              ? `-${promo.discount_value}%`
+                              : `-${onlineMoney(promo.discount_value, item.currency)}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="public-qty">
+                      <button type="button" onClick={() => updateQuantity(index, item.quantity - 1)}><Minus size={15} /></button>
+                      <input type="number" min="0" max={item.unit.available_quantity} value={item.quantity} onChange={(event) => updateQuantity(index, event.target.value)} />
+                      <button type="button" onClick={() => updateQuantity(index, item.quantity + 1)}><Plus size={15} /></button>
+                    </div>
+                    <div className="public-cart-line-price">
+                      <strong>{onlineMoney(item.quantity * itemEffPrice, item.currency)}</strong>
+                      {hasItemPromo && <del>{onlineMoney(item.quantity * itemOriginalPrice, item.currency)}</del>}
+                    </div>
                   </div>
-                  <strong>{onlineMoney(item.quantity * item.unit.price, item.currency)}</strong>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="form-grid two">
