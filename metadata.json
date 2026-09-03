@@ -1,0 +1,8 @@
+{
+  "name": "Remix kcc001",
+  "description": "Imported from GitHub: cinakcc-168/kcc001",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

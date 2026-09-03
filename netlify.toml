@@ -105,6 +105,12 @@
   force = true
 
 [[redirects]]
+  from = "/api/shop-settings"
+  to = "/.netlify/functions/shop-settings"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/api/system-health"
   to = "/.netlify/functions/system-health"
   status = 200
