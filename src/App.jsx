@@ -29,6 +29,7 @@ const InventoryPage = lazy(() => import("./pages/InventoryPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const AdminToolsPage = lazy(() => import("./pages/AdminToolsPage"));
 const CouponsPage = lazy(() => import("./pages/CouponsPage"));
+const ProductPromotionsPage = lazy(() => import("./pages/ProductPromotionsPage"));
 const CashRegisterPage = lazy(() => import("./pages/CashRegisterPage"));
 const ReorderPage = lazy(() => import("./pages/ReorderPage"));
 const StockCountsPage = lazy(() => import("./pages/StockCountsPage"));
@@ -85,6 +86,7 @@ export default function App() {
         <Route path="/crm" element={<PermissionRoute permission="crm.view"><CustomerCrmPage /></PermissionRoute>} />
         <Route path="/credit-accounts" element={<PermissionRoute any={["credit_accounts.manage","credit_accounts.collect"]}><CreditAccountsPage /></PermissionRoute>} />
         <Route path="/coupons" element={<PermissionRoute permission="coupons.manage"><CouponsPage /></PermissionRoute>} />
+        <Route path="/product-promotions" element={<PermissionRoute permission="coupons.manage"><ProductPromotionsPage /></PermissionRoute>} />
         <Route path="/price-lists" element={<PermissionRoute permission="price_lists.manage"><PriceListsPage /></PermissionRoute>} />
         <Route path="/users" element={<PermissionRoute permission="staff.manage"><UsersPage /></PermissionRoute>} />
         <Route path="/staff-operations" element={<PermissionRoute any={["staff_operations.self","attendance.manage","commissions.manage","leave.request","leave.manage"]}><StaffOperationsPage /></PermissionRoute>} />
