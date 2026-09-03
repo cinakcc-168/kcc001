@@ -279,8 +279,11 @@ export function AuthProvider({ children }) {
   }
 
   function can(permissionKey) {
-    // The organization owner must never be locked out by a stale access RPC
-    // response or an unfinished custom-role migration.
+    if (access?.authorizationUnavailable) return false;
+
+    // The organization owner can use the full permission set when the access
+    // service has successfully loaded. An authorization-service failure must
+    // never be treated as an owner grant.
     if (String(profile?.role || "").trim().toLowerCase() === "owner") {
       return true;
     }
@@ -295,6 +298,8 @@ export function AuthProvider({ children }) {
   }
 
   function canAny(permissionKeys) {
+    if (access?.authorizationUnavailable) return false;
+
     if (String(profile?.role || "").trim().toLowerCase() === "owner") {
       return true;
     }
@@ -423,10 +428,11 @@ export function AuthProvider({ children }) {
 
     const merged = {
       ...shopFormFromSettings(shop),
-      ...values
+      ...values,
+      organization_id: profile.organization_id
     };
 
-    const data = await persistShopSettings(supabase, merged);
+    const data = await persistShopSettings(supabase, merged, profile.organization_id);
     setShop(data);
     saveOfflineAuthSnapshot(
       session,
