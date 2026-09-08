@@ -24,6 +24,7 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import DashboardAlertCard from "../components/DashboardAlertCard";
 import DashboardTrendChart from "../components/DashboardTrendChart";
 import { money, stockNumber } from "../lib/catalog";
@@ -69,6 +70,8 @@ function MetricCard({
 }
 
 function RegisterBanner({ register }) {
+  const { t } = useLanguage();
+
   if (register?.is_open) {
     const hours = Math.floor(
       Number(register.open_minutes || 0) / 60
@@ -112,10 +115,10 @@ function RegisterBanner({ register }) {
         <span>Cash register closed</span>
       </div>
 
-      <strong>Cash payments unavailable</strong>
+      <strong>{t("Cash payments unavailable")}</strong>
 
       <span>
-        Open the register before accepting cash.
+        {t("Open the register before accepting cash.")}
       </span>
     </Link>
   );
@@ -129,6 +132,7 @@ export default function DashboardPage() {
     can,
     canAny
   } = useAuth();
+  const { t } = useLanguage();
 
   const [allBranches, setAllBranches] =
     useState(false);
@@ -276,7 +280,7 @@ export default function DashboardPage() {
     ) {
       actions.push({
         to: "/cash-expenses",
-        label: "Cash & Expense",
+        label: t("Cash & Expense"),
         icon: WalletCards
       });
     }
@@ -290,7 +294,7 @@ export default function DashboardPage() {
     }
 
     return actions;
-  }, [can, canAny]);
+  }, [can, canAny, t]);
 
   const paymentMaximum = Math.max(
     1,
@@ -319,7 +323,7 @@ export default function DashboardPage() {
           </p>
           <h1>Dashboard</h1>
           <p className="muted">
-            Welcome back,{" "}
+            {t("Welcome back")},{" "}
             {profile?.full_name || "POS User"}.
             {" · "}
             {dashboard.meta?.branch_name
@@ -769,7 +773,7 @@ export default function DashboardPage() {
             className="secondary-button"
           >
             <BarChart3 size={17} />
-            Open reports
+            {t("Open reports")}
           </Link>
         </div>
 
