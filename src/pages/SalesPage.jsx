@@ -100,7 +100,7 @@ export default function SalesPage() {
     access,
     can
   } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   const canSell = can("sales.create");
   const canDiscount = can(
@@ -1727,8 +1727,9 @@ export default function SalesPage() {
       {!cashRegisterOpen && (
         <div className="notice warning cash-register-sale-warning">
           <span>
-            Cash payments are disabled because this branch has no open
-            register.
+            {t(
+              "Cash payments are disabled because this branch has no open register"
+            )}
           </span>
           <Link to="/cash-register">Open cash register</Link>
         </div>
@@ -1875,15 +1876,29 @@ export default function SalesPage() {
                 </form>
 
                 <div className="sale-product-summary">
-                  <span><strong>{visibleProducts.length}</strong> products available</span>
+                  <span>
+                    <strong>{visibleProducts.length}</strong>{" "}
+                    {t("products available")}
+                  </span>
+
                   <div className="sale-summary-actions">
-                    <small>Tap a product to add one unit.</small>
-                    <label className="layout-two-row-control" title="Choose how many product rows are visible before scrolling">
-                      <span>Default view</span>
+                    <small>{t("Tap a product to add one unit.")}</small>
+
+                    <label
+                      className="layout-two-row-control"
+                      title={t("Choose how many product rows are visible before scrolling")}
+                    >
+                      <span>{t("Default view")}</span>
+
                       <select
                         value={layout2ProductRows}
-                        onChange={(event) => setLayout2View({ storageKey: layout2RowsStorageKey, rows: Number(event.target.value) })}
-                        aria-label="Layout 2 product rows"
+                        onChange={(event) =>
+                          setLayout2View({
+                            storageKey: layout2RowsStorageKey,
+                            rows: Number(event.target.value),
+                          })
+                        }
+                        aria-label={t("Layout 2 product rows")}
                       >
                         <option value={2}>2 rows</option>
                         <option value={3}>3 rows</option>
@@ -2097,14 +2112,19 @@ export default function SalesPage() {
               </form>
 
               <div className="sale-product-summary">
-                <span><strong>{visibleProducts.length}</strong> products available</span>
+                <span>
+                  <strong>{visibleProducts.length}</strong>{" "}
+                  {t("products available")}
+                </span>
+
                 <div className="sale-summary-actions">
-                  <small>Tap a product to add one unit.</small>
+                  <small>{t("Tap a product to add one unit.")}</small>
+
                   <button
                     type="button"
                     className="icon-button refresh-button"
                     onClick={() => refresh()}
-                    title="Refresh products"
+                    title={t("Refresh products")}
                   >
                     <RefreshCw className={loading || refreshing ? "spin" : ""} size={19} />
                   </button>
