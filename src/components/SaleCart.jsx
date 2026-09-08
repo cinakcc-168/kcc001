@@ -12,6 +12,7 @@ import {
   Wallet,
   X
 } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
 
 function lineId(item, index = 0) {
@@ -347,6 +348,8 @@ function SaleCartHeader({
   fulfillmentLocked,
   title
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className="sale-cart-heading">
       <div>
