@@ -362,7 +362,7 @@ function SaleCartHeader({
           disabled={!online || fulfillmentLocked}
         >
           <CirclePause size={17} />
-          Parked ({parkedCount})
+          {t("Parked")} ({parkedCount})
         </button>
 
         {cart.length > 0 && !fulfillmentLocked && (
