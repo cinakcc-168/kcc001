@@ -264,8 +264,8 @@ export default function ProductsPage() {
     <div className="page-stack products-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CATALOG</p>
-          <h1>Products</h1>
+          <p id="products-catalog-eyebrow" className="eyebrow">CATALOG</p>
+          <h1 id="products-catalog-title">Products</h1>
           <p className="muted">Manage categories, product codes, barcodes, prices, opening stock and product photos.</p>
         </div>
         <div className="heading-actions">
