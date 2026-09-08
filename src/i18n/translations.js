@@ -4,6 +4,20 @@ export const SUPPORTED_LANGUAGES = [
 ];
 
 const EXACT_KM = {
+  "Refresh products": "ផ្ទុកផលិតផលឡើងវិញ",
+  "products available": "ផលិតផលដែលមាន",
+  "Tap a product to add one unit.": "ចុចលើផលិតផលដើម្បីបន្ថែមចំនួន",
+  "Choose how many product rows are visible before scrolling": "ជ្រើសរើសចំនួនជួរផលិតផលដែលអាចមើលឃើញមុនពេលអូសចុះក្រោម",
+  "Default view": "លំនាំដើម",
+  "Layout 2 product rows":"បង្ហាញ២ជួរផលិតផល",
+  "OR": "ឬ",
+  "Cash payments are disabled because this branch has no open register": "ការទូទាត់ជាសាច់ប្រាក់ត្រូវបានបិទ ពីព្រោះសាខានេះមិនទាន់ចុះឈ្មោះបើក",
+  "Cash & Expense": "សាច់ប្រាក់&ចំណាយ",
+  "Open reports": "បើករបាយការណ៍",
+  "alerts": "ការជូនដំណឹង",
+  "is": "គឺ",
+  "Open the register before accepting cash.": "ចុះឈ្មោះ មុនពេលទទួលប្រាក់សុទ្ធ",
+  "Cash payments unavailable": "ការទូទាត់ជាសាច់ប្រាក់មិនអាចប្រើបានទេ",
   "Sales": "ការលក់",
   "Customers & Marketing": "អតិថិជន និងទីផ្សារ",
   "Products & Inventory": "ផលិតផល និងស្តុក",
