@@ -33,7 +33,8 @@ export function serviceClient() {
   });
 }
 
-export async function authenticatedProfile(request) {
+export async function authenticatedProfile(request, options = {}) {
+  const includeRelations = options.includeRelations !== false;
   const authorization = request.headers.get("authorization") || "";
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
 
@@ -73,11 +74,16 @@ export async function authenticatedProfile(request) {
   }
 
   const service = serviceClient();
-  const { data: profile, error: profileError } = await service
+  const profileQuery = service
     .from("profiles")
-    .select("*,branches(id,name,code),organizations(id,name)")
-    .eq("id", user.id)
-    .single();
+    .select(
+      includeRelations
+        ? "*,branches(id,name,code),organizations(id,name)"
+        : "id,organization_id,branch_id,role,is_active"
+    )
+    .eq("id", user.id);
+
+  const { data: profile, error: profileError } = await profileQuery.maybeSingle();
 
   if (profileError || !profile || !profile.is_active) {
     throw Object.assign(

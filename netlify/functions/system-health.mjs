@@ -16,7 +16,7 @@ export default async (request) => {
   try {
     if (request.method !== "GET") return json({ ok: false, error: "Method not allowed." }, 405);
 
-    const { profile } = await authenticatedProfile(request);
+    const { profile } = await authenticatedProfile(request, { includeRelations: false });
     if (!["owner", "admin"].includes(profile.role)) {
       return json({ ok: false, error: "Owner or administrator access required." }, 403);
     }
