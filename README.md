@@ -1,20 +1,63 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Tiny POS
 
-# Run and deploy your AI Studio app
+Tiny POS is a React/Vite multi-branch retail POS and operations system.
 
-This contains everything you need to run your app locally.
+## Stack
 
-View your app in AI Studio: https://ai.studio/apps/f24f19cf-650b-4f20-aa78-bac02f8e5059
+- React 18 + Vite
+- Supabase (database, authentication, RPCs, RLS)
+- Netlify Functions
+- Cloudinary for product/shop media
+- Telegram integrations
+- npm (`package-lock.json`) as the project package manager
 
-## Run Locally
+## Local development
 
-**Prerequisites:**  Node.js
+Prerequisites: Node.js 20+.
 
+```bash
+npm ci
+npm run dev
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Checks
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+The production Netlify build uses:
+
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Functions directory: `netlify/functions`
+
+## Environment
+
+Use `.env.example` as the template for local configuration. Never commit real secrets.
+
+## Database migrations
+
+Database changes live in `database/`.
+
+Rules:
+
+1. Run historical migrations once in the new Supabase project.
+2. Never edit an already-applied historical migration.
+3. Use one new additive migration for future schema/function changes.
+4. Run `VERIFY.sql` after the required migration sequence.
+5. `database/NUMBERING_NOTES.md` documents the historical migration-numbering irregularities.
+
+## Important release areas
+
+Before a production release, regression-test:
+
+- POS checkout and receipts/invoices
+- permissions and role loading
+- batch/lot stock movements
+- product promotions and selling-unit rules
+- online-store stock availability and customer matching
+- cash-register sessions and end-of-day reporting
+- responsive phone/tablet/desktop layouts
