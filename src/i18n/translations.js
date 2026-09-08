@@ -4,6 +4,7 @@ export const SUPPORTED_LANGUAGES = [
 ];
 
 const EXACT_KM = {
+  "Parked": "បានផ្អាក",
   "Refresh products": "ផ្ទុកផលិតផលឡើងវិញ",
   "products available": "ផលិតផលដែលមាន",
   "Tap a product to add one unit.": "ចុចលើផលិតផលដើម្បីបន្ថែមចំនួន",
