@@ -75,35 +75,35 @@ export default function ProductInsightsModal({ supabase, product, onClose }) {
   const columns = [
     {
       label: "Code",
-      width: 170,
+      width: 160,
       value: (row) => row.code || "—",
       render: (row) => <strong className="product-history-code">{row.code || "—"}</strong>
     },
     {
       label: "Type",
-      width: 150,
+      width: 140,
       value: (row) => row.type || "—",
       render: (row) => <span className="product-history-type">{row.type || "—"}</span>
     },
     {
       label: "Branch",
-      width: 145,
+      width: 150,
       value: (row) => row.branch_name || "—",
       render: (row) => <><strong>{row.branch_name || "—"}</strong><small>{row.branch_code || ""}</small></>
     },
     {
       label: "Created by",
-      width: 145,
+      width: 135,
       value: (row) => row.created_by || "System"
     },
     {
       label: "Date",
-      width: 170,
+      width: 165,
       value: (row) => dateTime(row.created_at)
     },
     {
       label: "Amount",
-      width: 118,
+      width: 120,
       value: (row) => amountText(row.amount, unitName),
       render: (row) => (
         <strong className={Number(row.amount || 0) < 0 ? "stock-history-negative" : Number(row.amount || 0) > 0 ? "stock-history-positive" : ""}>
@@ -116,6 +116,11 @@ export default function ProductInsightsModal({ supabase, product, onClose }) {
       width: 125,
       value: (row) => stockText(row.current_stock, unitName),
       render: (row) => <strong>{stockText(row.current_stock, unitName)}</strong>
+    },
+    {
+      label: "Note",
+      value: (row) => row.notes || "—",
+      render: (row) => row.notes ? <span className="product-history-note-cell" title={row.notes}>{row.notes}</span> : <span className="product-history-no-note">—</span>
     }
   ];
 
@@ -123,29 +128,65 @@ export default function ProductInsightsModal({ supabase, product, onClose }) {
     <Modal
       title={`${product.name || "Product"} · ${product.sku || "Product"}`}
       onClose={onClose}
-      wide
+      wide={false}
       className="product-insights-modal"
       bodyClassName="product-insights-modal-body"
     >
       <div className="product-insights-topbar">
         <div className="product-insights-tabs" role="tablist" aria-label="Product information">
-          <button type="button" className={tab === "history" ? "active" : ""} onClick={() => setTab("history")}>
-            <History size={18} /> Product History
+          <button
+            type="button"
+            className={tab === "history" ? "active" : ""}
+            onClick={() => setTab("history")}
+          >
+            <History size={18} />
+            <span className="tab-label">Product History</span>
+            {Array.isArray(workspace?.history) && (
+              <span className="product-insights-tab-badge">{workspace.history.length}</span>
+            )}
           </button>
-          <button type="button" className={tab === "summary" ? "active" : ""} onClick={() => setTab("summary")}>
-            <Warehouse size={18} /> Stock Summary
+          <button
+            type="button"
+            className={tab === "summary" ? "active" : ""}
+            onClick={() => setTab("summary")}
+          >
+            <Warehouse size={18} />
+            <span className="tab-label">Stock Summary</span>
+            {Array.isArray(workspace?.stockSummary) && (
+              <span className="product-insights-tab-badge">{workspace.stockSummary.length}</span>
+            )}
           </button>
         </div>
-        <button type="button" className="secondary-button compact-button" onClick={refresh} disabled={loading}>
-          <RefreshCw size={17} className={loading ? "spin" : ""} /> Refresh
+        <button
+          type="button"
+          className="secondary-button compact-button product-insights-refresh-btn"
+          onClick={refresh}
+          disabled={loading}
+          title="Refresh product history and stock data"
+        >
+          <RefreshCw size={17} className={loading ? "spin" : ""} />
+          <span className="refresh-btn-text">Refresh</span>
         </button>
       </div>
 
       <div className="product-insights-product-strip">
-        <div><span>Product</span><strong>{workspace?.product?.name || product.name}</strong>{workspace?.product?.name_km && <small>{workspace.product.name_km}</small>}</div>
-        <div><span>Code</span><strong>{workspace?.product?.sku || product.sku || "—"}</strong></div>
-        <div><span>Base unit</span><strong>{unitName}</strong></div>
-        <div><span>All branches</span><strong>{stockText(workspace?.totalStock || 0, unitName)}</strong></div>
+        <div className="strip-item strip-product-info">
+          <span>Product</span>
+          <strong>{workspace?.product?.name || product.name}</strong>
+          {workspace?.product?.name_km && <small>{workspace.product.name_km}</small>}
+        </div>
+        <div className="strip-item strip-code">
+          <span>Code / SKU</span>
+          <strong>{workspace?.product?.sku || product.sku || "—"}</strong>
+        </div>
+        <div className="strip-item strip-unit">
+          <span>Base unit</span>
+          <strong>{unitName}</strong>
+        </div>
+        <div className="strip-item strip-stock">
+          <span>All branches stock</span>
+          <strong className="stock-highlight-val">{stockText(workspace?.totalStock || 0, unitName)}</strong>
+        </div>
       </div>
 
       {error && <div className="notice error">{error}</div>}
@@ -156,7 +197,7 @@ export default function ProductInsightsModal({ supabase, product, onClose }) {
         <div className="product-history-tab">
           <label className="search-box product-history-search">
             <Search size={18} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search code, type, user or branch" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search code, type, user, note, or branch" />
           </label>
 
           <ResponsiveDataList
@@ -178,14 +219,26 @@ export default function ProductInsightsModal({ supabase, product, onClose }) {
             renderCard={(row) => (
               <article className="responsive-data-card product-history-card">
                 <header>
-                  <div><strong>{row.code || "—"}</strong><small>{row.type || "—"}</small></div>
-                  <span className={Number(row.amount || 0) < 0 ? "stock-history-negative" : "stock-history-positive"}>{amountText(row.amount, unitName)}</span>
+                  <div className="product-history-card-title">
+                    <strong className="product-history-code">{row.code || "—"}</strong>
+                    <span className="product-history-type">{row.type || "—"}</span>
+                  </div>
+                  <span className={`product-history-amount-badge ${Number(row.amount || 0) < 0 ? "stock-history-negative" : "stock-history-positive"}`}>
+                    {amountText(row.amount, unitName)}
+                  </span>
                 </header>
-                <div><span>Branch</span><strong>{row.branch_name || "—"}</strong><small>{row.branch_code || ""}</small></div>
-                <div><span>Created by</span><strong>{row.created_by || "System"}</strong></div>
-                <div><span>Date</span><strong>{dateTime(row.created_at)}</strong></div>
-                <div><span>Current stock</span><strong>{stockText(row.current_stock, unitName)}</strong></div>
-                {row.notes && <div className="product-history-card-note"><span>Note</span><small>{row.notes}</small></div>}
+                <div className="product-history-card-grid">
+                  <div><span>Branch</span><strong>{row.branch_name || "—"}</strong><small>{row.branch_code || ""}</small></div>
+                  <div><span>Date</span><strong>{dateTime(row.created_at)}</strong></div>
+                  <div><span>Current stock</span><strong>{stockText(row.current_stock, unitName)}</strong></div>
+                  <div><span>Created by</span><strong>{row.created_by || "System"}</strong></div>
+                </div>
+                {row.notes && (
+                  <div className="product-history-card-note">
+                    <span>Note</span>
+                    <small>{row.notes}</small>
+                  </div>
+                )}
               </article>
             )}
           />
