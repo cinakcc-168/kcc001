@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import CouponFormModal from "../components/CouponFormModal";
 import { money } from "../lib/catalog";
 import {
@@ -18,8 +19,8 @@ import {
   setCouponActive
 } from "../lib/coupons";
 
-function dateTime(value) {
-  if (!value) return "No end date";
+function dateTime(value, t) {
+  if (!value) return t ? t("No end date") : "No end date";
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short"
@@ -34,6 +35,7 @@ function readable(value) {
 
 export default function CouponsPage() {
   const { supabase, profile, shop, can } = useAuth();
+  const { t } = useLanguage();
   const canManage = can("coupons.manage");
 
   const [coupons, setCoupons] = useState([]);
@@ -175,10 +177,10 @@ export default function CouponsPage() {
     <div className="page-stack coupons-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PROMOTIONS</p>
-          <h1>Coupons</h1>
+          <p className="eyebrow">{t("PROMOTIONS")}</p>
+          <h1>{t("Coupons")}</h1>
           <p className="muted">
-            Create controlled percentage or fixed discounts for checkout.
+            {t("Create controlled percentage or fixed discounts for checkout.")}
           </p>
         </div>
 
@@ -190,7 +192,7 @@ export default function CouponsPage() {
             disabled={loading}
           >
             <RefreshCw size={18} className={loading ? "spin" : ""} />
-            Refresh
+            {t("Refresh")}
           </button>
           <button
             type="button"
@@ -201,7 +203,7 @@ export default function CouponsPage() {
             }}
           >
             <TicketPercent size={18} />
-            New coupon
+            {t("New coupon")}
           </button>
         </div>
       </div>
@@ -218,22 +220,22 @@ export default function CouponsPage() {
       <div className="coupon-metrics">
         <article>
           <CheckCircle2 size={22} />
-          <span>Active coupons</span>
+          <span>{t("Active coupons")}</span>
           <strong>{metrics.active}</strong>
         </article>
         <article>
           <CalendarClock size={22} />
-          <span>Scheduled</span>
+          <span>{t("Scheduled")}</span>
           <strong>{metrics.scheduled}</strong>
         </article>
         <article>
           <TicketPercent size={22} />
-          <span>Total redemptions</span>
+          <span>{t("Total redemptions")}</span>
           <strong>{metrics.totalRedemptions}</strong>
         </article>
         <article>
           <TicketPercent size={22} />
-          <span>Discounts given</span>
+          <span>{t("Discounts given")}</span>
           <strong className="coupon-currency-summary">
             {Object.keys(metrics.discountByCurrency).length === 0
               ? money(0, shop?.base_currency || "USD")
@@ -250,33 +252,35 @@ export default function CouponsPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search code, name or description"
+            placeholder={t("Search code, name or description")}
           />
         </label>
 
         <label>
-          <span>Status</span>
+          <span>{t("Status")}</span>
           <select
+            className="text-center"
             value={status}
             onChange={(event) => setStatus(event.target.value)}
           >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="expired">Expired</option>
-            <option value="used_up">Used up</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">{t("All statuses")}</option>
+            <option value="active">{t("Active")}</option>
+            <option value="scheduled">{t("Scheduled")}</option>
+            <option value="expired">{t("Expired")}</option>
+            <option value="used_up">{t("Used up")}</option>
+            <option value="inactive">{t("Inactive")}</option>
           </select>
         </label>
 
         <label>
-          <span>Branch</span>
+          <span>{t("Branch")}</span>
           <select
+            className="text-center"
             value={branchId}
             onChange={(event) => setBranchId(event.target.value)}
           >
-            <option value="all">All branches</option>
-            <option value="global">All-branch coupons</option>
+            <option value="all">{t("All branches")}</option>
+            <option value="global">{t("All-branch coupons")}</option>
             {branches.map((branch) => (
               <option value={branch.id} key={branch.id}>
                 {branch.name}
@@ -286,12 +290,13 @@ export default function CouponsPage() {
         </label>
 
         <label>
-          <span>Currency</span>
+          <span>{t("Currency")}</span>
           <select
+            className="text-center"
             value={currency}
             onChange={(event) => setCurrency(event.target.value)}
           >
-            <option value="all">All currencies</option>
+            <option value="all">{t("All currencies")}</option>
             <option value="USD">USD</option>
             <option value="KHR">KHR</option>
           </select>
@@ -302,64 +307,64 @@ export default function CouponsPage() {
         {loading ? (
           <div className="empty-state">
             <RefreshCw className="spin" />
-            <p>Loading coupons...</p>
+            <p>{t("Loading coupons...")}</p>
           </div>
         ) : visibleCoupons.length === 0 ? (
           <div className="empty-state">
             <TicketPercent size={46} />
-            <h2>No coupons found</h2>
-            <p>Create a coupon or change the filters.</p>
+            <h2>{t("No coupons found")}</h2>
+            <p>{t("Create a coupon or change the filters.")}</p>
           </div>
         ) : (
           <div className="coupon-table-wrap">
             <table className="coupon-table">
               <thead>
                 <tr>
-                  <th>Coupon</th>
-                  <th>Discount</th>
-                  <th>Validity</th>
-                  <th>Branch / Customer</th>
-                  <th>Usage</th>
-                  <th>Status</th>
+                  <th>{t("Coupon")}</th>
+                  <th>{t("Discount")}</th>
+                  <th>{t("Validity")}</th>
+                  <th>{t("Branch / Customer")}</th>
+                  <th>{t("Usage")}</th>
+                  <th>{t("Status")}</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {visibleCoupons.map((coupon) => (
                   <tr key={coupon.id}>
-                    <td data-label="Coupon">
+                    <td data-label={t("Coupon")}>
                       <strong className="coupon-code">{coupon.code}</strong>
                       <span>{coupon.name}</span>
                     </td>
-                    <td data-label="Discount">
+                    <td data-label={t("Discount")}>
                       <strong>
                         {coupon.discount_type === "percent"
                           ? `${Number(coupon.discount_value)}%`
                           : money(coupon.discount_value, coupon.currency)}
                       </strong>
                       <small>
-                        Minimum {money(coupon.minimum_spend, coupon.currency)}
+                        {t("Minimum")} {money(coupon.minimum_spend, coupon.currency)}
                         {coupon.max_discount_amount
-                          ? ` · Max ${money(
+                          ? ` · ${t("Max")} ${money(
                               coupon.max_discount_amount,
                               coupon.currency
                             )}`
                           : ""}
                       </small>
                     </td>
-                    <td data-label="Validity">
-                      <strong>{dateTime(coupon.starts_at)}</strong>
-                      <small>to {dateTime(coupon.ends_at)}</small>
+                    <td data-label={t("Validity")}>
+                      <strong>{dateTime(coupon.starts_at, t)}</strong>
+                      <small>{t("to")} {dateTime(coupon.ends_at, t)}</small>
                     </td>
-                    <td data-label="Branch / Customer">
-                      <strong>{coupon.branches?.name || "All branches"}</strong>
+                    <td data-label={t("Branch / Customer")}>
+                      <strong>{coupon.branches?.name || t("All branches")}</strong>
                       <small>
                         {coupon.customer_type
-                          ? `${readable(coupon.customer_type)} customers`
-                          : "All customers"}
+                          ? t(`${readable(coupon.customer_type)} customers`)
+                          : t("All customers")}
                       </small>
                     </td>
-                    <td data-label="Usage">
+                    <td data-label={t("Usage")}>
                       <strong>
                         {coupon.usage_count}
                         {coupon.usage_limit
@@ -367,26 +372,26 @@ export default function CouponsPage() {
                           : ""}
                       </strong>
                       <small>
-                        {money(coupon.discount_total, coupon.currency)} given
+                        {money(coupon.discount_total, coupon.currency)} {t("given")}
                       </small>
                     </td>
-                    <td data-label="Status">
+                    <td data-label={t("Status")}>
                       <span
                         className={`status-pill ${
                           coupon.computed_status === "active"
                             ? "active"
                             : "inactive"
-                        }`}
+                        } text-center text-xs`}
                       >
-                        {readable(coupon.computed_status)}
+                        {t(readable(coupon.computed_status))}
                       </span>
                     </td>
-                    <td data-label="Actions">
+                    <td data-label={t("Actions") || ""}>
                       <div className="coupon-row-actions">
                         <button
                           type="button"
                           className="icon-button"
-                          title="Edit coupon"
+                          title={t("Edit coupon")}
                           onClick={() => {
                             setEditing(coupon);
                             setFormOpen(true);
@@ -397,7 +402,7 @@ export default function CouponsPage() {
                         <button
                           type="button"
                           className="icon-button"
-                          title={coupon.is_active ? "Deactivate" : "Activate"}
+                          title={coupon.is_active ? t("Deactivate") : t("Activate")}
                           onClick={() => toggleCoupon(coupon)}
                           disabled={busy}
                         >
