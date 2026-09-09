@@ -17,6 +17,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import CreditAccountModal from "../components/CreditAccountModal";
 import CreditPaymentModal from "../components/CreditPaymentModal";
 import CreditStatementModal from "../components/CreditStatementModal";
@@ -37,6 +38,7 @@ import {
 
 export default function CreditAccountsPage() {
   const { supabase, profile, can, canAny } = useAuth();
+  const { t } = useLanguage();
 
   const canAccess = canAny([
     "credit_accounts.manage",
@@ -308,12 +310,11 @@ export default function CreditAccountsPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            ACCOUNTS RECEIVABLE
+            {t("ACCOUNTS RECEIVABLE")}
           </p>
-          <h1>Credit Accounts</h1>
+          <h1>{t("Credit Accounts")}</h1>
           <p className="muted">
-            Manage customer limits, overdue invoices,
-            statements and collections.
+            {t("Manage customer limits, overdue invoices, statements and collections.")}
           </p>
         </div>
 
@@ -325,7 +326,7 @@ export default function CreditAccountsPage() {
               onClick={openNewAccount}
             >
               <Plus size={18} />
-              Add credit account
+              {t("Add credit account")}
             </button>
           )}
 
@@ -339,7 +340,7 @@ export default function CreditAccountsPage() {
               size={18}
               className={loading ? "spin" : ""}
             />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -356,7 +357,7 @@ export default function CreditAccountsPage() {
       <div className="credit-account-metrics">
         <article>
           <BadgeDollarSign size={22} />
-          <span>Total receivables</span>
+          <span>{t("Total receivables")}</span>
           <strong>
             {money(
               metrics.receivable_usd || 0,
@@ -373,7 +374,7 @@ export default function CreditAccountsPage() {
 
         <article>
           <AlertTriangle size={22} />
-          <span>Overdue balance</span>
+          <span>{t("Overdue balance")}</span>
           <strong>
             {money(
               metrics.overdue_usd || 0,
@@ -387,13 +388,13 @@ export default function CreditAccountsPage() {
             )}
             {" · "}
             {Number(metrics.overdue_accounts || 0)}
-            {" overdue account(s)"}
+            {" " + t("overdue account(s)")}
           </small>
         </article>
 
         <article>
           <UsersRound size={22} />
-          <span>Customers owing</span>
+          <span>{t("Customers owing")}</span>
           <strong>
             {Number(
               metrics.customers_with_balance || 0
@@ -403,20 +404,20 @@ export default function CreditAccountsPage() {
             {Number(
               metrics.account_count || 0
             ).toLocaleString("en-US")}
-            {" total account(s)"}
+            {" " + t("total account(s)")}
           </small>
         </article>
 
         <article>
           <ShieldAlert size={22} />
-          <span>Accounts on hold</span>
+          <span>{t("Accounts on hold")}</span>
           <strong>
             {Number(
               metrics.accounts_on_hold || 0
             ).toLocaleString("en-US")}
           </strong>
           <small>
-            New credit invoices are blocked.
+            {t("New credit invoices are blocked.")}
           </small>
         </article>
       </div>
@@ -429,40 +430,40 @@ export default function CreditAccountsPage() {
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search customer, code, phone, email or company"
+            placeholder={t("Search customer, code, phone, email or company")}
           />
         </div>
 
         <label>
-          <span>Currency</span>
+          <span>{t("Currency")}</span>
           <select
             value={currencyFilter}
             onChange={(event) =>
               setCurrencyFilter(event.target.value)
             }
           >
-            <option value="">All currencies</option>
+            <option value="">{t("All currencies")}</option>
             <option value="USD">USD</option>
             <option value="KHR">KHR</option>
           </select>
         </label>
 
         <label>
-          <span>Status</span>
+          <span>{t("Status")}</span>
           <select
             value={statusFilter}
             onChange={(event) =>
               setStatusFilter(event.target.value)
             }
           >
-            <option value="">All statuses</option>
-            <option value="overdue">Overdue</option>
-            <option value="open">Balance open</option>
+            <option value="">{t("All statuses")}</option>
+            <option value="overdue">{t("Overdue")}</option>
+            <option value="open">{t("Balance open")}</option>
             <option value="limit_reached">
-              Limit reached
+              {t("Limit reached")}
             </option>
-            <option value="hold">On hold</option>
-            <option value="clear">Clear</option>
+            <option value="hold">{t("On hold")}</option>
+            <option value="clear">{t("Clear")}</option>
           </select>
         </label>
       </section>
@@ -501,17 +502,17 @@ export default function CreditAccountsPage() {
                 <article className="list-record-card" key={account.id}>
                   <header><div><strong>{account.customer?.name}</strong><small>{[account.customer?.customer_code, account.customer?.company_name, account.customer?.phone].filter(Boolean).join(" · ")}</small></div><span className={`credit-account-status ${creditAccountStatusClass(account.account_status)}`}>{creditAccountStatusLabel(account.account_status)}</span></header>
                   <div className="list-card-fields">
-                    <div><span>Balance due</span><strong>{money(account.balance_due, account.currency)}</strong>{Number(account.overdue_amount || 0) > 0 && <small>{money(account.overdue_amount, account.currency)} overdue</small>}</div>
-                    <div><span>Credit limit</span><strong>{account.allow_unlimited_credit ? "Unlimited" : money(account.credit_limit, account.currency)}</strong></div>
-                    <div><span>Available</span><strong>{account.allow_unlimited_credit ? "Unlimited" : money(account.available_credit, account.currency)}</strong></div>
-                    <div><span>Invoices</span><strong>{Number(account.open_invoice_count || 0)}</strong><small>{Number(account.overdue_invoice_count || 0)} overdue</small></div>
-                    <div><span>Oldest due</span><strong>{creditDate(account.oldest_due_date)}</strong></div>
-                    <div><span>Last activity</span><strong>{creditDateTime(account.last_activity_at || account.updated_at)}</strong></div>
+                    <div><span>{t("Balance due")}</span><strong>{money(account.balance_due, account.currency)}</strong>{Number(account.overdue_amount || 0) > 0 && <small>{money(account.overdue_amount, account.currency)} {t("overdue")}</small>}</div>
+                    <div><span>{t("Credit limit")}</span><strong>{account.allow_unlimited_credit ? t("Unlimited") : money(account.credit_limit, account.currency)}</strong></div>
+                    <div><span>{t("Available")}</span><strong>{account.allow_unlimited_credit ? t("Unlimited") : money(account.available_credit, account.currency)}</strong></div>
+                    <div><span>{t("Invoices")}</span><strong>{Number(account.open_invoice_count || 0)}</strong><small>{Number(account.overdue_invoice_count || 0)} {t("overdue")}</small></div>
+                    <div><span>{t("Oldest due")}</span><strong>{creditDate(account.oldest_due_date)}</strong></div>
+                    <div><span>{t("Last activity")}</span><strong>{creditDateTime(account.last_activity_at || account.updated_at)}</strong></div>
                   </div>
                   <div className="list-card-actions credit-account-actions">
-                    <button type="button" className="icon-button" onClick={() => openStatement(account)} title="View statement"><Eye size={18} /></button>
-                    <button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title="Receive payment"><HandCoins size={18} /></button>
-                    {canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title="Credit settings"><Settings2 size={18} /></button>}
+                    <button type="button" className="icon-button" onClick={() => openStatement(account)} title={t("View statement")}><Eye size={18} /></button>
+                    <button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title={t("Receive payment")}><HandCoins size={18} /></button>
+                    {canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title={t("Credit settings")}><Settings2 size={18} /></button>}
                   </div>
                 </article>
               ))}
@@ -519,19 +520,19 @@ export default function CreditAccountsPage() {
           ) : (
             <div className="credit-account-table-wrap wide-list-scroll">
               <table className="credit-account-table">
-                <thead><tr><th>Customer</th><th>Status</th><th>Currency</th><th>Balance due</th><th>Credit limit</th><th>Available</th><th>Invoices</th><th>Oldest due</th><th>Last activity</th><th /></tr></thead>
+                <thead><tr><th>{t("Customer")}</th><th>{t("Status")}</th><th>{t("Currency")}</th><th>{t("Balance due")}</th><th>{t("Credit limit")}</th><th>{t("Available")}</th><th>{t("Invoices")}</th><th>{t("Oldest due")}</th><th>{t("Last activity")}</th><th>{t("Actions")}</th></tr></thead>
                 <tbody>{pagedAccounts.map((account) => (
                   <tr key={account.id}>
-                    <td data-label="Customer"><strong>{account.customer?.name}</strong><small>{[account.customer?.customer_code, account.customer?.company_name, account.customer?.phone].filter(Boolean).join(" · ")}</small></td>
-                    <td data-label="Status"><span className={`credit-account-status ${creditAccountStatusClass(account.account_status)}`}>{creditAccountStatusLabel(account.account_status)}</span></td>
-                    <td data-label="Currency"><strong>{account.currency}</strong></td>
-                    <td data-label="Balance due"><strong>{money(account.balance_due, account.currency)}</strong>{Number(account.overdue_amount || 0) > 0 && <small className="credit-overdue-text">{money(account.overdue_amount, account.currency)} overdue</small>}</td>
-                    <td data-label="Credit limit">{account.allow_unlimited_credit ? "Unlimited" : money(account.credit_limit, account.currency)}</td>
-                    <td data-label="Available"><strong>{account.allow_unlimited_credit ? "Unlimited" : money(account.available_credit, account.currency)}</strong></td>
-                    <td data-label="Invoices"><strong>{Number(account.open_invoice_count || 0)}</strong><small>{Number(account.overdue_invoice_count || 0)} overdue</small></td>
-                    <td data-label="Oldest due">{creditDate(account.oldest_due_date)}</td>
-                    <td data-label="Last activity">{creditDateTime(account.last_activity_at || account.updated_at)}</td>
-                    <td data-label="Actions"><div className="credit-account-actions"><button type="button" className="icon-button" onClick={() => openStatement(account)} title="View statement"><Eye size={18} /></button><button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title="Receive payment"><HandCoins size={18} /></button>{canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title="Credit settings"><Settings2 size={18} /></button>}</div></td>
+                    <td data-label={t("Customer")}><strong>{account.customer?.name}</strong><small>{[account.customer?.customer_code, account.customer?.company_name, account.customer?.phone].filter(Boolean).join(" · ")}</small></td>
+                    <td data-label={t("Status")}><span className={`credit-account-status ${creditAccountStatusClass(account.account_status)}`}>{creditAccountStatusLabel(account.account_status)}</span></td>
+                    <td data-label={t("Currency")}><strong>{account.currency}</strong></td>
+                    <td data-label={t("Balance due")}><strong>{money(account.balance_due, account.currency)}</strong>{Number(account.overdue_amount || 0) > 0 && <small className="credit-overdue-text">{money(account.overdue_amount, account.currency)} {t("overdue")}</small>}</td>
+                    <td data-label={t("Credit limit")}>{account.allow_unlimited_credit ? t("Unlimited") : money(account.credit_limit, account.currency)}</td>
+                    <td data-label={t("Available")}><strong>{account.allow_unlimited_credit ? t("Unlimited") : money(account.available_credit, account.currency)}</strong></td>
+                    <td data-label={t("Invoices")}><strong>{Number(account.open_invoice_count || 0)}</strong><small>{Number(account.overdue_invoice_count || 0)} {t("overdue")}</small></td>
+                    <td data-label={t("Oldest due")}>{creditDate(account.oldest_due_date)}</td>
+                    <td data-label={t("Last activity")}>{creditDateTime(account.last_activity_at || account.updated_at)}</td>
+                    <td data-label={t("Actions")}><div className="credit-account-actions"><button type="button" className="icon-button" onClick={() => openStatement(account)} title={t("View statement")}><Eye size={18} /></button><button type="button" className="icon-button" onClick={() => setPaymentAccount(account)} title={t("Receive payment")}><HandCoins size={18} /></button>{canManage && <button type="button" className="icon-button" onClick={() => openAccountSettings(account)} title={t("Credit settings")}><Settings2 size={18} /></button>}</div></td>
                   </tr>
                 ))}</tbody>
               </table>
