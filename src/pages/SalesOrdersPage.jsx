@@ -23,6 +23,7 @@ import {
   useSearchParams
 } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import SalesOrderDeliveryModal from "../components/SalesOrderDeliveryModal";
 import SalesOrderDocumentModal from "../components/SalesOrderDocumentModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
@@ -54,6 +55,8 @@ export default function SalesOrdersPage() {
     shop,
     can
   } = useAuth();
+
+  const { t } = useLanguage();
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -433,12 +436,11 @@ export default function SalesOrdersPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            RESERVED CUSTOMER ORDERS
+            {t("RESERVED CUSTOMER ORDERS")}
           </p>
-          <h1>Sales Orders</h1>
+          <h1>{t("Sales Orders")}</h1>
           <p className="muted">
-            Reserve stock, deliver partially, print
-            delivery notes, and invoice each delivery.
+            {t("Reserve stock, deliver partially, print delivery notes, and invoice each delivery.")}
           </p>
         </div>
 
@@ -563,7 +565,7 @@ export default function SalesOrdersPage() {
 
       <ResponsiveDataList
         storageKey="sales-orders-list"
-        title="Sales order list"
+        title={t("Sales order list")}
         subtitle={`${from} to ${to} · ${visible.length} matching order(s)`}
         rows={visible}
         filename={`tiny-pos-sales-orders-${from}-${to}.xls`}
@@ -573,8 +575,8 @@ export default function SalesOrdersPage() {
           { label: "Open USD", value: money(metrics.openUsd, "USD") },
           { label: "Open KHR", value: money(metrics.openKhr, "KHR") }
         ]}
-        emptyTitle={loading ? "Loading sales orders..." : "No sales orders found"}
-        emptyText="Open a customer quotation and create a sales order, or change the filters."
+        emptyTitle={loading ? t("Loading sales orders...") : t("No sales orders found")}
+        emptyText={t("Open a customer quotation and create a sales order, or change the filters.")}
         className="sales-order-responsive-list"
         tableClassName="sales-order-table"
         orientation="landscape"
