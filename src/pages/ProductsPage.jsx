@@ -65,7 +65,7 @@ function ProductIdentityCell({ product, language }) {
 
 export default function ProductsPage() {
   const { supabase, session, profile, can } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const canManage = can("products.manage");
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
@@ -264,13 +264,13 @@ export default function ProductsPage() {
     <div className="page-stack products-page">
       <div className="page-heading">
         <div>
-          <p id="products-catalog-eyebrow" className="eyebrow">CATALOG</p>
-          <h1 id="products-catalog-title">Products</h1>
-          <p className="muted">Manage categories, product codes, barcodes, prices, opening stock and product photos.</p>
+          <p id="products-catalog-eyebrow" className="eyebrow">{t("CATALOG")}</p>
+          <h1 id="products-catalog-title">{t("Products")}</h1>
+          <p className="muted">{t("Manage categories, product codes, barcodes, prices, opening stock and product photos.")}</p>
         </div>
         <div className="heading-actions">
-          <button className="secondary-button" onClick={() => setShowCategories(true)}><Tags size={18} /> Categories</button>
-          <button className="primary-button" onClick={() => setProductModal({})} disabled={!canManage}><Plus size={18} /> Add product</button>
+          <button className="secondary-button" onClick={() => setShowCategories(true)}><Tags size={18} /> {t("Categories")}</button>
+          <button className="primary-button" onClick={() => setProductModal({})} disabled={!canManage}><Plus size={18} /> {t("Add product")}</button>
         </div>
       </div>
 
@@ -282,29 +282,29 @@ export default function ProductsPage() {
       {message && <div className="notice success" onClick={() => setMessage("")}>{message}</div>}
 
       <section className="panel catalog-toolbar">
-        <label className="search-box"><Search size={19} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, code or barcode" /></label>
+        <label className="search-box"><Search size={19} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("Search name, code or barcode")} /></label>
         <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
-          <option value="all">All categories</option>
+          <option value="all">{t("All categories")}</option>
           {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="active">Active products</option>
-          <option value="low_stock">Low stock</option>
-          <option value="out_of_stock">Out of stock</option>
-          <option value="healthy">Healthy stock</option>
-          <option value="inactive">Inactive products</option>
-          <option value="all">All status</option>
+          <option value="active">{t("Active products")}</option>
+          <option value="low_stock">{t("Low stock")}</option>
+          <option value="out_of_stock">{t("Out of stock")}</option>
+          <option value="healthy">{t("Healthy stock")}</option>
+          <option value="inactive">{t("Inactive products")}</option>
+          <option value="all">{t("All status")}</option>
         </select>
-        <select className="catalog-sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} aria-label="Sort products">
-          <option value="name_az">Name A–Z</option>
-          <option value="name_za">Name Z–A</option>
-          <option value="km_az">Khmer ក–អ</option>
-          <option value="km_za">Khmer អ–ក</option>
+        <select className="catalog-sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} aria-label={t("Sort products")}>
+          <option value="name_az">{t("Name A–Z")}</option>
+          <option value="name_za">{t("Name Z–A")}</option>
+          <option value="km_az">{t("Khmer ក–អ")}</option>
+          <option value="km_za">{t("Khmer អ–ក")}</option>
         </select>
         <div className="catalog-action-row">
-          <button className="icon-button refresh-button" onClick={exportProducts} title="Export fitted Excel"><Download size={20} /></button>
-          <button className="icon-button refresh-button" onClick={printProducts} title="Print"><Printer size={20} /></button>
-          <button className="icon-button refresh-button" onClick={refresh} title="Refresh"><RefreshCw size={20} /></button>
+          <button className="icon-button refresh-button" onClick={exportProducts} title={t("Export fitted Excel")}><Download size={20} /></button>
+          <button className="icon-button refresh-button" onClick={printProducts} title={t("Print")}><Printer size={20} /></button>
+          <button className="icon-button refresh-button" onClick={refresh} title={t("Refresh")}><RefreshCw size={20} /></button>
         </div>
       </section>
 
