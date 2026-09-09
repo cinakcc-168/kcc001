@@ -21,6 +21,7 @@ import {
   useNavigate
 } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import QuotePrintModal from "../components/QuotePrintModal";
 import SalesOrderCreateModal from "../components/SalesOrderCreateModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
@@ -58,6 +59,7 @@ export default function QuotesPage() {
   } = useAuth();
 
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const canManage = can("quotations.manage");
   const canManageOrders = can("sales_orders.manage");
@@ -377,15 +379,13 @@ export default function QuotesPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            PRE-SALE DOCUMENTS
+            {t("PRE-SALE DOCUMENTS")}
           </p>
           <h1>
-            Quotations & Proforma
+            {t("Quotations & Proforma")}
           </h1>
           <p className="muted">
-            Prepare, print, approve and convert
-            customer quotations without changing
-            stock.
+            {t("Prepare, print, approve and convert customer quotations without changing stock.")}
           </p>
         </div>
 
@@ -553,15 +553,14 @@ export default function QuotesPage() {
               className="spin"
               size={35}
             />
-            <p>Loading quotations...</p>
+            <p>{t("Loading quotations...")}</p>
           </div>
         ) : visible.length === 0 ? (
           <div className="empty-state">
             <FileText size={48} />
-            <h2>No quotations found</h2>
+            <h2>{t("No quotations found")}</h2>
             <p>
-              Create a bill in New Sale and press
-              Save Quote.
+              {t("Create a bill in New Sale and press Save Quote.")}
             </p>
           </div>
         ) : (
