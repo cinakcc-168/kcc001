@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import ReceiptModal from "../components/ReceiptModal";
 import RefundModal from "../components/RefundModal";
 import InvoiceDetailModal from "../components/InvoiceDetailModal";
@@ -74,6 +75,7 @@ function searchableReturn(refund) {
 }
 
 export default function ReturnsPage() {
+  const { t } = useLanguage();
   const {
     supabase,
     profile,
@@ -481,11 +483,10 @@ export default function ReturnsPage() {
     <div className="page-stack returns-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">AFTER-SALES</p>
-          <h1>Returns & Refunds</h1>
+          <p className="eyebrow">{t("AFTER-SALES")}</p>
+          <h1>{t("Returns & Refunds")}</h1>
           <p className="muted">
-            Find an invoice, refund selected quantities, and optionally
-            return products to stock.
+            {t("Find an invoice, refund selected quantities, and optionally return products to stock.")}
           </p>
         </div>
 
@@ -499,7 +500,7 @@ export default function ReturnsPage() {
             size={18}
             className={loading ? "spin" : ""}
           />
-          Refresh
+          {t("Refresh")}
         </button>
       </div>
 
@@ -511,13 +512,13 @@ export default function ReturnsPage() {
 
       {refundPolicy && (
         <div className="refund-window-strip">
-          <span>Refund permission</span>
-          <strong>{refundPolicy.label || "Current date"}</strong>
+          <span>{t("Refund permission")}</span>
+          <strong>{t(refundPolicy.label) || t("Current date")}</strong>
           {refundPolicy.from && refundPolicy.to && (
-            <small>{refundPolicy.from} to {refundPolicy.to}</small>
+            <small>{refundPolicy.from} {t("to")} {refundPolicy.to}</small>
           )}
           {!refundPolicy.from && (
-            <small>Any invoice date in the current branch</small>
+            <small>{t("Any invoice date in the current branch")}</small>
           )}
         </div>
       )}
@@ -552,7 +553,7 @@ export default function ReturnsPage() {
           onClick={() => setTab("sales")}
         >
           <ReceiptText size={18} />
-          Returnable sales
+          {t("Returnable sales")}
           <span>{filteredSales.length}</span>
         </button>
         <button
@@ -561,7 +562,7 @@ export default function ReturnsPage() {
           onClick={() => setTab("history")}
         >
           <CalendarDays size={18} />
-          Refund history
+          {t("Refund history")}
           <span>{filteredReturns.length}</span>
         </button>
       </div>
@@ -584,13 +585,13 @@ export default function ReturnsPage() {
           {loading ? (
             <div className="empty-state">
               <RefreshCw className="spin" />
-              <p>Loading sales...</p>
+              <p>{t("Loading sales...")}</p>
             </div>
           ) : filteredSales.length === 0 ? (
             <div className="empty-state">
               <ReceiptText size={44} />
-              <h2>No sales found</h2>
-              <p>Change the date range or search text.</p>
+              <h2>{t("No sales found")}</h2>
+              <p>{t("Change the date range or search text.")}</p>
             </div>
           ) : (
             salesViewMode === "cards" ? (
@@ -656,13 +657,13 @@ export default function ReturnsPage() {
           {loading ? (
             <div className="empty-state">
               <RefreshCw className="spin" />
-              <p>Loading refunds...</p>
+              <p>{t("Loading refunds...")}</p>
             </div>
           ) : filteredReturns.length === 0 ? (
             <div className="empty-state">
               <RotateCcw size={44} />
-              <h2>No refunds found</h2>
-              <p>There are no refunds in this date range.</p>
+              <h2>{t("No refunds found")}</h2>
+              <p>{t("There are no refunds in this date range.")}</p>
             </div>
           ) : (
             historyViewMode === "cards" ? (
