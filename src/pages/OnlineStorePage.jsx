@@ -19,6 +19,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import ResponsiveDataList from "../components/ResponsiveDataList";
 import MediaImage from "../components/MediaImage";
 import MediaPreviewModal from "../components/MediaPreviewModal";
@@ -87,6 +88,7 @@ function paymentLabel(value) {
 
 export default function OnlineStorePage() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const {
     supabase,
     session,
@@ -497,11 +499,10 @@ export default function OnlineStorePage() {
     <div className="page-stack online-store-page">
       <div className="page-heading online-store-heading">
         <div>
-          <p className="eyebrow">CUSTOMER WEB ORDERS</p>
-          <h1>Online Store</h1>
+          <p className="eyebrow">{t("CUSTOMER WEB ORDERS")}</p>
+          <h1>{t("Online Store")}</h1>
           <p>
-            Publish selected products, receive customer orders, verify bank slips,
-            and convert accepted orders into reserved Sales Orders.
+            {t("Publish selected products, receive customer orders, verify bank slips, and convert accepted orders into reserved Sales Orders.")}
           </p>
         </div>
 
@@ -509,16 +510,16 @@ export default function OnlineStorePage() {
           {publicUrl && (
             <>
               <button type="button" className="secondary-button" onClick={copyStoreLink}>
-                <Globe2 size={18} /> Copy store link
+                <Globe2 size={18} /> {t("Copy store link")}
               </button>
               <a className="secondary-button" href={publicUrl} target="_blank" rel="noreferrer">
-                <ExternalLink size={18} /> Open store
+                <ExternalLink size={18} /> {t("Open store")}
               </a>
             </>
           )}
           {canManageStore && (
             <button type="button" className="primary-button" onClick={openSettings}>
-              <Settings2 size={18} /> Store settings
+              <Settings2 size={18} /> {t("Store settings")}
             </button>
           )}
         </div>
@@ -597,14 +598,14 @@ export default function OnlineStorePage() {
 
           <ResponsiveDataList
             storageKey="online-store-orders"
-            title="Online orders"
+            title={t("Online orders")}
             subtitle={`${profile?.branches?.name || "Current branch"} · ${filters.from} to ${filters.to}`}
             rows={workspace.orders}
             columns={orderColumns}
             filename={`online-orders-${filters.from}-${filters.to}.xls`}
-            printTitle="Online orders"
-            emptyTitle="No online orders found"
-            emptyText="Customer web orders matching the selected filters appear here."
+            printTitle={t("Online orders")}
+            emptyTitle={t("No online orders found")}
+            emptyText={t("Customer web orders matching the selected filters appear here.")}
             renderCard={(order) => (
               <article className="online-order-card responsive-data-card">
                 <header>
