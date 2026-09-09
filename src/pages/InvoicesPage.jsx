@@ -13,6 +13,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import InvoiceDetailModal from "../components/InvoiceDetailModal";
 import ReceiptModal from "../components/ReceiptModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
@@ -47,6 +48,8 @@ export default function InvoicesPage() {
     shop,
     can
   } = useAuth();
+
+  const { t } = useLanguage();
 
   const navigate = useNavigate();
 
@@ -392,12 +395,11 @@ export default function InvoicesPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            SALES HISTORY
+            {t("SALES HISTORY")}
           </p>
-          <h1>Invoice Center</h1>
+          <h1>{t("Invoice Center")}</h1>
           <p className="muted">
-            Search, inspect, export and reprint
-            completed sales and refunds.
+            {t("Search, inspect, export and reprint completed sales and refunds.")}
           </p>
         </div>
 
@@ -518,7 +520,7 @@ export default function InvoicesPage() {
                 event.target.value
               )
             }
-            placeholder="Invoice, customer, phone, product, barcode, quotation, return or payment reference"
+            placeholder={t("Invoice, customer, phone, product, barcode, quotation, return or payment reference")}
           />
         </div>
 
@@ -697,15 +699,14 @@ export default function InvoicesPage() {
               className="spin"
               size={36}
             />
-            <p>Loading invoices...</p>
+            <p>{t("Loading invoices...")}</p>
           </div>
         ) : result.rows.length === 0 ? (
           <div className="empty-state">
             <FileSearch size={48} />
-            <h2>No matching invoices</h2>
+            <h2>{t("No matching invoices")}</h2>
             <p>
-              Change the date range, filters or
-              search phrase.
+              {t("Change the date range, filters or search phrase.")}
             </p>
           </div>
         ) : (
