@@ -13,6 +13,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import CustomerDetailModal from "../components/CustomerDetailModal";
 import CustomerFormModal from "../components/CustomerFormModal";
 import LoyaltyAdjustModal from "../components/LoyaltyAdjustModal";
@@ -65,6 +66,7 @@ function friendlyError(error) {
 }
 
 export default function CustomersPage() {
+  const { t } = useLanguage();
   const { supabase, profile, shop, can } = useAuth();
   const canManage = can("customers.manage");
 
@@ -329,10 +331,10 @@ export default function CustomersPage() {
     <div className="page-stack customers-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CUSTOMER RELATIONSHIPS</p>
-          <h1>Customers</h1>
+          <p className="eyebrow">{t("CUSTOMER RELATIONSHIPS")}</p>
+          <h1>{t("Customers")}</h1>
           <p className="muted">
-            Manage customer profiles, purchase history, refunds, and loyalty.
+            {t("Manage customer profiles, purchase history, refunds, and loyalty.")}
           </p>
         </div>
 
@@ -344,7 +346,7 @@ export default function CustomersPage() {
             disabled={loading}
           >
             <RefreshCw size={18} className={loading ? "spin" : ""} />
-            Refresh
+            {t("Refresh")}
           </button>
           <button
             type="button"
@@ -352,7 +354,7 @@ export default function CustomersPage() {
             onClick={openCreate}
           >
             <UserPlus size={18} />
-            Add customer
+            {t("Add customer")}
           </button>
         </div>
       </div>
@@ -403,7 +405,7 @@ export default function CustomersPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, code, phone, company, email or address"
+            placeholder={t("Search name, code, phone, company, email or address")}
           />
         </label>
 
@@ -411,19 +413,19 @@ export default function CustomersPage() {
           value={typeFilter}
           onChange={(event) => setTypeFilter(event.target.value)}
         >
-          <option value="all">All customer types</option>
-          <option value="regular">Regular</option>
-          <option value="vip">VIP</option>
-          <option value="wholesale">Wholesale</option>
+          <option value="all">{t("All customer types")}</option>
+          <option value="regular">{t("Regular")}</option>
+          <option value="vip">{t("VIP")}</option>
+          <option value="wholesale">{t("Wholesale")}</option>
         </select>
 
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
         >
-          <option value="all">All statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="all">{t("All statuses")}</option>
+          <option value="active">{t("Active")}</option>
+          <option value="inactive">{t("Inactive")}</option>
         </select>
       </section>
 
