@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Ban, PackageCheck } from "lucide-react";
 import Modal from "./Modal";
 import { stockNumber } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function TransferActionModal({
   transfer,
@@ -10,6 +11,7 @@ export default function TransferActionModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
 
@@ -22,7 +24,7 @@ export default function TransferActionModal({
     setError("");
 
     if (!receiving && text.trim().length < 3) {
-      setError("Enter a cancellation reason.");
+      setError(t("Enter a cancellation reason."));
       return;
     }
 
@@ -31,7 +33,7 @@ export default function TransferActionModal({
 
   return (
     <Modal
-      title={receiving ? "Receive stock transfer" : "Cancel stock transfer"}
+      title={receiving ? t("Receive stock transfer") : t("Cancel stock transfer")}
       onClose={onClose}
     >
       <form className="transfer-action-form" onSubmit={submit}>
@@ -45,39 +47,39 @@ export default function TransferActionModal({
         <div className="transfer-action-items">
           {(transfer.stock_transfer_items || []).map((item) => (
             <div key={item.id}>
-              <span>{item.products?.name || "Product"}</span>
+              <span>{item.products?.name || t("Product")}</span>
               <strong>
-                {stockNumber(item.quantity)} {item.products?.unit_name || "pcs"}
+                {stockNumber(item.quantity)} {item.products?.unit_name || t("pcs")}
               </strong>
             </div>
           ))}
         </div>
 
         <label>
-          <span>{receiving ? "Receiving notes" : "Cancellation reason"}</span>
+          <span>{receiving ? t("Receiving notes") : t("Cancellation reason")}</span>
           <textarea
             rows="3"
             value={text}
             onChange={(event) => setText(event.target.value)}
             placeholder={
               receiving
-                ? "Optional condition or delivery notes"
-                : "Why is this transfer being cancelled?"
+                ? t("Optional condition or delivery notes")
+                : t("Why is this transfer being cancelled?")
             }
           />
         </label>
 
         {receiving && (
           <div className="notice warning">
-            Receiving adds all listed quantities to this destination branch.
+            {t("Receiving adds all listed quantities to this destination branch.")}
           </div>
         )}
 
         {!receiving && (
           <div className="notice warning">
             {Number(transfer.workflow_version || 1) >= 2
-              ? "Cancelling closes this pending transfer. No stock has moved yet, so inventory stays unchanged."
-              : "Cancelling restores all in-transit quantities to the source branch."}
+              ? t("Cancelling closes this pending transfer. No stock has moved yet, so inventory stays unchanged.")
+              : t("Cancelling restores all in-transit quantities to the source branch.")}
           </div>
         )}
 
@@ -90,7 +92,7 @@ export default function TransferActionModal({
             onClick={onClose}
             disabled={busy}
           >
-            Close
+            {t("Close")}
           </button>
           <button
             type="submit"
@@ -99,10 +101,10 @@ export default function TransferActionModal({
           >
             {receiving ? <PackageCheck size={18} /> : <Ban size={18} />}
             {busy
-              ? "Saving..."
+              ? t("Saving...")
               : receiving
-                ? "Receive transfer"
-                : "Cancel transfer"}
+                ? t("Receive transfer")
+                : t("Cancel transfer")}
           </button>
         </div>
       </form>
