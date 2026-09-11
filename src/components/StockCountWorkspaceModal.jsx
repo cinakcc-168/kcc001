@@ -13,6 +13,7 @@ import ListViewControls from "./ListViewControls";
 import { useListViewState } from "../lib/listViewState";
 import StockCountRow from "./StockCountRow";
 import { money } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -46,6 +47,7 @@ export default function StockCountWorkspaceModal({
   onPrint,
   onClose
 }) {
+  const { t } = useLanguage();
   const listState = useListViewState(visibleItems || [], "stock-count-workspace", 30);
 
   if (!session) return null;
@@ -68,7 +70,7 @@ export default function StockCountWorkspaceModal({
             disabled={busy === "scan" || loading}
           >
             <Camera size={18} />
-            Scan product
+            {t("Scan product")}
           </button>
 
           {onCountAllExpected && (
@@ -77,10 +79,10 @@ export default function StockCountWorkspaceModal({
               className="secondary-button"
               onClick={onCountAllExpected}
               disabled={loading || busy === "save-all"}
-              title="Set all counted quantities to match expected stock"
+              title={t("Set all counted quantities to match expected stock")}
             >
               <CheckCircle2 size={18} />
-              Counted all
+              {t("Counted all")}
             </button>
           )}
 
@@ -96,8 +98,8 @@ export default function StockCountWorkspaceModal({
           >
             <CheckCircle2 size={18} />
             {busy === "save-all"
-              ? "Saving all..."
-              : `Save all counts (${draftCount})`}
+              ? t("Saving all...")
+              : `${t("Save all counts")} (${draftCount})`}
           </button>
 
           <button
@@ -105,10 +107,10 @@ export default function StockCountWorkspaceModal({
             className="secondary-button"
             onClick={onComplete}
             disabled={loading || busy === "save-all" || draftCount > 0}
-            title={draftCount > 0 ? "Save all edited counts and batch selections first" : "Review and complete stock count"}
+            title={draftCount > 0 ? t("Save all edited counts and batch selections first") : t("Review and complete stock count")}
           >
             <CheckCircle2 size={18} />
-            Review & complete
+            {t("Review & complete")}
           </button>
 
           <button
@@ -117,7 +119,7 @@ export default function StockCountWorkspaceModal({
             onClick={onExport}
           >
             <Download size={18} />
-            Export Excel
+            {t("Export Excel")}
           </button>
 
           <button
@@ -126,7 +128,7 @@ export default function StockCountWorkspaceModal({
             onClick={onPrint}
           >
             <Printer size={18} />
-            Print count
+            {t("Print count")}
           </button>
 
           <button
@@ -136,19 +138,19 @@ export default function StockCountWorkspaceModal({
             disabled={busy === "cancel"}
           >
             <XCircle size={18} />
-            {busy === "cancel" ? "Cancelling..." : "Cancel count"}
+            {busy === "cancel" ? t("Cancelling...") : t("Cancel count")}
           </button>
         </div>
 
         <section className="stock-count-print-document">
           <header className="stock-count-print-header stock-count-print-only-header">
             <div>
-              <p className="eyebrow">ACTIVE STOCK COUNT</p>
+              <p className="eyebrow">{t("ACTIVE STOCK COUNT")}</p>
               <h2>{session.count_number} · {session.name}</h2>
               <span>
-                Started {dateTime(session.started_at)} · {session.blind_count
-                  ? "Blind count"
-                  : "Visible system stock"}
+                {t("Started")} {dateTime(session.started_at)} · {session.blind_count
+                  ? t("Blind count")
+                  : t("Visible system stock")}
               </span>
             </div>
             <strong>{Math.round(metrics.progress)}%</strong>
@@ -156,7 +158,7 @@ export default function StockCountWorkspaceModal({
 
           <div className="stock-count-progress-panel panel-like">
             <div>
-              <span>Count progress</span>
+              <span>{t("Count progress")}</span>
               <strong>{metrics.counted} / {metrics.total}</strong>
             </div>
             <div className="stock-count-progress-track">
@@ -168,29 +170,29 @@ export default function StockCountWorkspaceModal({
           <div className="stock-count-metrics">
             <article>
               <CheckCircle2 size={21} />
-              <span>Counted</span>
+              <span>{t("Counted")}</span>
               <strong>{metrics.counted}</strong>
-              <small>{metrics.uncounted} uncounted</small>
+              <small>{metrics.uncounted} {t("uncounted")}</small>
             </article>
             <article>
               <StopCircle size={21} />
-              <span>Discrepancies</span>
-              <strong>{session.blind_count ? "Hidden" : metrics.discrepancies}</strong>
+              <span>{t("Discrepancies")}</span>
+              <strong>{session.blind_count ? t("Hidden") : metrics.discrepancies}</strong>
               <small>
                 {session.blind_count
-                  ? "Until completion"
-                  : `${metrics.shortages} shortages · ${metrics.overages} overages`}
+                  ? t("Until completion")
+                  : `${metrics.shortages} ${t("shortages")} · ${metrics.overages} ${t("overages")}`}
               </small>
             </article>
             <article>
               <PackageSearch size={21} />
-              <span>USD value variance</span>
-              <strong>{session.blind_count ? "Hidden" : money(metrics.valueUsd, "USD")}</strong>
+              <span>{t("USD value variance")}</span>
+              <strong>{session.blind_count ? t("Hidden") : money(metrics.valueUsd, "USD")}</strong>
             </article>
             <article>
               <PackageSearch size={21} />
-              <span>KHR value variance</span>
-              <strong>{session.blind_count ? "Hidden" : money(metrics.valueKhr, "KHR")}</strong>
+              <span>{t("KHR value variance")}</span>
+              <strong>{session.blind_count ? t("Hidden") : money(metrics.valueKhr, "KHR")}</strong>
             </article>
           </div>
 
@@ -200,7 +202,7 @@ export default function StockCountWorkspaceModal({
               <input
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
-                placeholder="Search product, code, barcode or package"
+                placeholder={t("Search product, code, barcode or package")}
               />
             </div>
 
@@ -208,7 +210,7 @@ export default function StockCountWorkspaceModal({
               value={categoryFilter}
               onChange={(event) => onCategoryChange(event.target.value)}
             >
-              <option value="">All categories</option>
+              <option value="">{t("All categories")}</option>
               {categories.map((category) => (
                 <option value={category.id} key={category.id}>
                   {category.name}
@@ -220,12 +222,12 @@ export default function StockCountWorkspaceModal({
               value={countFilter}
               onChange={(event) => onCountFilterChange(event.target.value)}
             >
-              <option value="all">All count items</option>
-              <option value="uncounted">Uncounted</option>
-              <option value="counted">Counted</option>
-              <option value="difference">Has difference</option>
-              <option value="shortage">Shortage</option>
-              <option value="overage">Overage</option>
+              <option value="all">{t("All count items")}</option>
+              <option value="uncounted">{t("uncounted")}</option>
+              <option value="counted">{t("counted")}</option>
+              <option value="difference">{t("Has difference")}</option>
+              <option value="shortage">{t("shortages")}</option>
+              <option value="overage">{t("overages")}</option>
             </select>
           </section>
 
@@ -245,27 +247,27 @@ export default function StockCountWorkspaceModal({
 
           <section className="stock-count-table-panel panel-like">
             {loading ? (
-              <div className="empty-state"><p>Loading count products...</p></div>
+              <div className="empty-state"><p>{t("Loading count products...")}</p></div>
             ) : visibleItems.length === 0 ? (
               <div className="empty-state">
                 <PackageSearch size={46} />
-                <h2>No matching count items</h2>
-                <p>Change the search or filters.</p>
+                <h2>{t("No matching count items")}</h2>
+                <p>{t("Change the search or filters.")}</p>
               </div>
             ) : listState.viewMode === "table" ? (
               <div className="stock-count-table-wrap responsive-wide-table-wrap">
                 <table className="stock-count-table responsive-wide-table">
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th>Base unit</th>
-                      <th>Batch / lot</th>
-                      <th>System stock</th>
-                      <th>Counted</th>
-                      <th>Variance</th>
-                      <th>Value variance</th>
-                      <th>Note</th>
-                      <th>Status</th>
+                      <th>{t("Product")}</th>
+                      <th>{t("Base unit")}</th>
+                      <th>{t("Batch / lot")}</th>
+                      <th>{t("System stock")}</th>
+                      <th>{t("Counted")}</th>
+                      <th>{t("Variance")}</th>
+                      <th>{t("Value variance")}</th>
+                      <th>{t("Note")}</th>
+                      <th>{t("Status")}</th>
                     </tr>
                   </thead>
                   <tbody>
