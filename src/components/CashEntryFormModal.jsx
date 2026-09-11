@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Save } from "lucide-react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 import { localDateTimeValue } from "../lib/cashExpenses";
 
 const METHODS = [
@@ -20,6 +21,7 @@ export default function CashEntryFormModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     direction: initialDirection,
     category_id: "",
@@ -99,52 +101,52 @@ export default function CashEntryFormModal({
 
   return (
     <Modal
-      title={entry ? `Edit ${entry.entry_number}` : form.direction === "income" ? "Add cash in" : "Add expense"}
+      title={entry ? `${t("Edit")} ${entry.entry_number}` : form.direction === "income" ? t("Add cash in") : t("Add expense")}
       onClose={onClose}
       wide
     >
       <form className="cash-entry-form" onSubmit={submit}>
         <div className="cash-entry-grid">
           <label>
-            <span>Entry type</span>
+            <span>{t("Entry type")}</span>
             <select
               value={form.direction}
               onChange={(event) => update("direction", event.target.value)}
               disabled={Boolean(entry)}
             >
-              <option value="income">Cash in / Other income</option>
-              <option value="expense">Expense / Cash out</option>
+              <option value="income">{t("Cash in / Other income")}</option>
+              <option value="expense">{t("Expense / Cash out")}</option>
             </select>
           </label>
 
           <label>
-            <span>Category</span>
+            <span>{t("Category")}</span>
             <select
               value={form.category_id}
               onChange={(event) => update("category_id", event.target.value)}
             >
               {availableCategories.map((category) => (
                 <option value={category.id} key={category.id}>
-                  {category.name}{category.affects_profit ? "" : " · Cash only"}
+                  {category.name}{category.affects_profit ? "" : ` · ${t("Cash only")}`}
                 </option>
               ))}
             </select>
           </label>
 
           <label>
-            <span>Payment type</span>
+            <span>{t("Payment type")}</span>
             <select
               value={form.method}
               onChange={(event) => update("method", event.target.value)}
             >
               {METHODS.map(([value, label]) => (
-                <option value={value} key={value}>{label}</option>
+                <option value={value} key={value}>{t(label)}</option>
               ))}
             </select>
           </label>
 
           <label>
-            <span>Currency</span>
+            <span>{t("Currency")}</span>
             <select
               value={form.currency}
               onChange={(event) => update("currency", event.target.value)}
@@ -155,7 +157,7 @@ export default function CashEntryFormModal({
           </label>
 
           <label>
-            <span>Amount</span>
+            <span>{t("Amount")}</span>
             <input
               type="number"
               min="0"
@@ -167,7 +169,7 @@ export default function CashEntryFormModal({
           </label>
 
           <label>
-            <span>Date and time</span>
+            <span>{t("Date and time")}</span>
             <input
               type="datetime-local"
               value={form.entry_at}
@@ -176,39 +178,38 @@ export default function CashEntryFormModal({
           </label>
 
           <label className="cash-entry-reference">
-            <span>Reference number</span>
+            <span>{t("Reference number")}</span>
             <input
               value={form.reference_number}
               onChange={(event) => update("reference_number", event.target.value)}
-              placeholder="Invoice, bank reference or document number"
+              placeholder={t("Invoice, bank reference or document number")}
             />
           </label>
 
           <label className="cash-entry-remark">
-            <span>Remark</span>
+            <span>{t("Remark")}</span>
             <textarea
               rows="3"
               value={form.remark}
               onChange={(event) => update("remark", event.target.value)}
-              placeholder="What was this payment for?"
+              placeholder={t("What was this payment for?")}
             />
           </label>
         </div>
 
         <div className="cash-profit-hint">
-          The selected category decides whether this entry changes Profit & Loss.
-          Categories marked “Cash only” affect the balance but not net profit.
+          {t("The selected category decides whether this entry changes Profit & Loss. Categories marked “Cash only” affect the balance but not net profit.")}
         </div>
 
         {error && <div className="notice error">{error}</div>}
 
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="submit" className="primary-button" disabled={busy || availableCategories.length === 0}>
             <Save size={18} />
-            {busy ? "Saving…" : entry ? "Save changes" : "Save entry"}
+            {busy ? t("Saving...") : entry ? t("Save changes") : t("Save entry")}
           </button>
         </div>
       </form>
