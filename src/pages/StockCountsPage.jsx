@@ -13,6 +13,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import Modal from "../components/Modal";
 import BarcodeScanner from "../components/BarcodeScanner";
 import StockCountCompleteModal from "../components/StockCountCompleteModal";
@@ -62,6 +63,7 @@ function escapeHtml(value) {
 
 export default function StockCountsPage() {
   const { supabase, profile, can } = useAuth();
+  const { t } = useLanguage();
   const canManage = can("stock_counts.manage");
 
   const [sessions, setSessions] = useState([]);
@@ -503,10 +505,10 @@ export default function StockCountsPage() {
     <div className="page-stack stock-count-page">
       <div className="page-heading stock-count-page-heading">
         <div>
-          <p className="eyebrow">INVENTORY CONTROL</p>
-          <h1>Stock Count</h1>
+          <p className="eyebrow">{t("INVENTORY CONTROL")}</p>
+          <h1>{t("Stock Count")}</h1>
           <p className="muted">
-            Start a count, open only the count you are working on, then save all entered quantities together.
+            {t("Start a count, open only the count you are working on, then save all entered quantities together.")}
           </p>
         </div>
 
@@ -519,7 +521,7 @@ export default function StockCountsPage() {
               disabled={loading}
             >
               <ClipboardCheck size={18} />
-              Start stock count
+              {t("Start stock count")}
             </button>
           )}
           <button
@@ -529,7 +531,7 @@ export default function StockCountsPage() {
             disabled={loading}
           >
             <RefreshCw size={18} className={loading ? "spin" : ""} />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -544,10 +546,10 @@ export default function StockCountsPage() {
         <section className="panel stock-count-session-card active">
           <div className="stock-count-session-index">1</div>
           <div className="stock-count-session-main">
-            <p className="eyebrow">ACTIVE COUNT</p>
+            <p className="eyebrow">{t("ACTIVE COUNT")}</p>
             <h2>{activeSession.count_number} · {activeSession.name}</h2>
             <span>
-              {dateTime(activeSession.started_at)} · {metrics.counted}/{metrics.total} counted · {Math.round(metrics.progress)}%
+              {dateTime(activeSession.started_at)} · {metrics.counted}/{metrics.total} {t("counted")} · {Math.round(metrics.progress)}%
             </span>
             <div className="stock-count-card-progress">
               <div style={{ width: `${metrics.progress}%` }} />
@@ -560,14 +562,14 @@ export default function StockCountsPage() {
               onClick={() => setWorkspaceOpen(true)}
             >
               <ClipboardCheck size={18} />
-              Open count
+              {t("Open count")}
             </button>
             <button
               type="button"
               className="danger-button"
               onClick={handleCancel}
               disabled={busy === "cancel"}
-              title="Cancel this stock count"
+              title={t("Cancel this stock count")}
             >
               <XCircle size={18} />
             </button>
@@ -576,23 +578,23 @@ export default function StockCountsPage() {
       ) : (
         <section className="panel stock-count-empty-active compact">
           <ClipboardCheck size={42} />
-          <h2>No active stock count</h2>
-          <p>Start a full, category or selected-product count.</p>
+          <h2>{t("No active stock count")}</h2>
+          <p>{t("Start a full, category or selected-product count.")}</p>
           <button
             type="button"
             className="primary-button"
             onClick={() => setStartOpen(true)}
           >
-            Start stock count
+            {t("Start stock count")}
           </button>
         </section>
       )}
 
       <section className="panel stock-count-history-date-filter">
         <div className="stock-count-history-date-filter-copy">
-          <p className="eyebrow">HISTORY RANGE</p>
-          <strong>Stock count sessions</strong>
-          <small>Defaults to today. Choose another preset or enter a custom date range.</small>
+          <p className="eyebrow">{t("HISTORY RANGE")}</p>
+          <strong>{t("Stock count sessions")}</strong>
+          <small>{t("Defaults to today. Choose another preset or enter a custom date range.")}</small>
         </div>
         <div className="stock-count-history-date-filter-fields">
           <DateRangePresetFields
@@ -608,30 +610,30 @@ export default function StockCountsPage() {
 
       <ResponsiveDataList
         storageKey="stock-count-history"
-        title="Previous stock counts"
-        subtitle={`${profile?.branches?.name || "Current branch"} · ${historyFrom === historyTo ? historyFrom : `${historyFrom} to ${historyTo}`} · Completed, cancelled and earlier count sessions`}
+        title={t("Previous stock counts")}
+        subtitle={`${profile?.branches?.name || t("Current branch")} · ${historyFrom === historyTo ? historyFrom : `${historyFrom} ${t("to")} ${historyTo}`} · ${t("Completed, cancelled and earlier count sessions")}`}
         rows={historySessions}
         filename={`stock-count-history-${new Date().toISOString().slice(0, 10)}.xls`}
-        emptyTitle="No stock count history yet"
-        emptyText="Completed or cancelled stock counts will appear here."
+        emptyTitle={t("No stock count history yet")}
+        emptyText={t("Completed or cancelled stock counts will appear here.")}
         columns={[
-          { label: "Count", width: 190, documentValue: (row) => row.count_number, render: (row) => <><strong>{row.count_number}</strong><small>{row.name}</small></> },
-          { label: "Started", width: 150, documentValue: (row) => dateTime(row.started_at), render: (row) => dateTime(row.started_at) },
-          { label: "Scope", width: 120, value: (row) => row.scope || "full" },
-          { label: "Products", width: 85, value: (row) => row.expected_items || 0 },
-          { label: "Differences", width: 95, value: (row) => row.discrepancy_items || 0 },
-          { label: "Variance USD", width: 115, documentValue: (row) => money(row.value_variance_usd, "USD"), render: (row) => money(row.value_variance_usd, "USD") },
-          { label: "Variance KHR", width: 115, documentValue: (row) => money(row.value_variance_khr, "KHR"), render: (row) => money(row.value_variance_khr, "KHR") },
-          { label: "Status", width: 95, documentValue: (row) => row.status, render: (row) => <span className={`status-pill ${row.status === "completed" ? "active" : row.status === "cancelled" ? "inactive" : "pending"}`}>{row.status}</span> },
-          { label: "View", actionsOnly: true, excludeDocument: true, render: (row) => <button type="button" className="icon-button" onClick={() => viewHistory(row)} title="View stock count details"><Eye size={18} /></button> }
+          { label: t("Count"), width: 190, documentValue: (row) => row.count_number, render: (row) => <><strong>{row.count_number}</strong><small>{row.name}</small></> },
+          { label: t("Started"), width: 150, documentValue: (row) => dateTime(row.started_at), render: (row) => dateTime(row.started_at) },
+          { label: t("Scope"), width: 120, value: (row) => t(row.scope || "full") },
+          { label: t("Products"), width: 85, value: (row) => row.expected_items || 0 },
+          { label: t("Differences"), width: 95, value: (row) => row.discrepancy_items || 0 },
+          { label: t("Variance USD"), width: 115, documentValue: (row) => money(row.value_variance_usd, "USD"), render: (row) => money(row.value_variance_usd, "USD") },
+          { label: t("Variance KHR"), width: 115, documentValue: (row) => money(row.value_variance_khr, "KHR"), render: (row) => money(row.value_variance_khr, "KHR") },
+          { label: t("Status"), width: 95, documentValue: (row) => t(row.status), render: (row) => <span className={`status-pill ${row.status === "completed" ? "active" : row.status === "cancelled" ? "inactive" : "pending"}`}>{t(row.status)}</span> },
+          { label: t("View"), actionsOnly: true, excludeDocument: true, render: (row) => <button type="button" className="icon-button" onClick={() => viewHistory(row)} title={t("View stock count details")}><Eye size={18} /></button> }
         ]}
         renderCard={(row) => (
           <article className="responsive-data-card stock-count-history-card">
-            <header><div><strong>{row.count_number}</strong><small>{row.name} · {dateTime(row.started_at)}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : row.status === "cancelled" ? "inactive" : "pending"}`}>{row.status}</span></header>
-            <div><span>Scope</span><strong>{row.scope || "full"}</strong></div>
-            <div><span>Products / differences</span><strong>{row.expected_items || 0} / {row.discrepancy_items || 0}</strong></div>
-            <div><span>Variance</span><strong>{money(row.value_variance_usd, "USD")}</strong><small>{money(row.value_variance_khr, "KHR")}</small></div>
-            <footer><button type="button" className="secondary-button compact-button" onClick={() => viewHistory(row)}><Eye size={18} />View details</button></footer>
+            <header><div><strong>{row.count_number}</strong><small>{row.name} · {dateTime(row.started_at)}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : row.status === "cancelled" ? "inactive" : "pending"}`}>{t(row.status)}</span></header>
+            <div><span>{t("Scope")}</span><strong>{t(row.scope || "full")}</strong></div>
+            <div><span>{t("Products / differences")}</span><strong>{row.expected_items || 0} / {row.discrepancy_items || 0}</strong></div>
+            <div><span>{t("Variance")}</span><strong>{money(row.value_variance_usd, "USD")}</strong><small>{money(row.value_variance_khr, "KHR")}</small></div>
+            <footer><button type="button" className="secondary-button compact-button" onClick={() => viewHistory(row)}><Eye size={18} />{t("View details")}</button></footer>
           </article>
         )}
       />
@@ -708,6 +710,7 @@ export default function StockCountsPage() {
 }
 
 function StockCountCancelModal({ open, session, busy, onClose, onSubmit }) {
+  const { t } = useLanguage();
   const [reason, setReason] = useState("");
 
   useEffect(() => {
@@ -718,7 +721,7 @@ function StockCountCancelModal({ open, session, busy, onClose, onSubmit }) {
 
   return (
     <Modal
-      title={`Cancel stock count ${session.count_number}`}
+      title={`${t("Cancel stock count")} ${session.count_number}`}
       onClose={onClose}
       closeDisabled={Boolean(busy)}
     >
@@ -730,26 +733,26 @@ function StockCountCancelModal({ open, session, busy, onClose, onSubmit }) {
         className="form-grid"
       >
         <p className="muted" style={{ margin: "0 0 12px", fontSize: "13px" }}>
-          Cancelling this count will stop session <strong>{session.count_number} · {session.name}</strong> without changing inventory levels.
+          {t("Cancelling this count will stop session")} <strong>{session.count_number} · {session.name}</strong> {t("without changing inventory levels.")}
         </p>
         <label style={{ display: "grid", gap: "6px" }}>
-          <span style={{ fontWeight: 700, fontSize: "13px" }}>Cancellation reason *</span>
+          <span style={{ fontWeight: 700, fontSize: "13px" }}>{t("Cancellation reason *")}</span>
           <textarea
             rows="3"
             required
             minLength={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Started by mistake or incorrect store scope"
+            placeholder={t("e.g. Started by mistake or incorrect store scope")}
             autoFocus
           />
         </label>
         <div className="modal-actions" style={{ marginTop: "16px" }}>
           <button type="button" className="secondary-button" onClick={onClose} disabled={Boolean(busy)}>
-            Keep counting
+            {t("Keep counting")}
           </button>
           <button type="submit" className="danger-button" disabled={Boolean(busy) || reason.trim().length < 3}>
-            {busy === "cancel" ? "Cancelling..." : "Confirm cancellation"}
+            {busy === "cancel" ? t("Cancelling...") : t("Confirm cancellation")}
           </button>
         </div>
       </form>
