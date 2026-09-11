@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import BatchFormModal from "../components/BatchFormModal";
 import BatchAdjustmentModal from "../components/BatchAdjustmentModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
@@ -29,6 +30,7 @@ import {
 
 export default function BatchesPage() {
   const { supabase, profile, can } = useAuth();
+  const { t } = useLanguage();
   const canAdjust = can("inventory.adjust");
   const [products, setProducts] = useState([]);
   const [batches, setBatches] = useState([]);
@@ -256,24 +258,24 @@ export default function BatchesPage() {
     <div className="page-stack batch-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">LOT TRACEABILITY</p>
-          <h1>Batch & Expiry Center</h1>
-          <p className="muted">Track lots, expiry dates, FIFO/FEFO picking, quarantine and batch valuation.</p>
+          <p className="eyebrow">{t("LOT TRACEABILITY")}</p>
+          <h1>{t("Batch & Expiry Center")}</h1>
+          <p className="muted">{t("Track lots, expiry dates, FIFO/FEFO picking, quarantine and batch valuation.")}</p>
         </div>
         <div className="page-heading-actions">
-          <button className="primary-button" onClick={() => setFormOpen(true)} disabled={!canAdjust}><Plus size={18} />Add batch</button>
-          <button className="secondary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button>
+          <button className="primary-button" onClick={() => setFormOpen(true)} disabled={!canAdjust}><Plus size={18} />{t("Add batch")}</button>
+          <button className="secondary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />{t("Refresh")}</button>
         </div>
       </div>
 
       {message && <div className={`notice ${messageType}`} onClick={() => setMessage("")}>{message}</div>}
 
       <div className="batch-metrics">
-        <article><Boxes size={21} /><span>Available batches</span><strong>{metrics.active + metrics.expiring}</strong></article>
-        <article><CalendarClock size={21} /><span>Expiring within 30 days</span><strong>{metrics.expiring}</strong></article>
-        <article><AlertTriangle size={21} /><span>Expired</span><strong>{metrics.expired}</strong></article>
-        <article><ShieldAlert size={21} /><span>Quarantined</span><strong>{metrics.quarantined}</strong></article>
-        <article><Boxes size={21} /><span>Lot Mismatches</span><strong>{mismatchedProducts.length}</strong></article>
+        <article><Boxes size={21} /><span>{t("Available batches")}</span><strong>{metrics.active + metrics.expiring}</strong></article>
+        <article><CalendarClock size={21} /><span>{t("Expiring within 30 days")}</span><strong>{metrics.expiring}</strong></article>
+        <article><AlertTriangle size={21} /><span>{t("Expired")}</span><strong>{metrics.expired}</strong></article>
+        <article><ShieldAlert size={21} /><span>{t("Quarantined")}</span><strong>{metrics.quarantined}</strong></article>
+        <article><Boxes size={21} /><span>{t("Lot Mismatches")}</span><strong>{mismatchedProducts.length}</strong></article>
       </div>
 
       {mismatchedProducts.length > 0 && (
@@ -295,61 +297,61 @@ export default function BatchesPage() {
             disabled={busy}
             onClick={handleReconcileAll}
           >
-            Reconcile Batches to Stock
+            {t("Reconcile Batches to Stock")}
           </button>
         </div>
       )}
 
-      {unassigned > 0 && <div className="notice warning">Some existing stock is not assigned to a lot. Use Add Batch with “Assign existing unbatched stock” before selling batch-tracked products.</div>}
+      {unassigned > 0 && <div className="notice warning">{t("Some existing stock is not assigned to a lot. Use Add Batch with “Assign existing unbatched stock” before selling batch-tracked products.")}</div>}
 
       <section className="panel batch-toolbar">
-        <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search product, batch, supplier or GRN" /></label>
+        <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search product, batch, supplier or GRN")} /></label>
         <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-          <option value="all">All categories</option>
+          <option value="all">{t("All categories")}</option>
           {categories.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
         <select value={productId} onChange={(event) => setProductId(event.target.value)}>
-          <option value="all">All products</option>
+          <option value="all">{t("All products")}</option>
           {products.filter((product) => product.batch_tracking).map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
         </select>
         <select value={pickingPolicy} onChange={(event) => setPickingPolicy(event.target.value)} aria-label="Filter batches by picking policy">
-          <option value="all">All</option>
+          <option value="all">{t("All")}</option>
           <option value="fifo">FIFO</option>
           <option value="fefo">FEFO</option>
         </select>
         <select value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="available">Available for sale</option>
-          <option value="active">Active</option>
-          <option value="expiring">Expiring</option>
-          <option value="expired">Expired</option>
-          <option value="quarantined">Quarantined</option>
-          <option value="depleted">Depleted</option>
-          <option value="all">All statuses</option>
+          <option value="available">{t("Available for sale")}</option>
+          <option value="active">{t("Active")}</option>
+          <option value="expiring">{t("Expiring")}</option>
+          <option value="expired">{t("Expired")}</option>
+          <option value="quarantined">{t("Quarantined")}</option>
+          <option value="depleted">{t("Depleted")}</option>
+          <option value="all">{t("All statuses")}</option>
         </select>
       </section>
 
       <ResponsiveDataList
         storageKey="batch-expiry-list"
-        title="Batch and expiry list"
-        subtitle={`${profile?.branches?.name || "Current branch"} · Current filters`}
+        title={t("Batch and expiry list")}
+        subtitle={`${profile?.branches?.name || t("Current branch")} · ${t("Current filters")}`}
         rows={rows}
         filename={`tiny-pos-batches-${new Date().toISOString().slice(0, 10)}.xls`}
         summary={[
-          { label: "Available", value: metrics.active + metrics.expiring },
-          { label: "Expired", value: metrics.expired },
-          { label: "Quarantined", value: metrics.quarantined },
-          { label: "Mismatched Products", value: mismatchedProducts.length }
+          { label: t("Available"), value: metrics.active + metrics.expiring },
+          { label: t("Expired"), value: metrics.expired },
+          { label: t("Quarantined"), value: metrics.quarantined },
+          { label: t("Mismatched Products"), value: mismatchedProducts.length }
         ]}
-        emptyTitle={loading ? "Loading batches..." : "No matching batches"}
-        emptyText="Receive a batch-tracked purchase or add an opening batch."
+        emptyTitle={loading ? t("Loading batches...") : t("No matching batches")}
+        emptyText={t("Receive a batch-tracked purchase or add an opening batch.")}
         columns={[
-          { label: "Product / lot", width: 240, documentValue: (batch) => `${batch.products?.name || "—"} · ${batch.batch_number}`, render: (batch) => <><strong>{batch.products?.name}</strong><small>{batch.batch_number} · {batch.products?.sku || "No code"} · {batch.products?.picking_policy?.toUpperCase()}</small></> },
-          { label: "Category", width: 130, value: (batch) => productMap.get(batch.product_id)?.categories?.name || "Uncategorized" },
-          { label: "Received", width: 105, documentValue: (batch) => batchDate(batch.received_date), render: (batch) => batchDate(batch.received_date) },
-          { label: "Expiry", width: 145, documentValue: (batch) => batchDate(batch.expiry_date), render: (batch) => { const days = batchDaysRemaining(batch.expiry_date); return <><strong>{batchDate(batch.expiry_date)}</strong>{days !== null && <small>{days < 0 ? `${Math.abs(days)} days expired` : `${days} days remaining`}</small>}</>; } },
-          { label: "Status", width: 100, documentValue: (batch) => effectiveBatchStatus(batch), render: (batch) => { const effective = effectiveBatchStatus(batch); return <span className={`batch-status ${effective}`}>{effective}</span>; } },
+          { label: t("Product / lot"), width: 240, documentValue: (batch) => `${batch.products?.name || "—"} · ${batch.batch_number}`, render: (batch) => <><strong>{batch.products?.name}</strong><small>{batch.batch_number} · {batch.products?.sku || t("No code")} · {batch.products?.picking_policy?.toUpperCase()}</small></> },
+          { label: t("Category"), width: 130, value: (batch) => productMap.get(batch.product_id)?.categories?.name || t("Uncategorized") },
+          { label: t("Received"), width: 105, documentValue: (batch) => batchDate(batch.received_date), render: (batch) => batchDate(batch.received_date) },
+          { label: t("Expiry"), width: 145, documentValue: (batch) => batchDate(batch.expiry_date), render: (batch) => { const days = batchDaysRemaining(batch.expiry_date); return <><strong>{batchDate(batch.expiry_date)}</strong>{days !== null && <small>{days < 0 ? `${Math.abs(days)} days expired` : `${days} days remaining`}</small>}</>; } },
+          { label: t("Status"), width: 100, documentValue: (batch) => effectiveBatchStatus(batch), render: (batch) => { const effective = effectiveBatchStatus(batch); return <span className={`batch-status ${effective}`}>{t(effective)}</span>; } },
           {
-            label: "Quantity",
+            label: t("Quantity"),
             width: 150,
             documentValue: (batch) => `${stockNumber(batch.quantity)} ${batch.products?.unit_name || ""}`,
             render: (batch) => {
@@ -362,7 +364,7 @@ export default function BatchesPage() {
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <strong>{stockNumber(batch.quantity)} {batch.products?.unit_name}</strong>
-                  <small>Initial {stockNumber(batch.initial_quantity)}</small>
+                  <small>{t("Initial")} {stockNumber(batch.initial_quantity)}</small>
                   {isMismatched && (
                     <div style={{ marginTop: "4px" }}>
                       <small style={{ color: "#d97706", fontWeight: "600", display: "block" }}>
@@ -375,7 +377,7 @@ export default function BatchesPage() {
                         disabled={busy}
                         onClick={() => handleReconcileProduct(batch.product_id, stockQty)}
                       >
-                        Sync to stock
+                        {t("Sync to stock")}
                       </button>
                     </div>
                   )}
@@ -383,10 +385,10 @@ export default function BatchesPage() {
               );
             }
           },
-          { label: "Unit cost", width: 100, documentValue: (batch) => money(batch.unit_cost, batch.products?.currency || "USD"), render: (batch) => money(batch.unit_cost, batch.products?.currency || "USD") },
-          { label: "Value", width: 110, documentValue: (batch) => money(batch.quantity * batch.unit_cost, batch.products?.currency || "USD"), render: (batch) => <strong>{money(batch.quantity * batch.unit_cost, batch.products?.currency || "USD")}</strong> },
-          { label: "Source", width: 130, value: (batch) => batch.purchase_receipt_items?.purchase_receipts?.receipt_number || batch.source_type },
-          { label: "Actions", actionsOnly: true, excludeDocument: true, render: (batch) => <div className="batch-row-actions"><button className="icon-button" onClick={() => setAdjusting(batch)} disabled={!canAdjust || batch.status === "depleted"} title="Adjust batch"><PencilLine size={17} /></button><button className="secondary-button compact" onClick={() => toggleStatus(batch)} disabled={!canAdjust || batch.status === "depleted"}>{batch.status === "quarantined" ? "Release" : "Quarantine"}</button><button className="icon-button danger-icon-button" onClick={() => handleDeleteBatch(batch)} disabled={!canAdjust || busy} title="Delete batch lot" style={{ color: "#ef4444" }}><Trash2 size={17} /></button></div> }
+          { label: t("Unit cost"), width: 100, documentValue: (batch) => money(batch.unit_cost, batch.products?.currency || "USD"), render: (batch) => money(batch.unit_cost, batch.products?.currency || "USD") },
+          { label: t("Value"), width: 110, documentValue: (batch) => money(batch.quantity * batch.unit_cost, batch.products?.currency || "USD"), render: (batch) => <strong>{money(batch.quantity * batch.unit_cost, batch.products?.currency || "USD")}</strong> },
+          { label: t("Source"), width: 130, value: (batch) => batch.purchase_receipt_items?.purchase_receipts?.receipt_number || batch.source_type },
+          { label: t("Actions"), actionsOnly: true, excludeDocument: true, render: (batch) => <div className="batch-row-actions"><button className="icon-button" onClick={() => setAdjusting(batch)} disabled={!canAdjust || batch.status === "depleted"} title={t("Adjust batch")}><PencilLine size={17} /></button><button className="secondary-button compact" onClick={() => toggleStatus(batch)} disabled={!canAdjust || batch.status === "depleted"}>{batch.status === "quarantined" ? t("Release") : t("Quarantine")}</button><button className="icon-button danger-icon-button" onClick={() => handleDeleteBatch(batch)} disabled={!canAdjust || busy} title={t("Delete batch lot")} style={{ color: "#ef4444" }}><Trash2 size={17} /></button></div> }
         ]}
         renderCard={(batch) => {
           const effective = effectiveBatchStatus(batch);
@@ -399,12 +401,12 @@ export default function BatchesPage() {
 
           return (
             <article className="responsive-data-card batch-list-card">
-              <header><div><strong>{batch.products?.name}</strong><small>{batch.batch_number} · {batch.products?.sku || "No code"}</small></div><span className={`batch-status ${effective}`}>{effective}</span></header>
-              <div><span>Category</span><strong>{productMap.get(batch.product_id)?.categories?.name || "Uncategorized"}</strong></div>
-              <div><span>Received</span><strong>{batchDate(batch.received_date)}</strong></div>
-              <div><span>Expiry</span><strong>{batchDate(batch.expiry_date)}</strong><small>{days === null ? "No expiry" : days < 0 ? `${Math.abs(days)} days expired` : `${days} days remaining`}</small></div>
+              <header><div><strong>{batch.products?.name}</strong><small>{batch.batch_number} · {batch.products?.sku || t("No code")}</small></div><span className={`batch-status ${effective}`}>{t(effective)}</span></header>
+              <div><span>{t("Category")}</span><strong>{productMap.get(batch.product_id)?.categories?.name || t("Uncategorized")}</strong></div>
+              <div><span>{t("Received")}</span><strong>{batchDate(batch.received_date)}</strong></div>
+              <div><span>{t("Expiry")}</span><strong>{batchDate(batch.expiry_date)}</strong><small>{days === null ? t("No expiry") : days < 0 ? `${Math.abs(days)} days expired` : `${days} days remaining`}</small></div>
               <div>
-                <span>Quantity</span>
+                <span>{t("Quantity")}</span>
                 <strong>{stockNumber(batch.quantity)} {batch.products?.unit_name}</strong>
                 {isMismatched && (
                   <small style={{ color: "#d97706", display: "block" }}>
@@ -412,13 +414,13 @@ export default function BatchesPage() {
                   </small>
                 )}
               </div>
-              <div><span>Value</span><strong>{money(batch.quantity * batch.unit_cost, batch.products?.currency || "USD")}</strong></div>
+              <div><span>{t("Value")}</span><strong>{money(batch.quantity * batch.unit_cost, batch.products?.currency || "USD")}</strong></div>
               <footer>
-                <button className="secondary-button compact-button" onClick={() => setAdjusting(batch)} disabled={!canAdjust || batch.status === "depleted"}>Adjust</button>
-                <button className="secondary-button compact-button" onClick={() => toggleStatus(batch)} disabled={!canAdjust || batch.status === "depleted"}>{batch.status === "quarantined" ? "Release" : "Quarantine"}</button>
-                <button className="secondary-button compact-button danger-button" onClick={() => handleDeleteBatch(batch)} disabled={!canAdjust || busy} style={{ color: "#ef4444", borderColor: "color-mix(in srgb, #ef4444 40%, var(--border))", background: "color-mix(in srgb, #ef4444 8%, var(--surface))" }}><Trash2 size={14} style={{ marginRight: "4px" }} />Delete</button>
+                <button className="secondary-button compact-button" onClick={() => setAdjusting(batch)} disabled={!canAdjust || batch.status === "depleted"}>{t("Adjust")}</button>
+                <button className="secondary-button compact-button" onClick={() => toggleStatus(batch)} disabled={!canAdjust || batch.status === "depleted"}>{batch.status === "quarantined" ? t("Release") : t("Quarantine")}</button>
+                <button className="secondary-button compact-button danger-button" onClick={() => handleDeleteBatch(batch)} disabled={!canAdjust || busy} style={{ color: "#ef4444", borderColor: "color-mix(in srgb, #ef4444 40%, var(--border))", background: "color-mix(in srgb, #ef4444 8%, var(--surface))" }}><Trash2 size={14} style={{ marginRight: "4px" }} />{t("Delete")}</button>
                 {isMismatched && (
-                  <button className="primary-button compact-button" disabled={busy} onClick={() => handleReconcileProduct(batch.product_id, stockQty)}>Sync to stock</button>
+                  <button className="primary-button compact-button" disabled={busy} onClick={() => handleReconcileProduct(batch.product_id, stockQty)}>{t("Sync to stock")}</button>
                 )}
               </footer>
             </article>
