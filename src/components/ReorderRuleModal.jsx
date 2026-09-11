@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Save } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 import Modal from "./Modal";
 import { money, stockNumber } from "../lib/catalog";
 
@@ -10,6 +11,7 @@ export default function ReorderRuleModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     reorder_point: "0",
     target_stock: "0",
@@ -118,7 +120,7 @@ export default function ReorderRuleModal({
       || reorderPoint < 0
     ) {
       setError(
-        "Reorder point must be zero or greater."
+        t("Reorder point must be zero or greater.")
       );
       return;
     }
@@ -128,7 +130,7 @@ export default function ReorderRuleModal({
       || targetStock < reorderPoint
     ) {
       setError(
-        "Target stock must equal or exceed the reorder point."
+        t("Target stock must equal or exceed the reorder point.")
       );
       return;
     }
@@ -138,7 +140,7 @@ export default function ReorderRuleModal({
       || minimumOrder <= 0
     ) {
       setError(
-        "Minimum order quantity must be greater than zero."
+        t("Minimum order quantity must be greater than zero.")
       );
       return;
     }
@@ -148,13 +150,13 @@ export default function ReorderRuleModal({
       || leadTime < 0
     ) {
       setError(
-        "Lead time must be a whole number of days."
+        t("Lead time must be a whole number of days.")
       );
       return;
     }
 
     if (!form.purchase_unit_id) {
-      setError("Choose a purchasing unit.");
+      setError(t("Choose a purchasing unit."));
       return;
     }
 
@@ -166,7 +168,7 @@ export default function ReorderRuleModal({
 
   return (
     <Modal
-      title={`Reorder rule · ${suggestion.product_name}`}
+      title={`${t("Reorder rule")} · ${suggestion.product_name}`}
       onClose={onClose}
       wide
     >
@@ -176,7 +178,7 @@ export default function ReorderRuleModal({
       >
         <section className="reorder-rule-stock">
           <div>
-            <span>Current stock</span>
+            <span>{t("Current stock")}</span>
             <strong>
               {stockNumber(suggestion.current_stock)}
               {" "}
@@ -184,7 +186,7 @@ export default function ReorderRuleModal({
             </strong>
           </div>
           <div>
-            <span>Already ordered</span>
+            <span>{t("Already ordered")}</span>
             <strong>
               {stockNumber(
                 suggestion.ordered_base_quantity
@@ -194,7 +196,7 @@ export default function ReorderRuleModal({
             </strong>
           </div>
           <div>
-            <span>Projected stock</span>
+            <span>{t("Projected stock")}</span>
             <strong>
               {stockNumber(suggestion.projected_stock)}
               {" "}
@@ -206,7 +208,7 @@ export default function ReorderRuleModal({
         <div className="form-grid three">
           <label>
             <span>
-              Reorder point ({suggestion.base_unit_name})
+              {t("Reorder point")} ({suggestion.base_unit_name})
             </span>
             <input
               type="number"
@@ -224,7 +226,7 @@ export default function ReorderRuleModal({
 
           <label>
             <span>
-              Target stock ({suggestion.base_unit_name})
+              {t("Target stock")} ({suggestion.base_unit_name})
             </span>
             <input
               type="number"
@@ -241,7 +243,7 @@ export default function ReorderRuleModal({
           </label>
 
           <label>
-            <span>Supplier lead time</span>
+            <span>{t("Supplier lead time")}</span>
             <div className="input-with-suffix">
               <input
                 type="number"
@@ -255,14 +257,14 @@ export default function ReorderRuleModal({
                   )
                 }
               />
-              <span>days</span>
+              <span>{t("days")}</span>
             </div>
           </label>
         </div>
 
         <div className="form-grid two">
           <label>
-            <span>Preferred supplier</span>
+            <span>{t("Preferred supplier")}</span>
             <select
               value={form.preferred_supplier_id}
               onChange={(event) =>
@@ -273,7 +275,7 @@ export default function ReorderRuleModal({
               }
             >
               <option value="">
-                No preferred supplier
+                {t("No preferred supplier")}
               </option>
               {suppliers.map((supplier) => (
                 <option
@@ -289,7 +291,7 @@ export default function ReorderRuleModal({
           </label>
 
           <label>
-            <span>Supplier product code</span>
+            <span>{t("Supplier product code")}</span>
             <input
               value={form.supplier_sku}
               onChange={(event) =>
@@ -298,7 +300,7 @@ export default function ReorderRuleModal({
                   event.target.value
                 )
               }
-              placeholder="Optional supplier SKU"
+              placeholder={t("Optional supplier SKU")}
             />
           </label>
         </div>
@@ -307,16 +309,16 @@ export default function ReorderRuleModal({
           <div className="reorder-unit-heading">
             <Box size={22} />
             <div>
-              <strong>Purchasing package</strong>
+              <strong>{t("Purchasing package")}</strong>
               <span>
-                Suggested orders will use this unit.
+                {t("Suggested orders will use this unit.")}
               </span>
             </div>
           </div>
 
           <div className="form-grid two">
             <label>
-              <span>Purchase unit</span>
+              <span>{t("Purchase unit")}</span>
               <select
                 value={form.purchase_unit_id}
                 onChange={(event) =>
@@ -345,9 +347,9 @@ export default function ReorderRuleModal({
 
             <label>
               <span>
-                Minimum order quantity
+                {t("Minimum order quantity")}
                 {" "}
-                ({selectedUnit?.name || "unit"})
+                ({selectedUnit?.name || t("unit")})
               </span>
               <input
                 type="number"
@@ -366,9 +368,9 @@ export default function ReorderRuleModal({
 
           <div className="reorder-unit-preview">
             <span>
-              Estimated cost per
+              {t("Estimated cost per")}
               {" "}
-              {selectedUnit?.name || "unit"}
+              {selectedUnit?.name || t("unit")}
             </span>
             <strong>
               {money(
@@ -391,14 +393,13 @@ export default function ReorderRuleModal({
             }
           />
           <span>
-            Use this custom reorder rule
+            {t("Use this custom reorder rule")}
           </span>
         </label>
 
         {!form.preferred_supplier_id && (
           <div className="notice warning">
-            A preferred supplier is required before
-            Tiny POS can create a draft purchase order.
+            {t("A preferred supplier is required before Tiny POS can create a draft purchase order.")}
           </div>
         )}
 
@@ -413,7 +414,7 @@ export default function ReorderRuleModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
 
           <button
@@ -423,8 +424,8 @@ export default function ReorderRuleModal({
           >
             <Save size={18} />
             {busy
-              ? "Saving rule..."
-              : "Save reorder rule"}
+              ? t("Saving rule...")
+              : t("Save reorder rule")}
           </button>
         </div>
       </form>
