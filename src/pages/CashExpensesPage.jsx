@@ -13,6 +13,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import CashEntryFormModal from "../components/CashEntryFormModal";
 import CashCategoryModal from "../components/CashCategoryModal";
 import VoidCashEntryModal from "../components/VoidCashEntryModal";
@@ -36,6 +37,7 @@ function number(value) {
 
 export default function CashExpensesPage() {
   const { supabase, profile, shop, can, canAny } = useAuth();
+  const { t } = useLanguage();
   const canManage = canAny([
     "cash_expenses.manage",
     "cash_expenses.void"
@@ -195,19 +197,19 @@ export default function CashExpensesPage() {
     <div className="page-stack cash-expenses-page">
       <div className="page-heading cash-heading">
         <div>
-          <p className="eyebrow">CASH CONTROL</p>
-          <h1>Cash & Expenses</h1>
-          <p className="muted">Record cash in, operating expenses, transfers, and opening balances.</p>
+          <p className="eyebrow">{t("CASH CONTROL")}</p>
+          <h1>{t("Cash & Expenses")}</h1>
+          <p className="muted">{t("Record cash in, operating expenses, transfers, and opening balances.")}</p>
         </div>
         <div className="heading-actions cash-heading-actions">
           <button type="button" className="secondary-button" onClick={() => setCategoryModal(true)}>
-            <FolderCog size={18} /> Categories
+            <FolderCog size={18} /> {t("Categories")}
           </button>
           <button type="button" className="secondary-button" onClick={() => setEntryModal({ direction: "income", entry: null })}>
-            <CircleArrowUp size={18} /> Add cash in
+            <CircleArrowUp size={18} /> {t("Add cash in")}
           </button>
           <button type="button" className="primary-button" onClick={() => setEntryModal({ direction: "expense", entry: null })}>
-            <Plus size={18} /> Add expense
+            <Plus size={18} /> {t("Add expense")}
           </button>
         </div>
       </div>
@@ -215,12 +217,12 @@ export default function CashExpensesPage() {
       {message && <div className={`notice ${messageType}`}>{message}</div>}
 
       <div className="report-metric-grid cash-metric-grid">
-        <ReportMetricCard icon={Landmark} label="Current cash balance" value={money(summary.current_cash_balance, currency)} detail={`As of ${filters.to}`} tone={Number(summary.current_cash_balance || 0) < 0 ? "danger" : "success"} />
-        <ReportMetricCard icon={WalletCards} label="Period cash flow" value={money(summary.period_cash_flow, currency)} detail={`Cash sales ${money(summary.cash_sales, currency)}`} tone={Number(summary.period_cash_flow || 0) < 0 ? "danger" : "success"} />
-        <ReportMetricCard icon={CircleArrowUp} label="Other income" value={money(summary.other_income, currency)} detail={`${number(summary.income_count)} cash-in records`} />
-        <ReportMetricCard icon={TrendingDown} label="Operating expenses" value={money(summary.operating_expenses, currency)} detail={`${number(summary.expense_count)} expense records`} tone="danger" />
-        <ReportMetricCard icon={CircleArrowDown} label="Non-profit cash out" value={money(summary.non_profit_cash_out, currency)} detail="Transfers and owner withdrawals" />
-        <ReportMetricCard icon={RefreshCw} label="Entries" value={number(summary.entry_count)} detail={`${money(summary.manual_income, currency)} in · ${money(summary.manual_expenses, currency)} out`} />
+        <ReportMetricCard icon={Landmark} label={t("Current cash balance")} value={money(summary.current_cash_balance, currency)} detail={`${t("As of")} ${filters.to}`} tone={Number(summary.current_cash_balance || 0) < 0 ? "danger" : "success"} />
+        <ReportMetricCard icon={WalletCards} label={t("Period cash flow")} value={money(summary.period_cash_flow, currency)} detail={`${t("Cash sales")} ${money(summary.cash_sales, currency)}`} tone={Number(summary.period_cash_flow || 0) < 0 ? "danger" : "success"} />
+        <ReportMetricCard icon={CircleArrowUp} label={t("Other income")} value={money(summary.other_income, currency)} detail={`${number(summary.income_count)} ${t("cash-in records")}`} />
+        <ReportMetricCard icon={TrendingDown} label={t("Operating expenses")} value={money(summary.operating_expenses, currency)} detail={`${number(summary.expense_count)} ${t("expense records")}`} tone="danger" />
+        <ReportMetricCard icon={CircleArrowDown} label={t("Non-profit cash out")} value={money(summary.non_profit_cash_out, currency)} detail={t("Transfers and owner withdrawals")} />
+        <ReportMetricCard icon={RefreshCw} label={t("Entries")} value={number(summary.entry_count)} detail={`${money(summary.manual_income, currency)} ${t("in")} · ${money(summary.manual_expenses, currency)} ${t("out")}`} />
       </div>
 
       <section className="panel cash-filters">
@@ -252,29 +254,29 @@ export default function CashExpensesPage() {
 
       <ResponsiveDataList
         storageKey="cash-expense-list"
-        title="Cash and expense list"
+        title={t("Cash and expense list")}
         subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || "Current branch"}`}
         rows={filteredEntries}
         filename={`tiny-pos-cash-expenses-${filters.from}-to-${filters.to}.xls`}
         summary={[
-          { label: "Current cash balance", value: money(summary.current_cash_balance, currency) },
-          { label: "Period cash flow", value: money(summary.period_cash_flow, currency) },
-          { label: "Other income", value: money(summary.other_income, currency) },
-          { label: "Operating expenses", value: money(summary.operating_expenses, currency) }
+          { label: t("Current cash balance"), value: money(summary.current_cash_balance, currency) },
+          { label: t("Period cash flow"), value: money(summary.period_cash_flow, currency) },
+          { label: t("Other income"), value: money(summary.other_income, currency) },
+          { label: t("Operating expenses"), value: money(summary.operating_expenses, currency) }
         ]}
-        emptyTitle={loading && !data ? "Loading entries..." : "No entries found"}
-        emptyText="Add an opening balance, cash in, or operating expense."
+        emptyTitle={loading && !data ? "Loading entries..." : t("No entries found")}
+        emptyText={t("Add an opening balance, cash in, or operating expense.")}
         columns={[
-          { label: "Code / Date", width: 165, documentValue: (entry) => `${entry.entry_number} · ${formatReportDate(entry.entry_at, { time: true })}`, render: (entry) => <><strong>{entry.entry_number}</strong><small>{formatReportDate(entry.entry_at, { time: true })}</small></> },
-          { label: "User / Branch", width: 170, documentValue: (entry) => `${entry.created_by_name || "—"} · ${entry.branch_name || "—"}`, render: (entry) => <><strong>{entry.created_by_name}</strong><small>{entry.branch_name}</small></> },
-          { label: "Category", width: 150, documentValue: (entry) => entry.category_name, render: (entry) => <><strong>{entry.category_name}</strong><small>{entry.affects_profit ? "Profit & Loss" : "Cash only"}</small></> },
-          { label: "Type", width: 90, documentValue: (entry) => entry.direction === "income" ? "Cash in" : "Expense", render: (entry) => <span className={`cash-direction-pill ${entry.direction}`}>{entry.direction === "income" ? "Cash in" : "Expense"}</span> },
-          { label: "Payment", width: 95, documentValue: (entry) => cashMethodLabel(entry.method), render: (entry) => cashMethodLabel(entry.method) },
-          { label: "Amount", width: 120, documentValue: (entry) => `${entry.direction === "income" ? "+" : "-"}${money(entry.amount, entry.currency)}`, render: (entry) => <><strong className={entry.direction === "income" ? "cash-positive" : "cash-negative"}>{entry.direction === "income" ? "+" : "-"}{money(entry.amount, entry.currency)}</strong>{entry.currency !== currency && <small>{money(entry.base_amount, currency)}</small>}</> },
-          { label: "Reference / Remark", width: 250, documentValue: (entry) => `${entry.reference_number || ""} ${entry.remark || ""}`.trim(), render: (entry) => <><strong>{entry.reference_number || "—"}</strong><small>{entry.remark || "No remark"}</small></> },
-          { label: "Actions", actionsOnly: true, excludeDocument: true, render: (entry) => <div className="cash-row-actions"><button type="button" className="icon-button" title="Edit" disabled={entry.branch_id !== profile.branch_id} onClick={() => setEntryModal({ direction: entry.direction, entry })}><Edit3 size={17} /></button><button type="button" className="icon-button danger-icon" title="Delete" disabled={entry.branch_id !== profile.branch_id} onClick={() => setVoidEntry(entry)}><Trash2 size={17} /></button></div> }
+          { label: `${t("Code")} / ${t("Date")}`, width: 165, documentValue: (entry) => `${entry.entry_number} · ${formatReportDate(entry.entry_at, { time: true })}`, render: (entry) => <><strong>{entry.entry_number}</strong><small>{formatReportDate(entry.entry_at, { time: true })}</small></> },
+          { label: `${t("User")} / ${t("Branch")}`, width: 170, documentValue: (entry) => `${entry.created_by_name || "—"} · ${entry.branch_name || "—"}`, render: (entry) => <><strong>{entry.created_by_name}</strong><small>{entry.branch_name}</small></> },
+          { label: t("Category"), width: 150, documentValue: (entry) => entry.category_name, render: (entry) => <><strong>{entry.category_name}</strong><small>{entry.affects_profit ? "Profit & Loss" : "Cash only"}</small></> },
+          { label: t("Type"), width: 90, documentValue: (entry) => entry.direction === "income" ? t("Cash in") : t("Expense", "Expense"), render: (entry) => <span className={`cash-direction-pill ${entry.direction}`}>{entry.direction === "income" ? t("Cash in") : t("Expense", "Expense")}</span> },
+          { label: t("Payment"), width: 95, documentValue: (entry) => cashMethodLabel(entry.method), render: (entry) => cashMethodLabel(entry.method) },
+          { label: t("Amount"), width: 120, documentValue: (entry) => `${entry.direction === "income" ? "+" : "-"}${money(entry.amount, entry.currency)}`, render: (entry) => <><strong className={entry.direction === "income" ? "cash-positive" : "cash-negative"}>{entry.direction === "income" ? "+" : "-"}{money(entry.amount, entry.currency)}</strong>{entry.currency !== currency && <small>{money(entry.base_amount, currency)}</small>}</> },
+          { label: `${t("Reference")} / ${t("Remark")}`, width: 250, documentValue: (entry) => `${entry.reference_number || ""} ${entry.remark || ""}`.trim(), render: (entry) => <><strong>{entry.reference_number || "—"}</strong><small>{entry.remark || t("No remark")}</small></> },
+          { label: t("Actions"), actionsOnly: true, excludeDocument: true, render: (entry) => <div className="cash-row-actions"><button type="button" className="icon-button" title="Edit" disabled={entry.branch_id !== profile.branch_id} onClick={() => setEntryModal({ direction: entry.direction, entry })}><Edit3 size={17} /></button><button type="button" className="icon-button danger-icon" title="Delete" disabled={entry.branch_id !== profile.branch_id} onClick={() => setVoidEntry(entry)}><Trash2 size={17} /></button></div> }
         ]}
-        renderCard={(entry) => <article className="responsive-data-card cash-entry-card"><header><div><strong>{entry.entry_number}</strong><small>{formatReportDate(entry.entry_at, { time: true })}</small></div><span className={`cash-direction-pill ${entry.direction}`}>{entry.direction === "income" ? "Cash in" : "Expense"}</span></header><div><span>Category</span><strong>{entry.category_name}</strong><small>{entry.affects_profit ? "Profit & Loss" : "Cash only"}</small></div><div><span>User / Branch</span><strong>{entry.created_by_name}</strong><small>{entry.branch_name}</small></div><div><span>Payment</span><strong>{cashMethodLabel(entry.method)}</strong></div><div><span>Amount</span><strong className={entry.direction === "income" ? "cash-positive" : "cash-negative"}>{entry.direction === "income" ? "+" : "-"}{money(entry.amount, entry.currency)}</strong></div><div><span>Reference / Remark</span><strong>{entry.reference_number || "—"}</strong><small>{entry.remark || "No remark"}</small></div><footer><button type="button" className="secondary-button compact-button" disabled={entry.branch_id !== profile.branch_id} onClick={() => setEntryModal({ direction: entry.direction, entry })}><Edit3 size={17} />Edit</button><button type="button" className="danger-button compact-button" disabled={entry.branch_id !== profile.branch_id} onClick={() => setVoidEntry(entry)}><Trash2 size={17} />Delete</button></footer></article>}
+        renderCard={(entry) => <article className="responsive-data-card cash-entry-card"><header><div><strong>{entry.entry_number}</strong><small>{formatReportDate(entry.entry_at, { time: true })}</small></div><span className={`cash-direction-pill ${entry.direction}`}>{entry.direction === "income" ? t("Cash in") : t("Expense")}</span></header><div><span>{t("Category")}</span><strong>{entry.category_name}</strong><small>{entry.affects_profit ? "Profit & Loss" : "Cash only"}</small></div><div><span>{t("User")} / {t("Branch")}</span><strong>{entry.created_by_name}</strong><small>{entry.branch_name}</small></div><div><span>{t("Payment")}</span><strong>{cashMethodLabel(entry.method)}</strong></div><div><span>{t("Amount")}</span><strong className={entry.direction === "income" ? "cash-positive" : "cash-negative"}>{entry.direction === "income" ? "+" : "-"}{money(entry.amount, entry.currency)}</strong></div><div><span>{t("Reference")} / {t("Remark")}</span><strong>{entry.reference_number || "—"}</strong><small>{entry.remark || t("No remark")}</small></div><footer><button type="button" className="secondary-button compact-button" disabled={entry.branch_id !== profile.branch_id} onClick={() => setEntryModal({ direction: entry.direction, entry })}><Edit3 size={17} />Edit</button><button type="button" className="danger-button compact-button" disabled={entry.branch_id !== profile.branch_id} onClick={() => setVoidEntry(entry)}><Trash2 size={17} />Delete</button></footer></article>}
       />
 
       {entryModal && <CashEntryFormModal entry={entryModal.entry} initialDirection={entryModal.direction} categories={data?.categories || []} baseCurrency={currency} busy={busy} onClose={() => setEntryModal(null)} onSave={handleSaveEntry} />}
