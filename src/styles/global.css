@@ -38661,7 +38661,7 @@ nav:nth-of-type(1) > div:nth-of-type(1),
   font-size: 12px !important;
   font-weight: 500 !important;
   text-align: left !important;
-  color: #000000 !important;
+  color: var(--text) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -38669,6 +38669,13 @@ nav:nth-of-type(1) > div:nth-of-type(1),
   margin: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
+}
+
+:root[data-force-theme='dark'] .sale-product-name-secondary,
+:root[data-theme='dark'] .sale-product-name-secondary,
+[data-theme='dark'] .sale-product-name-secondary,
+[data-force-theme='dark'] .sale-product-name-secondary {
+  color: #ffffff !important;
 }
 
 .sale-product-names .sale-product-name-secondary.is-empty {
@@ -41429,3 +41436,327 @@ div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth
   font-size: 35px !important;
 }
 
+
+/* ========================================================================== */
+/* Mobile & Tablet New Sale view layout overrides                             */
+/* Full screen width, product grid limited to 6 cards with scrollbar,         */
+/* and selecting aside full screen width directly following below.            */
+/* ========================================================================== */
+@media (max-width: 1024px) {
+  .sales-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .sales-page .sale-layout,
+  .sales-page .sale-layout.sale-layout-alt,
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    gap: 16px !important;
+  }
+
+  /* Selector 1: Product selection section (full screen width) */
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section:nth-of-type(1),
+  .sales-page .sale-products-panel,
+  .sales-page .sale-layout-alt-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Selector 2: Selecting cart aside (full screen width, following below) */
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1),
+  .sales-page .sale-cart,
+  .sales-page .sale-checkout-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+  }
+
+  /* Product card grid: show 6 cards max height + scrollbar */
+  .sales-page .sale-products-grid,
+  .sales-page .layout-two-products-panel .sale-products-grid,
+  .sales-page .layout-two-grid,
+  .sales-page .sale-products-panel > .sale-products-grid {
+    display: grid !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scroll-behavior: smooth !important;
+    padding: 6px !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Product card structure matching PC view on mobile & tablet */
+  .sales-page .sale-product-card,
+  .sales-page .layout-two-products-panel .sale-product-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 174px !important;
+    min-height: 174px !important;
+    max-height: 174px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .sales-page .sale-product-image {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 85px !important;
+    min-height: 85px !important;
+    max-height: 85px !important;
+    flex: 0 0 85px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    background: var(--surface2, #f1f5f9) !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .sales-page .sale-product-content {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 89px !important;
+    min-height: 89px !important;
+    max-height: 89px !important;
+    flex: 0 0 89px !important;
+    padding: 5px 8px 0px 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 3px !important;
+    box-sizing: border-box !important;
+    background: var(--surface) !important;
+    overflow: hidden !important;
+  }
+
+  .sales-page .sale-product-content > small,
+  .sales-page .sale-product-code {
+    display: block !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: var(--muted, #64748b) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.15 !important;
+    text-align: right !important;
+    max-width: 75px !important;
+  }
+
+  .sales-page .sale-product-names {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    flex: 0 0 42px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    gap: 1px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+  }
+
+  .sales-page .sale-product-name-primary {
+    display: block !important;
+    width: 100% !important;
+    height: 20px !important;
+    min-height: 20px !important;
+    max-height: 20px !important;
+    line-height: 20px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: var(--text, #0f172a) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .sales-page .sale-product-name-secondary {
+    display: block !important;
+    width: 100% !important;
+    height: 22px !important;
+    min-height: 22px !important;
+    max-height: 22px !important;
+    line-height: 25px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  :root[data-force-theme='dark'] .sales-page .sale-product-name-secondary,
+  :root[data-theme='dark'] .sales-page .sale-product-name-secondary,
+  [data-theme='dark'] .sales-page .sale-product-name-secondary,
+  [data-force-theme='dark'] .sales-page .sale-product-name-secondary {
+    color: #ffffff !important;
+  }
+
+  .sales-page .sale-product-footer {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+    gap: 4px !important;
+    margin-top: 1px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .sales-page .sale-product-price-block {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 1px !important;
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
+    color: var(--accent, #2563eb) !important;
+  }
+
+  .sales-page .sale-product-price-symbol {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    color: var(--accent, #2563eb) !important;
+    line-height: 1.1 !important;
+    margin-right: 1px !important;
+    display: inline-block !important;
+  }
+
+  .sales-page .sale-product-price-value {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    color: var(--accent, #2563eb) !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.02em !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: inline-block !important;
+  }
+
+  .sales-page .sale-product-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    text-align: right !important;
+    line-height: 1.15 !important;
+    flex-shrink: 0 !important;
+    min-width: max-content !important;
+    margin-left: auto !important;
+    gap: 1px !important;
+  }
+
+  .sales-page .sale-product-stock-value {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    display: block !important;
+  }
+
+  /* Parked button mobile fix: prevent KH/long translated text overflow */
+  .sales-page aside .sale-cart-heading-actions {
+    max-width: none !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1),
+  .sales-page aside .sale-cart-heading-actions button:first-child,
+  .sales-page aside .sale-cart-heading-actions .compact-button {
+    width: auto !important;
+    min-width: max-content !important;
+    max-width: 100% !important;
+    padding: 0 14px !important;
+    white-space: nowrap !important;
+    font-size: 13px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Tablet view (769px - 1024px): 3 columns x 2 rows = 6 product cards */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sales-page .sale-products-grid,
+  .sales-page .layout-two-products-panel .sale-products-grid,
+  .sales-page .layout-two-grid,
+  .sales-page .sale-products-panel > .sale-products-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    max-height: 356px !important;
+  }
+
+  /* Tablet view Parked button margin-top explicit 0 */
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1),
+  .sales-page aside .sale-cart-heading-actions button:first-child,
+  .sales-page aside .sale-cart-heading-actions .compact-button {
+    margin-top: 0 !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* Base Parked button position reset for desktop/tablet */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1),
+.sales-page aside .sale-cart-heading-actions button:first-child,
+.sales-page aside .sale-cart-heading-actions .compact-button {
+  margin-top: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* Mobile view (up to 768px): 2 columns x 3 rows = 6 product cards */
+@media (max-width: 768px) {
+  .sales-page .sale-products-grid,
+  .sales-page .layout-two-products-panel .sale-products-grid,
+  .sales-page .layout-two-grid,
+  .sales-page .sale-products-panel > .sale-products-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    max-height: 538px !important;
+  }
+
+  /* Mobile-only position offset for Parked button */
+  div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > aside:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(1),
+  .sales-page aside .sale-cart-heading-actions button:first-child,
+  .sales-page aside .sale-cart-heading-actions .compact-button {
+    margin-top: -50px !important;
+    margin-left: 154px !important;
+  }
+}
