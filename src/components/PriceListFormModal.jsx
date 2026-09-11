@@ -7,6 +7,7 @@ import {
   useState
 } from "react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
 function toLocalInput(value) {
   if (!value) return "";
@@ -46,6 +47,7 @@ export default function PriceListFormModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(() => blankForm(defaultBranchId));
   const [error, setError] = useState("");
 
@@ -94,12 +96,12 @@ export default function PriceListFormModal({
     event.preventDefault();
 
     if (!form.code.trim()) {
-      setError("Price-list code is required.");
+      setError(t("Price-list code is required."));
       return;
     }
 
     if (!form.name.trim()) {
-      setError("Price-list name is required.");
+      setError(t("Price-list name is required."));
       return;
     }
 
@@ -110,7 +112,7 @@ export default function PriceListFormModal({
         <= new Date(form.starts_at)
     ) {
       setError(
-        "End time must be after start time."
+        t("End time must be after start time.")
       );
       return;
     }
@@ -130,8 +132,8 @@ export default function PriceListFormModal({
     <Modal
       title={
         priceList
-          ? `Edit ${priceList.name}`
-          : "New price list"
+          ? `${t("Edit")} ${priceList.name}`
+          : t("New price list")
       }
       onClose={() => !busy && onClose()}
       wide
@@ -144,19 +146,17 @@ export default function PriceListFormModal({
           <BadgeDollarSign size={24} />
           <div>
             <strong>
-              Customer and wholesale pricing
+              {t("Customer and wholesale pricing")}
             </strong>
             <span>
-              Only product units with an override use
-              this list. Other units keep their normal
-              selling price.
+              {t("Only product units with an override use this list. Other units keep their normal selling price.")}
             </span>
           </div>
         </section>
 
         <div className="form-grid three">
           <label>
-            <span>Code</span>
+            <span>{t("Code")}</span>
             <input
               value={form.code}
               onChange={(event) =>
@@ -171,7 +171,7 @@ export default function PriceListFormModal({
           </label>
 
           <label>
-            <span>Name</span>
+            <span>{t("Name")}</span>
             <input
               value={form.name}
               onChange={(event) =>
@@ -182,7 +182,7 @@ export default function PriceListFormModal({
           </label>
 
           <label>
-            <span>Currency</span>
+            <span>{t("Currency")}</span>
             <select
               value={form.currency}
               onChange={(event) =>
@@ -202,7 +202,7 @@ export default function PriceListFormModal({
 
         <div className="form-grid three">
           <label>
-            <span>Automatic customer group</span>
+            <span>{t("Automatic customer group")}</span>
             <select
               value={form.customer_type}
               onChange={(event) =>
@@ -213,22 +213,22 @@ export default function PriceListFormModal({
               }
             >
               <option value="all">
-                All customers
+                {t("All customers")}
               </option>
               <option value="regular">
-                Regular customers
+                {t("Regular customers")}
               </option>
               <option value="vip">
-                VIP customers
+                {t("VIP customers")}
               </option>
               <option value="wholesale">
-                Wholesale customers
+                {t("Wholesale customers")}
               </option>
             </select>
           </label>
 
           <label>
-            <span>Branch</span>
+            <span>{t("Branch")}</span>
             <select
               value={form.branch_id}
               onChange={(event) =>
@@ -240,7 +240,7 @@ export default function PriceListFormModal({
             >
               {allowAllBranches && (
                 <option value="">
-                  All branches
+                  {t("All branches")}
                 </option>
               )}
               {branches.map((branch) => (
@@ -255,7 +255,7 @@ export default function PriceListFormModal({
           </label>
 
           <label>
-            <span>Priority</span>
+            <span>{t("Priority")}</span>
             <input
               type="number"
               step="1"
@@ -268,14 +268,14 @@ export default function PriceListFormModal({
               }
             />
             <small>
-              Higher wins when multiple lists match.
+              {t("Higher wins when multiple lists match.")}
             </small>
           </label>
         </div>
 
         <div className="form-grid two">
           <label>
-            <span>Starts at</span>
+            <span>{t("Starts at")}</span>
             <input
               type="datetime-local"
               value={form.starts_at}
@@ -289,7 +289,7 @@ export default function PriceListFormModal({
           </label>
 
           <label>
-            <span>Ends at</span>
+            <span>{t("Ends at")}</span>
             <input
               type="datetime-local"
               value={form.ends_at}
@@ -304,14 +304,14 @@ export default function PriceListFormModal({
         </div>
 
         <label>
-          <span>Internal notes</span>
+          <span>{t("Internal notes")}</span>
           <textarea
             rows="3"
             value={form.notes}
             onChange={(event) =>
               update("notes", event.target.value)
             }
-            placeholder="Optional explanation or approval reference"
+            placeholder={t("Optional explanation or approval reference")}
           />
         </label>
 
@@ -326,7 +326,7 @@ export default function PriceListFormModal({
               )
             }
           />
-          <span>Price list is active</span>
+          <span>{t("Price list is active")}</span>
         </label>
 
         {error && (
@@ -342,7 +342,7 @@ export default function PriceListFormModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
 
           <button
@@ -352,8 +352,8 @@ export default function PriceListFormModal({
           >
             <Save size={18} />
             {busy
-              ? "Saving price list..."
-              : "Save price list"}
+              ? t("Saving price list...")
+              : t("Save price list")}
           </button>
         </div>
       </form>
