@@ -22,6 +22,7 @@ import { stockNumber } from "../lib/catalog";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { baseProductUnit, findProductUnit, sortedProductUnits } from "../lib/productUnits";
 import { loadStockTransferBatchOptions } from "../lib/transfers";
+import { useLanguage } from "../context/LanguageContext";
 
 function requestedUnit(item) {
   const product = item.products || {};
@@ -87,6 +88,7 @@ export default function TransferWorkflowModal({
   onReopen,
   onCancel
 }) {
+  const { t } = useLanguage();
   const [counts, setCounts] = useState({});
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -398,13 +400,13 @@ export default function TransferWorkflowModal({
         <div className="transfer-batch-editor-head">
           <span>Batch / lot allocation</span>
           <div>
-            <button type="button" className="secondary-button transfer-batch-auto" onClick={() => autoAllocateBatches(item)} disabled={busy || batchLoading || options.length === 0}>Auto {policy}</button>
-            <button type="button" className="icon-button transfer-batch-add" onClick={() => addBatchAllocation(item)} disabled={busy || batchLoading || options.length === 0} title="Add another Batch/Lot"><Plus size={16} /></button>
+            <button type="button" className="secondary-button transfer-batch-auto" onClick={() => autoAllocateBatches(item)} disabled={busy || batchLoading || options.length === 0}>{t("Auto")} {policy}</button>
+            <button type="button" className="icon-button transfer-batch-add" onClick={() => addBatchAllocation(item)} disabled={busy || batchLoading || options.length === 0} title={t("Add another Batch/Lot")}><Plus size={16} /></button>
           </div>
         </div>
 
-        {batchLoading && <small className="transfer-batch-message">Loading source batches…</small>}
-        {!batchLoading && options.length === 0 && allocations.length === 0 && <small className="transfer-batch-message warning">No active source Batch/Lot is available.</small>}
+        {batchLoading && <small className="transfer-batch-message">{t("Loading source batches")}…</small>}
+        {!batchLoading && options.length === 0 && allocations.length === 0 && <small className="transfer-batch-message warning">{t("No active source Batch/Lot is available.")}</small>}
 
         <div className="transfer-batch-allocation-list">
           {allocations.map((allocation, index) => {
@@ -418,10 +420,10 @@ export default function TransferWorkflowModal({
                   disabled={busy}
                   aria-label={`Batch or lot for ${values.product.name || "product"}`}
                 >
-                  <option value="">Choose Batch/Lot</option>
+                  <option value="">{t("Choose Batch/Lot")}</option>
                   {savedOption && !currentOption && (
                     <option value={savedOption.source_batch_id}>
-                      {savedOption.batch_number || "Saved lot"} · unavailable now
+                      {savedOption.batch_number || t("Saved lot")} · {t("unavailable now")}
                     </option>
                   )}
                   {options.map((option) => (
@@ -446,19 +448,19 @@ export default function TransferWorkflowModal({
                     placeholder="0"
                     aria-label={`Base quantity for Batch/Lot ${index + 1}`}
                   />
-                  <span>{values.product.unit_name || "pcs"}</span>
+                  <span>{values.product.unit_name || t("pcs")}</span>
                 </div>
-                <button type="button" className="icon-button danger-icon" onClick={() => removeBatchAllocation(item.product_id, index)} disabled={busy} title="Remove Batch/Lot"><Trash2 size={16} /></button>
+                <button type="button" className="icon-button danger-icon" onClick={() => removeBatchAllocation(item.product_id, index)} disabled={busy} title={t("Remove Batch/Lot")}><Trash2 size={16} /></button>
               </div>
             );
           })}
         </div>
 
         <div className="transfer-batch-allocation-total">
-          <span>Allocated</span>
-          <strong>{stockNumber(values.allocatedBase)} / {values.countedBase === null ? "—" : stockNumber(values.countedBase)} {values.product.unit_name || "pcs"}</strong>
+          <span>{t("Allocated")}</span>
+          <strong>{stockNumber(values.allocatedBase)} / {values.countedBase === null ? "—" : stockNumber(values.countedBase)} {values.product.unit_name || t("pcs")}</strong>
         </div>
-        {values.batchMismatch && <small className="transfer-batch-message warning">Allocation must equal the counted base quantity before Review & submit.</small>}
+        {values.batchMismatch && <small className="transfer-batch-message warning">{t("Allocation must equal the counted base quantity before Review & submit.")}</small>}
       </div>
     );
   }
@@ -748,34 +750,34 @@ export default function TransferWorkflowModal({
       return (
         <article className={`responsive-data-card transfer-count-card ${tone}`} key={item.id || item.product_id}>
           <header>
-            <div><strong>{values.product.name || "Product"}</strong><small>{values.product.sku || values.product.barcode || "No code"}</small></div>
-            <span className={`status-pill ${values.changed ? "pending" : "active"}`}>{values.changed ? "Unsaved" : "Saved"}</span>
+            <div><strong>{values.product.name || t("Product")}</strong><small>{values.product.sku || values.product.barcode || t("No code")}</small></div>
+            <span className={`status-pill ${values.changed ? "pending" : "active"}`}>{values.changed ? t("Unsaved") : t("Saved")}</span>
           </header>
-          <div className="transfer-count-card-requested"><span>Requested</span><strong>{requestedLabel(item)}</strong><small>{stockNumber(values.requestedBase)} {values.product.unit_name || "pcs"} base</small></div>
+          <div className="transfer-count-card-requested"><span>{t("Requested")}</span><strong>{requestedLabel(item)}</strong><small>{stockNumber(values.requestedBase)} {values.product.unit_name || t("pcs")} {t("base")}</small></div>
           <div className="transfer-count-entry-grid">
-            <label><span>Counted</span><input type="number" min="0" step="0.001" value={values.draft.quantity ?? ""} onChange={(event) => updateCount(item.product_id, { quantity: event.target.value })} inputMode="decimal" disabled={busy} placeholder="Not counted" /></label>
-            <label><span>Unit</span><select value={values.unit?.id || ""} onChange={(event) => updateCount(item.product_id, { product_unit_id: event.target.value })} disabled={busy}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.short_name || unit.name}</option>)}</select></label>
+            <label><span>{t("Counted")}</span><input type="number" min="0" step="0.001" value={values.draft.quantity ?? ""} onChange={(event) => updateCount(item.product_id, { quantity: event.target.value })} inputMode="decimal" disabled={busy} placeholder={t("Not counted")} /></label>
+            <label><span>{t("Unit")}</span><select value={values.unit?.id || ""} onChange={(event) => updateCount(item.product_id, { product_unit_id: event.target.value })} disabled={busy}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.short_name || unit.name}</option>)}</select></label>
           </div>
           {values.product.batch_tracking && renderBatchAllocationEditor(item, values)}
           <div className="transfer-count-card-results">
-            <div><span>Base count</span><strong>{values.countedBase === null ? "—" : `${stockNumber(values.countedBase)} ${values.product.unit_name || "pcs"}`}</strong></div>
-            <div><span>Variance</span><strong>{values.variance === null ? "—" : `${values.variance > 0 ? "+" : ""}${stockNumber(values.variance)}`}</strong></div>
+            <div><span>{t("Base count")}</span><strong>{values.countedBase === null ? "—" : `${stockNumber(values.countedBase)} ${values.product.unit_name || t("pcs")}`}</strong></div>
+            <div><span>{t("Variance")}</span><strong>{values.variance === null ? "—" : `${values.variance > 0 ? "+" : ""}${stockNumber(values.variance)}`}</strong></div>
           </div>
-          <label><span>Note</span><input value={values.draft.note || ""} onChange={(event) => updateCount(item.product_id, { note: event.target.value })} disabled={busy} placeholder="Optional item note" /></label>
+          <label><span>{t("Note")}</span><input value={values.draft.note || ""} onChange={(event) => updateCount(item.product_id, { note: event.target.value })} disabled={busy} placeholder={t("Optional item note")} /></label>
         </article>
       );
     }
 
     return (
       <tr className={tone} key={item.id || item.product_id}>
-        <td data-label="Product"><strong>{values.product.name || "Product"}</strong><small>{values.product.sku || values.product.barcode || "No code"}</small></td>
-        <td data-label="Requested"><strong>{requestedLabel(item)}</strong><small>{stockNumber(values.requestedBase)} {values.product.unit_name || "pcs"} base</small></td>
-        <td data-label="Counted"><input className="transfer-count-input" type="number" min="0" step="0.001" value={values.draft.quantity ?? ""} onChange={(event) => updateCount(item.product_id, { quantity: event.target.value })} inputMode="decimal" disabled={busy} placeholder="Not counted" /></td>
-        <td data-label="Unit"><select className="transfer-count-unit" value={values.unit?.id || ""} onChange={(event) => updateCount(item.product_id, { product_unit_id: event.target.value })} disabled={busy}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.short_name || unit.name}</option>)}</select></td>
-        <td data-label="Batch / lot">{renderBatchAllocationEditor(item, values)}</td>
-        <td data-label="Base count">{values.countedBase === null ? "—" : `${stockNumber(values.countedBase)} ${values.product.unit_name || "pcs"}`}</td>
-        <td data-label="Variance">{values.variance === null ? "—" : <strong>{values.variance > 0 ? "+" : ""}{stockNumber(values.variance)}</strong>}</td>
-        <td data-label="Note"><input className="transfer-count-note" value={values.draft.note || ""} onChange={(event) => updateCount(item.product_id, { note: event.target.value })} disabled={busy} placeholder="Optional item note" /></td>
+        <td data-label={t("Product")}><strong>{values.product.name || t("Product")}</strong><small>{values.product.sku || values.product.barcode || t("No code")}</small></td>
+        <td data-label={t("Requested")}><strong>{requestedLabel(item)}</strong><small>{stockNumber(values.requestedBase)} {values.product.unit_name || t("pcs")} {t("base")}</small></td>
+        <td data-label={t("Counted")}><input className="transfer-count-input" type="number" min="0" step="0.001" value={values.draft.quantity ?? ""} onChange={(event) => updateCount(item.product_id, { quantity: event.target.value })} inputMode="decimal" disabled={busy} placeholder={t("Not counted")} /></td>
+        <td data-label={t("Unit")}><select className="transfer-count-unit" value={values.unit?.id || ""} onChange={(event) => updateCount(item.product_id, { product_unit_id: event.target.value })} disabled={busy}>{units.map((unit) => <option key={unit.id} value={unit.id}>{unit.short_name || unit.name}</option>)}</select></td>
+        <td data-label={t("Batch / lot")}>{renderBatchAllocationEditor(item, values)}</td>
+        <td data-label={t("Base count")}>{values.countedBase === null ? "—" : `${stockNumber(values.countedBase)} ${values.product.unit_name || t("pcs")}`}</td>
+        <td data-label={t("Variance")}>{values.variance === null ? "—" : <strong>{values.variance > 0 ? "+" : ""}{stockNumber(values.variance)}</strong>}</td>
+        <td data-label={t("Note")}><input className="transfer-count-note" value={values.draft.note || ""} onChange={(event) => updateCount(item.product_id, { note: event.target.value })} disabled={busy} placeholder={t("Optional item note")} /></td>
       </tr>
     );
   }
@@ -784,7 +786,7 @@ export default function TransferWorkflowModal({
     return (
       <div className="responsive-wide-table-wrap transfer-product-detail-wrap">
         <table className="responsive-wide-table transfer-product-detail-table">
-          <thead><tr><th>Product</th><th>Requested</th><th>Counted</th><th>Batch / lot</th><th>Base received</th><th>Variance</th><th>Note</th></tr></thead>
+          <thead><tr><th>{t("Product")}</th><th>{t("Requested")}</th><th>{t("Counted")}</th><th>{t("Batch / lot")}</th><th>{t("Base received")}</th><th>{t("Variance")}</th><th>{t("Note")}</th></tr></thead>
           <tbody>
             {rows.map((item) => {
               const product = item.products || {};
@@ -795,18 +797,18 @@ export default function TransferWorkflowModal({
               const variance = counted === null ? null : counted - Number(item.quantity || 0);
               const countedLabel = useDraft
                 ? draftValues.unitQuantity === null
-                  ? "Not counted"
-                  : `${stockNumber(draftValues.unitQuantity)} ${draftValues.unit?.short_name || draftValues.unit?.name || product.unit_name || "pcs"}`
+                  ? t("Not counted")
+                  : `${stockNumber(draftValues.unitQuantity)} ${draftValues.unit?.short_name || draftValues.unit?.name || product.unit_name || t("pcs")}`
                 : item.counted_unit_quantity === null || item.counted_unit_quantity === undefined
-                  ? "Not counted"
-                  : `${stockNumber(item.counted_unit_quantity)} ${item.counted_unit_name || product.unit_name || "pcs"}`;
+                  ? t("Not counted")
+                  : `${stockNumber(item.counted_unit_quantity)} ${item.counted_unit_name || product.unit_name || t("pcs")}`;
               return (
                 <tr key={item.id || item.product_id}>
-                  <td><strong>{product.name || "Product"}</strong><small>{product.sku || product.barcode || "No code"}</small></td>
+                  <td><strong>{product.name || t("Product")}</strong><small>{product.sku || product.barcode || t("No code")}</small></td>
                   <td>{requestedLabel(item)}</td>
                   <td>{countedLabel}</td>
                   <td>{batchAllocationSummary(item, useDraft)}</td>
-                  <td>{counted === null ? "—" : `${stockNumber(counted)} ${product.unit_name || "pcs"}`}</td>
+                  <td>{counted === null ? "—" : `${stockNumber(counted)} ${product.unit_name || t("pcs")}`}</td>
                   <td>{variance === null ? "—" : `${variance > 0 ? "+" : ""}${stockNumber(variance)}`}</td>
                   <td>{item.count_note || "—"}</td>
                 </tr>
@@ -820,23 +822,23 @@ export default function TransferWorkflowModal({
 
   if (mode === "count" && reviewing) {
     return (
-      <Modal title={`Review & submit ${transfer.transfer_number}`} onClose={() => setReviewing(false)} wide>
+      <Modal title={`${t("Review & submit")} ${transfer.transfer_number}`} onClose={() => setReviewing(false)} wide>
         <div className="transfer-count-review">
           <div className="stock-count-complete-grid">
-            <div><span>Products</span><strong>{totals.totalRows}</strong></div>
-            <div><span>Counted</span><strong>{totals.countedRows}</strong></div>
-            <div><span>Differences</span><strong>{totals.differences}</strong></div>
-            <div><span>Requested base units</span><strong>{stockNumber(totals.requested)}</strong></div>
-            <div><span>Counted base units</span><strong>{stockNumber(totals.counted)}</strong></div>
-            <div><span>Approval</span><strong>Required next</strong></div>
+            <div><span>{t("Products")}</span><strong>{totals.totalRows}</strong></div>
+            <div><span>{t("Counted")}</span><strong>{totals.countedRows}</strong></div>
+            <div><span>{t("Differences")}</span><strong>{totals.differences}</strong></div>
+            <div><span>{t("Requested base units")}</span><strong>{stockNumber(totals.requested)}</strong></div>
+            <div><span>{t("Counted base units")}</span><strong>{stockNumber(totals.counted)}</strong></div>
+            <div><span>{t("Approval")}</span><strong>{t("Required next")}</strong></div>
           </div>
-          <div className="notice warning"><PackageCheck size={18} /> Submitting the count does not move stock yet. An authorized user must press Approve before source stock is deducted and destination stock is added.</div>
+          <div className="notice warning"><PackageCheck size={18} /> {t("Submitting the count does not move stock yet. An authorized user must press Approve before source stock is deducted and destination stock is added.")}</div>
           {renderReadOnlyTable(true)}
-          <label><span>Counting / delivery note</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional transfer count note" /></label>
+          <label><span>{t("Counting / delivery note")}</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t("Optional transfer count note")} /></label>
           {error && <div className="notice error">{error}</div>}
           <div className="modal-actions">
-            <button type="button" className="secondary-button" onClick={() => setReviewing(false)} disabled={busy}>Continue counting</button>
-            <button type="button" className="primary-button" onClick={submitCount} disabled={busy}><CheckCircle2 size={18} />{busy ? "Submitting..." : "Submit count"}</button>
+            <button type="button" className="secondary-button" onClick={() => setReviewing(false)} disabled={busy}>{t("Continue counting")}</button>
+            <button type="button" className="primary-button" onClick={submitCount} disabled={busy}><CheckCircle2 size={18} />{busy ? t("Submitting...") : t("Submit count")}</button>
           </div>
         </div>
       </Modal>
@@ -845,7 +847,7 @@ export default function TransferWorkflowModal({
 
   return (
     <Modal
-      title={mode === "view" ? transfer.transfer_number : mode === "approve" ? `Approve ${transfer.transfer_number}` : `${transfer.transfer_number} · Transfer count`}
+      title={mode === "view" ? transfer.transfer_number : mode === "approve" ? `${t("Approve")} ${transfer.transfer_number}` : `${transfer.transfer_number} · ${t("Transfer count")}`}
       onClose={onClose}
       wide={mode !== "view"}
       className={mode === "count" ? "stock-count-dialog transfer-count-dialog" : ""}
@@ -855,35 +857,35 @@ export default function TransferWorkflowModal({
         {mode === "count" && (
           <>
             <div className="stock-count-workspace-actions" data-print-hide>
-              <button type="button" className="secondary-button" onClick={() => setScannerOpen(true)} disabled={busy}><Camera size={18} />Scan product</button>
-              <button type="button" className="secondary-button" onClick={countAllRequested} disabled={busy} title="Fill all counted quantities with requested amounts"><CheckCircle2 size={18} />Counted all</button>
-              <button type="button" className="primary-button" onClick={savePending} disabled={busy || totals.changed === 0}><Save size={18} />{busy ? "Saving..." : `Save all counts (${totals.changed})`}</button>
-              <button type="button" className="secondary-button" onClick={openReview} disabled={busy}><CheckCircle2 size={18} />Review & submit</button>
-              <button type="button" className="secondary-button" onClick={exportCount} disabled={busy}><Download size={18} />Export Excel</button>
-              <button type="button" className="secondary-button" onClick={printCount} disabled={busy}><Printer size={18} />Print count</button>
-              <button type="button" className="danger-button" onClick={cancelTransfer} disabled={busy || !onCancel}><XCircle size={18} />Cancel transfer</button>
+              <button type="button" className="secondary-button" onClick={() => setScannerOpen(true)} disabled={busy}><Camera size={18} />{t("Scan product")}</button>
+              <button type="button" className="secondary-button" onClick={countAllRequested} disabled={busy} title={t("Fill all counted quantities with requested amounts")}><CheckCircle2 size={18} />{t("Counted all")}</button>
+              <button type="button" className="primary-button" onClick={savePending} disabled={busy || totals.changed === 0}><Save size={18} />{busy ? t("Saving...") : `${t("Save all counts")} (${totals.changed})`}</button>
+              <button type="button" className="secondary-button" onClick={openReview} disabled={busy}><CheckCircle2 size={18} />{t("Review & submit")}</button>
+              <button type="button" className="secondary-button" onClick={exportCount} disabled={busy}><Download size={18} />{t("Export Excel")}</button>
+              <button type="button" className="secondary-button" onClick={printCount} disabled={busy}><Printer size={18} />{t("Print count")}</button>
+              <button type="button" className="danger-button" onClick={cancelTransfer} disabled={busy || !onCancel}><XCircle size={18} />{t("Cancel transfer")}</button>
             </div>
 
             <div className="stock-count-progress-panel panel-like">
-              <div><span>Count progress</span><strong>{totals.countedRows} / {totals.totalRows}</strong></div>
+              <div><span>{t("Count progress")}</span><strong>{totals.countedRows} / {totals.totalRows}</strong></div>
               <div className="stock-count-progress-track"><div style={{ width: `${totals.progress}%` }} /></div>
               <b>{Math.round(totals.progress)}%</b>
             </div>
 
             <div className="stock-count-metrics transfer-count-metrics">
-              <article><CheckCircle2 size={21} /><span>Counted</span><strong>{totals.countedRows}</strong><small>{totals.uncountedRows} uncounted</small></article>
-              <article><PackageCheck size={21} /><span>Differences</span><strong>{totals.differences}</strong><small>Compared with requested base quantity</small></article>
-              <article><Clock3 size={21} /><span>Requested units</span><strong>{stockNumber(totals.requested)}</strong><small>Base units</small></article>
-              <article><PackageCheck size={21} /><span>Counted units</span><strong>{stockNumber(totals.counted)}</strong><small>Base units</small></article>
+              <article><CheckCircle2 size={21} /><span>{t("Counted")}</span><strong>{totals.countedRows}</strong><small>{totals.uncountedRows} {t("uncounted")}</small></article>
+              <article><PackageCheck size={21} /><span>{t("Differences")}</span><strong>{totals.differences}</strong><small>{t("Compared with requested base quantity")}</small></article>
+              <article><Clock3 size={21} /><span>{t("Requested units")}</span><strong>{stockNumber(totals.requested)}</strong><small>{t("Base units")}</small></article>
+              <article><PackageCheck size={21} /><span>{t("Counted units")}</span><strong>{stockNumber(totals.counted)}</strong><small>{t("Base units")}</small></article>
             </div>
 
             <section className="stock-count-toolbar panel-like transfer-count-toolbar">
-              <div className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search product, code or barcode" /></div>
+              <div className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search product, code or barcode")} /></div>
               <select value={countFilter} onChange={(event) => setCountFilter(event.target.value)}>
-                <option value="all">All transfer items</option>
-                <option value="uncounted">Uncounted</option>
-                <option value="counted">Counted</option>
-                <option value="difference">Has difference</option>
+                <option value="all">{t("All transfer items")}</option>
+                <option value="uncounted">{t("Uncounted")}</option>
+                <option value="counted">{t("Counted")}</option>
+                <option value="difference">{t("Has difference")}</option>
               </select>
             </section>
 
@@ -901,11 +903,11 @@ export default function TransferWorkflowModal({
 
             <section className="stock-count-table-panel panel-like transfer-count-table-panel">
               {filteredRows.length === 0 ? (
-                <div className="empty-state"><PackageCheck size={44} /><h2>No matching transfer items</h2><p>Change the search or count filter.</p></div>
+                <div className="empty-state"><PackageCheck size={44} /><h2>{t("No matching transfer items")}</h2><p>{t("Change the search or count filter.")}</p></div>
               ) : listState.viewMode === "table" ? (
                 <div className="stock-count-table-wrap responsive-wide-table-wrap">
                   <table className="stock-count-table responsive-wide-table transfer-count-table">
-                    <thead><tr><th>Product</th><th>Requested</th><th>Counted</th><th>Unit</th><th>Batch / lot</th><th>Base count</th><th>Variance</th><th>Note</th></tr></thead>
+                    <thead><tr><th>{t("Product")}</th><th>{t("Requested")}</th><th>{t("Counted")}</th><th>{t("Unit")}</th><th>{t("Batch / lot")}</th><th>{t("Base count")}</th><th>{t("Variance")}</th><th>{t("Note")}</th></tr></thead>
                     <tbody>{listState.pageRows.map((item) => renderCountRow(item))}</tbody>
                   </table>
                 </div>
@@ -916,13 +918,13 @@ export default function TransferWorkflowModal({
               )}
             </section>
 
-            <label><span>Counting / delivery note</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional transfer count note" /></label>
+            <label><span>{t("Counting / delivery note")}</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t("Optional transfer count note")} /></label>
             {batchError && <div className="notice error" onClick={() => setBatchError("")}>{batchError}</div>}
             {scanMessage && <div className="notice success" onClick={() => setScanMessage("")}>{scanMessage}</div>}
-            <div className="notice info"><Clock3 size={18} /> Save all counts keeps this transfer open. For batch-tracked products, choose the exact source Batch/Lot allocation (or use Auto FIFO/FEFO). Review & submit requires allocated lots to equal the counted base quantity. Stock still moves only after final approval.</div>
+            <div className="notice info"><Clock3 size={18} /> {t("Save all counts keeps this transfer open. For batch-tracked products, choose the exact source Batch/Lot allocation (or use Auto FIFO/FEFO). Review & submit requires allocated lots to equal the counted base quantity. Stock still moves only after final approval.")}</div>
             <BarcodeScanner
               open={scannerOpen}
-              title="Scan product or package for transfer count"
+              title={t("Scan product or package for transfer count")}
               onClose={() => setScannerOpen(false)}
               onDetected={handleScan}
               continuous
@@ -933,10 +935,10 @@ export default function TransferWorkflowModal({
         {mode !== "count" && (
           <>
             <section className="transfer-workflow-summary">
-              <div><span>From</span><strong>{transfer.source_branch?.name || "Source"}</strong></div>
-              <div><span>To</span><strong>{transfer.destination_branch?.name || "Destination"}</strong></div>
-              <div><span>Status</span><strong>{transfer.display_status || transfer.status}</strong></div>
-              <div><span>Base units</span><strong>{stockNumber(totals.requested)} requested · {stockNumber((rows || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0))} counted</strong></div>
+              <div><span>{t("From")}</span><strong>{transfer.source_branch?.name || t("Source")}</strong></div>
+              <div><span>{t("To")}</span><strong>{transfer.destination_branch?.name || t("Destination")}</strong></div>
+              <div><span>{t("Status")}</span><strong>{transfer.display_status || transfer.status}</strong></div>
+              <div><span>{t("Base units")}</span><strong>{stockNumber(totals.requested)} {t("requested")} · {stockNumber((rows || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0))} {t("counted")}</strong></div>
             </section>
             {renderReadOnlyTable(false)}
           </>
@@ -944,8 +946,8 @@ export default function TransferWorkflowModal({
 
         {mode === "approve" && (
           <>
-            <label><span>Approval note</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional approval note" disabled={busy} /></label>
-            <div className="notice warning"><PackageCheck size={18} /> Approving applies the counted base quantity and exact saved Batch/Lot allocation. The same lot number and expiry move to the destination; an existing matching destination lot is merged instead of duplicated.</div>
+            <label><span>{t("Approval note")}</span><textarea rows="3" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t("Optional approval note")} disabled={busy} /></label>
+            <div className="notice warning"><PackageCheck size={18} /> {t("Approving applies the counted base quantity and exact saved Batch/Lot allocation. The same lot number and expiry move to the destination; an existing matching destination lot is merged instead of duplicated.")}</div>
           </>
         )}
 
@@ -953,10 +955,10 @@ export default function TransferWorkflowModal({
 
         {mode !== "count" && (
           <div className="modal-actions">
-            <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Close</button>
+            <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>{t("Close")}</button>
             {mode === "approve" && <>
-              <button type="button" className="secondary-button" onClick={reopen} disabled={busy}><RotateCcw size={18} />Return to counting</button>
-              <button type="button" className="primary-button" onClick={approve} disabled={busy}><PackageCheck size={18} />{busy ? "Approving..." : "Approve"}</button>
+              <button type="button" className="secondary-button" onClick={reopen} disabled={busy}><RotateCcw size={18} />{t("Return to counting")}</button>
+              <button type="button" className="primary-button" onClick={approve} disabled={busy}><PackageCheck size={18} />{busy ? t("Approving...") : t("Approve")}</button>
             </>}
           </div>
         )}
@@ -964,28 +966,28 @@ export default function TransferWorkflowModal({
 
       {confirmCancelOpen && (
         <Modal
-          title={`Cancel stock transfer ${transfer.transfer_number}`}
+          title={`${t("Cancel stock transfer")} ${transfer.transfer_number}`}
           onClose={() => setConfirmCancelOpen(false)}
         >
           <form className="transfer-action-form" onSubmit={submitCancellation}>
             <div className="transfer-action-summary">
               <strong>{transfer.transfer_number}</strong>
               <span>
-                {transfer.source_branch?.name || "Source"} → {transfer.destination_branch?.name || "Destination"}
+                {transfer.source_branch?.name || t("Source")} → {transfer.destination_branch?.name || t("Destination")}
               </span>
             </div>
 
             <p style={{ margin: "12px 0 4px", fontSize: "13px", color: "var(--muted)" }}>
-              Are you sure you want to cancel this transfer? No stock will be moved.
+              {t("Are you sure you want to cancel this transfer? No stock will be moved.")}
             </p>
 
             <label style={{ display: "grid", gap: "6px", margin: "12px 0 16px" }}>
-              <span style={{ fontWeight: 700, fontSize: "13px" }}>Cancellation reason *</span>
+              <span style={{ fontWeight: 700, fontSize: "13px" }}>{t("Cancellation reason")} *</span>
               <textarea
                 rows="3"
                 value={cancelReasonInput}
                 onChange={(event) => setCancelReasonInput(event.target.value)}
-                placeholder="Reason for cancelling this transfer (e.g. requested by mistake)"
+                placeholder={t("Reason for cancelling this transfer (e.g. requested by mistake)")}
                 autoFocus
                 required
               />
@@ -995,10 +997,10 @@ export default function TransferWorkflowModal({
 
             <div className="transfer-modal-actions">
               <button type="button" className="secondary-button" onClick={() => setConfirmCancelOpen(false)} disabled={busy}>
-                Keep transfer
+                {t("Keep transfer")}
               </button>
               <button type="submit" className="danger-button" disabled={busy || cancelReasonInput.trim().length < 3}>
-                <Ban size={18} /> Confirm cancellation
+                <Ban size={18} /> {t("Confirm cancellation")}
               </button>
             </div>
           </form>
