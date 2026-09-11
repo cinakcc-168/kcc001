@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { money, stockNumber } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 function batchOptionLabel(batch, unitName) {
   const parts = [
@@ -18,6 +19,7 @@ export default function StockCountRow({
   onDraftChange,
   asCard = false
 }) {
+  const { t } = useLanguage();
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState("");
@@ -92,8 +94,8 @@ export default function StockCountRow({
     if (batches.length === 0) {
       return (
         <div className="stock-count-batch-empty">
-          <strong>Auto recovery lot</strong>
-          <small>Tiny POS will create a count lot if stock is greater than 0.</small>
+          <strong>{t("Auto recovery lot")}</strong>
+          <small>{t("Tiny POS will create a count lot if stock is greater than 0.")}</small>
         </div>
       );
     }
@@ -106,7 +108,7 @@ export default function StockCountRow({
         disabled={busy}
         aria-label={`Batch or lot for ${product.name || "product"}`}
       >
-        <option value="">Choose batch / lot</option>
+        <option value="">{t("Choose batch / lot")}</option>
         {batches.map((batch) => (
           <option value={batch.id} key={batch.id}>
             {batchOptionLabel(batch, product.unit_name)}
@@ -122,33 +124,33 @@ export default function StockCountRow({
         <header className="stock-count-card-header">
           <div>
             <strong>{product.name}</strong>
-            <small>{[product.sku, product.barcode, product.categories?.name].filter(Boolean).join(" · ") || "No product code"}</small>
+            <small>{[product.sku, product.barcode, product.categories?.name].filter(Boolean).join(" · ") || t("No product code")}</small>
           </div>
           <span className={`status-pill ${changed ? "pending" : "active"}`}>
-            {changed ? "Unsaved" : "Saved"}
+            {changed ? t("Unsaved") : t("Saved")}
           </span>
         </header>
 
         <div className="stock-count-card-meta">
           <div>
-            <span>Base unit</span>
+            <span>{t("Base unit")}</span>
             <strong>{product.unit_name || "pcs"}</strong>
           </div>
           <div>
-            <span>System stock</span>
-            <strong>{blind ? "Hidden" : stockNumber(item.expected_quantity)}</strong>
+            <span>{t("System stock")}</span>
+            <strong>{blind ? t("Hidden") : stockNumber(item.expected_quantity)}</strong>
           </div>
         </div>
 
         {product.batch_tracking && (
           <label className="stock-count-card-batch">
-            <span>Batch / lot</span>
+            <span>{t("Batch / lot")}</span>
             {batchControl()}
           </label>
         )}
 
         <label className="stock-count-card-counted">
-          <span>Counted quantity</span>
+          <span>{t("Counted quantity")}</span>
           <input
             className="stock-count-input"
             type="number"
@@ -157,30 +159,30 @@ export default function StockCountRow({
             value={quantity}
             onChange={(event) => updateQuantity(event.target.value)}
             disabled={busy}
-            placeholder="Not counted"
+            placeholder={t("Not counted")}
             inputMode="decimal"
           />
         </label>
 
         <div className="stock-count-card-results">
           <div>
-            <span>Variance</span>
-            <strong>{blind ? "Hidden" : variance === null ? "—" : `${variance > 0 ? "+" : ""}${stockNumber(variance)}`}</strong>
+            <span>{t("Variance")}</span>
+            <strong>{blind ? t("Hidden") : variance === null ? "—" : `${variance > 0 ? "+" : ""}${stockNumber(variance)}`}</strong>
           </div>
           <div>
-            <span>Value variance</span>
-            <strong>{blind ? "Hidden" : valueVariance === null ? "—" : money(valueVariance, product.currency || "USD")}</strong>
+            <span>{t("Value variance")}</span>
+            <strong>{blind ? t("Hidden") : valueVariance === null ? "—" : money(valueVariance, product.currency || "USD")}</strong>
           </div>
         </div>
 
         <label className="stock-count-card-note">
-          <span>Note</span>
+          <span>{t("Note")}</span>
           <input
             className="stock-count-note-input"
             value={note}
             onChange={(event) => updateNote(event.target.value)}
             disabled={busy}
-            placeholder="Optional note"
+            placeholder={t("Optional note")}
           />
         </label>
       </article>
@@ -189,18 +191,18 @@ export default function StockCountRow({
 
   return (
     <tr className={tone}>
-      <td data-label="Product">
+      <td data-label={t("Product")}>
         <strong>{product.name}</strong>
-        <small>{[product.sku, product.barcode, product.categories?.name].filter(Boolean).join(" · ") || "No product code"}</small>
+        <small>{[product.sku, product.barcode, product.categories?.name].filter(Boolean).join(" · ") || t("No product code")}</small>
       </td>
-      <td data-label="Base unit">{product.unit_name || "pcs"}</td>
-      <td data-label="Batch / lot">{batchControl()}</td>
-      <td data-label="System stock">
+      <td data-label={t("Base unit")}>{product.unit_name || "pcs"}</td>
+      <td data-label={t("Batch / lot")}>{batchControl()}</td>
+      <td data-label={t("System stock")}>
         {blind
-          ? <span className="stock-count-hidden">Hidden</span>
+          ? <span className="stock-count-hidden">{t("Hidden")}</span>
           : <strong>{stockNumber(item.expected_quantity)}</strong>}
       </td>
-      <td data-label="Counted">
+      <td data-label={t("Counted")}>
         <input
           className="stock-count-input"
           type="number"
@@ -209,36 +211,36 @@ export default function StockCountRow({
           value={quantity}
           onChange={(event) => updateQuantity(event.target.value)}
           disabled={busy}
-          placeholder="Not counted"
+          placeholder={t("Not counted")}
           inputMode="decimal"
         />
       </td>
-      <td data-label="Variance">
+      <td data-label={t("Variance")}>
         {blind
-          ? <span className="stock-count-hidden">Hidden</span>
+          ? <span className="stock-count-hidden">{t("Hidden")}</span>
           : variance === null
             ? <span className="muted">—</span>
             : <strong>{variance > 0 ? "+" : ""}{stockNumber(variance)}</strong>}
       </td>
-      <td data-label="Value variance">
+      <td data-label={t("Value variance")}>
         {blind
-          ? <span className="stock-count-hidden">Hidden</span>
+          ? <span className="stock-count-hidden">{t("Hidden")}</span>
           : valueVariance === null
             ? <span className="muted">—</span>
             : <strong>{money(valueVariance, product.currency || "USD")}</strong>}
       </td>
-      <td data-label="Note">
+      <td data-label={t("Note")}>
         <input
           className="stock-count-note-input"
           value={note}
           onChange={(event) => updateNote(event.target.value)}
           disabled={busy}
-          placeholder="Optional note"
+          placeholder={t("Optional note")}
         />
       </td>
-      <td data-label="Status">
+      <td data-label={t("Status")}>
         <span className={`status-pill ${changed ? "pending" : "active"}`}>
-          {changed ? "Unsaved" : "Saved"}
+          {changed ? t("Unsaved") : t("Saved")}
         </span>
       </td>
     </tr>
