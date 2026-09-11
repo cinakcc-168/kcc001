@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Modal from "./Modal";
 import { stockNumber } from "../lib/catalog";
 import { baseProductUnit, findProductUnit, sortedProductUnits } from "../lib/productUnits";
+import { useLanguage } from "../context/LanguageContext";
 
 function branchStock(product, branchId) {
   if (!product || !branchId) return 0;
@@ -26,6 +27,7 @@ export default function TransferFormModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [sourceBranchId, setSourceBranchId] = useState(currentBranchId || "");
   const [destinationBranchId, setDestinationBranchId] = useState("");
   const [items, setItems] = useState([]);
@@ -242,7 +244,7 @@ export default function TransferFormModal({
 
   return (
     <Modal
-      title={transfer ? `Edit ${transfer.transfer_number}` : "Create stock transfer"}
+      title={transfer ? `${t("Edit")} ${transfer.transfer_number}` : t("Create stock transfer")}
       onClose={onClose}
       wide
       className="transfer-modal-dialog"
@@ -251,13 +253,13 @@ export default function TransferFormModal({
         {/* Branch Routing Header */}
         <div className="transfer-branch-route-fields">
           <label className="transfer-branch-select-field">
-            <span className="transfer-field-caption">From (Source)</span>
+            <span className="transfer-field-caption">{t("From (Source)")}</span>
             <select
               value={sourceBranchId}
               onChange={(event) => changeSource(event.target.value)}
               className="transfer-branch-select"
             >
-              <option value="">Choose source branch</option>
+              <option value="">{t("Choose source branch")}</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name} ({branch.code})
@@ -271,13 +273,13 @@ export default function TransferFormModal({
           </div>
 
           <label className="transfer-branch-select-field">
-            <span className="transfer-field-caption">To (Destination)</span>
+            <span className="transfer-field-caption">{t("To (Destination)")}</span>
             <select
               value={destinationBranchId}
               onChange={(event) => changeDestination(event.target.value)}
               className="transfer-branch-select"
             >
-              <option value="">Choose destination branch</option>
+              <option value="">{t("Choose destination branch")}</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name} ({branch.code})
@@ -290,17 +292,17 @@ export default function TransferFormModal({
         {/* Informative Note */}
         <div className="transfer-request-note">
           <strong>
-            {branchMap.get(sourceBranchId)?.name || "Source branch"} → {branchMap.get(destinationBranchId)?.name || "Destination branch"}
+            {branchMap.get(sourceBranchId)?.name || t("Source branch")} → {branchMap.get(destinationBranchId)?.name || t("Destination branch")}
           </strong>
           <span>
-            Requested items are transferred from source to destination. The actual count is verified upon sending and receiving.
+            {t("Requested items are transferred from source to destination. The actual count is verified upon sending and receiving.")}
           </span>
         </div>
 
         {/* Product Search & Dropdown Input */}
         <div className="transfer-product-search-row">
           <div className="transfer-search-wrapper" ref={searchContainerRef}>
-            <span className="transfer-field-caption">Search & Add Product</span>
+            <span className="transfer-field-caption">{t("Search & Add Product")}</span>
             <div className="transfer-search-input-box">
               <Search size={18} className="transfer-search-icon" />
               <input
@@ -319,7 +321,7 @@ export default function TransferFormModal({
                     setIsDropdownOpen(false);
                   }
                 }}
-                placeholder="Type product name, code or scan barcode..."
+                placeholder={t("Type product name, code or scan barcode...")}
                 autoComplete="off"
                 inputMode="search"
                 className="transfer-search-input"
@@ -332,7 +334,7 @@ export default function TransferFormModal({
                     setProductSearch("");
                     setIsDropdownOpen(false);
                   }}
-                  title="Clear search"
+                  title={t("Clear search")}
                 >
                   <X size={15} />
                 </button>
@@ -341,7 +343,7 @@ export default function TransferFormModal({
                 type="button"
                 className="transfer-search-toggle-btn"
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
-                title="Toggle product dropdown"
+                title={t("Toggle product dropdown")}
               >
                 <ChevronDown size={17} className={isDropdownOpen ? "rotate-180" : ""} />
               </button>
@@ -351,7 +353,7 @@ export default function TransferFormModal({
                 <div className="transfer-search-dropdown" role="listbox">
                   {filteredProductOptions.length === 0 ? (
                     <div className="transfer-search-empty">
-                      <span>No products found matching &ldquo;{productSearch}&rdquo;</span>
+                      <span>{t("No products found matching")} &ldquo;{productSearch}&rdquo;</span>
                     </div>
                   ) : (
                     filteredProductOptions.map((product) => {
@@ -367,13 +369,13 @@ export default function TransferFormModal({
                             <strong className="transfer-option-name">{product.name}</strong>
                             {product.name_km && <span className="transfer-option-km">{product.name_km}</span>}
                             <span className="transfer-option-code">
-                              {product.sku || "No code"}
+                              {product.sku || t("No code")}
                               {product.barcode ? ` · ${product.barcode}` : ""}
                             </span>
                           </div>
                           <div className="transfer-option-stock">
                             <span className={`transfer-stock-tag ${avail <= 0 ? "out" : ""}`}>
-                              Available {stockNumber(avail)} {product.unit_name || "pcs"}
+                              {t("Available")} {stockNumber(avail)} {product.unit_name || t("pcs")}
                             </span>
                           </div>
                         </button>
@@ -386,13 +388,13 @@ export default function TransferFormModal({
           </div>
 
           <label className="transfer-category-filter">
-            <span className="transfer-field-caption">Category Filter</span>
+            <span className="transfer-field-caption">{t("Category Filter")}</span>
             <select
               value={categoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value)}
               className="transfer-category-select"
             >
-              <option value="all">All categories ({products.length})</option>
+              <option value="all">{t("All categories")} ({products.length})</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -406,7 +408,7 @@ export default function TransferFormModal({
         <div className="transfer-item-section">
           <div className="transfer-item-section-header">
             <span className="transfer-field-caption">
-              Selected Transfer Items ({items.length})
+              {t("Selected Transfer Items")} ({items.length})
             </span>
           </div>
 
@@ -414,8 +416,8 @@ export default function TransferFormModal({
             {items.length === 0 ? (
               <div className="transfer-empty-selection">
                 <Search size={24} className="transfer-empty-icon" />
-                <p>No products added yet.</p>
-                <small>Use the search input above to pick products and add them to this transfer list.</small>
+                <p>{t("No products added yet.")}</p>
+                <small>{t("Use the search input above to pick products and add them to this transfer list.")}</small>
               </div>
             ) : (
               items.map((item, index) => {
@@ -434,7 +436,7 @@ export default function TransferFormModal({
                       <span className="transfer-item-index">{index + 1}</span>
                       <div className="transfer-item-name-details">
                         <strong className="transfer-item-name-text">
-                          {selected?.name || "Unknown Product"}
+                          {selected?.name || t("Unknown Product")}
                         </strong>
                         {selected?.name_km && (
                           <small className="transfer-item-km-text">{selected.name_km}</small>
@@ -445,14 +447,14 @@ export default function TransferFormModal({
                     {/* code (showing only code, without "[]") */}
                     <div className="transfer-item-col-code">
                       <span className="transfer-code-pill" title={selected?.barcode || selected?.sku || ""}>
-                        {selected?.sku || selected?.barcode || "No code"}
+                        {selected?.sku || selected?.barcode || t("No code")}
                       </span>
                     </div>
 
                     {/* [qty] */}
                     <div className="transfer-item-col-qty">
                       <label className="transfer-compact-field">
-                        <span className="transfer-compact-label">Qty</span>
+                        <span className="transfer-compact-label">{t("Qty")}</span>
                         <input
                           type="number"
                           min="0.001"
@@ -469,7 +471,7 @@ export default function TransferFormModal({
                     {/* [unit base] (removed the word "(Base)") */}
                     <div className="transfer-item-col-unit">
                       <label className="transfer-compact-field">
-                        <span className="transfer-compact-label">Unit base</span>
+                        <span className="transfer-compact-label">{t("Unit base")}</span>
                         <select
                           value={selectedUnit?.id || ""}
                           onChange={(event) => updateItem(index, { product_unit_id: event.target.value })}
@@ -477,7 +479,7 @@ export default function TransferFormModal({
                           className="transfer-unit-select"
                         >
                           {units.length === 0 && (
-                            <option value="">{selected?.unit_name || "Base"}</option>
+                            <option value="">{selected?.unit_name || t("Base")}</option>
                           )}
                           {units.map((unit) => (
                             <option value={unit.id} key={unit.id}>
@@ -492,7 +494,7 @@ export default function TransferFormModal({
                     {/* Batch field with dropdown support when more than 1 batch exists */}
                     <div className="transfer-item-col-batch">
                       <label className="transfer-compact-field">
-                        <span className="transfer-compact-label">Batch</span>
+                        <span className="transfer-compact-label">{t("Batch")}</span>
                         {availableBatches.length > 1 && !item.is_custom_batch ? (
                           <select
                             value={item.source_batch_id || item.batch_number || ""}
@@ -515,13 +517,13 @@ export default function TransferFormModal({
                             }}
                             className="transfer-batch-select"
                           >
-                            <option value="">Choose batch ({availableBatches.length})</option>
+                            <option value="">{t("Choose batch")} ({availableBatches.length})</option>
                             {availableBatches.map((b) => (
                               <option key={b.id} value={b.id}>
-                                {b.batch_number} {b.expiry_date ? `(Exp: ${b.expiry_date})` : ""} {b.quantity ? `[${b.quantity} pcs]` : ""}
+                                {b.batch_number} {b.expiry_date ? `(Exp: ${b.expiry_date})` : ""} {b.quantity ? `[${b.quantity} ${t("pcs")}]` : ""}
                               </option>
                             ))}
-                            <option value="__custom__">+ Custom batch...</option>
+                            <option value="__custom__">+{t("Custom batch")}...</option>
                           </select>
                         ) : (
                           <div className="transfer-batch-input-wrap">
@@ -529,7 +531,7 @@ export default function TransferFormModal({
                               type="text"
                               value={item.batch_number || ""}
                               onChange={(event) => updateItem(index, { batch_number: event.target.value })}
-                              placeholder="Batch #"
+                              placeholder={t("Batch #")}
                               className="transfer-batch-input"
                             />
                             {availableBatches.length > 1 && (
@@ -537,9 +539,9 @@ export default function TransferFormModal({
                                 type="button"
                                 className="transfer-batch-toggle-btn"
                                 onClick={() => updateItem(index, { is_custom_batch: false })}
-                                title="Back to batch dropdown"
+                                title={t("Back to batch dropdown")}
                               >
-                                Dropdown
+                                {t("Dropdown")}
                               </button>
                             )}
                           </div>
@@ -550,7 +552,7 @@ export default function TransferFormModal({
                     {/* Expire Date Field */}
                     <div className="transfer-item-col-expire">
                       <label className="transfer-compact-field">
-                        <span className="transfer-compact-label">Expire</span>
+                        <span className="transfer-compact-label">{t("Expire")}</span>
                         <input
                           type="date"
                           value={item.expiry_date || ""}
@@ -563,11 +565,11 @@ export default function TransferFormModal({
                     {/* available 134 pcs */}
                     <div className="transfer-item-col-stock">
                       <span className={`transfer-stock-available-badge ${isOverStock ? "exceeded" : ""}`}>
-                        available {stockNumber(availableBase)} {selected?.unit_name || "pcs"}
+                        {t("available")} {stockNumber(availableBase)} {selected?.unit_name || t("pcs")}
                       </span>
                       {isOverStock && (
                         <small className="transfer-stock-warning-text">
-                          (Req: {stockNumber(requestedBase)})
+                          ({t("Req")}: {stockNumber(requestedBase)})
                         </small>
                       )}
                     </div>
@@ -577,7 +579,7 @@ export default function TransferFormModal({
                       type="button"
                       className="icon-button danger-icon transfer-item-remove-btn"
                       onClick={() => removeItem(index)}
-                      title="Remove product from transfer"
+                      title={t("Remove product from transfer")}
                       aria-label="Remove item"
                     >
                       <Trash2 size={17} />
@@ -591,12 +593,12 @@ export default function TransferFormModal({
 
         {/* Transfer Notes */}
         <label className="transfer-notes-field">
-          <span className="transfer-field-caption">Transfer Notes</span>
+          <span className="transfer-field-caption">{t("Transfer Notes")}</span>
           <textarea
             rows="2"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Optional notes for delivery, packaging, or handling instructions..."
+            placeholder={t("Optional notes for delivery, packaging, or handling instructions...")}
             className="transfer-notes-textarea"
           />
         </label>
@@ -606,10 +608,10 @@ export default function TransferFormModal({
         {/* Modal Actions */}
         <div className="modal-actions transfer-modal-actions">
           <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="submit" className="primary-button" disabled={busy}>
-            {busy ? "Saving transfer..." : transfer ? "Save transfer" : "Create pending transfer"}
+            {busy ? t("Saving transfer...") : transfer ? t("Save transfer") : t("Create pending transfer")}
           </button>
         </div>
       </form>
