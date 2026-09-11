@@ -18,6 +18,7 @@ import {
 } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import ReorderRuleModal from "../components/ReorderRuleModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
 import MediaImage from "../components/MediaImage";
@@ -43,6 +44,7 @@ const statuses = [
 
 export default function ReorderPage() {
   const { supabase, profile, can } = useAuth();
+  const { t } = useLanguage();
 
   const canManage = can("reorder.manage");
   const [searchParams, setSearchParams] = useSearchParams();
@@ -383,10 +385,9 @@ export default function ReorderPage() {
     return (
       <section className="panel empty-state">
         <ClipboardList size={46} />
-        <h2>Management access required</h2>
+        <h2>{t("Management access required")}</h2>
         <p>
-          Only an owner, admin or manager can
-          use Reorder Planning.
+          {t("Only an owner, admin or manager can use Reorder Planning.")}
         </p>
       </section>
     );
@@ -397,12 +398,11 @@ export default function ReorderPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            INVENTORY PLANNING
+            {t("INVENTORY PLANNING")}
           </p>
-          <h1>Reorder Planner</h1>
+          <h1>{t("Reorder Planner")}</h1>
           <p className="muted">
-            Convert low-stock products into
-            package-aware draft purchase orders.
+            {t("Convert low-stock products into package-aware draft purchase orders.")}
           </p>
         </div>
 
@@ -412,7 +412,7 @@ export default function ReorderPage() {
             className="secondary-button"
           >
             <ShoppingCart size={18} />
-            Purchase orders
+            {t("Purchase orders")}
           </Link>
 
 
@@ -426,7 +426,7 @@ export default function ReorderPage() {
               size={18}
               className={loading ? "spin" : ""}
             />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -443,37 +443,38 @@ export default function ReorderPage() {
       <div className="reorder-metrics">
         <article>
           <AlertTriangle size={23} />
-          <span>Need reorder</span>
+          <span>{t("Need reorder")}</span>
           <strong>{metrics.reorder}</strong>
         </article>
 
         <article>
           <Boxes size={23} />
-          <span>Out of stock</span>
+          <span>{t("Out of stock")}</span>
           <strong>{metrics.outOfStock}</strong>
         </article>
 
         <article>
           <Truck size={23} />
-          <span>Incoming</span>
+          <span>{t("Incoming")}</span>
           <strong>{metrics.incoming}</strong>
         </article>
 
         <article>
           <ClipboardList size={23} />
-          <span>Draft PO exists</span>
+          <span>{t("Draft PO exists")}</span>
           <strong>{metrics.draft}</strong>
         </article>
 
         <article>
           <PackageCheck size={23} />
-          <span>Selected estimate</span>
+          <span>{t("Selected estimate")}</span>
           <strong>
             {money(metrics.selectedUsd, "USD")}
           </strong>
           <small>
             {money(metrics.selectedKhr, "KHR")}
-            {" · Separate purchase orders by currency"}
+            {" · "}
+            {t("Separate purchase orders by currency")}
           </small>
         </article>
       </div>
@@ -486,12 +487,12 @@ export default function ReorderPage() {
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search product, code, supplier, category or package"
+            placeholder={t("Search product, code, supplier, category or package")}
           />
         </div>
 
         <label>
-          <span>Status</span>
+          <span>{t("Status")}</span>
           <select
             value={status}
             onChange={(event) =>
@@ -503,14 +504,14 @@ export default function ReorderPage() {
                 value={value}
                 key={value || "all"}
               >
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
         </label>
 
         <label>
-          <span>Supplier</span>
+          <span>{t("Supplier")}</span>
           <select
             value={supplierId}
             onChange={(event) =>
@@ -518,7 +519,7 @@ export default function ReorderPage() {
             }
           >
             <option value="">
-              All suppliers
+              {t("All suppliers")}
             </option>
             {suppliers.map((supplier) => (
               <option
@@ -532,7 +533,7 @@ export default function ReorderPage() {
         </label>
 
         <label>
-          <span>Category</span>
+          <span>{t("Category")}</span>
           <select
             value={categoryId}
             onChange={(event) =>
@@ -540,7 +541,7 @@ export default function ReorderPage() {
             }
           >
             <option value="">
-              All categories
+              {t("All categories")}
             </option>
             {categories.map((category) => (
               <option
@@ -557,50 +558,50 @@ export default function ReorderPage() {
       <section className="panel reorder-selection-toolbar">
         <label className="check-row">
           <input type="checkbox" checked={allVisibleSelected} disabled={allVisibleEligible.length === 0} onChange={toggleVisible} />
-          <span>Select visible products ready for ordering</span>
+          <span>{t("Select visible products ready for ordering")}</span>
         </label>
         <button type="button" className="primary-button" onClick={createDraftOrders} disabled={busy === "orders" || selectedSuggestions.length === 0}>
           <ClipboardList size={18} />
-          {busy === "orders" ? "Creating draft orders..." : `Create draft PO${selectedSuggestions.length > 1 ? "s" : ""} (${selectedSuggestions.length})`}
+          {busy === "orders" ? t("Creating draft orders...") : `${t("Create draft PO")} (${selectedSuggestions.length})`}
         </button>
       </section>
 
       <ResponsiveDataList
         storageKey="reorder-planner"
-        title="Reorder planner list"
-        subtitle={`${profile?.branches?.name || "Current branch"} · Current filters`}
+        title={t("Reorder planner list")}
+        subtitle={`${profile?.branches?.name || t("Current branch")} · ${t("Current filters")}`}
         rows={visible}
         filename={`tiny-pos-reorder-${new Date().toISOString().slice(0, 10)}.xls`}
         summary={[
-          { label: "Reorder now", value: metrics.reorder },
-          { label: "Out of stock", value: metrics.outOfStock },
-          { label: "Incoming", value: metrics.incoming },
-          { label: "Draft PO", value: metrics.draft },
-          { label: "Selected USD", value: money(metrics.selectedUsd, "USD") },
-          { label: "Selected KHR", value: money(metrics.selectedKhr, "KHR") }
+          { label: t("Reorder now"), value: metrics.reorder },
+          { label: t("Out of stock"), value: metrics.outOfStock },
+          { label: t("Incoming"), value: metrics.incoming },
+          { label: t("Draft PO"), value: metrics.draft },
+          { label: t("Selected USD"), value: money(metrics.selectedUsd, "USD") },
+          { label: t("Selected KHR"), value: money(metrics.selectedKhr, "KHR") }
         ]}
-        emptyTitle={loading ? "Calculating reorder suggestions..." : "No matching products"}
-        emptyText="Change the filters or search phrase."
+        emptyTitle={loading ? t("Calculating reorder suggestions...") : t("No matching products")}
+        emptyText={t("Change the filters or search phrase.")}
         columns={[
-          { label: "Select", actionsOnly: true, excludeDocument: true, render: (item) => <input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} title={item.can_create_order ? "Select product" : item.draft_base_quantity > 0 ? "A draft purchase order already exists" : "Configure a preferred supplier first"} /> },
-          { label: "Product", width: 260, documentValue: (item) => item.product_name, render: (item) => <div className="reorder-product-cell"><div className="reorder-product-thumb"><MediaImage src={item.product_image_url} alt={item.product_name} width={96} height={96} /></div><div><strong>{item.product_name}</strong><small>{[item.sku, item.barcode, item.category_name].filter(Boolean).join(" · ") || "No product code"}</small></div></div> },
-          { label: "Status", width: 120, documentValue: (item) => reorderStatusLabel(item.reorder_status), render: (item) => <span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{reorderStatusLabel(item.reorder_status)}</span> },
-          { label: "Stock", width: 160, documentValue: (item) => `${stockNumber(item.current_stock)} ${item.base_unit_name}`, render: (item) => <><strong>{stockNumber(item.current_stock)} {item.base_unit_name}</strong><small>Ordered {stockNumber(item.ordered_base_quantity)} · Projected {stockNumber(item.projected_stock)}</small></> },
-          { label: "Rule", width: 140, documentValue: (item) => `Reorder at ${stockNumber(item.reorder_point)}; Target ${stockNumber(item.target_stock)} ${item.base_unit_name}`, render: (item) => <><strong>Reorder at {stockNumber(item.reorder_point)}</strong><small>Target {stockNumber(item.target_stock)} {item.base_unit_name}</small></> },
-          { label: "Supplier", width: 170, documentValue: (item) => item.preferred_supplier_name || "Not configured", render: (item) => <><strong>{item.preferred_supplier_name || "Not configured"}</strong><small>{item.supplier_code || item.supplier_sku || "Add a preferred supplier"}</small></> },
-          { label: "Suggested order", width: 180, documentValue: (item) => `${stockNumber(item.suggested_purchase_quantity)} ${item.purchase_unit_name || item.base_unit_name}`, render: (item) => <><strong>{stockNumber(item.suggested_purchase_quantity)} {item.purchase_unit_name || item.base_unit_name}</strong><small>{stockNumber(item.suggested_base_quantity)} {item.base_unit_name} · 1 {item.purchase_unit_name || item.base_unit_name} = {stockNumber(item.purchase_unit_factor)} {item.base_unit_name}</small></> },
-          { label: "Estimate", width: 130, documentValue: (item) => money(item.estimated_order_total, item.currency), render: (item) => <><strong>{money(item.estimated_order_total, item.currency)}</strong><small>{money(item.estimated_purchase_unit_cost, item.currency)} per {item.purchase_unit_name || item.base_unit_name}</small></> },
-          { label: "Configure", actionsOnly: true, excludeDocument: true, render: (item) => <button type="button" className="icon-button" onClick={() => setRuleProduct(item)} title="Configure reorder rule"><Edit3 size={18} /></button> }
+          { label: t("Select"), actionsOnly: true, excludeDocument: true, render: (item) => <input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} title={item.can_create_order ? t("Select product") : item.draft_base_quantity > 0 ? t("A draft purchase order already exists") : t("Configure a preferred supplier first")} /> },
+          { label: t("Product"), width: 260, documentValue: (item) => item.product_name, render: (item) => <div className="reorder-product-cell"><div className="reorder-product-thumb"><MediaImage src={item.product_image_url} alt={item.product_name} width={96} height={96} /></div><div><strong>{item.product_name}</strong><small>{[item.sku, item.barcode, item.category_name].filter(Boolean).join(" · ") || t("No product code")}</small></div></div> },
+          { label: t("Status"), width: 120, documentValue: (item) => t(reorderStatusLabel(item.reorder_status)), render: (item) => <span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{t(reorderStatusLabel(item.reorder_status))}</span> },
+          { label: t("Stock"), width: 160, documentValue: (item) => `${stockNumber(item.current_stock)} ${item.base_unit_name}`, render: (item) => <><strong>{stockNumber(item.current_stock)} {item.base_unit_name}</strong><small>{`${t("Ordered")} ${stockNumber(item.ordered_base_quantity)} · ${t("Projected")} ${stockNumber(item.projected_stock)}`}</small></> },
+          { label: t("Rule"), width: 140, documentValue: (item) => `${t("Reorder at")} ${stockNumber(item.reorder_point)}; ${t("Target")} ${stockNumber(item.target_stock)} ${item.base_unit_name}`, render: (item) => <><strong>{t("Reorder at")} {stockNumber(item.reorder_point)}</strong><small>{t("Target")} {stockNumber(item.target_stock)} {item.base_unit_name}</small></> },
+          { label: t("Supplier"), width: 170, documentValue: (item) => item.preferred_supplier_name || t("Not configured"), render: (item) => <><strong>{item.preferred_supplier_name || t("Not configured")}</strong><small>{item.supplier_code || item.supplier_sku || t("Add a preferred supplier")}</small></> },
+          { label: t("Suggested order"), width: 180, documentValue: (item) => `${stockNumber(item.suggested_purchase_quantity)} ${item.purchase_unit_name || item.base_unit_name}`, render: (item) => <><strong>{stockNumber(item.suggested_purchase_quantity)} {item.purchase_unit_name || item.base_unit_name}</strong><small>{stockNumber(item.suggested_base_quantity)} {item.base_unit_name} · 1 {item.purchase_unit_name || item.base_unit_name} = {stockNumber(item.purchase_unit_factor)} {item.base_unit_name}</small></> },
+          { label: t("Estimate"), width: 130, documentValue: (item) => money(item.estimated_order_total, item.currency), render: (item) => <><strong>{money(item.estimated_order_total, item.currency)}</strong><small>{money(item.estimated_purchase_unit_cost, item.currency)} {t("per")} {item.purchase_unit_name || item.base_unit_name}</small></> },
+          { label: t("Configure"), actionsOnly: true, excludeDocument: true, render: (item) => <button type="button" className="icon-button" onClick={() => setRuleProduct(item)} title={t("Configure reorder rule")}><Edit3 size={18} /></button> }
         ]}
         renderCard={(item) => (
           <article className="responsive-data-card reorder-list-card">
-            <header><div className="reorder-card-product"><label className="check-row"><input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} /><span className="reorder-product-thumb"><MediaImage src={item.product_image_url} alt={item.product_name} width={96} height={96} /></span></label><div><strong>{item.product_name}</strong><small>{item.sku || item.barcode || "No code"}</small></div></div><span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{reorderStatusLabel(item.reorder_status)}</span></header>
-            <div><span>Stock</span><strong>{stockNumber(item.current_stock)} {item.base_unit_name}</strong><small>Projected {stockNumber(item.projected_stock)}</small></div>
-            <div><span>Reorder rule</span><strong>{stockNumber(item.reorder_point)} → {stockNumber(item.target_stock)} {item.base_unit_name}</strong></div>
-            <div><span>Supplier</span><strong>{item.preferred_supplier_name || "Not configured"}</strong></div>
-            <div><span>Suggested</span><strong>{stockNumber(item.suggested_purchase_quantity)} {item.purchase_unit_name || item.base_unit_name}</strong></div>
-            <div><span>Estimate</span><strong>{money(item.estimated_order_total, item.currency)}</strong></div>
-            <footer><button type="button" className="secondary-button compact-button" onClick={() => setRuleProduct(item)}><Edit3 size={17} />Configure</button></footer>
+            <header><div className="reorder-card-product"><label className="check-row"><input type="checkbox" checked={selectedIds.has(item.product_id)} disabled={!item.can_create_order} onChange={() => toggleOne(item)} /><span className="reorder-product-thumb"><MediaImage src={item.product_image_url} alt={item.product_name} width={96} height={96} /></span></label><div><strong>{item.product_name}</strong><small>{item.sku || item.barcode || t("No code")}</small></div></div><span className={`reorder-status ${reorderStatusClass(item.reorder_status)}`}>{t(reorderStatusLabel(item.reorder_status))}</span></header>
+            <div><span>{t("Stock")}</span><strong>{stockNumber(item.current_stock)} {item.base_unit_name}</strong><small>{t("Projected")} {stockNumber(item.projected_stock)}</small></div>
+            <div><span>{t("Reorder rule")}</span><strong>{stockNumber(item.reorder_point)} → {stockNumber(item.target_stock)} {item.base_unit_name}</strong></div>
+            <div><span>{t("Supplier")}</span><strong>{item.preferred_supplier_name || t("Not configured")}</strong></div>
+            <div><span>{t("Suggested")}</span><strong>{stockNumber(item.suggested_purchase_quantity)} {item.purchase_unit_name || item.base_unit_name}</strong></div>
+            <div><span>{t("Estimate")}</span><strong>{money(item.estimated_order_total, item.currency)}</strong></div>
+            <footer><button type="button" className="secondary-button compact-button" onClick={() => setRuleProduct(item)}><Edit3 size={17} />{t("Configure")}</button></footer>
           </article>
         )}
       />
