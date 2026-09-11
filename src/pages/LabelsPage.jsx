@@ -10,6 +10,7 @@ import {
   Square
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import ProductBarcode, { isValidBarcodeValue } from "../components/ProductBarcode";
 import { loadCatalog, money } from "../lib/catalog";
 import { printHtmlDocument } from "../lib/listDocuments";
@@ -25,6 +26,7 @@ function barcodeValue(product) {
 
 export default function LabelsPage() {
   const { supabase, profile, shop, can } = useAuth();
+  const { t } = useLanguage();
   const canUse = can("labels.print");
 
   const [products, setProducts] = useState([]);
@@ -138,7 +140,7 @@ export default function LabelsPage() {
 
   function printLabels() {
     if (selectedLabels.length === 0) {
-      setMessage("Choose at least one product label before printing.");
+      setMessage(t("Choose at least one product label before printing."));
       return;
     }
 
@@ -157,7 +159,7 @@ export default function LabelsPage() {
 
     const area = document.querySelector(".label-print-area");
     if (!area) {
-      setMessage("The label preview is not ready yet.");
+      setMessage(t("The label preview is not ready yet."));
       return;
     }
 
@@ -209,8 +211,8 @@ export default function LabelsPage() {
     return (
       <section className="panel empty-state">
         <Barcode size={46} />
-        <h2>Label printing is restricted</h2>
-        <p>Only an owner, admin, or manager can print product labels.</p>
+        <h2>{t("Label printing is restricted")}</h2>
+        <p>{t("Only an owner, admin, or manager can print product labels.")}</p>
       </section>
     );
   }
@@ -219,19 +221,19 @@ export default function LabelsPage() {
     <div className="page-stack labels-page">
       <div className="page-heading labels-heading">
         <div>
-          <p className="eyebrow">PRODUCT TOOLS</p>
-          <h1>Barcode & Price Labels</h1>
+          <p className="eyebrow">{t("PRODUCT TOOLS")}</p>
+          <h1>{t("Barcode & Price Labels")}</h1>
           <p className="muted">
-            Select products, choose the number of copies, preview, and print.
+            {t("Select products, choose the number of copies, preview, and print.")}
           </p>
         </div>
         <div className="heading-actions">
           <button className="secondary-button" type="button" onClick={clearSelection}>
-            Clear
+            {t("Clear")}
           </button>
           <button className="primary-button" type="button" onClick={printLabels}>
             <Printer size={18} />
-            Print {selectedLabels.length || ""} labels
+            {t("Print")} {selectedLabels.length || ""} {t("labels")}
           </button>
         </div>
       </div>
@@ -249,12 +251,12 @@ export default function LabelsPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search product, code, or barcode"
+              placeholder={t("Search product, code, or barcode")}
             />
           </label>
 
           <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            <option value="all">All categories</option>
+            <option value="all">{t("All categories")}</option>
             {categories.map((row) => (
               <option value={row.id} key={row.id}>{row.name}</option>
             ))}
@@ -262,7 +264,7 @@ export default function LabelsPage() {
 
           <button className="secondary-button" type="button" onClick={selectVisible}>
             <CheckSquare size={18} />
-            Select visible
+            {t("Select visible")}
           </button>
 
           <button className="icon-button refresh-button" type="button" onClick={refresh}>
@@ -272,7 +274,7 @@ export default function LabelsPage() {
 
         <div className="label-option-grid">
           <label>
-            <span>Barcode format</span>
+            <span>{t("Barcode format")}</span>
             <select
               value={settings.format}
               onChange={(event) =>
@@ -284,7 +286,7 @@ export default function LabelsPage() {
             </select>
           </label>
           <label>
-            <span>Label width (mm)</span>
+            <span>{t("Label width (mm)")}</span>
             <input
               type="number"
               min="20"
@@ -297,7 +299,7 @@ export default function LabelsPage() {
             />
           </label>
           <label>
-            <span>Label height (mm)</span>
+            <span>{t("Label height (mm)")}</span>
             <input
               type="number"
               min="15"
@@ -310,7 +312,7 @@ export default function LabelsPage() {
             />
           </label>
           <label>
-            <span>Columns</span>
+            <span>{t("Columns")}</span>
             <select
               value={settings.columns}
               onChange={(event) =>
@@ -333,7 +335,7 @@ export default function LabelsPage() {
                 setSettings((current) => ({ ...current, showName: event.target.checked }))
               }
             />
-            Show name
+            {t("Show name")}
           </label>
           <label className="check-row">
             <input
@@ -343,7 +345,7 @@ export default function LabelsPage() {
                 setSettings((current) => ({ ...current, showPrice: event.target.checked }))
               }
             />
-            Show price
+            {t("Show price")}
           </label>
           <label className="check-row">
             <input
@@ -353,7 +355,7 @@ export default function LabelsPage() {
                 setSettings((current) => ({ ...current, showSku: event.target.checked }))
               }
             />
-            Show product code
+            {t("Show product code")}
           </label>
         </div>
       </section>
@@ -361,8 +363,8 @@ export default function LabelsPage() {
       <div className="label-workspace">
         <section className="panel label-product-list">
           <div className="label-list-summary">
-            <span>{filteredProducts.length} products</span>
-            <strong>{selectedProductCount} selected</strong>
+            <span>{filteredProducts.length} {t("products")}</span>
+            <strong>{selectedProductCount} {t("selected")}</strong>
           </div>
 
           {loading ? (
@@ -384,14 +386,14 @@ export default function LabelsPage() {
                       className="label-select-button"
                       disabled={!usable}
                       onClick={() => setProductCopies(product.id, count > 0 ? 0 : 1)}
-                      title={usable ? "Select product" : "Add a barcode or product code first"}
+                      title={usable ? t("Select product") : t("Add a barcode or product code first")}
                     >
                       {count > 0 ? <CheckSquare size={21} /> : <Square size={21} />}
                     </button>
 
                     <div className="label-product-info">
                       <strong>{product.name}</strong>
-                      <span>{product.sku || "No product code"} · {product.barcode || "No barcode"}</span>
+                      <span>{product.sku || t("No product code")} · {product.barcode || t("No barcode")}</span>
                     </div>
 
                     <strong className="label-product-price">
@@ -433,8 +435,8 @@ export default function LabelsPage() {
         <section className="panel label-preview-panel">
           <div className="label-preview-heading">
             <div>
-              <h2>Print preview</h2>
-              <p className="muted">{selectedLabels.length} labels</p>
+              <h2>{t("Print preview")}</h2>
+              <p className="muted">{selectedLabels.length} {t("labels")}</p>
             </div>
             <Barcode size={24} />
           </div>
@@ -442,7 +444,7 @@ export default function LabelsPage() {
           {selectedLabels.length === 0 ? (
             <div className="empty-state compact-empty">
               <Barcode size={44} />
-              <p>Select products to preview labels.</p>
+              <p>{t("Select products to preview labels.")}</p>
             </div>
           ) : (
             <div
