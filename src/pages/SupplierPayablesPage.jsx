@@ -15,6 +15,7 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import SupplierPaymentModal from "../components/SupplierPaymentModal";
 import SupplierStatementModal from "../components/SupplierStatementModal";
 import SupplierTermsModal from "../components/SupplierTermsModal";
@@ -51,6 +52,7 @@ export default function SupplierPayablesPage() {
     shop,
     can
   } = useAuth();
+  const { t } = useLanguage();
 
   const canManage = can(
     "supplier_payables.view"
@@ -437,9 +439,7 @@ export default function SupplierPayablesPage() {
           </p>
           <h1>Supplier Payables</h1>
           <p className="muted">
-            Track due purchases, supplier credits,
-            aging, payments and printable
-            statements.
+            {t("Track due purchases, supplier credits, aging, payments and printable statements.")}
           </p>
         </div>
 
@@ -511,7 +511,7 @@ export default function SupplierPayablesPage() {
               usd.over_90 || 0,
               "USD"
             )}
-            {" over 90 days"}
+            {t(" over 90 days")}
           </small>
         </article>
 
@@ -545,7 +545,7 @@ export default function SupplierPayablesPage() {
               khr.over_90 || 0,
               "KHR"
             )}
-            {" over 90 days"}
+            {t(" over 90 days")}
           </small>
         </article>
 
@@ -580,7 +580,7 @@ export default function SupplierPayablesPage() {
                 event.target.value
               )
             }
-            placeholder="Search supplier, code, phone, email or tax ID"
+            placeholder={t("Search supplier, code, phone, email or tax ID")}
           />
         </div>
 
@@ -607,7 +607,7 @@ export default function SupplierPayablesPage() {
         </label>
 
         <label>
-          <span>Aging status</span>
+          <span>{t("Aging status")}</span>
           <select
             value={aging}
             onChange={(event) =>
@@ -629,7 +629,7 @@ export default function SupplierPayablesPage() {
         </label>
 
         <label>
-          <span>As of</span>
+          <span>{t("As of")}</span>
           <input
             type="date"
             value={asOf}
@@ -694,7 +694,7 @@ export default function SupplierPayablesPage() {
 
       <ResponsiveDataList
         storageKey="supplier-payable-balances"
-        title="Outstanding supplier balances"
+        title={t("Outstanding supplier balances")}
         subtitle={`${allBranches ? "All branches" : profile?.branches?.name || "Current branch"} · As of ${asOf}`}
         rows={visibleSuppliers}
         filename={`supplier-balances-${asOf}.xls`}
@@ -704,8 +704,8 @@ export default function SupplierPayablesPage() {
           { label: "KHR outstanding", value: money(khr.total || 0, "KHR") },
           { label: "KHR overdue", value: money(khr.overdue || 0, "KHR") }
         ]}
-        emptyTitle={loading ? "Loading supplier balances..." : "No matching supplier balance"}
-        emptyText="Change the search or filters."
+        emptyTitle={loading ? "Loading supplier balances..." : t("No matching supplier balance")}
+        emptyText={t("Change the search or filters.")}
         columns={[
           { label: "Supplier", width: 210, documentValue: (supplier) => supplier.name, render: (supplier) => <><strong>{supplier.name}</strong><small>{[supplier.supplier_code, supplier.phone, supplier.contact_name].filter(Boolean).join(" · ")}</small></> },
           { label: "Terms", width: 85, documentValue: (supplier) => `${supplier.default_payment_terms_days} days`, render: (supplier) => <strong>{supplier.default_payment_terms_days} days</strong> },
@@ -728,8 +728,8 @@ export default function SupplierPayablesPage() {
         subtitle={`${allBranches ? "All branches" : profile?.branches?.name || "Current branch"} · Aging as of ${asOf}`}
         rows={visibleInvoices}
         filename={`supplier-open-purchases-${asOf}.xls`}
-        emptyTitle="No open purchases"
-        emptyText="No open purchases match the current filters."
+        emptyTitle={t("No open purchases")}
+        emptyText={t("No open purchases match the current filters.")}
         columns={[
           { label: "Purchase", width: 160, documentValue: (invoice) => invoice.purchase_number, render: (invoice) => <><strong>{invoice.purchase_number}</strong><small>{invoice.supplier_invoice_number || "No supplier invoice"}</small></> },
           { label: "Supplier", width: 170, value: (invoice) => invoice.supplier_name },
@@ -750,7 +750,7 @@ export default function SupplierPayablesPage() {
             <p className="eyebrow">
               PAYMENT HISTORY
             </p>
-            <h2>Recent allocations</h2>
+            <h2>{t("Recent allocations")}</h2>
           </div>
           <HandCoins size={22} />
         </div>
