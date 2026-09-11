@@ -5,6 +5,7 @@ import {
   stockNumber
 } from "../lib/catalog";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
+import { useLanguage } from "../context/LanguageContext";
 
 function dateTime(value) {
   if (!value) return "—";
@@ -21,46 +22,47 @@ export default function StockCountHistoryModal({
   loading,
   onClose
 }) {
+  const { t } = useLanguage();
   if (!session) return null;
 
   const documentColumns = [
-    { label: "Product", width: 170, value: (item) => item.products?.name || "" },
-    { label: "Khmer name", width: 145, value: (item) => item.products?.name_km || "" },
-    { label: "Code", width: 95, value: (item) => item.products?.sku || item.products?.barcode || "" },
-    { label: "Unit", width: 70, value: (item) => item.products?.unit_name || "pcs" },
-    { label: "Expected", width: 82, value: (item) => stockNumber(item.expected_quantity) },
-    { label: "Counted", width: 82, value: (item) => item.counted_quantity === null ? "Not counted" : stockNumber(item.counted_quantity) },
-    { label: "Variance", width: 82, value: (item) => {
+    { label: t("Product"), width: 170, value: (item) => item.products?.name || "" },
+    { label: t("Khmer name"), width: 145, value: (item) => item.products?.name_km || "" },
+    { label: t("Code"), width: 95, value: (item) => item.products?.sku || item.products?.barcode || "" },
+    { label: t("Unit"), width: 70, value: (item) => item.products?.unit_name || "pcs" },
+    { label: t("Expected"), width: 82, value: (item) => stockNumber(item.expected_quantity) },
+    { label: t("Counted"), width: 82, value: (item) => item.counted_quantity === null ? t("Not counted") : stockNumber(item.counted_quantity) },
+    { label: t("Variance"), width: 82, value: (item) => {
       if (item.counted_quantity === null) return "—";
       const variance = Number(item.counted_quantity) - Number(item.expected_quantity);
       return `${variance > 0 ? "+" : ""}${stockNumber(variance)}`;
     } },
-    { label: "Value", width: 95, value: (item) => {
+    { label: t("Value"), width: 95, value: (item) => {
       if (item.counted_quantity === null) return "—";
       const variance = Number(item.counted_quantity) - Number(item.expected_quantity);
       return money(variance * Number(item.unit_cost_snapshot || 0), item.products?.currency || "USD");
     } },
-    { label: "Note", width: 150, value: (item) => item.note || "" }
+    { label: t("Note"), width: 150, value: (item) => item.note || "" }
   ];
 
   const documentSummary = [
-    { label: "Status", value: session.status || "—" },
-    { label: "Started", value: dateTime(session.started_at) },
-    { label: session.status === "cancelled" ? "Cancelled" : "Completed", value: dateTime(session.completed_at || session.cancelled_at) },
-    { label: "Products", value: session.expected_items || 0 },
-    { label: "Discrepancies", value: session.discrepancy_items || 0 },
-    { label: "Adjustment", value: session.inventory_adjustments?.adjustment_number || "No adjustment" },
-    { label: "USD variance", value: money(session.value_variance_usd, "USD") },
-    { label: "KHR variance", value: money(session.value_variance_khr, "KHR") },
-    ...(session.cancellation_reason ? [{ label: "Cancellation reason", value: session.cancellation_reason }] : []),
-    ...(session.notes ? [{ label: "Notes", value: session.notes }] : [])
+    { label: t("Status"), value: session.status || "—" },
+    { label: t("Started"), value: dateTime(session.started_at) },
+    { label: session.status === "cancelled" ? t("Cancelled") : t("Completed"), value: dateTime(session.completed_at || session.cancelled_at) },
+    { label: t("Products"), value: session.expected_items || 0 },
+    { label: t("Discrepancies"), value: session.discrepancy_items || 0 },
+    { label: t("Adjustment"), value: session.inventory_adjustments?.adjustment_number || t("No adjustment") },
+    { label: t("USD variance"), value: money(session.value_variance_usd, "USD") },
+    { label: t("KHR variance"), value: money(session.value_variance_khr, "KHR") },
+    ...(session.cancellation_reason ? [{ label: t("Cancellation reason"), value: session.cancellation_reason }] : []),
+    ...(session.notes ? [{ label: t("Notes"), value: session.notes }] : [])
   ];
 
   function exportCount() {
     exportListExcel({
       filename: `${session.count_number}.xls`,
       title: `${session.count_number} · ${session.name}`,
-      subtitle: `Stock count · ${dateTime(session.started_at)}`,
+      subtitle: `${t("Stock count")} · ${dateTime(session.started_at)}`,
       summary: documentSummary,
       columns: documentColumns,
       rows: items || []
@@ -70,7 +72,7 @@ export default function StockCountHistoryModal({
   function printCount() {
     printListDocument({
       title: `${session.count_number} · ${session.name}`,
-      subtitle: `Stock count · ${dateTime(session.started_at)}`,
+      subtitle: `${t("Stock count")} · ${dateTime(session.started_at)}`,
       summary: documentSummary,
       columns: documentColumns,
       rows: items || [],
@@ -93,7 +95,7 @@ export default function StockCountHistoryModal({
             disabled={loading}
           >
             <Download size={18} />
-            Export
+            {t("Export")}
           </button>
           <button
             type="button"
@@ -102,25 +104,25 @@ export default function StockCountHistoryModal({
             disabled={loading}
           >
             <Printer size={18} />
-            Print
+            {t("Print")}
           </button>
         </div>
 
         <section className="stock-count-history-summary">
           <div>
-            <span>Status</span>
+            <span>{t("Status")}</span>
             <strong>
               {session.status}
             </strong>
           </div>
           <div>
-            <span>Started</span>
+            <span>{t("Started")}</span>
             <strong>
               {dateTime(session.started_at)}
             </strong>
           </div>
           <div>
-            <span>Completed</span>
+            <span>{t("Completed")}</span>
             <strong>
               {dateTime(
                 session.completed_at
@@ -129,27 +131,27 @@ export default function StockCountHistoryModal({
             </strong>
           </div>
           <div>
-            <span>Products</span>
+            <span>{t("Products")}</span>
             <strong>
               {session.expected_items}
             </strong>
           </div>
           <div>
-            <span>Discrepancies</span>
+            <span>{t("Discrepancies")}</span>
             <strong>
               {session.discrepancy_items}
             </strong>
           </div>
           <div>
-            <span>Adjustment</span>
+            <span>{t("Adjustment")}</span>
             <strong>
               {session.inventory_adjustments
                 ?.adjustment_number
-                || "No adjustment"}
+                || t("No adjustment")}
             </strong>
           </div>
           <div>
-            <span>USD variance</span>
+            <span>{t("USD variance")}</span>
             <strong>
               {money(
                 session.value_variance_usd,
@@ -158,7 +160,7 @@ export default function StockCountHistoryModal({
             </strong>
           </div>
           <div>
-            <span>KHR variance</span>
+            <span>{t("KHR variance")}</span>
             <strong>
               {money(
                 session.value_variance_khr,
@@ -170,33 +172,33 @@ export default function StockCountHistoryModal({
 
         {session.cancellation_reason && (
           <div className="notice warning">
-            Cancelled:{" "}
+            {t("Cancelled")}:{" "}
             {session.cancellation_reason}
           </div>
         )}
 
         {session.notes && (
           <div className="stock-count-history-notes">
-            <strong>Notes</strong>
+            <strong>{t("Notes")}</strong>
             <p>{session.notes}</p>
           </div>
         )}
 
         {loading ? (
           <div className="empty-state">
-            <p>Loading count details...</p>
+            <p>{t("Loading count details...")}</p>
           </div>
         ) : (
           <div className="stock-count-history-table-wrap">
             <table className="stock-count-history-table">
               <thead>
                 <tr>
-                  <th>Product</th>
-                  <th>Expected</th>
-                  <th>Counted</th>
-                  <th>Variance</th>
-                  <th>Value</th>
-                  <th>Note</th>
+                  <th>{t("Product")}</th>
+                  <th>{t("Expected")}</th>
+                  <th>{t("Counted")}</th>
+                  <th>{t("Variance")}</th>
+                  <th>{t("Value")}</th>
+                  <th>{t("Note")}</th>
                 </tr>
               </thead>
 
@@ -210,7 +212,7 @@ export default function StockCountHistoryModal({
 
                   return (
                     <tr key={item.id}>
-                      <td data-label="Product">
+                      <td data-label={t("Product")}>
                         <strong>
                           {item.products?.name}
                         </strong>
@@ -219,21 +221,21 @@ export default function StockCountHistoryModal({
                         </small>
                       </td>
 
-                      <td data-label="Expected">
+                      <td data-label={t("Expected")}>
                         {stockNumber(
                           item.expected_quantity
                         )}
                       </td>
 
-                      <td data-label="Counted">
+                      <td data-label={t("Counted")}>
                         {item.counted_quantity === null
-                          ? "Not counted"
+                          ? t("Not counted")
                           : stockNumber(
                               item.counted_quantity
                             )}
                       </td>
 
-                      <td data-label="Variance">
+                      <td data-label={t("Variance")}>
                         {variance === null
                           ? "—"
                           : `${variance > 0 ? "+" : ""}${stockNumber(
@@ -241,7 +243,7 @@ export default function StockCountHistoryModal({
                             )}`}
                       </td>
 
-                      <td data-label="Value">
+                      <td data-label={t("Value")}>
                         {variance === null
                           ? "—"
                           : money(
@@ -253,7 +255,7 @@ export default function StockCountHistoryModal({
                             )}
                       </td>
 
-                      <td data-label="Note">
+                      <td data-label={t("Note")}>
                         {item.note || "—"}
                       </td>
                     </tr>
@@ -270,7 +272,7 @@ export default function StockCountHistoryModal({
             className="primary-button"
             onClick={onClose}
           >
-            Close
+            {t("Close")}
           </button>
         </div>
       </div>
