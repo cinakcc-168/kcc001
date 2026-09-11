@@ -10,6 +10,7 @@ import {
 } from "react";
 import Modal from "./Modal";
 import { money, stockNumber } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function PriceListItemsModal({
   priceList,
@@ -18,6 +19,7 @@ export default function PriceListItemsModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [prices, setPrices] = useState({});
   const [percent, setPercent] = useState("10");
@@ -170,7 +172,7 @@ export default function PriceListItemsModal({
 
   return (
     <Modal
-      title={`${priceList.code} · Unit prices`}
+      title={`${priceList.code} · ${t("Unit prices")}`}
       onClose={() => !busy && onClose()}
       wide
     >
@@ -183,13 +185,13 @@ export default function PriceListItemsModal({
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search product, code, barcode, category or unit"
+              placeholder={t("Search product, code, barcode, category or unit")}
             />
           </div>
 
           <div className="price-list-percent-tools">
             <label>
-              <span>Bulk percentage</span>
+              <span>{t("Bulk percentage")}</span>
               <input
                 type="number"
                 min="0"
@@ -207,7 +209,7 @@ export default function PriceListItemsModal({
               onClick={() => applyPercent("lower")}
             >
               <BadgePercent size={17} />
-              Lower visible
+              {t("Lower visible")}
             </button>
 
             <button
@@ -216,26 +218,25 @@ export default function PriceListItemsModal({
               onClick={() => applyPercent("higher")}
             >
               <BadgePercent size={17} />
-              Raise visible
+              {t("Raise visible")}
             </button>
           </div>
         </section>
 
         <div className="notice info">
-          Blank means the normal selling price remains.
-          Saving replaces all overrides for this list.
+          {t("Blank means the normal selling price remains. Saving replaces all overrides for this list.")}
         </div>
 
         <div className="price-list-items-table-wrap">
           <table className="price-list-items-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Unit</th>
-                <th>Conversion</th>
-                <th>Normal price</th>
-                <th>List price</th>
-                <th>Difference</th>
+                <th>{t("Product")}</th>
+                <th>{t("Unit")}</th>
+                <th>{t("Conversion")}</th>
+                <th>{t("Normal price")}</th>
+                <th>{t("List price")}</th>
+                <th>{t("Difference")}</th>
               </tr>
             </thead>
 
@@ -243,7 +244,7 @@ export default function PriceListItemsModal({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="po-empty-row">
-                    No matching {priceList.currency} product units.
+                    {priceList.currency === "USD" ? t("No matching USD product units.") : t("No matching KHR product units.")}
                   </td>
                 </tr>
               ) : rows.map(({ product, unit }) => {
@@ -266,33 +267,33 @@ export default function PriceListItemsModal({
 
                 return (
                   <tr key={unit.id}>
-                    <td data-label="Product">
+                    <td data-label={t("Product")}>
                       <strong>{product.name}</strong>
                       <small>
                         {[product.sku, product.barcode]
                           .filter(Boolean)
-                          .join(" · ") || "No code"}
+                          .join(" · ") || t("No code")}
                       </small>
                     </td>
 
-                    <td data-label="Unit">
+                    <td data-label={t("Unit")}>
                       <strong>{unit.name}</strong>
                       <small>
-                        {unit.barcode || "No unit barcode"}
+                        {unit.barcode || t("No unit barcode")}
                       </small>
                     </td>
 
-                    <td data-label="Conversion">
+                    <td data-label={t("Conversion")}>
                       1 {unit.name} = {stockNumber(
                         unit.conversion_factor
                       )} {product.unit_name}
                     </td>
 
-                    <td data-label="Normal price">
+                    <td data-label={t("Normal price")}>
                       {money(normal, priceList.currency)}
                     </td>
 
-                    <td data-label="List price">
+                    <td data-label={t("List price")}>
                       <input
                         type="number"
                         min="0"
@@ -312,10 +313,10 @@ export default function PriceListItemsModal({
                       />
                     </td>
 
-                    <td data-label="Difference">
+                    <td data-label={t("Difference")}>
                       {override === null ? (
                         <span className="muted">
-                          Standard
+                          {t("Standard")}
                         </span>
                       ) : (
                         <strong className={
@@ -346,8 +347,7 @@ export default function PriceListItemsModal({
 
         <div className="modal-actions">
           <span className="muted">
-            {overrideCount} price override
-            {overrideCount === 1 ? "" : "s"}
+            {overrideCount} {overrideCount === 1 ? t("price override") : t("price overrides")}
           </span>
 
           <button
@@ -356,7 +356,7 @@ export default function PriceListItemsModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
 
           <button
@@ -367,8 +367,8 @@ export default function PriceListItemsModal({
           >
             <Save size={18} />
             {busy
-              ? "Saving prices..."
-              : "Save unit prices"}
+              ? t("Saving prices...")
+              : t("Save unit prices")}
           </button>
         </div>
       </div>
