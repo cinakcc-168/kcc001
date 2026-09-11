@@ -14,6 +14,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import CustomerPriceListModal from "../components/CustomerPriceListModal";
 import PriceListFormModal from "../components/PriceListFormModal";
 import PriceListItemsModal from "../components/PriceListItemsModal";
@@ -58,6 +59,7 @@ function listState(list) {
 
 export default function PriceListsPage() {
   const { supabase, profile, can } = useAuth();
+  const { t } = useLanguage();
 
   const canManage = can("price_lists.manage");
   const canAllBranches = can("branches.all");
@@ -268,10 +270,9 @@ export default function PriceListsPage() {
     return (
       <section className="panel empty-state">
         <BadgeDollarSign size={46} />
-        <h2>Management access required</h2>
+        <h2>{t("Management access required")}</h2>
         <p>
-          Only an owner, admin or manager can
-          manage price lists.
+          {t("Only an owner, admin or manager can manage price lists.")}
         </p>
       </section>
     );
@@ -282,13 +283,11 @@ export default function PriceListsPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            SELLING PRICES
+            {t("SELLING PRICES")}
           </p>
-          <h1>Price Lists</h1>
+          <h1>{t("Price Lists")}</h1>
           <p className="muted">
-            Create VIP, wholesale, branch and
-            customer-specific prices for every
-            package unit.
+            {t("Create VIP, wholesale, branch and customer-specific prices for every package unit.")}
           </p>
         </div>
 
@@ -301,7 +300,7 @@ export default function PriceListsPage() {
             }
           >
             <UserRoundCheck size={18} />
-            Assign Customer
+            {t("Assign Customer")}
           </button>
 
           <button
@@ -313,7 +312,7 @@ export default function PriceListsPage() {
             }}
           >
             <Plus size={18} />
-            New Price List
+            {t("New Price List")}
           </button>
 
           <button
@@ -326,7 +325,7 @@ export default function PriceListsPage() {
               size={18}
               className={loading ? "spin" : ""}
             />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -343,25 +342,25 @@ export default function PriceListsPage() {
       <div className="price-list-metrics">
         <article>
           <BadgeDollarSign size={22} />
-          <span>Total lists</span>
+          <span>{t("Total lists")}</span>
           <strong>{metrics.total}</strong>
         </article>
 
         <article>
           <BadgeDollarSign size={22} />
-          <span>Active now</span>
+          <span>{t("Active now")}</span>
           <strong>{metrics.active}</strong>
         </article>
 
         <article>
           <SlidersHorizontal size={22} />
-          <span>Unit overrides</span>
+          <span>{t("Unit overrides")}</span>
           <strong>{metrics.items}</strong>
         </article>
 
         <article>
           <UserRoundCheck size={22} />
-          <span>Direct assignments</span>
+          <span>{t("Direct assignments")}</span>
           <strong>{metrics.assigned}</strong>
         </article>
       </div>
@@ -374,7 +373,7 @@ export default function PriceListsPage() {
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search code, name, group, branch or note"
+            placeholder={t("Search code, name, group, branch or note")}
           />
         </div>
 
@@ -384,7 +383,7 @@ export default function PriceListsPage() {
             setCurrency(event.target.value)
           }
         >
-          <option value="">All currencies</option>
+          <option value="">{t("All currencies")}</option>
           <option value="USD">USD</option>
           <option value="KHR">KHR</option>
         </select>
@@ -395,11 +394,11 @@ export default function PriceListsPage() {
             setStatus(event.target.value)
           }
         >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="expired">Expired</option>
-          <option value="inactive">Inactive</option>
+          <option value="">{t("All statuses")}</option>
+          <option value="active">{t("Active")}</option>
+          <option value="scheduled">{t("Scheduled")}</option>
+          <option value="expired">{t("Expired")}</option>
+          <option value="inactive">{t("Inactive")}</option>
         </select>
       </section>
 
@@ -407,14 +406,14 @@ export default function PriceListsPage() {
         {loading ? (
           <div className="panel empty-state">
             <RefreshCw className="spin" />
-            <p>Loading price lists...</p>
+            <p>{t("Loading price lists...")}</p>
           </div>
         ) : visible.length === 0 ? (
           <div className="panel empty-state">
             <BadgeDollarSign size={48} />
-            <h2>No matching price lists</h2>
+            <h2>{t("No matching price lists")}</h2>
             <p>
-              Create a list or change the filters.
+              {t("Create a list or change the filters.")}
             </p>
           </div>
         ) : visible.map((list) => {
@@ -428,7 +427,7 @@ export default function PriceListsPage() {
               <header>
                 <div>
                   <span className={`price-list-state ${state}`}>
-                    {state}
+                    {t(state)}
                   </span>
                   <h2>{list.name}</h2>
                   <strong>{list.code}</strong>
@@ -441,7 +440,7 @@ export default function PriceListsPage() {
                     setEditing(list);
                     setFormOpen(true);
                   }}
-                  title="Edit price list"
+                  title={t("Edit price list")}
                 >
                   <Edit3 size={18} />
                 </button>
@@ -449,33 +448,33 @@ export default function PriceListsPage() {
 
               <div className="price-list-card-info">
                 <div>
-                  <span>Applies to</span>
+                  <span>{t("Applies to")}</span>
                   <strong>
                     {priceListScopeLabel(list)}
                   </strong>
                 </div>
 
                 <div>
-                  <span>Branch</span>
+                  <span>{t("Branch")}</span>
                   <strong>
-                    {list.branches?.name || "All branches"}
+                    {list.branches?.name || t("All branches")}
                   </strong>
                 </div>
 
                 <div>
-                  <span>Priority</span>
+                  <span>{t("Priority")}</span>
                   <strong>{list.priority}</strong>
                 </div>
 
                 <div>
-                  <span>Unit prices</span>
+                  <span>{t("Unit prices")}</span>
                   <strong>
                     {list.price_list_items.length}
                   </strong>
                 </div>
 
                 <div>
-                  <span>Assigned customers</span>
+                  <span>{t("Assigned customers")}</span>
                   <strong>
                     {list.assigned_customer_count}
                   </strong>
@@ -484,10 +483,10 @@ export default function PriceListsPage() {
 
               <div className="price-list-schedule">
                 <span>
-                  Starts: {dateTime(list.starts_at)}
+                  {t("Starts: ")}{dateTime(list.starts_at)}
                 </span>
                 <span>
-                  Ends: {dateTime(list.ends_at)}
+                  {t("Ends: ")}{dateTime(list.ends_at)}
                 </span>
               </div>
 
@@ -502,7 +501,7 @@ export default function PriceListsPage() {
                   onClick={() => setItemList(list)}
                 >
                   <SlidersHorizontal size={17} />
-                  Edit Unit Prices
+                  {t("Edit Unit Prices")}
                 </button>
 
                 <button
@@ -513,7 +512,7 @@ export default function PriceListsPage() {
                   }
                 >
                   <UserRoundCheck size={17} />
-                  Assign Customer
+                  {t("Assign Customer")}
                 </button>
               </footer>
             </article>
