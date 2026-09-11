@@ -8,6 +8,7 @@ import {
 } from "react";
 import Modal from "./Modal";
 import { money } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function StockCountCompleteModal({
   session,
@@ -16,6 +17,7 @@ export default function StockCountCompleteModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [note, setNote] = useState("");
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function StockCountCompleteModal({
 
   return (
     <Modal
-      title={`Complete ${session.count_number}`}
+      title={`${t("Complete")} ${session.count_number}`}
       onClose={onClose}
     >
       <form
@@ -42,51 +44,48 @@ export default function StockCountCompleteModal({
         <div className="stock-count-complete-warning">
           <AlertTriangle size={21} />
           <span>
-            Pause sales, receiving, transfers and
-            refunds before completion. Tiny POS
-            blocks completion when system stock
-            changed after the count started.
+            {t("Pause sales, receiving, transfers and refunds before completion. Tiny POS blocks completion when system stock changed after the count started.")}
           </span>
         </div>
 
         <div className="stock-count-complete-grid">
           <div>
-            <span>Products</span>
+            <span>{t("Products")}</span>
             <strong>
               {metrics.total}
             </strong>
           </div>
 
           <div>
-            <span>Uncounted</span>
+            <span>{t("Uncounted")}</span>
             <strong>
               {metrics.uncounted}
             </strong>
           </div>
 
           <div>
-            <span>Discrepancies</span>
+            <span>{t("Discrepancies")}</span>
             <strong>
               {metrics.discrepancies}
             </strong>
           </div>
 
           <div>
-            <span>Shortage items</span>
+            <span>{t("Shortage items")}</span>
             <strong>
               {metrics.shortages}
             </strong>
           </div>
 
           <div>
-            <span>Overage items</span>
+            <span>{t("Overage items")}</span>
             <strong>
               {metrics.overages}
             </strong>
           </div>
 
           <div>
-            <span>USD value variance</span>
+            <span>{t("USD value variance")}</span>
             <strong>
               {money(
                 metrics.valueUsd,
@@ -96,7 +95,7 @@ export default function StockCountCompleteModal({
           </div>
 
           <div>
-            <span>KHR value variance</span>
+            <span>{t("KHR value variance")}</span>
             <strong>
               {money(
                 metrics.valueKhr,
@@ -108,20 +107,19 @@ export default function StockCountCompleteModal({
 
         {!ready && (
           <div className="notice error">
-            Count every product before completing
-            this session.
+            {t("Count every product before completing this session.")}
           </div>
         )}
 
         <label>
-          <span>Completion note</span>
+          <span>{t("Completion note")}</span>
           <textarea
             rows="3"
             value={note}
             onChange={(event) =>
               setNote(event.target.value)
             }
-            placeholder="Optional approval, witness or discrepancy explanation"
+            placeholder={t("Optional approval, witness or discrepancy explanation")}
           />
         </label>
 
@@ -132,7 +130,7 @@ export default function StockCountCompleteModal({
             onClick={onClose}
             disabled={busy}
           >
-            Continue counting
+            {t("Continue counting")}
           </button>
 
           <button
@@ -142,10 +140,10 @@ export default function StockCountCompleteModal({
           >
             <ClipboardCheck size={18} />
             {busy
-              ? "Applying stock count..."
+              ? t("Applying stock count...")
               : metrics.discrepancies > 0
-                ? "Complete and adjust stock"
-                : "Complete balanced count"}
+                ? t("Complete and adjust stock")
+                : t("Complete balanced count")}
           </button>
         </div>
       </form>
