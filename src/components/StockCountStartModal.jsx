@@ -9,6 +9,7 @@ import {
 } from "react";
 import Modal from "./Modal";
 import { stockNumber } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function StockCountStartModal({
   open,
@@ -18,6 +19,7 @@ export default function StockCountStartModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [scope, setScope] = useState("all");
   const [categoryId, setCategoryId] =
@@ -113,7 +115,7 @@ export default function StockCountStartModal({
     setError("");
 
     if (!name.trim()) {
-      setError("Stock count name is required.");
+      setError(t("Stock count name is required."));
       return;
     }
 
@@ -121,7 +123,7 @@ export default function StockCountStartModal({
       scope === "category"
       && !categoryId
     ) {
-      setError("Choose a category.");
+      setError(t("Choose a category."));
       return;
     }
 
@@ -130,14 +132,14 @@ export default function StockCountStartModal({
       && selectedIds.size === 0
     ) {
       setError(
-        "Choose at least one product."
+        t("Choose at least one product.")
       );
       return;
     }
 
     if (includedCount === 0) {
       setError(
-        "No stock-tracked products match this scope."
+        t("No stock-tracked products match this scope.")
       );
       return;
     }
@@ -154,7 +156,7 @@ export default function StockCountStartModal({
 
   return (
     <Modal
-      title="Start stock count"
+      title={t("Start stock count")}
       onClose={onClose}
       wide
     >
@@ -164,7 +166,7 @@ export default function StockCountStartModal({
       >
         <div className="form-grid two">
           <label>
-            <span>Count name</span>
+            <span>{t("Count name")}</span>
             <input
               value={name}
               onChange={(event) =>
@@ -175,7 +177,7 @@ export default function StockCountStartModal({
           </label>
 
           <label>
-            <span>Count scope</span>
+            <span>{t("Count scope")}</span>
             <select
               value={scope}
               onChange={(event) => {
@@ -184,13 +186,13 @@ export default function StockCountStartModal({
               }}
             >
               <option value="all">
-                All tracked products
+                {t("All tracked products")}
               </option>
               <option value="category">
-                One category
+                {t("One category")}
               </option>
               <option value="selected">
-                Selected products
+                {t("Selected products")}
               </option>
             </select>
           </label>
@@ -198,7 +200,7 @@ export default function StockCountStartModal({
 
         {scope === "category" && (
           <label>
-            <span>Category</span>
+            <span>{t("Category")}</span>
             <select
               value={categoryId}
               onChange={(event) =>
@@ -208,7 +210,7 @@ export default function StockCountStartModal({
               }
             >
               <option value="">
-                Choose category
+                {t("Choose category")}
               </option>
               {categories.map((category) => (
                 <option
@@ -233,7 +235,7 @@ export default function StockCountStartModal({
                     event.target.value
                   )
                 }
-                placeholder="Search products to include"
+                placeholder={t("Search products to include")}
               />
             </div>
 
@@ -275,15 +277,10 @@ export default function StockCountStartModal({
           <ClipboardCheck size={23} />
           <div>
             <strong>
-              {includedCount} product
-              {includedCount === 1
-                ? ""
-                : "s"}
-              {" "}will be counted
+              {includedCount} {includedCount === 1 ? t("product") : t("products")} {t("will be counted")}
             </strong>
             <span>
-              System quantities are captured when
-              the count starts.
+              {t("System quantities are captured when the count starts.")}
             </span>
           </div>
         </section>
@@ -299,20 +296,19 @@ export default function StockCountStartModal({
             }
           />
           <span>
-            Blind count: hide expected stock and
-            variance until completion
+            {t("Blind count: hide expected stock and variance until completion")}
           </span>
         </label>
 
         <label>
-          <span>Opening note</span>
+          <span>{t("Opening note")}</span>
           <textarea
             rows="3"
             value={notes}
             onChange={(event) =>
               setNotes(event.target.value)
             }
-            placeholder="Optional instructions, shelf area or count team"
+            placeholder={t("Optional instructions, shelf area or count team")}
           />
         </label>
 
@@ -329,7 +325,7 @@ export default function StockCountStartModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
 
           <button
@@ -339,8 +335,8 @@ export default function StockCountStartModal({
           >
             <ClipboardCheck size={18} />
             {busy
-              ? "Starting count..."
-              : "Start stock count"}
+              ? t("Starting count...")
+              : t("Start stock count")}
           </button>
         </div>
       </form>
