@@ -19,6 +19,7 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import DemandPlanningSettingsModal from "../components/DemandPlanningSettingsModal";
 import {
   createForecastDraftPurchaseOrders,
@@ -56,6 +57,7 @@ function dateLabel(value) {
 
 export default function DemandPlanningPage() {
   const { supabase, profile, can } = useAuth();
+  const { t } = useLanguage();
   const canManage = can("demand_planning.manage");
   const canCreateOrders = can("demand_planning.create_purchase_orders");
   const canAllBranches = can("branches.all");
@@ -285,7 +287,7 @@ export default function DemandPlanningPage() {
         <div>
           <p className="eyebrow">FORECAST & PROCUREMENT</p>
           <h1>Demand Planning</h1>
-          <p>Forecast product demand, estimate stockout dates and convert safe recommendations into draft purchase orders.</p>
+          <p>{t("Forecast product demand, estimate stockout dates and convert safe recommendations into draft purchase orders.")}</p>
         </div>
         <div className="page-actions">
           {canAllBranches && branches.length > 1 && (
@@ -325,12 +327,12 @@ export default function DemandPlanningPage() {
         <div className="metric-card">
           <span>Urgent</span>
           <strong className="viz-stat-value">{metrics.urgent}</strong>
-          <small>Inside lead time plus safety-stock window</small>
+          <small>{t("Inside lead time plus safety-stock window")}</small>
         </div>
         <div className="metric-card">
           <span>Watch list</span>
           <strong className="viz-stat-value">{metrics.watch}</strong>
-          <small>Likely to need stock within the forecast horizon</small>
+          <small>{t("Likely to need stock within the forecast horizon")}</small>
         </div>
         <div className="metric-card">
           <span>Forecast accuracy</span>
@@ -339,7 +341,7 @@ export default function DemandPlanningPage() {
               ? "—"
               : `${number(workspace.run.average_accuracy_percent, 1)}%`}
           </strong>
-          <small>Available after an older forecast horizon finishes</small>
+          <small>{t("Available after an older forecast horizon finishes")}</small>
         </div>
       </div>
 
@@ -363,7 +365,7 @@ export default function DemandPlanningPage() {
             </div>
             <div>
               <TrendingUp size={18} />
-              <span>Horizon <strong>{workspace.run?.forecast_horizon_days || 0} days</strong></span>
+              <span>{t("Horizon")} <strong>{workspace.run?.forecast_horizon_days || 0} {t("days")}</strong></span>
             </div>
             <div>
               <CheckCircle2 size={18} />
@@ -498,13 +500,13 @@ export default function DemandPlanningPage() {
             <div className="viz-callout">
               <AlertTriangle size={20} />
               <div>
-                <strong>Recommendations are planning guidance</strong>
-                <p>Review supplier availability, case sizes, promotions and cash flow before ordering. Tiny POS creates Draft purchase orders only.</p>
+                <strong>{t("Recommendations are planning guidance")}</strong>
+                <p>{t("Review supplier availability, case sizes, promotions and cash flow before ordering. Tiny POS creates Draft purchase orders only.")}</p>
               </div>
             </div>
             <div className="card forecast-history-card">
               <div className="section-heading">
-                <div><h2>Recent forecast runs</h2><p>Accuracy appears after the full horizon has elapsed.</p></div>
+                <div><h2>{t("Recent forecast runs")}</h2><p>{t("Accuracy appears after the full horizon has elapsed.")}</p></div>
                 <Link to="/reorder">Open Reorder Planner</Link>
               </div>
               <div className="forecast-history-list">
@@ -513,7 +515,7 @@ export default function DemandPlanningPage() {
                     <span>{dateLabel(run.as_of_date)}</span>
                     <span>{run.source === "scheduled" ? "Automatic" : "Manual"}</span>
                     <span>{Number(run.critical_count || 0) + Number(run.out_of_stock_count || 0)} critical</span>
-                    <strong>{run.average_accuracy_percent == null ? "Accuracy pending" : `${number(run.average_accuracy_percent, 1)}% accuracy`}</strong>
+                    <strong>{run.average_accuracy_percent == null ? t("Accuracy pending") : `${number(run.average_accuracy_percent, 1)}% ${t("accuracy")}`}</strong>
                   </div>
                 ))}
               </div>
