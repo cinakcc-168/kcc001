@@ -14,6 +14,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { money } from "../lib/catalog";
 import {
   cancelPurchaseOrder,
@@ -104,6 +105,7 @@ function searchableSupplier(supplier) {
 
 export default function PurchaseOrdersPage() {
   const { supabase, profile, shop, canAny } = useAuth();
+  const { t } = useLanguage();
   const canManage = canAny([
     "purchases.manage",
     "purchases.receive",
@@ -380,10 +382,10 @@ export default function PurchaseOrdersPage() {
     <div className="page-stack purchase-orders-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PROCUREMENT</p>
+          <p className="eyebrow">{t("PROCUREMENT")}</p>
           <h1>Purchase Orders</h1>
           <p className="muted">
-            Create supplier orders, receive inventory, track payments, and manage suppliers.
+            {t("Create supplier orders, receive inventory, track payments, and manage suppliers.")}
           </p>
         </div>
 
@@ -402,10 +404,10 @@ export default function PurchaseOrdersPage() {
       <div className="po-metrics partial-enabled">
         <article>
           <ClipboardList />
-          <span>Open orders</span>
+          <span>{t("Open orders")}</span>
           <strong>{metrics.openCount}</strong>
           <small>
-            {money(metrics.openValue, baseCurrency)} open value
+            {money(metrics.openValue, baseCurrency)} {t("open value")}
           </small>
         </article>
 
@@ -413,14 +415,14 @@ export default function PurchaseOrdersPage() {
           <Truck />
           <span>Partially received</span>
           <strong>{metrics.partialCount}</strong>
-          <small>Has remaining backorders</small>
+          <small>{t("Has remaining backorders")}</small>
         </article>
 
         <article>
           <PackageCheck />
           <span>Fully received</span>
           <strong>{metrics.receivedCount}</strong>
-          <small>Completed orders in range</small>
+          <small>{t("Completed orders in range")}</small>
         </article>
 
         <article>
@@ -429,7 +431,7 @@ export default function PurchaseOrdersPage() {
           <strong>
             {money(metrics.outstanding, baseCurrency)}
           </strong>
-          <small>Unpaid supplier balance</small>
+          <small>{t("Unpaid supplier balance")}</small>
         </article>
       </div>
 
@@ -524,7 +526,7 @@ export default function PurchaseOrdersPage() {
         <ResponsiveDataList
           storageKey="purchase-orders-list"
           title="Purchase orders"
-          subtitle={`${filters.from} to ${filters.to} · Current supplier and status filters`}
+          subtitle={`${filters.from} to ${filters.to} · ${t("Current supplier and status filters")}`}
           rows={filteredPurchases}
           filename={`tiny-pos-purchase-orders-${filters.from}-to-${filters.to}.xls`}
           summary={[
@@ -534,7 +536,7 @@ export default function PurchaseOrdersPage() {
             { label: "Outstanding", value: money(metrics.outstanding, baseCurrency) }
           ]}
           emptyTitle={loading ? "Loading purchase orders..." : "No purchase orders found"}
-          emptyText="Create a new order or change the filters."
+          emptyText={t("Create a new order or change the filters.")}
           columns={[
             { label: "Order", width: 170, documentValue: (purchase) => purchase.purchase_number, render: (purchase) => <><strong>{purchase.purchase_number}</strong><small>{dateTime(purchase.created_at)}</small></> },
             { label: "Supplier", width: 170, value: (purchase) => purchase.suppliers?.name || "No supplier" },
