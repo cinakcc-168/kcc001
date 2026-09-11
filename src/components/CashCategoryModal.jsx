@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Edit3, Plus, Save } from "lucide-react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
 const empty = {
   id: null,
@@ -11,6 +12,7 @@ const empty = {
 };
 
 export default function CashCategoryModal({ categories, busy, onClose, onSave }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(empty);
   const [error, setError] = useState("");
 
@@ -46,16 +48,16 @@ export default function CashCategoryModal({ categories, busy, onClose, onSave })
   }
 
   return (
-    <Modal title="Cash & expense categories" onClose={onClose} wide>
+    <Modal title={t("Cash & expense categories")} onClose={onClose} wide>
       <div className="cash-category-layout">
         <section className="cash-category-list">
           <div className="cash-category-heading">
             <div>
-              <h3>Categories</h3>
-              <p>Inactive categories stay in old records but cannot be selected.</p>
+              <h3>{t("Categories")}</h3>
+              <p>{t("Inactive categories stay in old records but cannot be selected.")}</p>
             </div>
             <button type="button" className="secondary-button" onClick={reset}>
-              <Plus size={17} /> New
+              <Plus size={17} /> {t("New")}
             </button>
           </div>
 
@@ -70,12 +72,12 @@ export default function CashCategoryModal({ categories, busy, onClose, onSave })
                 <span>
                   <strong>{category.name}</strong>
                   <small>
-                    {category.direction === "income" ? "Cash in" : "Expense"}
-                    {category.affects_profit ? " · Profit & Loss" : " · Cash only"}
+                    {category.direction === "income" ? t("Cash in") : t("Expense")}
+                    {category.affects_profit ? ` · ${t("Profit & Loss")}` : ` · ${t("Cash only")}`}
                   </small>
                 </span>
                 <span className={`status-pill ${category.is_active ? "active" : "inactive"}`}>
-                  {category.is_active ? "Active" : "Inactive"}
+                  {category.is_active ? t("Active") : t("Inactive")}
                 </span>
                 <Edit3 size={17} />
               </button>
@@ -84,32 +86,32 @@ export default function CashCategoryModal({ categories, busy, onClose, onSave })
         </section>
 
         <form className="cash-category-form" onSubmit={submit}>
-          <h3>{form.id ? "Edit category" : "New category"}</h3>
+          <h3>{form.id ? t("Edit category") : t("New category")}</h3>
 
           <label>
-            <span>Name</span>
+            <span>{t("Name")}</span>
             <input
               value={form.name}
               onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              placeholder="Example: Delivery expense"
+              placeholder={t("Example: Delivery expense")}
             />
           </label>
 
           <label>
-            <span>Type</span>
+            <span>{t("Type")}</span>
             <select
               value={form.direction}
               onChange={(event) => setForm((current) => ({ ...current, direction: event.target.value }))}
             >
-              <option value="income">Cash in / Other income</option>
-              <option value="expense">Expense / Cash out</option>
+              <option value="income">{t("Cash in / Other income")}</option>
+              <option value="expense">{t("Expense / Cash out")}</option>
             </select>
           </label>
 
           <label className="toggle-row cash-category-toggle">
             <span>
-              <strong>Affects Profit & Loss</strong>
-              <small>Turn off for opening balance, owner contribution, transfer, or owner withdrawal.</small>
+              <strong>{t("Affects Profit & Loss")}</strong>
+              <small>{t("Turn off for opening balance, owner contribution, transfer, or owner withdrawal.")}</small>
             </span>
             <input
               type="checkbox"
@@ -120,8 +122,8 @@ export default function CashCategoryModal({ categories, busy, onClose, onSave })
 
           <label className="toggle-row cash-category-toggle">
             <span>
-              <strong>Active</strong>
-              <small>Inactive categories cannot be used for new entries.</small>
+              <strong>{t("Active")}</strong>
+              <small>{t("Inactive categories cannot be used for new entries.")}</small>
             </span>
             <input
               type="checkbox"
@@ -134,7 +136,7 @@ export default function CashCategoryModal({ categories, busy, onClose, onSave })
 
           <button type="submit" className="primary-button" disabled={busy}>
             <Save size={18} />
-            {busy ? "Saving…" : "Save category"}
+            {busy ? t("Saving...") : t("Save category")}
           </button>
         </form>
       </div>
