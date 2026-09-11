@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 const defaults = {
   history_days: 90,
@@ -22,6 +23,7 @@ export default function DemandPlanningSettingsModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [values, setValues] = useState(defaults);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function DemandPlanningSettingsModal({
       <div className="modal demand-settings-modal">
         <div className="modal-header">
           <div>
-            <p className="eyebrow">DEMAND MODEL</p>
+            <p className="eyebrow">{t("DEMAND MODEL")}</p>
             <h2>Forecast Settings</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
@@ -109,7 +111,7 @@ export default function DemandPlanningSettingsModal({
             Daily automatic-run hour
             <input type="number" min="0" max="23" value={values.auto_run_hour}
               onChange={(event) => update("auto_run_hour", event.target.value)} />
-            <small>Uses the shop timezone and a 24-hour clock.</small>
+            <small>{t("Uses the shop timezone and a 24-hour clock.")}</small>
           </label>
         </div>
 
