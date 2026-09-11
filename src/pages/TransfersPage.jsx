@@ -13,6 +13,7 @@ import {
   Truck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import TransferFormModal from "../components/TransferFormModal";
 import TransferActionModal from "../components/TransferActionModal";
 import TransferWorkflowModal from "../components/TransferWorkflowModal";
@@ -53,6 +54,7 @@ function statusClass(status) {
 
 export default function TransfersPage() {
   const { supabase, profile, can, canAny } = useAuth();
+  const { t } = useLanguage();
   const canCreate = can("transfers.create");
   const canEdit = can("transfers.edit");
   const canCount = canAny(["transfers.count", "transfers.receive"]);
@@ -172,7 +174,7 @@ export default function TransfersPage() {
         : await createStockTransfer(supabase, values);
       setNewTransferOpen(false);
       setEditingTransfer(null);
-      announce("success", `${result.transfer_number} saved as a pending branch transfer.`);
+      announce("success", `${result.transfer_number} ${t("saved as a pending branch transfer.")}`);
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -189,7 +191,7 @@ export default function TransfersPage() {
         ? await receiveStockTransfer(supabase, transferAction.transfer.id, text)
         : await cancelStockTransfer(supabase, transferAction.transfer, text);
       setTransferAction(null);
-      announce("success", `${result.transfer_number} ${result.status === "received" ? "received" : "cancelled"}.`);
+      announce("success", `${result.transfer_number} ${result.status === "received" ? t("received") : t("cancelled")}.`);
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -202,7 +204,7 @@ export default function TransfersPage() {
     setBusy(true);
     try {
       const result = await saveStockTransferCount(supabase, values);
-      announce("success", values.submit ? `${result.transfer_number} submitted for approval.` : `${result.transfer_number} counts saved.`);
+      announce("success", values.submit ? `${result.transfer_number} ${t("submitted for approval.")}` : `${result.transfer_number} ${t("counts saved.")}`);
       const data = await refresh();
       if (values.submit) {
         setWorkflow(null);
@@ -221,7 +223,7 @@ export default function TransfersPage() {
     try {
       const result = await approveStockTransfer(supabase, transferId, note);
       setWorkflow(null);
-      announce("success", `${result.transfer_number} approved. Source and destination stock were updated.`);
+      announce("success", `${result.transfer_number} ${t("approved. Source and destination stock were updated.")}`);
       await refresh();
     } catch (error) {
       announce("error", error.message);
@@ -236,7 +238,7 @@ export default function TransfersPage() {
     try {
       const result = await reopenStockTransferCount(supabase, transferId, note);
       setWorkflow(null);
-      announce("success", `${result.transfer_number} returned to pending count.`);
+      announce("success", `${result.transfer_number} ${t("returned to pending count.")}`);
       await refresh();
     } finally {
       setBusy(false);
@@ -254,7 +256,7 @@ export default function TransfersPage() {
     try {
       const result = await cancelStockTransfer(supabase, transfer, reason.trim());
       setWorkflow(null);
-      announce("success", `${result.transfer_number} cancelled. No stock was moved for this workflow transfer.`);
+      announce("success", `${result.transfer_number} ${t("cancelled. No stock was moved for this workflow transfer.")}`);
       await refresh();
       return result;
     } catch (error) {
@@ -280,20 +282,20 @@ export default function TransfersPage() {
   }
 
   if (!canManage) {
-    return <section className="panel empty-state"><ArrowLeftRight size={46} /><h2>Transfer access is restricted</h2><p>Your role does not include stock-transfer permissions.</p></section>;
+    return <section className="panel empty-state"><ArrowLeftRight size={46} /><h2>{t("Transfer access is restricted")}</h2><p>{t("Your role does not include stock-transfer permissions.")}</p></section>;
   }
 
   const columns = [
-    { label: "Transfer", width: 180, documentValue: (row) => row.transfer_number, render: (row) => <><strong>{row.transfer_number}</strong><small>{dateTime(row.created_at)}</small></> },
-    { label: "From", width: 150, value: (row) => row.source_branch?.name || "Source" },
-    { label: "To", width: 150, value: (row) => row.destination_branch?.name || "Destination" },
-    { label: "IN / OUT", width: 82, documentValue: (row) => directionForTransfer(row), render: (row) => { const direction = directionForTransfer(row); return <span className={`transfer-direction-pill ${direction === "IN" ? "in" : direction === "OUT" ? "out" : "neutral"}`}>{direction}</span>; } },
-    { label: "Items", width: 80, value: (row) => (row.stock_transfer_items || []).length },
-    { label: "Requested", width: 110, value: (row) => stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)) },
-    { label: "Counted", width: 110, value: (row) => stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0)) },
-    { label: "Status", width: 130, documentValue: (row) => row.display_status, render: (row) => <span className={`status-pill ${statusClass(row.status === "pending" ? row.count_status : row.status)}`}>{row.display_status}</span> },
-    { label: "Notes", width: 220, value: (row) => row.approval_note || row.count_notes || row.receive_notes || row.cancel_reason || row.notes || "—" },
-    { label: "Actions", actionsOnly: true, excludeDocument: true, render: (row) => <TransferButtons row={row} /> }
+    { label: t("Transfer"), width: 180, documentValue: (row) => row.transfer_number, render: (row) => <><strong>{row.transfer_number}</strong><small>{dateTime(row.created_at)}</small></> },
+    { label: t("From"), width: 150, value: (row) => row.source_branch?.name || t("Source") },
+    { label: t("To"), width: 150, value: (row) => row.destination_branch?.name || t("Destination") },
+    { label: t("IN / OUT"), width: 82, documentValue: (row) => directionForTransfer(row), render: (row) => { const direction = directionForTransfer(row); return <span className={`transfer-direction-pill ${direction === "IN" ? "in" : direction === "OUT" ? "out" : "neutral"}`}>{direction}</span>; } },
+    { label: t("Items"), width: 80, value: (row) => (row.stock_transfer_items || []).length },
+    { label: t("Requested"), width: 110, value: (row) => stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)) },
+    { label: t("Counted"), width: 110, value: (row) => stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0)) },
+    { label: t("Status"), width: 130, documentValue: (row) => row.display_status, render: (row) => <span className={`status-pill ${statusClass(row.status === "pending" ? row.count_status : row.status)}`}>{row.display_status}</span> },
+    { label: t("Notes"), width: 220, value: (row) => row.approval_note || row.count_notes || row.receive_notes || row.cancel_reason || row.notes || "—" },
+    { label: t("Actions"), actionsOnly: true, excludeDocument: true, render: (row) => <TransferButtons row={row} /> }
   ];
 
   function TransferButtons({ row }) {
@@ -308,12 +310,12 @@ export default function TransfersPage() {
     const cancellable = row.status === "pending" && (workflow2 ? endpoint : source) && canCancel;
     return (
       <div className="transfer-card-actions">
-        <button type="button" className="secondary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "view" })}><Eye size={17} />View</button>
-        {editable && <button type="button" className="secondary-button compact-button" onClick={() => setEditingTransfer(row)}><Pencil size={17} />Edit</button>}
-        {countable && <button type="button" className="primary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "count" })}><PackageCheck size={17} />Count</button>}
-        {approvable && <button type="button" className="primary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "approve" })}><CheckCircle2 size={17} />Approve</button>}
-        {legacyReceive && <button type="button" className="primary-button compact-button" onClick={() => setTransferAction({ transfer: row, action: "receive" })}><PackageCheck size={17} />Receive</button>}
-        {cancellable && <button type="button" className="secondary-button compact-button" onClick={() => setTransferAction({ transfer: row, action: "cancel" })}><Ban size={17} />Cancel</button>}
+        <button type="button" className="secondary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "view" })}><Eye size={17} />{t("View")}</button>
+        {editable && <button type="button" className="secondary-button compact-button" onClick={() => setEditingTransfer(row)}><Pencil size={17} />{t("Edit")}</button>}
+        {countable && <button type="button" className="primary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "count" })}><PackageCheck size={17} />{t("Count")}</button>}
+        {approvable && <button type="button" className="primary-button compact-button" onClick={() => setWorkflow({ transfer: row, mode: "approve" })}><CheckCircle2 size={17} />{t("Approve")}</button>}
+        {legacyReceive && <button type="button" className="primary-button compact-button" onClick={() => setTransferAction({ transfer: row, action: "receive" })}><PackageCheck size={17} />{t("Receive")}</button>}
+        {cancellable && <button type="button" className="secondary-button compact-button" onClick={() => setTransferAction({ transfer: row, action: "cancel" })}><Ban size={17} />{t("Cancel")}</button>}
       </div>
     );
   }
@@ -321,29 +323,29 @@ export default function TransfersPage() {
   return (
     <div className="page-stack transfers-page">
       <div className="page-heading">
-        <div><p className="eyebrow">MULTI-BRANCH INVENTORY</p><h1>Stock Transfers</h1><p className="muted">Create, count and approve branch transfers without changing stock before final approval.</p></div>
+        <div><p className="eyebrow">{t("MULTI-BRANCH INVENTORY")}</p><h1>{t("Stock Transfers")}</h1><p className="muted">{t("Create, count and approve branch transfers without changing stock before final approval.")}</p></div>
         <div className="heading-actions">
-          <button type="button" className="secondary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button>
-          {canCreate && <button type="button" className="primary-button" onClick={() => setNewTransferOpen(true)} disabled={branches.length < 2}><Plus size={18} />New transfer</button>}
+          <button type="button" className="secondary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />{t("Refresh")}</button>
+          {canCreate && <button type="button" className="primary-button" onClick={() => setNewTransferOpen(true)} disabled={branches.length < 2}><Plus size={18} />{t("New transfer")}</button>}
         </div>
       </div>
 
       {message && <div className={`notice ${messageType}`} onClick={() => setMessage("")}>{message}</div>}
 
       <div className="transfer-metrics">
-        <article><Truck size={21} /><span>Outgoing pending</span><strong>{metrics.pendingOutgoing}</strong></article>
-        <article><PackageCheck size={21} /><span>Waiting to count</span><strong>{metrics.pendingIncoming}</strong></article>
-        <article><CheckCircle2 size={21} /><span>Waiting approval</span><strong>{metrics.awaitingApproval}</strong></article>
-        <article><ArrowLeftRight size={21} /><span>Requested units</span><strong>{stockNumber(metrics.inTransitUnits)}</strong></article>
+        <article><Truck size={21} /><span>{t("Outgoing pending")}</span><strong>{metrics.pendingOutgoing}</strong></article>
+        <article><PackageCheck size={21} /><span>{t("Waiting to count")}</span><strong>{metrics.pendingIncoming}</strong></article>
+        <article><CheckCircle2 size={21} /><span>{t("Waiting approval")}</span><strong>{metrics.awaitingApproval}</strong></article>
+        <article><ArrowLeftRight size={21} /><span>{t("Requested units")}</span><strong>{stockNumber(metrics.inTransitUnits)}</strong></article>
       </div>
 
       <div className="transfer-tabs">
-        <button type="button" className={tab === "transfers" ? "active" : ""} onClick={() => setTab("transfers")}><ArrowLeftRight size={18} />Branch transfers <span>{visibleTransfers.length}</span></button>
-        <button type="button" className={tab === "supplier" ? "active" : ""} onClick={() => setTab("supplier")}><RotateCcw size={18} />Supplier returns <span>{visibleSupplierReturns.length}</span></button>
+        <button type="button" className={tab === "transfers" ? "active" : ""} onClick={() => setTab("transfers")}><ArrowLeftRight size={18} />{t("Branch transfers")} <span>{visibleTransfers.length}</span></button>
+        <button type="button" className={tab === "supplier" ? "active" : ""} onClick={() => setTab("supplier")}><RotateCcw size={18} />{t("Supplier returns")} <span>{visibleSupplierReturns.length}</span></button>
       </div>
 
       <section className="panel transfer-toolbar transfer-filter-grid">
-        <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === "transfers" ? "Search transfer, branch or note" : "Search return, purchase or supplier"} /></label>
+        <label className="search-box"><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tab === "transfers" ? t("Search transfer, branch or note") : t("Search return, purchase or supplier")} /></label>
         {tab === "transfers" && <>
           <DateRangePresetFields
             from={dateFrom}
@@ -353,34 +355,34 @@ export default function TransfersPage() {
               setDateTo(range.to);
             }}
           />
-          <label><span>Branch transfer</span><select value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}><option value="all">All branches</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
-          <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="in">IN</option><option value="out">OUT</option><option value="pending">Pending</option><option value="counting">Counting</option><option value="awaiting_approval">Awaiting approval</option><option value="received">Approved / received</option><option value="cancelled">Cancelled</option></select></label>
+          <label><span>{t("Branch transfer")}</span><select value={branchFilter} onChange={(event) => setBranchFilter(event.target.value)}><option value="all">{t("All branches")}</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+          <label><span>{t("Status")}</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">{t("All statuses")}</option><option value="in">{t("IN")}</option><option value="out">{t("OUT")}</option><option value="pending">{t("Pending")}</option><option value="counting">{t("Counting")}</option><option value="awaiting_approval">{t("Awaiting approval")}</option><option value="received">{t("Approved / received")}</option><option value="cancelled">{t("Cancelled")}</option></select></label>
         </>}
       </section>
 
       {tab === "transfers" ? (
         <ResponsiveDataList
           storageKey="stock-transfers-workflow"
-          title="Branch transfer list"
-          subtitle={`${dateFrom} to ${dateTo} · ${branchFilter === "all" ? "All branches" : branches.find((row) => row.id === branchFilter)?.name || "Branch"}`}
+          title={t("Branch transfer list")}
+          subtitle={`${dateFrom} to ${dateTo} · ${branchFilter === "all" ? t("All branches") : branches.find((row) => row.id === branchFilter)?.name || t("Branch")}`}
           rows={visibleTransfers}
           filename={`tiny-pos-stock-transfers-${dateFrom}-${dateTo}.xls`}
           summary={[
-            { label: "Date range", value: `${dateFrom} to ${dateTo}` },
-            { label: "Branch", value: branchFilter === "all" ? "All branches" : branches.find((row) => row.id === branchFilter)?.name || "Branch" },
-            { label: "Waiting approval", value: metrics.awaitingApproval }
+            { label: t("Date range"), value: `${dateFrom} to ${dateTo}` },
+            { label: t("Branch"), value: branchFilter === "all" ? t("All branches") : branches.find((row) => row.id === branchFilter)?.name || t("Branch") },
+            { label: t("Waiting approval"), value: metrics.awaitingApproval }
           ]}
-          emptyTitle={loading ? "Loading transfers..." : "No matching stock transfers"}
-          emptyText="Create a transfer or change the current filters."
+          emptyTitle={loading ? t("Loading transfers...") : t("No matching stock transfers")}
+          emptyText={t("Create a transfer or change the current filters.")}
           columns={columns}
           renderCard={(row) => (
             <article className="responsive-data-card transfer-card compact-transfer-card">
               <header><div><strong>{row.transfer_number}</strong><small>{dateTime(row.created_at)}</small></div><div className="transfer-card-statuses"><span className={`transfer-direction-pill ${directionForTransfer(row) === "IN" ? "in" : directionForTransfer(row) === "OUT" ? "out" : "neutral"}`}>{directionForTransfer(row)}</span><span className={`status-pill ${statusClass(row.status === "pending" ? row.count_status : row.status)}`}>{row.display_status}</span></div></header>
-              <div className="transfer-route"><div><span>From</span><strong>{row.source_branch?.name || "Source"}</strong></div><ArrowLeftRight size={20} /><div><span>To</span><strong>{row.destination_branch?.name || "Destination"}</strong></div></div>
+              <div className="transfer-route"><div><span>{t("From")}</span><strong>{row.source_branch?.name || t("Source")}</strong></div><ArrowLeftRight size={20} /><div><span>{t("To")}</span><strong>{row.destination_branch?.name || t("Destination")}</strong></div></div>
               <div className="responsive-card-field-list transfer-count-summary">
-                <div><span>Products</span><strong>{(row.stock_transfer_items || []).length}</strong></div>
-                <div><span>Requested</span><strong>{stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0))}</strong></div>
-                <div><span>Counted</span><strong>{stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0))}</strong></div>
+                <div><span>{t("Products")}</span><strong>{(row.stock_transfer_items || []).length}</strong></div>
+                <div><span>{t("Requested")}</span><strong>{stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0))}</strong></div>
+                <div><span>{t("Counted")}</span><strong>{stockNumber((row.stock_transfer_items || []).reduce((sum, item) => sum + Number(item.counted_quantity || 0), 0))}</strong></div>
               </div>
               {(row.approval_note || row.count_notes || row.notes) && <p>{row.approval_note || row.count_notes || row.notes}</p>}
               <footer><TransferButtons row={row} /></footer>
@@ -389,8 +391,8 @@ export default function TransfersPage() {
         />
       ) : (
         <section className="panel supplier-return-history">
-          {visibleSupplierReturns.length === 0 ? <div className="empty-state"><RotateCcw size={46} /><h2>No supplier returns</h2></div> : (
-            <div className="supplier-return-table-wrap"><table className="supplier-return-table"><thead><tr><th>Return</th><th>Purchase</th><th>Supplier</th><th>Date</th><th>Value</th></tr></thead><tbody>{visibleSupplierReturns.map((row) => <tr key={row.id}><td><strong>{row.return_number}</strong><small>{row.reason}</small></td><td>{row.purchases?.purchase_number || "—"}</td><td>{row.suppliers?.name || "No supplier"}</td><td>{dateTime(row.created_at)}</td><td><strong>{money(row.total_amount, row.currency)}</strong></td></tr>)}</tbody></table></div>
+          {visibleSupplierReturns.length === 0 ? <div className="empty-state"><RotateCcw size={46} /><h2>{t("No supplier returns")}</h2></div> : (
+            <div className="supplier-return-table-wrap"><table className="supplier-return-table"><thead><tr><th>{t("Return")}</th><th>{t("Purchase")}</th><th>{t("Supplier")}</th><th>{t("Date")}</th><th>{t("Value")}</th></tr></thead><tbody>{visibleSupplierReturns.map((row) => <tr key={row.id}><td><strong>{row.return_number}</strong><small>{row.reason}</small></td><td>{row.purchases?.purchase_number || "—"}</td><td>{row.suppliers?.name || t("No supplier")}</td><td>{dateTime(row.created_at)}</td><td><strong>{money(row.total_amount, row.currency)}</strong></td></tr>)}</tbody></table></div>
           )}
         </section>
       )}
