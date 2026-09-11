@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, LayoutGrid, Plus, Search, Table2, Trash2 } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 import Modal from "./Modal";
 import MediaImage from "./MediaImage";
 import { money, stockNumber } from "../lib/catalog";
@@ -58,6 +59,7 @@ export default function PurchaseOrderFormModal({
   onSave,
   onOpenSuppliers
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(blankForm);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
@@ -320,7 +322,7 @@ export default function PurchaseOrderFormModal({
                   )
                 }
               >
-                <option value="">Choose supplier</option>
+                <option value="">{t("Choose supplier")}</option>
                 {suppliers
                   .filter(
                     (supplier) => supplier.is_active
@@ -368,7 +370,7 @@ export default function PurchaseOrderFormModal({
           </label>
 
           <label>
-            <span>Order status</span>
+            <span>{t("Order status")}</span>
             <select
               value={form.status}
               onChange={(event) =>
@@ -403,7 +405,7 @@ export default function PurchaseOrderFormModal({
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search product, code, base barcode or package barcode"
+              placeholder={t("Search product, code, base barcode or package barcode")}
             />
           </div>
 
@@ -487,7 +489,7 @@ export default function PurchaseOrderFormModal({
                   <th>Product</th>
                   <th>Purchase unit</th>
                   <th>Quantity</th>
-                  <th>Cost per unit</th>
+                  <th>{t("Cost per unit")}</th>
                   <th>Base quantity</th>
                   <th>Line total</th>
                   <th />
@@ -498,7 +500,7 @@ export default function PurchaseOrderFormModal({
                 {form.items.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="po-empty-row">
-                      Search and add products above.
+                      {t("Search and add products above.")}
                     </td>
                   </tr>
                 ) : (
@@ -550,7 +552,7 @@ export default function PurchaseOrderFormModal({
                           />
                         </td>
 
-                        <td data-label="Cost per unit">
+                        <td data-label={t("Cost per unit")}>
                           <input
                             type="number"
                             min="0"
@@ -604,7 +606,7 @@ export default function PurchaseOrderFormModal({
         ) : (
           <div className="po-item-card-grid">
             {form.items.length === 0 ? (
-              <div className="po-empty-row">Search and add products above.</div>
+              <div className="po-empty-row">{t("Search and add products above.")}</div>
             ) : (
               form.items.map((item) => {
                 const baseQuantity =
@@ -659,7 +661,7 @@ export default function PurchaseOrderFormModal({
                       </label>
 
                       <label>
-                        <span>Cost per unit</span>
+                        <span>{t("Cost per unit")}</span>
                         <input
                           type="number"
                           min="0"
@@ -697,9 +699,7 @@ export default function PurchaseOrderFormModal({
         <div className="po-package-note">
           <Box size={19} />
           <span>
-            Quantity and cost are entered in the selected
-            purchasing unit. Receiving converts them into the
-            product’s base stock automatically.
+            {t("Quantity and cost are entered in the selected purchasing unit. Receiving converts them into the product’s base stock automatically.")}
           </span>
         </div>
 
@@ -742,7 +742,7 @@ export default function PurchaseOrderFormModal({
                   event.target.value
                 )
               }
-              placeholder="Optional delivery address"
+              placeholder={t("Optional delivery address")}
             />
           </label>
 
