@@ -8,6 +8,7 @@ import {
   useState
 } from "react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function CustomerPriceListModal({
   open,
@@ -17,6 +18,7 @@ export default function CustomerPriceListModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [priceListId, setPriceListId] = useState("");
@@ -65,7 +67,7 @@ export default function CustomerPriceListModal({
     setError("");
 
     if (!customerId) {
-      setError("Choose a customer.");
+      setError(t("Choose a customer."));
       return;
     }
 
@@ -77,7 +79,7 @@ export default function CustomerPriceListModal({
 
   return (
     <Modal
-      title="Assign customer price list"
+      title={t("Assign customer price list")}
       onClose={() => !busy && onClose()}
       wide
     >
@@ -92,7 +94,7 @@ export default function CustomerPriceListModal({
             onChange={(event) =>
               setSearch(event.target.value)
             }
-            placeholder="Search customer, company, code, phone or email"
+            placeholder={t("Search customer, company, code, phone or email")}
           />
         </div>
 
@@ -136,7 +138,7 @@ export default function CustomerPriceListModal({
                 {priceLists.find(
                   (list) =>
                     list.id === row.price_list_id
-                )?.name || "Automatic"}
+                )?.name || t("Automatic")}
               </b>
             </label>
           ))}
@@ -145,7 +147,7 @@ export default function CustomerPriceListModal({
         {customer && (
           <label>
             <span>
-              Price list for {customer.name}
+              {t("Price list for")} {customer.name}
             </span>
             <select
               value={priceListId}
@@ -156,7 +158,7 @@ export default function CustomerPriceListModal({
               }
             >
               <option value="">
-                Automatic by customer type
+                {t("Automatic by customer type")}
               </option>
 
               {priceLists.map((list) => (
@@ -165,7 +167,7 @@ export default function CustomerPriceListModal({
                   key={list.id}
                 >
                   {list.code} · {list.name}
-                  {list.is_active ? "" : " · Inactive"}
+                  {list.is_active ? "" : ` · ${t("Inactive")}`}
                 </option>
               ))}
             </select>
@@ -173,9 +175,7 @@ export default function CustomerPriceListModal({
         )}
 
         <div className="notice info">
-          A direct assignment takes priority over the
-          customer&apos;s Regular, VIP or Wholesale group.
-          Select Automatic to remove the direct override.
+          {t("A direct assignment takes priority over the customer's Regular, VIP or Wholesale group. Select Automatic to remove the direct override.")}
         </div>
 
         {error && (
@@ -191,7 +191,7 @@ export default function CustomerPriceListModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
 
           <button
@@ -201,8 +201,8 @@ export default function CustomerPriceListModal({
           >
             <UserRoundCheck size={18} />
             {busy
-              ? "Saving assignment..."
-              : "Save customer pricing"}
+              ? t("Saving assignment...")
+              : t("Save customer pricing")}
           </button>
         </div>
       </form>
