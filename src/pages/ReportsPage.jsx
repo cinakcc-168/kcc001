@@ -21,6 +21,7 @@ import {
   ClipboardCheck
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { money, stockNumber } from "../lib/catalog";
 import {
   defaultReportRange,
@@ -82,6 +83,7 @@ function inSelectedRange(value, from, to) {
 
 export default function ReportsPage() {
   const { supabase, profile, shop, can } = useAuth();
+  const { t } = useLanguage();
   const [filters, setFilters] = useState(() => ({
     ...defaultReportRange(),
     branchId: profile?.branch_id || "",
@@ -198,6 +200,7 @@ export default function ReportsPage() {
 
     const requestId = reportRequestRef.current + 1;
     reportRequestRef.current = requestId;
+
     try {
       setLoading(true);
       setMessage("");
@@ -257,51 +260,51 @@ export default function ReportsPage() {
     return (
       <div className="report-section-stack">
         <div className="report-metric-grid">
-          <ReportMetricCard icon={CircleDollarSign} label="Gross sales" value={reportMoney(summary.gross_sales, currency)} detail={`${number(summary.sale_count, 0)} completed sales`} />
-          <ReportMetricCard icon={RotateCcw} label="Refunds" value={reportMoney(summary.refunds, currency)} detail={`${number(summary.refund_count, 0)} refunds`} tone="danger" />
-          <ReportMetricCard icon={BadgeDollarSign} label="Net sales" value={reportMoney(summary.net_sales, currency)} detail={`Average ${reportMoney(summary.average_sale, currency)}`} tone="success" />
-          <ReportMetricCard icon={ShoppingBasket} label="Net units" value={stockNumber(summary.net_units)} detail={`${stockNumber(summary.units_returned)} units returned`} />
-          <ReportMetricCard icon={Percent} label="Discounts" value={reportMoney(summary.discounts, currency)} detail={`Tax collected ${reportMoney(summary.tax_collected, currency)}`} />
-          <ReportMetricCard icon={TrendingUp} label="Gross profit" value={reportMoney(summary.gross_profit, currency)} detail={`${formatPercent(summary.gross_margin_percent)} gross margin`} tone="success" />
+          <ReportMetricCard icon={CircleDollarSign} label={t("Gross sales")} value={reportMoney(summary.gross_sales, currency)} detail={`${number(summary.sale_count, 0)} ${t("completed sales")}`} />
+          <ReportMetricCard icon={RotateCcw} label={t("Refunds")} value={reportMoney(summary.refunds, currency)} detail={`${number(summary.refund_count, 0)} ${t("refunds")}`} tone="danger" />
+          <ReportMetricCard icon={BadgeDollarSign} label={t("Net sales")} value={reportMoney(summary.net_sales, currency)} detail={`${t("Average")} ${reportMoney(summary.average_sale, currency)}`} tone="success" />
+          <ReportMetricCard icon={ShoppingBasket} label={t("Net units")} value={stockNumber(summary.net_units)} detail={`${stockNumber(summary.units_returned)} ${t("units returned")}`} />
+          <ReportMetricCard icon={Percent} label={t("Discounts")} value={reportMoney(summary.discounts, currency)} detail={`${t("Tax collected")} ${reportMoney(summary.tax_collected, currency)}`} />
+          <ReportMetricCard icon={TrendingUp} label={t("Gross profit")} value={reportMoney(summary.gross_profit, currency)} detail={`${formatPercent(summary.gross_margin_percent)} ${t("gross margin")}`} tone="success" />
         </div>
 
         <div className="report-two-column">
           <section className="panel report-panel">
             <div className="report-panel-heading">
-              <div><h2>Net sales trend</h2><p>{data?.granularity === "month" ? "Monthly" : "Daily"} sales after refunds</p></div>
+              <div><h2>{t("Net sales trend")}</h2><p>{data?.granularity === "month" ? t("Monthly sales after refunds") : t("Daily sales after refunds")}</p></div>
             </div>
-            <ReportBarChart data={trendForChart} labelKey="label" valueKey="net_sales" valueFormatter={(value) => reportMoney(value, currency)} />
+            <ReportBarChart data={trendForChart} labelKey="label" valueKey="net_sales" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} />
           </section>
 
           <section className="panel report-panel">
-            <div className="report-panel-heading"><div><h2>Payment methods</h2><p>Collections minus refunds</p></div></div>
-            <ReportBarChart data={(data?.payment_methods || []).map((row) => ({ ...row, label: String(row.method).toUpperCase() }))} labelKey="label" valueKey="net" valueFormatter={(value) => reportMoney(value, currency)} />
+            <div className="report-panel-heading"><div><h2>{t("Payment methods")}</h2><p>{t("Collections minus refunds")}</p></div></div>
+            <ReportBarChart data={(data?.payment_methods || []).map((row) => ({ ...row, label: String(row.method).toUpperCase() }))} labelKey="label" valueKey="net" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} />
           </section>
         </div>
 
         <div className="report-two-column">
           <section className="panel report-panel">
-            <div className="report-panel-heading"><div><h2>Top products</h2><p>Ranked by net revenue</p></div></div>
-            <div className="report-table-wrap"><table className="report-table"><thead><tr><th>Product</th><th>Net qty</th><th>Net revenue</th><th>Profit</th></tr></thead><tbody>{(data?.top_products || []).map((row) => <tr key={`${row.product_id}-${row.product_name}`}><td>{row.product_name}</td><td>{stockNumber(row.net_quantity)}</td><td>{reportMoney(row.net_revenue, currency)}</td><td>{reportMoney(row.gross_profit, currency)}</td></tr>)}</tbody></table></div>
+            <div className="report-panel-heading"><div><h2>{t("Top products")}</h2><p>{t("Ranked by net revenue")}</p></div></div>
+            <div className="report-table-wrap"><table className="report-table"><thead><tr><th>{t("Product")}</th><th>{t("Net qty")}</th><th>{t("Net revenue")}</th><th>{t("Profit")}</th></tr></thead><tbody>{(data?.top_products || []).map((row) => <tr key={`${row.product_id}-${row.product_name}`}><td>{row.product_name}</td><td>{stockNumber(row.net_quantity)}</td><td>{reportMoney(row.net_revenue, currency)}</td><td>{reportMoney(row.gross_profit, currency)}</td></tr>)}</tbody></table></div>
           </section>
 
           <section className="panel report-panel">
-            <div className="report-panel-heading"><div><h2>Top categories</h2><p>Net sales by category</p></div></div>
-            <ReportBarChart data={data?.top_categories || []} labelKey="category_name" valueKey="net_revenue" valueFormatter={(value) => reportMoney(value, currency)} />
+            <div className="report-panel-heading"><div><h2>{t("Top categories")}</h2><p>{t("Net sales by category")}</p></div></div>
+            <ReportBarChart data={data?.top_categories || []} labelKey="category_name" valueKey="net_revenue" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} />
           </section>
         </div>
 
         <ResponsiveDataList
           storageKey="report-sales-detail"
           title="Sales detail"
-          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          subtitle={`${filters.from} ${t("to")} ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || t("Current branch")}`}
           rows={salesDetailRows}
           filename={`report-sales-detail-${filters.from}-to-${filters.to}.xls`}
           summary={[
-            { label: "Gross sales", value: reportMoney(summary.gross_sales, currency) },
-            { label: "Refunds", value: reportMoney(summary.refunds, currency) },
-            { label: "Net sales", value: reportMoney(summary.net_sales, currency) },
-            { label: "Gross profit", value: reportMoney(summary.gross_profit, currency) }
+            { label: t("Gross sales"), value: reportMoney(summary.gross_sales, currency) },
+            { label: t("Refunds"), value: reportMoney(summary.refunds, currency) },
+            { label: t("Net sales"), value: reportMoney(summary.net_sales, currency) },
+            { label: t("Gross profit"), value: reportMoney(summary.gross_profit, currency) }
           ]}
           columns={[
             { label: "Invoice", width: 175, documentValue: (row) => row.invoice_number, render: (row) => <><strong>{row.invoice_number}</strong><small>{row.branch_name}</small></> },
@@ -313,9 +316,9 @@ export default function ReportsPage() {
             { label: "Refund", width: 100, documentValue: (row) => reportMoney(row.refund_total, currency), render: (row) => reportMoney(row.refund_total, currency) },
             { label: "Net", width: 100, documentValue: (row) => reportMoney(row.net_total, currency), render: (row) => <strong>{reportMoney(row.net_total, currency)}</strong> },
             { label: "Profit", width: 100, documentValue: (row) => reportMoney(row.gross_profit, currency), render: (row) => reportMoney(row.gross_profit, currency) },
-            { label: "Status", width: 95, documentValue: (row) => String(row.status).replaceAll("_", " "), render: (row) => <span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{String(row.status).replaceAll("_", " ")}</span> }
+            { label: "Status", width: 95, documentValue: (row) => String(row.status).replaceAll("_", " "), render: (row) => <span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{t(String(row.status).replaceAll("_", " "))}</span> }
           ]}
-          renderCard={(row) => <article className="responsive-data-card report-sale-card"><header><div><strong>{row.invoice_number}</strong><small>{formatReportDate(row.completed_at, { time: true })} · {row.branch_name}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{String(row.status).replaceAll("_", " ")}</span></header><div><span>Customer</span><strong>{row.customer_name}</strong></div><div><span>Cashier / Payment</span><strong>{row.cashier_name}</strong><small>{row.payment_methods}</small></div><div><span>Gross / Refund</span><strong>{reportMoney(row.gross_total, currency)} / {reportMoney(row.refund_total, currency)}</strong></div><div><span>Net</span><strong>{reportMoney(row.net_total, currency)}</strong></div><div><span>Profit</span><strong>{reportMoney(row.gross_profit, currency)}</strong></div></article>}
+          renderCard={(row) => <article className="responsive-data-card report-sale-card"><header><div><strong>{row.invoice_number}</strong><small>{formatReportDate(row.completed_at, { time: true })} · {row.branch_name}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{t(String(row.status).replaceAll("_", " "))}</span></header><div><span>{t("Customer")}</span><strong>{row.customer_name}</strong></div><div><span>{t("Cashier / Payment")}</span><strong>{row.cashier_name}</strong><small>{row.payment_methods}</small></div><div><span>{t("Gross / Refund")}</span><strong>{reportMoney(row.gross_total, currency)} / {reportMoney(row.refund_total, currency)}</strong></div><div><span>{t("Net")}</span><strong>{reportMoney(row.net_total, currency)}</strong></div><div><span>{t("Profit")}</span><strong>{reportMoney(row.gross_profit, currency)}</strong></div></article>}
         />
       </div>
     );
@@ -329,55 +332,55 @@ export default function ReportsPage() {
     return (
       <div className="report-section-stack">
         <div className="report-metric-grid">
-          <ReportMetricCard icon={CircleDollarSign} label="Net sales" value={reportMoney(summary.net_sales, currency)} detail={`Gross ${reportMoney(summary.gross_sales, currency)}`} />
-          <ReportMetricCard icon={WalletCards} label="Net COGS" value={reportMoney(summary.net_cogs, currency)} detail={`Returned cost ${reportMoney(summary.returned_cogs, currency)}`} />
-          <ReportMetricCard icon={TrendingUp} label="Gross profit" value={reportMoney(summary.gross_profit, currency)} detail={`${formatPercent(summary.gross_margin_percent)} margin`} tone="success" />
-          <ReportMetricCard icon={BadgeDollarSign} label="Other income" value={reportMoney(cashSummary.other_income, currency)} detail="Profit-affecting cash-in entries" />
-          <ReportMetricCard icon={TrendingDown} label="Operating expenses" value={reportMoney(cashSummary.operating_expenses, currency)} detail={`${number(cashSummary.expense_count, 0)} expense entries`} tone="danger" />
-          <ReportMetricCard icon={Landmark} label="Net profit" value={reportMoney(netProfit, currency)} detail="Gross profit + other income − expenses" tone={netProfit < 0 ? "danger" : "success"} />
-          <ReportMetricCard icon={PackageSearch} label="Purchases received" value={reportMoney(summary.purchase_total, currency)} detail={`${number(summary.purchase_count, 0)} purchases`} />
-          <ReportMetricCard icon={BadgeDollarSign} label="Purchase paid" value={reportMoney(summary.purchase_paid, currency)} detail={`Balance ${reportMoney(Number(summary.purchase_total || 0) - Number(summary.purchase_paid || 0), currency)}`} />
-          <ReportMetricCard icon={RotateCcw} label="Profit reversed" value={reportMoney(summary.profit_reversal, currency)} detail="Gross profit removed by refunds" tone="danger" />
+          <ReportMetricCard icon={CircleDollarSign} label={t("Net sales")} value={reportMoney(summary.net_sales, currency)} detail={`${t("Gross")} ${reportMoney(summary.gross_sales, currency)}`} />
+          <ReportMetricCard icon={WalletCards} label={t("Net COGS")} value={reportMoney(summary.net_cogs, currency)} detail={`${t("Returned cost")} ${reportMoney(summary.returned_cogs, currency)}`} />
+          <ReportMetricCard icon={TrendingUp} label={t("Gross profit")} value={reportMoney(summary.gross_profit, currency)} detail={`${formatPercent(summary.gross_margin_percent)} ${t("margin")}`} tone="success" />
+          <ReportMetricCard icon={BadgeDollarSign} label={t("Other income")} value={reportMoney(cashSummary.other_income, currency)} detail={t("Profit-affecting cash-in entries")} />
+          <ReportMetricCard icon={TrendingDown} label={t("Operating expenses")} value={reportMoney(cashSummary.operating_expenses, currency)} detail={`${number(cashSummary.expense_count, 0)} ${t("expense entries")}`} tone="danger" />
+          <ReportMetricCard icon={Landmark} label={t("Net profit")} value={reportMoney(netProfit, currency)} detail={t("Gross profit + other income − expenses")} tone={netProfit < 0 ? "danger" : "success"} />
+          <ReportMetricCard icon={PackageSearch} label={t("Purchases received")} value={reportMoney(summary.purchase_total, currency)} detail={`${number(summary.purchase_count, 0)} ${t("purchases")}`} />
+          <ReportMetricCard icon={BadgeDollarSign} label={t("Purchase paid")} value={reportMoney(summary.purchase_paid, currency)} detail={`${t("Balance")} ${reportMoney(Number(summary.purchase_total || 0) - Number(summary.purchase_paid || 0), currency)}`} />
+          <ReportMetricCard icon={RotateCcw} label={t("Profit reversed")} value={reportMoney(summary.profit_reversal, currency)} detail={t("Gross profit removed by refunds")} tone="danger" />
         </div>
 
         <div className="report-accounting-note">
-          <strong>Profit & Loss:</strong> purchases increase inventory and become cost of goods when products are sold. Therefore purchases are not subtracted again from net profit. Only categories marked “Affects Profit & Loss” are included as other income or operating expenses.
+          <strong>{t("Profit & Loss:")}</strong> {t("purchases increase inventory and become cost of goods when products are sold. Therefore purchases are not subtracted again from net profit. Only categories marked “Affects Profit & Loss” are included as other income or operating expenses.")}
         </div>
 
         <div className="report-two-column">
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Gross profit trend</h2><p>Sales profit after refund reversals</p></div></div><ReportBarChart data={trendForChart} labelKey="label" valueKey="gross_profit" valueFormatter={(value) => reportMoney(value, currency)} /></section>
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Expense categories</h2><p>All cash-out categories in this period</p></div></div><ReportBarChart data={cashReport?.expense_categories || []} labelKey="category_name" valueKey="total" valueFormatter={(value) => reportMoney(value, currency)} /></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Gross profit trend")}</h2><p>{t("Sales profit after refund reversals")}</p></div></div><ReportBarChart data={trendForChart} labelKey="label" valueKey="gross_profit" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} /></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Expense categories")}</h2><p>{t("All cash-out categories in this period")}</p></div></div><ReportBarChart data={cashReport?.expense_categories || []} labelKey="category_name" valueKey="total" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} /></section>
         </div>
 
         <div className="report-two-column">
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Top suppliers</h2><p>Purchases received in this period</p></div></div><div className="report-table-wrap"><table className="report-table"><thead><tr><th>Supplier</th><th>Purchases</th><th>Total</th><th>Balance</th></tr></thead><tbody>{(data?.top_suppliers || []).map((row) => <tr key={row.supplier_name}><td>{row.supplier_name}</td><td>{number(row.purchase_count, 0)}</td><td>{reportMoney(row.purchase_total, currency)}</td><td>{reportMoney(row.balance, currency)}</td></tr>)}</tbody></table></div></section>
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Profit bridge</h2><p>How net profit is calculated</p></div></div><div className="report-bridge"><div><span>Gross sales</span><strong>{reportMoney(summary.gross_sales, currency)}</strong></div><div className="minus"><span>Customer refunds</span><strong>-{reportMoney(summary.refunds, currency)}</strong></div><div><span>Net sales</span><strong>{reportMoney(summary.net_sales, currency)}</strong></div><div className="minus"><span>Net cost of goods</span><strong>-{reportMoney(summary.net_cogs, currency)}</strong></div><div><span>Gross profit</span><strong>{reportMoney(summary.gross_profit, currency)}</strong></div><div><span>Other income</span><strong>+{reportMoney(cashSummary.other_income, currency)}</strong></div><div className="minus"><span>Operating expenses</span><strong>-{reportMoney(cashSummary.operating_expenses, currency)}</strong></div><div className="total"><span>Net profit</span><strong>{reportMoney(netProfit, currency)}</strong></div></div></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Top suppliers")}</h2><p>{t("Purchases received in this period")}</p></div></div><div className="report-table-wrap"><table className="report-table"><thead><tr><th>{t("Supplier")}</th><th>{t("Purchases")}</th><th>{t("Total")}</th><th>{t("Balance")}</th></tr></thead><tbody>{(data?.top_suppliers || []).map((row) => <tr key={row.supplier_name}><td>{row.supplier_name}</td><td>{number(row.purchase_count, 0)}</td><td>{reportMoney(row.purchase_total, currency)}</td><td>{reportMoney(row.balance, currency)}</td></tr>)}</tbody></table></div></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Profit bridge")}</h2><p>{t("How net profit is calculated")}</p></div></div><div className="report-bridge"><div><span>{t("Gross sales")}</span><strong>{reportMoney(summary.gross_sales, currency)}</strong></div><div className="minus"><span>{t("Customer refunds")}</span><strong>-{reportMoney(summary.refunds, currency)}</strong></div><div><span>{t("Net sales")}</span><strong>{reportMoney(summary.net_sales, currency)}</strong></div><div className="minus"><span>{t("Net cost of goods")}</span><strong>-{reportMoney(summary.net_cogs, currency)}</strong></div><div><span>{t("Gross profit")}</span><strong>{reportMoney(summary.gross_profit, currency)}</strong></div><div><span>{t("Other income")}</span><strong>+{reportMoney(cashSummary.other_income, currency)}</strong></div><div className="minus"><span>{t("Operating expenses")}</span><strong>-{reportMoney(cashSummary.operating_expenses, currency)}</strong></div><div className="total"><span>{t("Net profit")}</span><strong>{reportMoney(netProfit, currency)}</strong></div></div></section>
         </div>
 
         <ResponsiveDataList
           storageKey="report-expense-detail"
           title="Expense detail"
-          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          subtitle={`${filters.from} ${t("to")} ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || t("Current branch")}`}
           rows={expenseDetailRows}
           filename={`report-expenses-${filters.from}-to-${filters.to}.xls`}
           columns={[
-            { label: "Code", width: 150, documentValue: (row) => row.entry_number, render: (row) => <><strong>{row.entry_number}</strong><small>{row.reference_number || "No reference"}</small></> },
+            { label: "Code", width: 150, documentValue: (row) => row.entry_number, render: (row) => <><strong>{row.entry_number}</strong><small>{row.reference_number || t("No reference")}</small></> },
             { label: "Date", width: 150, documentValue: (row) => formatReportDate(row.entry_at, { time: true }), render: (row) => formatReportDate(row.entry_at, { time: true }) },
             { label: "Branch", width: 130, value: "branch_name" },
             { label: "Category", width: 160, value: "category_name" },
             { label: "Payment", width: 95, value: (row) => String(row.method).toUpperCase() },
             { label: "Amount", width: 120, documentValue: (row) => reportMoney(row.base_amount, currency), render: (row) => <><strong>{reportMoney(row.base_amount, currency)}</strong>{row.currency !== currency && <small>{reportMoney(row.amount, row.currency)}</small>}</> },
-            { label: "Profit & Loss", width: 105, value: (row) => row.affects_profit ? "Included" : "Cash only" },
+            { label: "Profit & Loss", width: 105, value: (row) => row.affects_profit ? t("Included") : t("Cash only") },
             { label: "User", width: 140, value: "created_by_name" },
             { label: "Remark", width: 240, value: (row) => row.remark || "—" }
           ]}
-          renderCard={(row) => <article className="responsive-data-card report-expense-card"><header><div><strong>{row.entry_number}</strong><small>{formatReportDate(row.entry_at, { time: true })}</small></div><span className="cash-direction-pill expense">Expense</span></header><div><span>Category</span><strong>{row.category_name}</strong></div><div><span>Branch / User</span><strong>{row.branch_name}</strong><small>{row.created_by_name}</small></div><div><span>Payment</span><strong>{String(row.method).toUpperCase()}</strong></div><div><span>Amount</span><strong>{reportMoney(row.base_amount, currency)}</strong></div><div><span>Remark</span><strong>{row.remark || "—"}</strong></div></article>}
+          renderCard={(row) => <article className="responsive-data-card report-expense-card"><header><div><strong>{row.entry_number}</strong><small>{formatReportDate(row.entry_at, { time: true })}</small></div><span className="cash-direction-pill expense">{t("Expense")}</span></header><div><span>{t("Category")}</span><strong>{row.category_name}</strong></div><div><span>{t("Branch / User")}</span><strong>{row.branch_name}</strong><small>{row.created_by_name}</small></div><div><span>{t("Payment")}</span><strong>{String(row.method).toUpperCase()}</strong></div><div><span>{t("Amount")}</span><strong>{reportMoney(row.base_amount, currency)}</strong></div><div><span>{t("Remark")}</span><strong>{row.remark || "—"}</strong></div></article>}
         />
 
         <ResponsiveDataList
           storageKey="report-purchase-detail"
           title="Purchase detail"
-          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          subtitle={`${filters.from} ${t("to")} ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || t("Current branch")}`}
           rows={purchaseDetailRows}
           filename={`report-purchases-${filters.from}-to-${filters.to}.xls`}
           columns={[
@@ -390,7 +393,7 @@ export default function ReportsPage() {
             { label: "Balance", width: 110, documentValue: (row) => reportMoney(row.balance, currency), render: (row) => <strong>{reportMoney(row.balance, currency)}</strong> },
             { label: "Status", width: 100, value: "status" }
           ]}
-          renderCard={(row) => <article className="responsive-data-card report-purchase-card"><header><div><strong>{row.purchase_number}</strong><small>{formatReportDate(row.received_at, { time: true })} · {row.branch_name}</small></div><span className="status-pill active">{row.status}</span></header><div><span>Supplier</span><strong>{row.supplier_name}</strong><small>{row.supplier_invoice_number || "No supplier invoice"}</small></div><div><span>Total</span><strong>{reportMoney(row.total, currency)}</strong></div><div><span>Paid</span><strong>{reportMoney(row.amount_paid, currency)}</strong></div><div><span>Balance</span><strong>{reportMoney(row.balance, currency)}</strong></div></article>}
+          renderCard={(row) => <article className="responsive-data-card report-purchase-card"><header><div><strong>{row.purchase_number}</strong><small>{formatReportDate(row.received_at, { time: true })} · {row.branch_name}</small></div><span className="status-pill active">{t(row.status)}</span></header><div><span>{t("Supplier")}</span><strong>{row.supplier_name}</strong><small>{row.supplier_invoice_number || t("No supplier invoice")}</small></div><div><span>{t("Total")}</span><strong>{reportMoney(row.total, currency)}</strong></div><div><span>{t("Paid")}</span><strong>{reportMoney(row.amount_paid, currency)}</strong></div><div><span>{t("Balance")}</span><strong>{reportMoney(row.balance, currency)}</strong></div></article>}
         />
       </div>
     );
@@ -400,36 +403,36 @@ export default function ReportsPage() {
     return (
       <div className="report-section-stack">
         <div className="report-metric-grid">
-          <ReportMetricCard icon={Boxes} label="Tracked products" value={number(stockSummary.product_count, 0)} detail={`${stockNumber(stockSummary.stock_units)} units`} />
-          <ReportMetricCard icon={Warehouse} label="Stock cost value" value={reportMoney(stockSummary.stock_cost_value, currency)} detail="Current average cost" />
-          <ReportMetricCard icon={BadgeDollarSign} label="Retail value" value={reportMoney(stockSummary.stock_retail_value, currency)} detail={`Potential margin ${reportMoney(stockSummary.potential_margin, currency)}`} />
-          <ReportMetricCard icon={PackageSearch} label="Low stock" value={number(stockSummary.low_stock_count, 0)} detail={`${number(stockSummary.out_of_stock_count, 0)} out of stock`} tone="danger" />
-          <ReportMetricCard icon={BarChart3} label="Negative stock" value={number(stockSummary.negative_stock_count, 0)} detail="Needs immediate correction" tone={Number(stockSummary.negative_stock_count || 0) > 0 ? "danger" : "default"} />
-          <ReportMetricCard icon={CalendarRange} label="Stock-aging basis" value="Last stock in" detail="Not FIFO batch aging" />
+          <ReportMetricCard icon={Boxes} label={t("Tracked products")} value={number(stockSummary.product_count, 0)} detail={`${stockNumber(stockSummary.stock_units)} ${t("units")}`} />
+          <ReportMetricCard icon={Warehouse} label={t("Stock cost value")} value={reportMoney(stockSummary.stock_cost_value, currency)} detail={t("Current average cost")} />
+          <ReportMetricCard icon={BadgeDollarSign} label={t("Retail value")} value={reportMoney(stockSummary.stock_retail_value, currency)} detail={`${t("Potential margin")} ${reportMoney(stockSummary.potential_margin, currency)}`} />
+          <ReportMetricCard icon={PackageSearch} label={t("Low stock")} value={number(stockSummary.low_stock_count, 0)} detail={`${number(stockSummary.out_of_stock_count, 0)} ${t("out of stock")}`} tone="danger" />
+          <ReportMetricCard icon={BarChart3} label={t("Negative stock")} value={number(stockSummary.negative_stock_count, 0)} detail={t("Needs immediate correction")} tone={Number(stockSummary.negative_stock_count || 0) > 0 ? "danger" : "default"} />
+          <ReportMetricCard icon={CalendarRange} label={t("Stock-aging basis")} value={t("Last stock in")} detail={t("Not FIFO batch aging")} />
         </div>
 
-        <div className="report-accounting-note"><strong>Stock-aging note:</strong> {data?.stock_age_note}</div>
+        <div className="report-accounting-note"><strong>{t("Stock-aging note:")}</strong> {t(data?.stock_age_note || "Stock age uses the latest positive stock movement for each product and branch. It is not FIFO batch aging.")}</div>
 
-        <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Stock age by cost value</h2><p>Current stock grouped by the latest positive stock movement</p></div></div><ReportBarChart data={data?.stock_age || []} labelKey="bucket" valueKey="stock_value" valueFormatter={(value) => reportMoney(value, currency)} /></section>
+        <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Stock age by cost value")}</h2><p>{t("Current stock grouped by the latest positive stock movement")}</p></div></div><ReportBarChart data={data?.stock_age || []} labelKey="bucket" valueKey="stock_value" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} /></section>
 
         <ResponsiveDataList
           storageKey="report-stock-analysis-detail"
           title="Current stock analysis"
-          subtitle={`${data?.scope?.branch_name || profile?.branches?.name || "Current branch"} · Report selected ${filters.from} to ${filters.to}`}
+          subtitle={`${data?.scope?.branch_name || profile?.branches?.name || t("Current branch")} · ${t("Report selected")} ${filters.from} ${t("to")} ${filters.to}`}
           rows={data?.stock_rows || []}
           filename={`report-stock-analysis-${filters.from}-to-${filters.to}.xls`}
           columns={[
-            { label: "Product", width: 210, documentValue: (row) => row.product_name, render: (row) => <><strong>{row.product_name}</strong><small>{row.sku || row.barcode || "No code"}</small></> },
+            { label: "Product", width: 210, documentValue: (row) => row.product_name, render: (row) => <><strong>{row.product_name}</strong><small>{row.sku || row.barcode || t("No code")}</small></> },
             { label: "Category", width: 140, value: "category_name" },
             { label: "Quantity", width: 95, value: (row) => stockNumber(row.quantity) },
             { label: "Cost value", width: 110, documentValue: (row) => reportMoney(row.cost_value, currency), render: (row) => reportMoney(row.cost_value, currency) },
             { label: "Retail value", width: 110, documentValue: (row) => reportMoney(row.retail_value, currency), render: (row) => reportMoney(row.retail_value, currency) },
             { label: "Margin", width: 110, documentValue: (row) => reportMoney(row.potential_margin, currency), render: (row) => reportMoney(row.potential_margin, currency) },
             { label: "Last stock in", width: 120, documentValue: (row) => formatReportDate(row.last_inbound_at), render: (row) => formatReportDate(row.last_inbound_at) },
-            { label: "Age", width: 80, value: (row) => `${number(row.age_days, 0)} days` },
-            { label: "Status", width: 105, documentValue: (row) => row.stock_status, render: (row) => <span className={`report-stock-status ${row.stock_status}`}>{row.stock_status}</span> }
+            { label: "Age", width: 80, value: (row) => `${number(row.age_days, 0)} ${t("days")}` },
+            { label: "Status", width: 105, documentValue: (row) => row.stock_status, render: (row) => <span className={`report-stock-status ${row.stock_status}`}>{t(row.stock_status)}</span> }
           ]}
-          renderCard={(row) => <article className="responsive-data-card report-stock-card"><header><div><strong>{row.product_name}</strong><small>{row.sku || row.barcode || "No code"}</small></div><span className={`report-stock-status ${row.stock_status}`}>{row.stock_status}</span></header><div><span>Category</span><strong>{row.category_name}</strong></div><div><span>Quantity</span><strong>{stockNumber(row.quantity)}</strong></div><div><span>Cost / Retail</span><strong>{reportMoney(row.cost_value, currency)} / {reportMoney(row.retail_value, currency)}</strong></div><div><span>Margin</span><strong>{reportMoney(row.potential_margin, currency)}</strong></div><div><span>Last stock in / Age</span><strong>{formatReportDate(row.last_inbound_at)}</strong><small>{number(row.age_days, 0)} days</small></div></article>}
+          renderCard={(row) => <article className="responsive-data-card report-stock-card"><header><div><strong>{row.product_name}</strong><small>{row.sku || row.barcode || t("No code")}</small></div><span className={`report-stock-status ${row.stock_status}`}>{t(row.stock_status)}</span></header><div><span>{t("Category")}</span><strong>{row.category_name}</strong></div><div><span>{t("Quantity")}</span><strong>{stockNumber(row.quantity)}</strong></div><div><span>{t("Cost / Retail")}</span><strong>{reportMoney(row.cost_value, currency)} / {reportMoney(row.retail_value, currency)}</strong></div><div><span>{t("Margin")}</span><strong>{reportMoney(row.potential_margin, currency)}</strong></div><div><span>{t("Last stock in / Age")}</span><strong>{formatReportDate(row.last_inbound_at)}</strong><small>{number(row.age_days, 0)} {t("days")}</small></div></article>}
         />
       </div>
     );
@@ -439,23 +442,23 @@ export default function ReportsPage() {
     return (
       <div className="report-section-stack">
         <div className="report-metric-grid">
-          <ReportMetricCard icon={UsersRound} label="Customers" value={number(customerSummary.total_customers, 0)} detail={`${number(customerSummary.active_customers, 0)} active`} />
-          <ReportMetricCard icon={UserRoundCheck} label="Customers who bought" value={number(customerSummary.customers_with_sales, 0)} detail={`${number(customerSummary.repeat_customers, 0)} repeat customers`} />
-          <ReportMetricCard icon={CalendarRange} label="New customers" value={number(customerSummary.new_customers, 0)} detail={titlePeriod(data)} />
-          <ReportMetricCard icon={CircleDollarSign} label="Customer net spend" value={reportMoney(customerSummary.customer_net_spend, currency)} detail={`Refunds ${reportMoney(customerSummary.customer_refunds, currency)}`} />
-          <ReportMetricCard icon={WalletCards} label="Loyalty outstanding" value={number(customerSummary.loyalty_points_outstanding)} detail="Current active-customer points" />
-          <ReportMetricCard icon={Percent} label="Repeat rate" value={formatPercent(Number(customerSummary.customers_with_sales || 0) > 0 ? Number(customerSummary.repeat_customers || 0) * 100 / Number(customerSummary.customers_with_sales) : 0)} detail="2 or more sales in period" />
+          <ReportMetricCard icon={UsersRound} label={t("Customers")} value={number(customerSummary.total_customers, 0)} detail={`${number(customerSummary.active_customers, 0)} ${t("active")}`} />
+          <ReportMetricCard icon={UserRoundCheck} label={t("Customers who bought")} value={number(customerSummary.customers_with_sales, 0)} detail={`${number(customerSummary.repeat_customers, 0)} ${t("repeat customers")}`} />
+          <ReportMetricCard icon={CalendarRange} label={t("New customers")} value={number(customerSummary.new_customers, 0)} detail={titlePeriod(data)} />
+          <ReportMetricCard icon={CircleDollarSign} label={t("Customer net spend")} value={reportMoney(customerSummary.customer_net_spend, currency)} detail={`${t("Refunds")} ${reportMoney(customerSummary.customer_refunds, currency)}`} />
+          <ReportMetricCard icon={WalletCards} label={t("Loyalty outstanding")} value={number(customerSummary.loyalty_points_outstanding)} detail={t("Current active-customer points")} />
+          <ReportMetricCard icon={Percent} label={t("Repeat rate")} value={formatPercent(Number(customerSummary.customers_with_sales || 0) > 0 ? Number(customerSummary.repeat_customers || 0) * 100 / Number(customerSummary.customers_with_sales) : 0)} detail={t("2 or more sales in period")} />
         </div>
 
         <div className="report-two-column">
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Top customers</h2><p>Ranked by net spending</p></div></div><ReportBarChart data={data?.top_customers || []} labelKey="customer_name" valueKey="net_spend" valueFormatter={(value) => reportMoney(value, currency)} /></section>
-          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>Customer types</h2><p>Active profiles by type</p></div></div><ReportBarChart data={(data?.customer_types || []).map((row) => ({ ...row, label: String(row.customer_type).replaceAll("_", " ") }))} labelKey="label" valueKey="customer_count" valueFormatter={(value) => number(value, 0)} /></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Top customers")}</h2><p>{t("Ranked by net spending")}</p></div></div><ReportBarChart data={data?.top_customers || []} labelKey="customer_name" valueKey="net_spend" valueFormatter={(value) => reportMoney(value, currency)} emptyLabel={t("No data for this period")} /></section>
+          <section className="panel report-panel"><div className="report-panel-heading"><div><h2>{t("Customer types")}</h2><p>{t("Active profiles by type")}</p></div></div><ReportBarChart data={(data?.customer_types || []).map((row) => ({ ...row, label: String(row.customer_type).replaceAll("_", " ") }))} labelKey="label" valueKey="customer_count" valueFormatter={(value) => number(value, 0)} emptyLabel={t("No data for this period")} /></section>
         </div>
 
         <ResponsiveDataList
           storageKey="report-customer-performance"
           title="Customer performance"
-          subtitle={`${filters.from} to ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || "Current branch"}`}
+          subtitle={`${filters.from} ${t("to")} ${filters.to} · ${data?.scope?.branch_name || profile?.branches?.name || t("Current branch")}`}
           rows={data?.top_customers || []}
           filename={`report-customer-performance-${filters.from}-to-${filters.to}.xls`}
           columns={[
@@ -469,21 +472,21 @@ export default function ReportsPage() {
             { label: "Points", width: 80, value: (row) => number(row.loyalty_points) },
             { label: "Last purchase", width: 120, documentValue: (row) => formatReportDate(row.last_purchase), render: (row) => formatReportDate(row.last_purchase) }
           ]}
-          renderCard={(row) => <article className="responsive-data-card report-customer-card"><header><div><strong>{row.customer_name}</strong><small>{row.customer_code}{row.phone ? ` · ${row.phone}` : ""}</small></div><span className="status-pill active">{row.customer_type}</span></header><div><span>Sales / Refunds</span><strong>{number(row.sale_count, 0)} / {number(row.refund_count, 0)}</strong></div><div><span>Gross spend</span><strong>{reportMoney(row.gross_spend, currency)}</strong></div><div><span>Net spend</span><strong>{reportMoney(row.net_spend, currency)}</strong></div><div><span>Average sale</span><strong>{reportMoney(row.average_sale, currency)}</strong></div><div><span>Points / Last purchase</span><strong>{number(row.loyalty_points)}</strong><small>{formatReportDate(row.last_purchase)}</small></div></article>}
+          renderCard={(row) => <article className="responsive-data-card report-customer-card"><header><div><strong>{row.customer_name}</strong><small>{row.customer_code}{row.phone ? ` · ${row.phone}` : ""}</small></div><span className="status-pill active">{t(row.customer_type)}</span></header><div><span>{t("Sales / Refunds")}</span><strong>{number(row.sale_count, 0)} / {number(row.refund_count, 0)}</strong></div><div><span>{t("Gross spend")}</span><strong>{reportMoney(row.gross_spend, currency)}</strong></div><div><span>{t("Net spend")}</span><strong>{reportMoney(row.net_spend, currency)}</strong></div><div><span>{t("Average sale")}</span><strong>{reportMoney(row.average_sale, currency)}</strong></div><div><span>{t("Points / Last purchase")}</span><strong>{number(row.loyalty_points)}</strong><small>{formatReportDate(row.last_purchase)}</small></div></article>}
         />
       </div>
     );
   }
 
   if (!can("reports.view")) {
-    return <section className="panel empty-state"><BarChart3 size={46} /><h2>Reports access is restricted</h2><p>Your role cannot open management reports.</p></section>;
+    return <section className="panel empty-state"><BarChart3 size={46} /><h2>{t("Reports access is restricted")}</h2><p>{t("Your role cannot open management reports.")}</p></section>;
   }
 
   return (
     <div className="page-stack reports-page">
       <div className="page-heading reports-heading">
-        <div><p className="eyebrow">BUSINESS INTELLIGENCE</p><h1>Reports</h1><p className="muted">Sales, net profit, expenses, purchases, stock, and customer performance.</p></div>
-        <div className="heading-actions report-heading-actions"><button type="button" className="primary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />Refresh</button></div>
+        <div><p className="eyebrow">{t("BUSINESS INTELLIGENCE")}</p><h1>{t("Reports")}</h1><p className="muted">{t("Sales, net profit, expenses, purchases, stock, and customer performance.")}</p></div>
+        <div className="heading-actions report-heading-actions"><button type="button" className="primary-button" onClick={refresh} disabled={loading}><RefreshCw size={18} className={loading ? "spin" : ""} />{t("Refresh")}</button></div>
       </div>
 
       {message && <div className="notice error">{message}</div>}
@@ -492,7 +495,7 @@ export default function ReportsPage() {
         {activeTab === "endofday" ? (
           <>
             <label className="end-of-day-branch-filter">
-              <span>Branch</span>
+              <span>{t("Branch")}</span>
               <select
                 value={filters.branchId || profile?.branch_id || ""}
                 disabled={!canAllBranches}
@@ -505,7 +508,7 @@ export default function ReportsPage() {
                 }))}
               >
                 {!canAllBranches && (
-                  <option value={profile?.branch_id || ""}>{profile?.branches?.name || "Current branch"}</option>
+                  <option value={profile?.branch_id || ""}>{profile?.branches?.name || t("Current branch")}</option>
                 )}
                 {canAllBranches && branches.map((branch) => (
                   <option value={branch.id} key={branch.id}>{branch.name}</option>
@@ -526,12 +529,12 @@ export default function ReportsPage() {
             />
 
             <label className="end-of-day-user-filter">
-              <span>User</span>
+              <span>{t("User")}</span>
               <select value={filters.cashierId} onChange={(event) => updateFilter("cashierId", event.target.value)}>
-                <option value="">All staff</option>
+                <option value="">{t("All staff")}</option>
                 {staff.map((member) => (
                   <option value={member.id} key={member.id}>
-                    {member.full_name || member.email || "POS Staff"} · {String(member.role || "staff").replaceAll("_", " ")}
+                    {member.full_name || member.email || "POS Staff"} · {t(String(member.role || "staff").replaceAll("_", " "))}
                   </option>
                 ))}
               </select>
@@ -550,15 +553,15 @@ export default function ReportsPage() {
                 }))
               }
             />
-            {canAllBranches && <label><span>Branch scope</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true, registerName: "" })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value, registerName: "" })); }}><option value="all">All branches</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
+            {canAllBranches && <label><span>{t("Branch scope")}</span><select value={filters.allBranches ? "all" : filters.branchId} onChange={(event) => { if (event.target.value === "all") setFilters((current) => ({ ...current, allBranches: true, registerName: "" })); else setFilters((current) => ({ ...current, allBranches: false, branchId: event.target.value, registerName: "" })); }}><option value="all">{t("All branches")}</option>{branches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name}</option>)}</select></label>}
           </>
         )}
-        <div className="report-filter-summary"><span>Report scope</span><strong>{activeTab === "endofday" ? (endOfDay?.branch_name || profile?.branches?.name || "Current branch") : (data?.scope?.branch_name || profile?.branches?.name || "Current branch")}</strong><small>{data ? titlePeriod(data) : "Choose dates"}</small></div>
+        <div className="report-filter-summary"><span>{t("Report scope")}</span><strong>{activeTab === "endofday" ? (endOfDay?.branch_name || profile?.branches?.name || t("Current branch")) : (data?.scope?.branch_name || profile?.branches?.name || t("Current branch"))}</strong><small>{data ? titlePeriod(data) : t("Choose dates")}</small></div>
       </section>
 
-      <div className="report-tabs">{tabs.map(([key, label, Icon]) => <button type="button" key={key} className={activeTab === key ? "active" : ""} onClick={() => setActiveTab(key)}><Icon size={18} />{label}</button>)}</div>
+      <div className="report-tabs">{tabs.map(([key, label, Icon]) => <button type="button" key={key} className={activeTab === key ? "active" : ""} onClick={() => setActiveTab(key)}><Icon size={18} />{t(label)}</button>)}</div>
 
-      {loading && !data ? <section className="panel empty-state"><RefreshCw className="spin" /><h2>Loading reports…</h2></section> : null}
+      {loading && !data ? <section className="panel empty-state"><RefreshCw className="spin" /><h2>{t("Loading reports…")}</h2></section> : null}
       {data && activeTab === "sales" && <SalesReport />}
       {data && activeTab === "profit" && <ProfitReport />}
       {data && activeTab === "stock" && <StockReport />}
