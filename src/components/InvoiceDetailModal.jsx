@@ -6,6 +6,7 @@ import {
   Table2
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import { normalizeMediaUrl } from "../lib/media";
 import Modal from "./Modal";
 import {
@@ -60,6 +61,7 @@ export default function InvoiceDetailModal({
   onPrint,
   onOpenReturn
 }) {
+  const { t, language } = useLanguage();
   const [itemViewMode, setItemViewMode] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(max-width: 850px)").matches
       ? "cards"
@@ -141,20 +143,21 @@ export default function InvoiceDetailModal({
       <div className="invoice-detail">
         <section className="invoice-detail-header">
           <div>
-            <span>Invoice</span>
+            <span>{t("Invoice")}</span>
             <strong>
               {invoice.invoice_number}
             </strong>
             <small>
               {invoiceDateTime(
                 invoice.completed_at
-                || invoice.created_at
+                || invoice.created_at,
+                language
               )}
             </small>
           </div>
 
           <div>
-            <span>Branch</span>
+            <span>{t("Branch")}</span>
             <strong>
               {invoice.branch_name}
             </strong>
@@ -164,10 +167,10 @@ export default function InvoiceDetailModal({
           </div>
 
           <div>
-            <span>Customer</span>
+            <span>{t("Customer")}</span>
             <strong>
               {invoice.customer?.name
-                || "Walk-in customer"}
+                || t("Walk-in customer")}
             </strong>
             <small>
               {[
@@ -176,12 +179,12 @@ export default function InvoiceDetailModal({
               ]
                 .filter(Boolean)
                 .join(" · ")
-                || "No customer profile"}
+                || t("No customer profile")}
             </small>
           </div>
 
           <div>
-            <span>Cashier</span>
+            <span>{t("Cashier")}</span>
             <strong>
               {invoice.cashier_name}
             </strong>
@@ -190,30 +193,30 @@ export default function InvoiceDetailModal({
 
         <section className="invoice-detail-badges">
           <span className={`invoice-status ${invoice.status}`}>
-            {invoiceStatusLabel(invoice.status)}
+            {t(invoiceStatusLabel(invoice.status))}
           </span>
 
           <span className={`invoice-payment-status ${invoice.payment_status}`}>
-            {invoiceStatusLabel(
+            {t(invoiceStatusLabel(
               invoice.payment_status
-            )}
+            ))}
           </span>
 
           <span className="invoice-payment-method">
-            {paymentMethodLabel(
+            {t(paymentMethodLabel(
               invoice.payment_method
-            )}
+            ))}
           </span>
 
           {invoice.source_quote_number && (
             <span>
-              Quote {invoice.source_quote_number}
+              {t("Quote")} {invoice.source_quote_number}
             </span>
           )}
 
           {invoice.price_list_name && (
             <span>
-              Price list: {invoice.price_list_name}
+              {t("Price list")}: {invoice.price_list_name}
             </span>
           )}
         </section>
@@ -221,8 +224,8 @@ export default function InvoiceDetailModal({
         <section className="invoice-detail-items">
           <div className="invoice-detail-items-toolbar">
             <div>
-              <strong>Invoice items</strong>
-              <small>{(invoice.items || []).length} item{(invoice.items || []).length === 1 ? "" : "s"}</small>
+              <strong>{t("Invoice items")}</strong>
+              <small>{(invoice.items || []).length} {t("items")}</small>
             </div>
             <div className="invoice-detail-view-toggle" aria-label="Invoice item view">
               <button
@@ -230,14 +233,14 @@ export default function InvoiceDetailModal({
                 className={itemViewMode === "table" ? "active" : ""}
                 onClick={() => setItemViewMode("table")}
               >
-                <Table2 size={17} /> Table
+                <Table2 size={17} /> {t("Table")}
               </button>
               <button
                 type="button"
                 className={itemViewMode === "cards" ? "active" : ""}
                 onClick={() => setItemViewMode("cards")}
               >
-                <LayoutGrid size={17} /> Cards
+                <LayoutGrid size={17} /> {t("Cards")}
               </button>
             </div>
           </div>
@@ -257,7 +260,7 @@ export default function InvoiceDetailModal({
                         ) : null}
                         <div className="invoice-detail-card-title">
                           <strong>{item.product_name}</strong>
-                          <small>{codeVal ? `[${codeVal}]` : "No code"}</small>
+                          <small>{codeVal ? `[${codeVal}]` : t("No code")}</small>
                           {getPromoLabel(item, invoice.currency) && (
                             <div className="promotion-inline-tag">{getPromoLabel(item, invoice.currency)}</div>
                           )}
@@ -266,11 +269,11 @@ export default function InvoiceDetailModal({
                       <strong>{money(item.line_total, invoice.currency)}</strong>
                     </header>
                     <div className="invoice-detail-item-fields">
-                      <div><span>Quantity</span><strong>{stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}</strong><small>{stockNumber(item.base_quantity)} base units</small></div>
-                      <div><span>List price</span><strong>{money(item.list_price, invoice.currency)}</strong></div>
-                      <div><span>Sale price</span><strong>{money(item.unit_price, invoice.currency)}</strong></div>
-                      <div><span>Discount</span><strong>{money(item.discount_amount, invoice.currency)}</strong></div>
-                      {canViewProfit && <div><span>Profit</span><strong>{money(item.line_profit, invoice.currency)}</strong></div>}
+                      <div><span>{t("Quantity")}</span><strong>{stockNumber(item.quantity)} {t(item.sale_unit_name || "pcs")}</strong><small>{stockNumber(item.base_quantity)} {t("base units")}</small></div>
+                      <div><span>{t("List price")}</span><strong>{money(item.list_price, invoice.currency)}</strong></div>
+                      <div><span>{t("Sale price")}</span><strong>{money(item.unit_price, invoice.currency)}</strong></div>
+                      <div><span>{t("Discount")}</span><strong>{money(item.discount_amount, invoice.currency)}</strong></div>
+                      {canViewProfit && <div><span>{t("Profit")}</span><strong>{money(item.line_profit, invoice.currency)}</strong></div>}
                     </div>
                   </article>
                 );
@@ -281,13 +284,13 @@ export default function InvoiceDetailModal({
               <table className="invoice-detail-table">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>Quantity</th>
-                    <th>List price</th>
-                    <th>Sale price</th>
-                    <th>Discount</th>
-                    <th>Total</th>
-                    {canViewProfit && <th>Profit</th>}
+                    <th>{t("Product")}</th>
+                    <th>{t("Quantity")}</th>
+                    <th>{t("List price")}</th>
+                    <th>{t("Sale price")}</th>
+                    <th>{t("Discount")}</th>
+                    <th>{t("Total")}</th>
+                    {canViewProfit && <th>{t("Profit")}</th>}
                   </tr>
                 </thead>
 
@@ -298,29 +301,29 @@ export default function InvoiceDetailModal({
                     const thumbUrl = normalizeMediaUrl(rawImg);
                     return (
                       <tr key={item.id}>
-                        <td data-label="Product">
+                        <td data-label={t("Product")}>
                           <div className="invoice-detail-product-cell">
                             {thumbUrl ? (
                               <img src={thumbUrl} alt="" className="invoice-detail-item-thumb" />
                             ) : null}
                             <div className="invoice-detail-product-text">
                               <strong>{item.product_name}</strong>
-                              <small>{codeVal ? `[${codeVal}]` : "No code"}</small>
+                              <small>{codeVal ? `[${codeVal}]` : t("No code")}</small>
                               {getPromoLabel(item, invoice.currency) && (
                                 <div className="promotion-inline-tag">{getPromoLabel(item, invoice.currency)}</div>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td data-label="Quantity">
-                          {stockNumber(item.quantity)} {item.sale_unit_name || "pcs"}
-                          <small>{stockNumber(item.base_quantity)} base units</small>
+                        <td data-label={t("Quantity")}>
+                          {stockNumber(item.quantity)} {t(item.sale_unit_name || "pcs")}
+                          <small>{stockNumber(item.base_quantity)} {t("base units")}</small>
                         </td>
-                        <td data-label="List price">{money(item.list_price, invoice.currency)}</td>
-                        <td data-label="Sale price">{money(item.unit_price, invoice.currency)}</td>
-                        <td data-label="Discount">{money(item.discount_amount, invoice.currency)}</td>
-                        <td data-label="Total"><strong>{money(item.line_total, invoice.currency)}</strong></td>
-                        {canViewProfit && <td data-label="Profit">{money(item.line_profit, invoice.currency)}</td>}
+                        <td data-label={t("List price")}>{money(item.list_price, invoice.currency)}</td>
+                        <td data-label={t("Sale price")}>{money(item.unit_price, invoice.currency)}</td>
+                        <td data-label={t("Discount")}>{money(item.discount_amount, invoice.currency)}</td>
+                        <td data-label={t("Total")}><strong>{money(item.line_total, invoice.currency)}</strong></td>
+                        {canViewProfit && <td data-label={t("Profit")}>{money(item.line_profit, invoice.currency)}</td>}
                       </tr>
                     );
                   })}
@@ -332,21 +335,22 @@ export default function InvoiceDetailModal({
 
         <div className="invoice-detail-columns">
           <section className="invoice-detail-section">
-            <h3>Payments</h3>
+            <h3>{t("Payments")}</h3>
 
             {invoice.credit_account_id && (
               <article className="invoice-credit-summary">
                 <div>
-                  <span>Credit due date</span>
+                  <span>{t("Credit due date")}</span>
                   <strong>
                     {invoiceDate(
-                      invoice.credit_due_date
+                      invoice.credit_due_date,
+                      language
                     )}
                   </strong>
                 </div>
 
                 <div>
-                  <span>Credit invoice</span>
+                  <span>{t("Credit invoice")}</span>
                   <strong>
                     {money(
                       invoice.credit_amount,
@@ -356,7 +360,7 @@ export default function InvoiceDetailModal({
                 </div>
 
                 <div>
-                  <span>Outstanding</span>
+                  <span>{t("Outstanding")}</span>
                   <strong>
                     {money(
                       invoice.credit_outstanding,
@@ -370,8 +374,8 @@ export default function InvoiceDetailModal({
             {(invoice.payments || []).length === 0 ? (
               <p className="muted">
                 {invoice.credit_account_id
-                  ? "No credit collections recorded yet."
-                  : "No payment records."}
+                  ? t("No credit collections recorded yet.")
+                  : t("No payment records.")}
               </p>
             ) : (
               <div className="invoice-payment-list">
@@ -379,16 +383,17 @@ export default function InvoiceDetailModal({
                   <article key={payment.id}>
                     <div>
                       <strong>
-                        {paymentMethodLabel(
+                        {t(paymentMethodLabel(
                           payment.method
-                        )}
+                        ))}
                       </strong>
                       <span>
                         {invoiceDateTime(
-                          payment.paid_at
+                          payment.paid_at,
+                          language
                         )}
                         {payment.is_credit_collection
-                          ? " · Credit collection"
+                          ? ` · ${t("Credit collection")}`
                           : ""}
                       </span>
                     </div>
@@ -402,7 +407,7 @@ export default function InvoiceDetailModal({
                       </strong>
                       <span>
                         {payment.reference_number
-                          || "No reference"}
+                          || t("No reference")}
                       </span>
                     </div>
                   </article>
@@ -412,11 +417,11 @@ export default function InvoiceDetailModal({
           </section>
 
           <section className="invoice-detail-section">
-            <h3>Returns & refunds</h3>
+            <h3>{t("Returns & refunds")}</h3>
 
             {(invoice.returns || []).length === 0 ? (
               <p className="muted">
-                No returns for this invoice.
+                {t("No returns for this invoice.")}
               </p>
             ) : (
               <div className="invoice-return-list">
@@ -428,12 +433,13 @@ export default function InvoiceDetailModal({
                       </strong>
                       <span>
                         {invoiceDateTime(
-                          refund.processed_at
+                          refund.processed_at,
+                          language
                         )}
                         {" · "}
-                        {paymentMethodLabel(
+                        {t(paymentMethodLabel(
                           refund.refund_method
-                        )}
+                        ))}
                       </span>
                     </div>
 
@@ -445,7 +451,7 @@ export default function InvoiceDetailModal({
                         )}
                       </strong>
                       <span>
-                        {refund.reason || "No reason"}
+                        {refund.reason || t("No reason")}
                       </span>
                     </div>
                   </article>
@@ -457,7 +463,7 @@ export default function InvoiceDetailModal({
 
         <section className="invoice-detail-total-grid">
           <div>
-            <span>Sub-Total</span>
+            <span>{t("Sub-Total")}</span>
             <strong>
               {money(
                 subtotalDisplay,
@@ -468,7 +474,7 @@ export default function InvoiceDetailModal({
 
           {Number(invoice.price_adjustment_amount || 0) !== 0 && (
             <div>
-              <span>Price adjustment</span>
+              <span>{t("Price adjustment")}</span>
               <strong>
                 {money(
                   invoice.price_adjustment_amount,
@@ -480,7 +486,7 @@ export default function InvoiceDetailModal({
 
           {totalPromotionDiscount > 0 && (
             <div>
-              <span>Promotion Discount</span>
+              <span>{t("Promotion Discount")}</span>
               <strong>
                 -{money(
                   totalPromotionDiscount,
@@ -492,7 +498,7 @@ export default function InvoiceDetailModal({
 
           {genericDiscount > 0 && (
             <div>
-              <span>Discount</span>
+              <span>{t("Discount")}</span>
               <strong>
                 -{money(
                   genericDiscount,
@@ -504,7 +510,7 @@ export default function InvoiceDetailModal({
 
           {totalTax > 0 && (
             <div>
-              <span>Tax</span>
+              <span>{t("Tax")}</span>
               <strong>
                 {money(
                   totalTax,
@@ -515,7 +521,7 @@ export default function InvoiceDetailModal({
           )}
 
           <div>
-            <span>Gross total</span>
+            <span>{t("Gross total")}</span>
             <strong>
               {money(
                 invoice.total_amount,
@@ -525,7 +531,7 @@ export default function InvoiceDetailModal({
           </div>
 
           <div>
-            <span>Refunded</span>
+            <span>{t("Refunded")}</span>
             <strong>
               -{money(
                 invoice.refunded_amount,
@@ -535,7 +541,7 @@ export default function InvoiceDetailModal({
           </div>
 
           <div className="invoice-net-total">
-            <span>Net total</span>
+            <span>{t("Net total")}</span>
             <strong>
               {money(
                 invoice.net_total,
@@ -546,7 +552,7 @@ export default function InvoiceDetailModal({
 
           {canViewProfit && (
             <div>
-              <span>Net profit</span>
+              <span>{t("Net profit")}</span>
               <strong>
                 {money(
                   invoice.net_profit,
@@ -559,7 +565,7 @@ export default function InvoiceDetailModal({
 
         {invoice.notes && (
           <section className="invoice-detail-notes">
-            <strong>Invoice note</strong>
+            <strong>{t("Invoice note")}</strong>
             <p>{invoice.notes}</p>
           </section>
         )}
@@ -571,7 +577,7 @@ export default function InvoiceDetailModal({
             onClick={copyNumber}
           >
             <Copy size={17} />
-            Copy number
+            {t("Copy number")}
           </button>
 
           {canRefund
@@ -585,7 +591,7 @@ export default function InvoiceDetailModal({
               }
             >
               <RotateCcw size={17} />
-              Return / refund
+              {t("Return / refund")}
             </button>
           )}
 
@@ -594,7 +600,7 @@ export default function InvoiceDetailModal({
             className="secondary-button"
             onClick={onClose}
           >
-            Close
+            {t("Close")}
           </button>
 
           <button
