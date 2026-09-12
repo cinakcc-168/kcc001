@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import MediaImage from "./MediaImage";
 import MediaPreviewModal from "./MediaPreviewModal";
+import { useLanguage } from "../context/LanguageContext";
 import { MEDIA_SOURCE_LIMIT } from "../lib/media";
 import { isoDate } from "../lib/staffOperations";
 
@@ -16,6 +17,7 @@ export default function LeaveRequestModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     date_from: isoDate(),
     date_to: isoDate(),
@@ -57,11 +59,11 @@ export default function LeaveRequestModal({
       return;
     }
     if (!file.type.startsWith("image/")) {
-      setError("Choose an image file.");
+      setError(t("Choose an image file."));
       return;
     }
     if (file.size > MEDIA_SOURCE_LIMIT) {
-      setError("The source image must be 30 MB or smaller.");
+      setError(t("The source image must be 30 MB or smaller."));
       return;
     }
     setForm((current) => ({ ...current, file }));
@@ -71,11 +73,11 @@ export default function LeaveRequestModal({
     event.preventDefault();
     setError("");
     if (!form.date_from || !form.date_to || form.date_to < form.date_from) {
-      setError("Choose a valid leave date range.");
+      setError(t("Choose a valid leave date range."));
       return;
     }
     if (form.reason.trim().length < 2) {
-      setError("Enter the reason for leave.");
+      setError(t("Enter the reason for leave."));
       return;
     }
     onSave({ ...form, reason: form.reason.trim() });
@@ -83,19 +85,19 @@ export default function LeaveRequestModal({
 
   return (
     <>
-      <Modal title="Take Leave" wide onClose={() => !busy && onClose()}>
+      <Modal title={t("Take Leave")} wide onClose={() => !busy && onClose()}>
         <form className="leave-request-form" onSubmit={submit}>
           <div className="leave-request-intro">
           <CalendarRange size={24} />
           <div>
-            <strong>Submit a leave request</strong>
-            <span>This is different from the manager’s Day-Off schedule. It stays pending until reviewed.</span>
+            <strong>{t("Submit a leave request")}</strong>
+            <span>{t("This is different from the manager’s Day-Off schedule. It stays pending until reviewed.")}</span>
           </div>
           </div>
 
           <div className="leave-request-grid">
           <label>
-            <span>From date</span>
+            <span>{t("From date")}</span>
             <input
               type="date"
               value={form.date_from}
@@ -107,7 +109,7 @@ export default function LeaveRequestModal({
             />
           </label>
           <label>
-            <span>To date</span>
+            <span>{t("To date")}</span>
             <input
               type="date"
               min={form.date_from}
@@ -116,55 +118,55 @@ export default function LeaveRequestModal({
             />
           </label>
           <label>
-            <span>Leave type</span>
+            <span>{t("Leave type")}</span>
             <select
               value={form.leave_type}
               onChange={(event) => setForm((current) => ({ ...current, leave_type: event.target.value }))}
             >
-              <option value="annual">Annual leave</option>
-              <option value="sick">Sick leave</option>
-              <option value="personal">Personal leave</option>
-              <option value="unpaid">Unpaid leave</option>
-              <option value="other">Other</option>
+              <option value="annual">{t("Annual leave")}</option>
+              <option value="sick">{t("Sick leave")}</option>
+              <option value="personal">{t("Personal leave")}</option>
+              <option value="unpaid">{t("Unpaid leave")}</option>
+              <option value="other">{t("Other")}</option>
             </select>
           </label>
           <label className="leave-picture-field">
-            <span>Supporting picture (optional)</span>
+            <span>{t("Supporting picture (optional)")}</span>
             <input
               type="file"
               accept="image/*"
               capture="environment"
               onChange={(event) => selectFile(event.target.files?.[0])}
             />
-            <span className="secondary-button leave-file-button"><ImagePlus size={18} />Choose picture</span>
-            <small>Phone photos are resized to a maximum of 1200 × 1200 and compressed before upload.</small>
+            <span className="secondary-button leave-file-button"><ImagePlus size={18} />{t("Choose picture")}</span>
+            <small>{t("Phone photos are resized to a maximum of 1200 × 1200 and compressed before upload.")}</small>
           </label>
         </div>
 
         {preview && (
           <button type="button" className="leave-image-preview" onClick={() => setPreviewOpen(true)}>
             <MediaImage src={preview} alt="Leave supporting document preview" width={240} height={180} eager />
-            <span>Open inside Tiny POS</span>
+            <span>{t("Open inside Tiny POS")}</span>
           </button>
         )}
 
         <label>
-          <span>Reason</span>
+          <span>{t("Reason")}</span>
           <textarea
             rows="5"
             maxLength="2000"
             value={form.reason}
             onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))}
-            placeholder="Explain the leave request..."
+            placeholder={t("Explain the leave request...")}
           />
         </label>
 
         {error && <div className="notice error">{error}</div>}
 
         <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>{t("Cancel")}</button>
           <button type="submit" className="primary-button" disabled={busy}>
-            <Send size={18} />{busy ? "Submitting..." : "Submit pending request"}
+            <Send size={18} />{busy ? t("Submitting...") : t("Submit pending request")}
           </button>
         </div>
         </form>
@@ -172,7 +174,7 @@ export default function LeaveRequestModal({
       <MediaPreviewModal
         open={previewOpen}
         src={preview}
-        title="Leave supporting picture"
+        title={t("Leave supporting picture")}
         downloadName="leave-supporting-picture"
         onClose={() => setPreviewOpen(false)}
       />
