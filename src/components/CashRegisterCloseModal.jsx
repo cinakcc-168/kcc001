@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import Modal from "./Modal";
 import { money } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
 function expected(summary, currency) {
   return Number(
@@ -15,6 +16,7 @@ export default function CashRegisterCloseModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [countedUsd, setCountedUsd] = useState("");
   const [countedKhr, setCountedKhr] = useState("");
   const [note, setNote] = useState("");
@@ -48,12 +50,12 @@ export default function CashRegisterCloseModal({
     const khr = Number(countedKhr);
 
     if (!Number.isFinite(usd) || usd < 0) {
-      setError("Counted USD cash must be zero or greater.");
+      setError(t("Counted USD cash must be zero or greater."));
       return;
     }
 
     if (!Number.isFinite(khr) || khr < 0) {
-      setError("Counted KHR cash must be zero or greater.");
+      setError(t("Counted KHR cash must be zero or greater."));
       return;
     }
 
@@ -66,27 +68,26 @@ export default function CashRegisterCloseModal({
 
   return (
     <Modal
-      title={`Close ${summary.session.session_number}`}
+      title={`${t("Close")} ${summary.session.session_number}`}
       onClose={() => !busy && onClose()}
     >
       <form className="register-close-form" onSubmit={submit}>
         <div className="register-close-warning">
           <LockKeyhole size={20} />
           <span>
-            Count all cash physically inside the drawer. After closing,
-            new cash transactions require a new register session.
+            {t("Count all cash physically inside the drawer. After closing, new cash transactions require a new register session.")}
           </span>
         </div>
 
         <div className="register-count-grid">
           <section>
-            <h3>USD drawer</h3>
+            <h3>{t("USD drawer")}</h3>
             <div>
-              <span>Expected</span>
+              <span>{t("Expected")}</span>
               <strong>{money(expected(summary, "USD"), "USD")}</strong>
             </div>
             <label>
-              <span>Counted cash</span>
+              <span>{t("Counted cash")}</span>
               <input
                 type="number"
                 min="0"
@@ -107,19 +108,19 @@ export default function CashRegisterCloseModal({
                     : "short"
               }`}
             >
-              <span>Variance</span>
+              <span>{t("Variance")}</span>
               <strong>{money(varianceUsd, "USD")}</strong>
             </div>
           </section>
 
           <section>
-            <h3>KHR drawer</h3>
+            <h3>{t("KHR drawer")}</h3>
             <div>
-              <span>Expected</span>
+              <span>{t("Expected")}</span>
               <strong>{money(expected(summary, "KHR"), "KHR")}</strong>
             </div>
             <label>
-              <span>Counted cash</span>
+              <span>{t("Counted cash")}</span>
               <input
                 type="number"
                 min="0"
@@ -139,19 +140,19 @@ export default function CashRegisterCloseModal({
                     : "short"
               }`}
             >
-              <span>Variance</span>
+              <span>{t("Variance")}</span>
               <strong>{money(varianceKhr, "KHR")}</strong>
             </div>
           </section>
         </div>
 
         <label>
-          <span>Closing note</span>
+          <span>{t("Closing note")}</span>
           <textarea
             rows="3"
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="Optional explanation for a shortage, overage, handover or deposit"
+            placeholder={t("Optional explanation for a shortage, overage, handover or deposit")}
           />
         </label>
 
@@ -164,7 +165,7 @@ export default function CashRegisterCloseModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="submit"
@@ -172,7 +173,7 @@ export default function CashRegisterCloseModal({
             disabled={busy}
           >
             <LockKeyhole size={18} />
-            {busy ? "Closing register..." : "Close register"}
+            {busy ? t("Closing register...") : t("Close register")}
           </button>
         </div>
       </form>
