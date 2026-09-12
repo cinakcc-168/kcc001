@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Save, UserPlus } from "lucide-react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 import { roleLabel, staffToForm } from "../lib/staff";
 
 export default function StaffFormModal({
@@ -13,6 +14,7 @@ export default function StaffFormModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState(() => staffToForm(member));
   const [error, setError] = useState("");
 
@@ -53,28 +55,28 @@ export default function StaffFormModal({
     setError("");
 
     if (form.full_name.trim().length < 2) {
-      setError("Staff name is required.");
+      setError(t("Staff name is required."));
       return;
     }
 
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) {
-      setError("Enter a valid staff email address.");
+      setError(t("Enter a valid staff email address."));
       return;
     }
 
     if (!form.branch_id) {
-      setError("Choose a branch.");
+      setError(t("Choose a branch."));
       return;
     }
 
     if (!editing) {
       if (form.password.length < 8) {
-        setError("The temporary password must contain at least 8 characters.");
+        setError(t("The temporary password must contain at least 8 characters."));
         return;
       }
 
       if (form.password !== form.confirm_password) {
-        setError("The password confirmation does not match.");
+        setError(t("The password confirmation does not match."));
         return;
       }
     }
@@ -92,30 +94,30 @@ export default function StaffFormModal({
         password: form.password
       });
     } catch (saveError) {
-      setError(saveError?.message || "The staff account could not be saved.");
+      setError(saveError?.message || t("The staff account could not be saved."));
     }
   }
 
   return (
     <Modal
-      title={editing ? "Edit staff account" : "Add staff account"}
+      title={editing ? t("Edit staff account") : t("Add staff account")}
       onClose={onClose}
       wide
     >
       <form className="staff-form" onSubmit={submit}>
         <div className="staff-form-grid">
           <label>
-            <span>Full name *</span>
+            <span>{t("Full name *")}</span>
             <input
               autoFocus
               value={form.full_name}
               onChange={(event) => update("full_name", event.target.value)}
-              placeholder="Staff member name"
+              placeholder={t("Staff member name")}
             />
           </label>
 
           <label>
-            <span>Email *</span>
+            <span>{t("Email *")}</span>
             <input
               type="email"
               autoComplete="off"
@@ -126,16 +128,16 @@ export default function StaffFormModal({
           </label>
 
           <label>
-            <span>Phone</span>
+            <span>{t("Phone")}</span>
             <input
               value={form.phone}
               onChange={(event) => update("phone", event.target.value)}
-              placeholder="Optional phone number"
+              placeholder={t("Optional phone number")}
             />
           </label>
 
           <label>
-            <span>Role *</span>
+            <span>{t("Role *")}</span>
             <select
               value={form.custom_role_id ? `custom:${form.custom_role_id}` : `base:${form.role}`}
               disabled={ownerAccount || (roleOptions.length === 1 && customRoles.length === 0)}
@@ -150,21 +152,21 @@ export default function StaffFormModal({
                 setError("");
               }}
             >
-              <optgroup label="Standard roles">
+              <optgroup label={t("Standard roles")}>
                 {roleOptions.map((role) => (
                   <option value={`base:${role}`} key={role}>
-                    {roleLabel(role)}
+                    {t(roleLabel(role))}
                   </option>
                 ))}
               </optgroup>
               {customRoles.some((item) => item.is_active || item.id === form.custom_role_id) && (
-                <optgroup label="Custom roles">
+                <optgroup label={t("Custom roles")}>
                   {customRoles
                     .filter((item) => item.is_active || item.id === form.custom_role_id)
                     .filter((item) => callerRole === "owner" || item.base_role !== "admin")
                     .map((item) => (
                       <option value={`custom:${item.id}`} key={item.id}>
-                        {item.name} · based on {roleLabel(item.base_role)}
+                        {item.name} · {t("based on")} {t(roleLabel(item.base_role))}
                       </option>
                     ))}
                 </optgroup>
@@ -173,12 +175,12 @@ export default function StaffFormModal({
           </label>
 
           <label>
-            <span>Assigned branch *</span>
+            <span>{t("Assigned branch *")}</span>
             <select
               value={form.branch_id}
               onChange={(event) => update("branch_id", event.target.value)}
             >
-              <option value="">Choose branch</option>
+              <option value="">{t("Choose branch")}</option>
               {branches
                 .filter((branch) => branch.is_active || branch.id === form.branch_id)
                 .map((branch) => (
@@ -192,18 +194,18 @@ export default function StaffFormModal({
           {!editing && (
             <>
               <label>
-                <span>Temporary password *</span>
+                <span>{t("Temporary password *")}</span>
                 <input
                   type="password"
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(event) => update("password", event.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder={t("At least 8 characters")}
                 />
               </label>
 
               <label>
-                <span>Confirm password *</span>
+                <span>{t("Confirm password *")}</span>
                 <input
                   type="password"
                   autoComplete="new-password"
@@ -211,7 +213,7 @@ export default function StaffFormModal({
                   onChange={(event) =>
                     update("confirm_password", event.target.value)
                   }
-                  placeholder="Repeat temporary password"
+                  placeholder={t("Repeat temporary password")}
                 />
               </label>
             </>
@@ -220,9 +222,9 @@ export default function StaffFormModal({
           {!ownerAccount && (
             <label className="staff-active-toggle">
               <span>
-                <strong>Active account</strong>
+                <strong>{t("Active account")}</strong>
                 <small>
-                  Inactive staff cannot use POS data or complete transactions.
+                  {t("Inactive staff cannot use POS data or complete transactions.")}
                 </small>
               </span>
               <input
@@ -235,22 +237,22 @@ export default function StaffFormModal({
         </div>
 
         <div className="role-description-card">
-          <strong>{selectedCustomRole?.name || roleLabel(form.role)}</strong>
+          <strong>{selectedCustomRole?.name || t(roleLabel(form.role))}</strong>
           <span>
-            {selectedCustomRole?.description || selectedCustomRole && `Custom permission template based on ${roleLabel(selectedCustomRole.base_role)}.`}
+            {selectedCustomRole?.description || (selectedCustomRole && `${t("Custom permission template based on")} ${t(roleLabel(selectedCustomRole.base_role))}.`)}
             {!selectedCustomRole && form.role === "admin" &&
-              "Manages products, inventory, returns, staff, branches, and settings."}
+              t("Manages products, inventory, returns, staff, branches, and settings.")}
             {!selectedCustomRole && form.role === "manager" &&
-              "Manages sales, refunds, customers, products, purchases, and inventory."}
+              t("Manages sales, refunds, customers, products, purchases, and inventory.")}
             {!selectedCustomRole && form.role === "cashier" &&
-              "Creates sales and customers but cannot manage inventory or refunds."}
+              t("Creates sales and customers but cannot manage inventory or refunds.")}
             {!selectedCustomRole && form.role === "viewer" &&
-              "Read-only role intended for dashboards and reports."}
-            {!selectedCustomRole && form.role === "owner" && "Full access to the entire organization."}
+              t("Read-only role intended for dashboards and reports.")}
+            {!selectedCustomRole && form.role === "owner" && t("Full access to the entire organization.")}
           </span>
         </div>
 
-        {error && <div className="notice error">{error}</div>}
+        {error && <div className="notice error">{t(error)}</div>}
 
         <div className="modal-actions">
           <button
@@ -259,15 +261,15 @@ export default function StaffFormModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="submit" className="primary-button" disabled={busy}>
             {editing ? <Save size={18} /> : <UserPlus size={18} />}
             {busy
-              ? "Saving..."
+              ? t("Saving...")
               : editing
-                ? "Save staff account"
-                : "Create staff account"}
+                ? t("Save staff account")
+                : t("Create staff account")}
           </button>
         </div>
       </form>
