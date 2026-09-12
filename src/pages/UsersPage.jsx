@@ -14,6 +14,7 @@ import {
   UsersRound
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import BranchFormModal from "../components/BranchFormModal";
 import PasswordResetModal from "../components/PasswordResetModal";
 import StaffFormModal from "../components/StaffFormModal";
@@ -32,8 +33,8 @@ import {
   updateStaffUser
 } from "../lib/staff";
 
-function dateTime(value) {
-  if (!value) return "Never";
+function dateTime(value, t) {
+  if (!value) return t ? t("Never") : "Never";
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short"
@@ -65,6 +66,7 @@ const roleGuide = [
 
 export default function UsersPage() {
   const { session, profile, can } = useAuth();
+  const { t } = useLanguage();
   const allowed = can("staff.manage");
 
   const [staff, setStaff] = useState([]);
@@ -333,8 +335,8 @@ export default function UsersPage() {
     return (
       <section className="panel empty-state">
         <ShieldCheck size={48} />
-        <h2>Staff management is restricted</h2>
-        <p>Only the owner or an administrator can manage users and branches.</p>
+        <h2>{t("Staff management is restricted")}</h2>
+        <p>{t("Only the owner or an administrator can manage users and branches.")}</p>
       </section>
     );
   }
@@ -343,10 +345,10 @@ export default function UsersPage() {
     <div className="page-stack users-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">ACCESS CONTROL</p>
-          <h1>Staff & Branches</h1>
+          <p className="eyebrow">{t("ACCESS CONTROL")}</p>
+          <h1>{t("Staff & Branches")}</h1>
           <p className="muted">
-            Create secure staff logins, assign roles, and control branch access.
+            {t("Create secure staff logins, assign roles, and control branch access.")}
           </p>
         </div>
 
@@ -357,26 +359,26 @@ export default function UsersPage() {
           disabled={loading}
         >
           <RefreshCw size={18} className={loading ? "spin" : ""} />
-          Refresh
+          {t("Refresh")}
         </button>
       </div>
 
-      {message && <div className={`notice ${messageType}`}>{message}</div>}
+      {message && <div className={`notice ${messageType}`}>{t(message)}</div>}
 
       <div className="staff-metrics">
         <article>
           <UserCheck size={22} />
-          <span>Active staff</span>
+          <span>{t("Active staff")}</span>
           <strong>{counts.activeStaff}</strong>
         </article>
         <article>
           <UserRoundX size={22} />
-          <span>Inactive staff</span>
+          <span>{t("Inactive staff")}</span>
           <strong>{counts.inactiveStaff}</strong>
         </article>
         <article>
           <Building2 size={22} />
-          <span>Active branches</span>
+          <span>{t("Active branches")}</span>
           <strong>{counts.activeBranches}</strong>
         </article>
       </div>
@@ -387,21 +389,21 @@ export default function UsersPage() {
           className={tab === "staff" ? "active" : ""}
           onClick={() => setTab("staff")}
         >
-          <UsersRound size={18} /> Staff
+          <UsersRound size={18} /> {t("Staff")}
         </button>
         <button
           type="button"
           className={tab === "branches" ? "active" : ""}
           onClick={() => setTab("branches")}
         >
-          <Store size={18} /> Branches
+          <Store size={18} /> {t("Branches")}
         </button>
         <button
           type="button"
           className={tab === "roles" ? "active" : ""}
           onClick={() => setTab("roles")}
         >
-          <ShieldCheck size={18} /> Roles
+          <ShieldCheck size={18} /> {t("Roles")}
         </button>
       </div>
 
@@ -413,7 +415,7 @@ export default function UsersPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search name, email, phone, role or branch"
+                placeholder={t("Search name, email, phone, role or branch")}
               />
             </div>
 
@@ -421,12 +423,12 @@ export default function UsersPage() {
               value={roleFilter}
               onChange={(event) => setRoleFilter(event.target.value)}
             >
-              <option value="all">All roles</option>
-              <option value="owner">Owner</option>
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="cashier">Cashier</option>
-              <option value="viewer">Viewer</option>
+              <option value="all">{t("All roles")}</option>
+              <option value="owner">{t("Owner")}</option>
+              <option value="admin">{t("Admin")}</option>
+              <option value="manager">{t("Manager")}</option>
+              <option value="cashier">{t("Cashier")}</option>
+              <option value="viewer">{t("Viewer")}</option>
               {customRoles.map((role) => (
                 <option value={`custom:${role.id}`} key={role.id}>{role.name}</option>
               ))}
@@ -436,7 +438,7 @@ export default function UsersPage() {
               value={branchFilter}
               onChange={(event) => setBranchFilter(event.target.value)}
             >
-              <option value="all">All branches</option>
+              <option value="all">{t("All branches")}</option>
               {branches.map((branch) => (
                 <option value={branch.id} key={branch.id}>
                   {branch.name}
@@ -448,9 +450,9 @@ export default function UsersPage() {
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
-              <option value="active">Active staff</option>
-              <option value="inactive">Inactive staff</option>
-              <option value="all">All statuses</option>
+              <option value="active">{t("Active staff")}</option>
+              <option value="inactive">{t("Inactive staff")}</option>
+              <option value="all">{t("All statuses")}</option>
             </select>
 
             <button
@@ -461,7 +463,7 @@ export default function UsersPage() {
                 setStaffFormOpen(true);
               }}
             >
-              <Plus size={18} /> Add staff
+              <Plus size={18} /> {t("Add staff")}
             </button>
           </section>
 
@@ -469,28 +471,28 @@ export default function UsersPage() {
             <section className="panel staff-list-panel">
               <div className="empty-state">
                 <RefreshCw className="spin" />
-                <p>Loading staff accounts...</p>
+                <p>{t("Loading staff accounts...")}</p>
               </div>
             </section>
           ) : (
             <ResponsiveDataList
               storageKey="tiny-pos-staff-directory"
-              title="Staff"
-              subtitle="Switch between a compact table and responsive cards on PC or phone."
+              title={t("Staff")}
+              subtitle={t("Switch between a compact table and responsive cards on PC or phone.")}
               rows={filteredStaff}
               filename="tiny-pos-staff.xls"
-              printTitle="Staff"
-              emptyTitle="No staff found"
-              emptyText="Change the filters or add a new staff login."
+              printTitle={t("Staff")}
+              emptyTitle={t("No staff found")}
+              emptyText={t("Change the filters or add a new staff login.")}
               columns={[
-                { label: "Staff", width: 190, value: (member) => member.full_name || "—", render: (member) => <><strong>{member.full_name || "—"}</strong>{member.id === profile.id && <small>You</small>}</> },
-                { label: "Email", width: 210, value: (member) => member.email || "—" },
-                { label: "Phone", width: 130, value: (member) => member.phone || "—" },
-                { label: "Role", width: 140, value: (member) => member.custom_staff_roles?.name || roleLabel(member.role) },
-                { label: "Branch", width: 170, value: (member) => member.branches?.name || "No branch", render: (member) => <>{member.branches?.name || "No branch"}<small>{member.branches?.code || "—"}</small></> },
-                { label: "Last login", width: 180, value: (member) => dateTime(member.auth_last_sign_in_at || member.last_login_at) },
-                { label: "Status", width: 100, value: (member) => member.is_active ? "Active" : "Inactive", render: (member) => <span className={`status-pill ${member.is_active ? "active" : "inactive"}`}>{member.is_active ? "Active" : "Inactive"}</span> },
-                { label: "Actions", actionsOnly: true, excludeDocument: true, render: (member) => <div className="staff-table-actions"><button type="button" className="icon-button" title="Edit staff" disabled={!canEdit(member)} onClick={() => { setEditingStaff(member); setStaffFormOpen(true); }}><Edit3 size={18} /></button><button type="button" className="icon-button" title="Reset password" disabled={!canEdit(member)} onClick={() => setResetMember(member)}><KeyRound size={18} /></button>{canChangeStatus(member) && <button type="button" className={member.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleStaff(member)}>{member.is_active ? "Deactivate" : "Activate"}</button>}</div> }
+                { label: t("Staff"), width: 190, value: (member) => member.full_name || "—", render: (member) => <><strong>{member.full_name || "—"}</strong>{member.id === profile.id && <small>{t("You")}</small>}</> },
+                { label: t("Email"), width: 210, value: (member) => member.email || "—" },
+                { label: t("Phone"), width: 130, value: (member) => member.phone || "—" },
+                { label: t("Role"), width: 140, value: (member) => member.custom_staff_roles?.name || t(roleLabel(member.role)) },
+                { label: t("Branch"), width: 170, value: (member) => member.branches?.name || t("No branch"), render: (member) => <>{member.branches?.name || t("No branch")}<small>{member.branches?.code || "—"}</small></> },
+                { label: t("Last login"), width: 180, value: (member) => dateTime(member.auth_last_sign_in_at || member.last_login_at, t) },
+                { label: t("Status"), width: 100, value: (member) => member.is_active ? t("Active") : t("Inactive"), render: (member) => <span className={`status-pill ${member.is_active ? "active" : "inactive"}`}>{member.is_active ? t("Active") : t("Inactive")}</span> },
+                { label: t("Actions"), actionsOnly: true, excludeDocument: true, render: (member) => <div className="staff-table-actions"><button type="button" className="icon-button" title={t("Edit staff")} disabled={!canEdit(member)} onClick={() => { setEditingStaff(member); setStaffFormOpen(true); }}><Edit3 size={18} /></button><button type="button" className="icon-button" title={t("Reset password")} disabled={!canEdit(member)} onClick={() => setResetMember(member)}><KeyRound size={18} /></button>{canChangeStatus(member) && <button type="button" className={member.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleStaff(member)}>{member.is_active ? t("Deactivate") : t("Activate")}</button>}</div> }
               ]}
               renderCard={(member) => (
                 <article className="responsive-data-card staff-directory-card">
@@ -499,16 +501,16 @@ export default function UsersPage() {
                       <span className="staff-avatar">{member.full_name?.trim()?.[0]?.toUpperCase() || "U"}</span>
                       <span><strong>{member.full_name || "—"}</strong><small>{member.email || "—"}</small></span>
                     </div>
-                    <span className={`status-pill ${member.is_active ? "active" : "inactive"}`}>{member.is_active ? "Active" : "Inactive"}</span>
+                    <span className={`status-pill ${member.is_active ? "active" : "inactive"}`}>{member.is_active ? t("Active") : t("Inactive")}</span>
                   </header>
-                  <div><span>Phone</span><strong>{member.phone || "—"}</strong></div>
-                  <div><span>Role</span><strong>{member.custom_staff_roles?.name || roleLabel(member.role)}</strong></div>
-                  <div><span>Branch</span><strong>{member.branches?.name || "No branch"}</strong><small>{member.branches?.code || "—"}</small></div>
-                  <div><span>Last login</span><strong>{dateTime(member.auth_last_sign_in_at || member.last_login_at)}</strong><small>Created {dateTime(member.created_at)}</small></div>
+                  <div><span>{t("Phone")}</span><strong>{member.phone || "—"}</strong></div>
+                  <div><span>{t("Role")}</span><strong>{member.custom_staff_roles?.name || t(roleLabel(member.role))}</strong></div>
+                  <div><span>{t("Branch")}</span><strong>{member.branches?.name || t("No branch")}</strong><small>{member.branches?.code || "—"}</small></div>
+                  <div><span>{t("Last login")}</span><strong>{dateTime(member.auth_last_sign_in_at || member.last_login_at, t)}</strong><small>{t("Created")} {dateTime(member.created_at, t)}</small></div>
                   <footer>
-                    <button type="button" className="secondary-button compact-button" disabled={!canEdit(member)} onClick={() => { setEditingStaff(member); setStaffFormOpen(true); }}><Edit3 size={17} />Edit</button>
-                    <button type="button" className="secondary-button compact-button" disabled={!canEdit(member)} onClick={() => setResetMember(member)}><KeyRound size={17} />Password</button>
-                    {canChangeStatus(member) && <button type="button" className={member.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleStaff(member)}>{member.is_active ? "Deactivate" : "Activate"}</button>}
+                    <button type="button" className="secondary-button compact-button" disabled={!canEdit(member)} onClick={() => { setEditingStaff(member); setStaffFormOpen(true); }}><Edit3 size={17} />{t("Edit")}</button>
+                    <button type="button" className="secondary-button compact-button" disabled={!canEdit(member)} onClick={() => setResetMember(member)}><KeyRound size={17} />{t("Password")}</button>
+                    {canChangeStatus(member) && <button type="button" className={member.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleStaff(member)}>{member.is_active ? t("Deactivate") : t("Activate")}</button>}
                   </footer>
                 </article>
               )}
@@ -519,37 +521,37 @@ export default function UsersPage() {
 
       {tab === "branches" && (
         loading ? (
-          <section className="panel"><div className="empty-state"><RefreshCw className="spin" /><p>Loading branches...</p></div></section>
+          <section className="panel"><div className="empty-state"><RefreshCw className="spin" /><p>{t("Loading branches...")}</p></div></section>
         ) : (
           <ResponsiveDataList
             storageKey="tiny-pos-branch-directory"
-            title="Branches"
-            subtitle="New branches receive zero-stock inventory rows for every existing product."
+            title={t("Branches")}
+            subtitle={t("New branches receive zero-stock inventory rows for every existing product.")}
             rows={branches}
             filename="tiny-pos-branches.xls"
-            printTitle="Branches"
-            emptyTitle="No branches found"
-            headingExtra={<button type="button" className="primary-button" onClick={() => { setEditingBranch(null); setBranchFormOpen(true); }}><Plus size={18} />Add branch</button>}
+            printTitle={t("Branches")}
+            emptyTitle={t("No branches found")}
+            headingExtra={<button type="button" className="primary-button" onClick={() => { setEditingBranch(null); setBranchFormOpen(true); }}><Plus size={18} />{t("Add branch")}</button>}
             columns={[
-              { label: "Branch", width: 180, value: (branch) => branch.name || "—", render: (branch) => <><strong>{branch.name || "—"}</strong><small>{branch.code || "—"}</small></> },
-              { label: "Phone", width: 135, value: (branch) => branch.phone || "—" },
-              { label: "Address", width: 260, value: (branch) => branch.address || "—" },
-              { label: "Active staff", width: 100, value: (branch) => branch.active_staff_count || 0 },
-              { label: "Attendance", width: 170, value: (branch) => branch.attendance_geofence_required ? `${branch.attendance_radius_m || 150} m geofence` : "Location check off" },
-              { label: "Status", width: 100, value: (branch) => branch.is_active ? "Active" : "Inactive", render: (branch) => <span className={`status-pill ${branch.is_active ? "active" : "inactive"}`}>{branch.is_active ? "Active" : "Inactive"}</span> },
-              { label: "Actions", actionsOnly: true, excludeDocument: true, render: (branch) => <div className="branch-table-actions"><button type="button" className="secondary-button compact-button" onClick={() => { setEditingBranch(branch); setBranchFormOpen(true); }}><Edit3 size={17} />Edit</button><button type="button" className={branch.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleBranch(branch)}>{branch.is_active ? "Deactivate" : "Activate"}</button></div> }
+              { label: t("Branch"), width: 180, value: (branch) => branch.name || "—", render: (branch) => <><strong>{branch.name || "—"}</strong><small>{branch.code || "—"}</small></> },
+              { label: t("Phone"), width: 135, value: (branch) => branch.phone || "—" },
+              { label: t("Address"), width: 260, value: (branch) => branch.address || "—" },
+              { label: t("Active staff"), width: 100, value: (branch) => branch.active_staff_count || 0 },
+              { label: t("Attendance"), width: 170, value: (branch) => branch.attendance_geofence_required ? `${branch.attendance_radius_m || 150} m geofence` : t("Location check off") },
+              { label: t("Status"), width: 100, value: (branch) => branch.is_active ? t("Active") : t("Inactive"), render: (branch) => <span className={`status-pill ${branch.is_active ? "active" : "inactive"}`}>{branch.is_active ? t("Active") : t("Inactive")}</span> },
+              { label: t("Actions"), actionsOnly: true, excludeDocument: true, render: (branch) => <div className="branch-table-actions"><button type="button" className="secondary-button compact-button" onClick={() => { setEditingBranch(branch); setBranchFormOpen(true); }}><Edit3 size={17} />{t("Edit")}</button><button type="button" className={branch.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleBranch(branch)}>{branch.is_active ? t("Deactivate") : t("Activate")}</button></div> }
             ]}
             renderCard={(branch) => (
               <article className="responsive-data-card branch-directory-card">
                 <header>
                   <div className="branch-directory-card-title"><span className="branch-icon"><Store size={21} /></span><span><strong>{branch.name || "—"}</strong><small>{branch.code || "—"}</small></span></div>
-                  <span className={`status-pill ${branch.is_active ? "active" : "inactive"}`}>{branch.is_active ? "Active" : "Inactive"}</span>
+                  <span className={`status-pill ${branch.is_active ? "active" : "inactive"}`}>{branch.is_active ? t("Active") : t("Inactive")}</span>
                 </header>
-                <div><span>Phone</span><strong>{branch.phone || "—"}</strong></div>
-                <div><span>Active staff</span><strong>{branch.active_staff_count || 0}</strong></div>
-                <div><span>Address</span><strong>{branch.address || "—"}</strong></div>
-                <div><span>Attendance</span><strong>{branch.attendance_geofence_required ? `${branch.attendance_radius_m || 150} m geofence` : "Location check off"}</strong></div>
-                <footer><button type="button" className="secondary-button compact-button" onClick={() => { setEditingBranch(branch); setBranchFormOpen(true); }}><Edit3 size={17} />Edit</button><button type="button" className={branch.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleBranch(branch)}>{branch.is_active ? "Deactivate" : "Activate"}</button></footer>
+                <div><span>{t("Phone")}</span><strong>{branch.phone || "—"}</strong></div>
+                <div><span>{t("Active staff")}</span><strong>{branch.active_staff_count || 0}</strong></div>
+                <div><span>{t("Address")}</span><strong>{branch.address || "—"}</strong></div>
+                <div><span>{t("Attendance")}</span><strong>{branch.attendance_geofence_required ? `${branch.attendance_radius_m || 150} m geofence` : t("Location check off")}</strong></div>
+                <footer><button type="button" className="secondary-button compact-button" onClick={() => { setEditingBranch(branch); setBranchFormOpen(true); }}><Edit3 size={17} />{t("Edit")}</button><button type="button" className={branch.is_active ? "danger-text-button" : "success-text-button"} disabled={busy} onClick={() => toggleBranch(branch)}>{branch.is_active ? t("Deactivate") : t("Activate")}</button></footer>
               </article>
             )}
           />
@@ -558,37 +560,37 @@ export default function UsersPage() {
 
       {tab === "roles" && (
         loading ? (
-          <section className="panel"><div className="empty-state"><RefreshCw className="spin" /><p>Loading roles...</p></div></section>
+          <section className="panel"><div className="empty-state"><RefreshCw className="spin" /><p>{t("Loading roles...")}</p></div></section>
         ) : (
           <ResponsiveDataList
             storageKey="tiny-pos-role-directory"
-            title="Roles"
-            subtitle="Standard and custom roles. Switch between Table and Cards on PC or phone."
+            title={t("Roles")}
+            subtitle={t("Standard and custom roles. Switch between Table and Cards on PC or phone.")}
             rows={roleRows}
             filename="tiny-pos-roles.xls"
-            printTitle="Staff Roles"
-            emptyTitle="No roles found"
-            headingExtra={<button type="button" className="primary-button" onClick={() => { setEditingCustomRole(null); setCustomRoleOpen(true); }}><Plus size={18} />Add custom role</button>}
+            printTitle={t("Staff Roles")}
+            emptyTitle={t("No roles found")}
+            headingExtra={<button type="button" className="primary-button" onClick={() => { setEditingCustomRole(null); setCustomRoleOpen(true); }}><Plus size={18} />{t("Add custom role")}</button>}
             columns={[
-              { label: "Role", width: 180, value: (role) => role.name || "—", render: (role) => <><strong>{role.name || "—"}</strong><small>{role.kind === "standard" ? "Standard role" : "Custom role"}</small></> },
-              { label: "Based on", width: 125, value: (role) => roleLabel(role.base_role) },
-              { label: "Description", width: 320, value: (role) => role.description || "No description." },
-              { label: "Permissions", width: 100, value: (role) => role.permission_count },
-              { label: "Staff", width: 90, value: (role) => role.assigned_staff_count || 0 },
-              { label: "Status", width: 100, value: (role) => role.is_active ? "Active" : "Inactive", render: (role) => <span className={`status-pill ${role.is_active ? "active" : "inactive"}`}>{role.is_active ? "Active" : "Inactive"}</span> },
-              { label: "Actions", actionsOnly: true, excludeDocument: true, render: (role) => role.kind === "custom" ? <div className="role-table-actions"><button type="button" className="secondary-button compact-button" onClick={() => { setEditingCustomRole(role); setCustomRoleOpen(true); }}><Edit3 size={17} />Edit</button><button type="button" className="danger-text-button" disabled={busy || Number(role.assigned_staff_count || 0) > 0} onClick={() => removeCustomRole(role)}><Trash2 size={17} />Delete</button></div> : <span className="muted">System role</span> }
+              { label: t("Role"), width: 180, value: (role) => role.name || "—", render: (role) => <><strong>{t(role.name) || "—"}</strong><small>{role.kind === "standard" ? t("Standard role") : t("Custom role")}</small></> },
+              { label: t("Based on"), width: 125, value: (role) => t(roleLabel(role.base_role)) },
+              { label: t("Description"), width: 320, value: (role) => t(role.description) || t("No description.") },
+              { label: t("Permissions"), width: 100, value: (role) => role.permission_count },
+              { label: t("Staff"), width: 90, value: (role) => role.assigned_staff_count || 0 },
+              { label: t("Status"), width: 100, value: (role) => role.is_active ? t("Active") : t("Inactive"), render: (role) => <span className={`status-pill ${role.is_active ? "active" : "inactive"}`}>{role.is_active ? t("Active") : t("Inactive")}</span> },
+              { label: t("Actions"), actionsOnly: true, excludeDocument: true, render: (role) => role.kind === "custom" ? <div className="role-table-actions"><button type="button" className="secondary-button compact-button" onClick={() => { setEditingCustomRole(role); setCustomRoleOpen(true); }}><Edit3 size={17} />{t("Edit")}</button><button type="button" className="danger-text-button" disabled={busy || Number(role.assigned_staff_count || 0) > 0} onClick={() => removeCustomRole(role)}><Trash2 size={17} />{t("Delete")}</button></div> : <span className="muted">{t("System role")}</span> }
             ]}
             renderCard={(role) => (
               <article className="responsive-data-card role-directory-card">
                 <header>
-                  <div className="role-directory-card-title"><ShieldCheck size={22} /><span><strong>{role.name || "—"}</strong><small>{role.kind === "standard" ? "Standard role" : `Based on ${roleLabel(role.base_role)}`}</small></span></div>
-                  <span className={`status-pill ${role.is_active ? "active" : "inactive"}`}>{role.is_active ? "Active" : "Inactive"}</span>
+                  <div className="role-directory-card-title"><ShieldCheck size={22} /><span><strong>{t(role.name) || "—"}</strong><small>{role.kind === "standard" ? t("Standard role") : `${t("Based on")} ${t(roleLabel(role.base_role))}`}</small></span></div>
+                  <span className={`status-pill ${role.is_active ? "active" : "inactive"}`}>{role.is_active ? t("Active") : t("Inactive")}</span>
                 </header>
-                <p className="role-directory-description">{role.description || "No description."}</p>
-                <div><span>Based on</span><strong>{roleLabel(role.base_role)}</strong></div>
-                <div><span>Permissions</span><strong>{role.permission_count}</strong></div>
-                <div><span>Assigned staff</span><strong>{role.assigned_staff_count || 0}</strong></div>
-                <footer>{role.kind === "custom" ? <><button type="button" className="secondary-button compact-button" onClick={() => { setEditingCustomRole(role); setCustomRoleOpen(true); }}><Edit3 size={17} />Edit</button><button type="button" className="danger-text-button" disabled={busy || Number(role.assigned_staff_count || 0) > 0} onClick={() => removeCustomRole(role)}><Trash2 size={17} />Delete</button></> : <span className="muted">System role</span>}</footer>
+                <p className="role-directory-description">{t(role.description) || t("No description.")}</p>
+                <div><span>{t("Based on")}</span><strong>{t(roleLabel(role.base_role))}</strong></div>
+                <div><span>{t("Permissions")}</span><strong>{role.permission_count}</strong></div>
+                <div><span>{t("Assigned staff")}</span><strong>{role.assigned_staff_count || 0}</strong></div>
+                <footer>{role.kind === "custom" ? <><button type="button" className="secondary-button compact-button" onClick={() => { setEditingCustomRole(role); setCustomRoleOpen(true); }}><Edit3 size={17} />{t("Edit")}</button><button type="button" className="danger-text-button" disabled={busy || Number(role.assigned_staff_count || 0) > 0} onClick={() => removeCustomRole(role)}><Trash2 size={17} />{t("Delete")}</button></> : <span className="muted">{t("System role")}</span>}</footer>
               </article>
             )}
           />
