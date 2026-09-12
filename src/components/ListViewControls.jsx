@@ -6,6 +6,7 @@ import {
   Printer,
   Table2
 } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 export const LIST_ROW_OPTIONS = [30, 60, 90, 120];
 
@@ -30,27 +31,29 @@ export default function ListViewControls({
   exporting = false,
   className = ""
 }) {
+  const { t } = useLanguage();
+
   return (
     <div className={`list-view-controls ${className}`.trim()}>
-      <div className="list-view-mode" role="group" aria-label="List view">
+      <div className="list-view-mode" role="group" aria-label={t("List view")}>
         <button
           type="button"
           className={viewMode === "table" ? "active" : ""}
           onClick={() => onViewModeChange("table")}
         >
-          <Table2 size={17} /> Table
+          <Table2 size={17} /> {t("Table")}
         </button>
         <button
           type="button"
           className={viewMode === "cards" ? "active" : ""}
           onClick={() => onViewModeChange("cards")}
         >
-          <LayoutGrid size={17} /> Cards
+          <LayoutGrid size={17} /> {t("Cards")}
         </button>
       </div>
 
       <label className="list-row-size">
-        <span>Rows</span>
+        <span>{t("Rows")}</span>
         <select
           value={pageSize}
           onChange={(event) => onPageSizeChange(Number(event.target.value))}
@@ -64,23 +67,23 @@ export default function ListViewControls({
       <div className="list-document-actions">
         {onExport && (
           <button type="button" className="secondary-button compact-button" onClick={onExport} disabled={exporting || totalRows === 0}>
-            <Download size={17} /> {exporting ? "Exporting..." : "Export"}
+            <Download size={17} /> {exporting ? t("Exporting...") : t("Export")}
           </button>
         )}
         {onPrint && (
           <button type="button" className="secondary-button compact-button" onClick={onPrint} disabled={totalRows === 0}>
-            <Printer size={17} /> Print
+            <Printer size={17} /> {t("Print")}
           </button>
         )}
       </div>
 
       {onPageChange && totalPages > 1 && (
         <div className="list-pagination">
-          <button type="button" className="icon-button" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} aria-label="Previous page">
+          <button type="button" className="icon-button" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage <= 1} aria-label={t("Previous")}>
             <ChevronLeft size={18} />
           </button>
           <span>{currentPage} / {totalPages}</span>
-          <button type="button" className="icon-button" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} aria-label="Next page">
+          <button type="button" className="icon-button" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage >= totalPages} aria-label={t("Next")}>
             <ChevronRight size={18} />
           </button>
         </div>
