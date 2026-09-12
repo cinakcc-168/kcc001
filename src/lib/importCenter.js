@@ -376,9 +376,9 @@ export function downloadImportErrors(result) {
   );
 }
 
-export function importDateTime(value) {
+export function importDateTime(value, locale = "en-US") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
