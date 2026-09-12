@@ -1,46 +1,56 @@
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
-function pretty(value) {
+function pretty(value, noDataText = "No data") {
   if (value === null || value === undefined) {
-    return "No data";
+    return noDataText;
   }
 
   return JSON.stringify(value, null, 2);
 }
 
+function readable(value) {
+  return String(value || "")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default function AuditDetailModal({ entry, onClose }) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === "km" ? "km-KH" : "en-US";
+
   if (!entry) return null;
 
   return (
-    <Modal title="Audit entry details" onClose={onClose} wide>
+    <Modal title={t("Audit entry details")} onClose={onClose} wide>
       <div className="audit-detail">
         <div className="audit-detail-summary">
           <div>
-            <span>Action</span>
-            <strong>{entry.action}</strong>
+            <span>{t("Action")}</span>
+            <strong>{t(readable(entry.action))}</strong>
           </div>
           <div>
-            <span>Entity</span>
-            <strong>{entry.entity_type}</strong>
+            <span>{t("Entity")}</span>
+            <strong>{t(readable(entry.entity_type))}</strong>
           </div>
           <div>
-            <span>User</span>
+            <span>{t("User")}</span>
             <strong>
-              {entry.profiles?.full_name || "System"}
+              {entry.profiles?.full_name || t("System")}
             </strong>
           </div>
           <div>
-            <span>Branch</span>
+            <span>{t("Branch")}</span>
             <strong>{entry.branches?.name || "—"}</strong>
           </div>
           <div>
-            <span>Record ID</span>
+            <span>{t("Record ID")}</span>
             <strong>{entry.entity_id || "—"}</strong>
           </div>
           <div>
-            <span>Date</span>
+            <span>{t("Date")}</span>
             <strong>
-              {new Intl.DateTimeFormat("en-US", {
+              {new Intl.DateTimeFormat(dateLocale, {
                 dateStyle: "medium",
                 timeStyle: "medium"
               }).format(new Date(entry.created_at))}
@@ -50,12 +60,12 @@ export default function AuditDetailModal({ entry, onClose }) {
 
         <div className="audit-json-grid">
           <section>
-            <h3>Before</h3>
-            <pre>{pretty(entry.old_data)}</pre>
+            <h3>{t("Before")}</h3>
+            <pre>{pretty(entry.old_data, t("No data"))}</pre>
           </section>
           <section>
-            <h3>After / Details</h3>
-            <pre>{pretty(entry.new_data)}</pre>
+            <h3>{t("After / Details")}</h3>
+            <pre>{pretty(entry.new_data, t("No data"))}</pre>
           </section>
         </div>
 
@@ -76,10 +86,11 @@ export default function AuditDetailModal({ entry, onClose }) {
             className="primary-button"
             onClick={onClose}
           >
-            Close
+            {t("Close")}
           </button>
         </div>
       </div>
     </Modal>
   );
 }
+
