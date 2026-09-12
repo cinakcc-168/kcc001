@@ -1,6 +1,7 @@
 import { CalendarPlus, Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
 function currentMonth() {
   const date = new Date();
@@ -21,6 +22,7 @@ export default function ManualAttendanceModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState({
     user_id: "",
     branch_id: "",
@@ -86,14 +88,14 @@ export default function ManualAttendanceModal({
   function submit(event) {
     event.preventDefault();
     setError("");
-    if (!form.user_id) return setError("Choose a staff member.");
-    if (!form.branch_id) return setError("Choose a branch.");
-    if (!form.month) return setError("Choose a month.");
+    if (!form.user_id) return setError(t("Choose a staff member."));
+    if (!form.branch_id) return setError(t("Choose a branch."));
+    if (!form.month) return setError(t("Choose a month."));
     if (selectedDays.length !== Number(form.day_count)) {
-      return setError(`Choose exactly ${form.day_count} day${Number(form.day_count) === 1 ? "" : "s"}.`);
+      return setError(`${t("Number of days to select")}: ${form.day_count}`);
     }
     if (form.day_type === "work" && form.check_out_time <= form.check_in_time) {
-      return setError("Check-out time must be after check-in time.");
+      return setError(t("Check-out time must be after check-in time."));
     }
     onSave({
       ...form,
@@ -103,57 +105,57 @@ export default function ManualAttendanceModal({
   }
 
   return (
-    <Modal title="Set attendance" wide onClose={() => !busy && onClose()}>
+    <Modal title={t("Set attendance")} wide onClose={() => !busy && onClose()}>
       <form className="manual-attendance-form" onSubmit={submit}>
         <div className="manual-attendance-grid">
           <label>
-            <span>Staff member</span>
+            <span>{t("Staff member")}</span>
             <select value={form.user_id} onChange={(event) => changeStaff(event.target.value)}>
-              <option value="">Choose staff</option>
+              <option value="">{t("Choose staff")}</option>
               {staff.map((row) => (
-                <option key={row.id} value={row.id}>{row.full_name} · {row.role}</option>
+                <option key={row.id} value={row.id}>{row.full_name} · {t(row.role)}</option>
               ))}
             </select>
           </label>
           <label>
-            <span>Branch</span>
+            <span>{t("Branch")}</span>
             <select value={form.branch_id} onChange={(event) => setForm((current) => ({ ...current, branch_id: event.target.value }))}>
-              <option value="">Choose branch</option>
+              <option value="">{t("Choose branch")}</option>
               {branches.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
             </select>
           </label>
           <label>
-            <span>Month</span>
+            <span>{t("Month")}</span>
             <input type="month" value={form.month} onChange={(event) => {
               setForm((current) => ({ ...current, month: event.target.value }));
               setSelectedDays([]);
             }} />
           </label>
           <label>
-            <span>Attendance type</span>
+            <span>{t("Attendance type")}</span>
             <select value={form.day_type} onChange={(event) => setForm((current) => ({ ...current, day_type: event.target.value }))}>
-              <option value="work">Working day</option>
-              <option value="day_off">Day off</option>
-              <option value="leave">Approved leave</option>
-              <option value="absence">Mark absent</option>
+              <option value="work">{t("Working day")}</option>
+              <option value="day_off">{t("Day off")}</option>
+              <option value="leave">{t("Approved leave")}</option>
+              <option value="absence">{t("Mark absent")}</option>
             </select>
           </label>
           <label>
-            <span>Number of days to select</span>
+            <span>{t("Number of days to select")}</span>
             <input type="number" min="1" max={totalDays} value={form.day_count} onChange={(event) => changeCount(event.target.value)} />
           </label>
           {form.day_type === "work" && (
             <>
-              <label><span>Check-in time</span><input type="time" value={form.check_in_time} onChange={(event) => setForm((current) => ({ ...current, check_in_time: event.target.value }))} /></label>
-              <label><span>Check-out time</span><input type="time" value={form.check_out_time} onChange={(event) => setForm((current) => ({ ...current, check_out_time: event.target.value }))} /></label>
+              <label><span>{t("Check-in time")}</span><input type="time" value={form.check_in_time} onChange={(event) => setForm((current) => ({ ...current, check_in_time: event.target.value }))} /></label>
+              <label><span>{t("Check-out time")}</span><input type="time" value={form.check_out_time} onChange={(event) => setForm((current) => ({ ...current, check_out_time: event.target.value }))} /></label>
             </>
           )}
         </div>
 
         <section className="attendance-day-picker">
           <div className="attendance-day-picker-heading">
-            <span><CalendarPlus size={19} />Select days in {form.month}</span>
-            <strong>{selectedDays.length} / {form.day_count} selected</strong>
+            <span><CalendarPlus size={19} />{t("Select days in")} {form.month}</span>
+            <strong>{selectedDays.length} / {form.day_count} {t("selected")}</strong>
           </div>
           <div className="attendance-day-buttons">
             {dayNumbers.map((day) => {
@@ -169,15 +171,15 @@ export default function ManualAttendanceModal({
         </section>
 
         <label>
-          <span>Note</span>
-          <textarea rows="3" value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional attendance, leave or day-off note" />
+          <span>{t("Note")}</span>
+          <textarea rows="3" value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} placeholder={t("Optional attendance, leave or day-off note")} />
         </label>
 
         {error && <div className="notice error">{error}</div>}
         <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>{t("Cancel")}</button>
           <button type="submit" className="primary-button" disabled={busy}>
-            <CalendarPlus size={18} />{busy ? "Saving..." : "Save selected days"}
+            <CalendarPlus size={18} />{busy ? t("Saving...") : t("Save selected days")}
           </button>
         </div>
       </form>
