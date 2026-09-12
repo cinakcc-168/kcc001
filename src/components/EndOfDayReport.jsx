@@ -69,7 +69,7 @@ function loadSavedPrintOptions() {
 }
 
 export default function EndOfDayReport({ report }) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const labels = endOfDayLabels(language);
   const [printOptions, setPrintOptions] = useState(loadSavedPrintOptions);
   const [showModal, setShowModal] = useState(false);
@@ -86,7 +86,7 @@ export default function EndOfDayReport({ report }) {
   const receiptCounts = report?.receipt_counts || {};
   const period = endOfDayPeriodLabel(report, language);
   const userLabel = endOfDayUserLabel(report, language);
-  const scope = `${report?.branch_name || "Current branch"} · ${period} · ${userLabel}`;
+  const scope = `${report?.branch_name || t("Current branch")} · ${period} · ${userLabel}`;
   const fileScope = `${report?.from || "from"}-to-${report?.to || "to"}`;
 
   const visibleSummaries = summaries.filter((row) => {
@@ -156,7 +156,7 @@ export default function EndOfDayReport({ report }) {
           className="secondary-button eod-select-options-btn"
           onClick={handleOpenModal}
         >
-          <Settings2 size={18} /> Selecting Print & Export Options
+          <Settings2 size={18} /> {t("Selecting Print & Export Options")}
         </button>
         <button
           type="button"
@@ -355,37 +355,37 @@ export default function EndOfDayReport({ report }) {
             { label: "Net", width: 100, documentValue: (row) => amount(row.net_total, row.currency), render: (row) => <strong>{amount(row.net_total, row.currency)}</strong> },
             { label: "Status", width: 90, value: "status" }
           ]}
-          renderCard={(row) => <article className="responsive-data-card eod-sale-card"><header><div><strong>{row.invoice_number}</strong><small>{formatReportDate(row.completed_at, { time: true })}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{row.status}</span></header><div><span>Customer</span><strong>{row.customer_name}</strong></div><div><span>User / Counter</span><strong>{row.cashier_name}</strong><small>{row.register_names}</small></div><div><span>Payment</span><strong>{row.payment_methods}</strong></div><div><span>Gross / Refund</span><strong>{amount(row.gross_total, row.currency)} / {amount(row.refund_total, row.currency)}</strong></div><div><span>Net</span><strong>{amount(row.net_total, row.currency)}</strong></div></article>}
+          renderCard={(row) => <article className="responsive-data-card eod-sale-card"><header><div><strong>{row.invoice_number}</strong><small>{formatReportDate(row.completed_at, { time: true })}</small></div><span className={`status-pill ${row.status === "completed" ? "active" : "inactive"}`}>{t(row.status)}</span></header><div><span>{t("Customer")}</span><strong>{row.customer_name}</strong></div><div><span>{t("User / Counter")}</span><strong>{row.cashier_name}</strong><small>{row.register_names}</small></div><div><span>{t("Payment")}</span><strong>{row.payment_methods}</strong></div><div><span>{t("Gross / Refund")}</span><strong>{amount(row.gross_total, row.currency)} / {amount(row.refund_total, row.currency)}</strong></div><div><span>{t("Net")}</span><strong>{amount(row.net_total, row.currency)}</strong></div></article>}
         />
       )}
 
       {showModal && (
         <Modal
-          title="Selecting Print & Export Options"
+          title={t("Selecting Print & Export Options")}
           onClose={() => setShowModal(false)}
           className="eod-print-options-modal"
         >
           <div className="eod-modal-body">
             <p className="eod-modal-subtitle">
-              Choose which components to print or export in the End of Day report
+              {t("Choose which components to print or export in the End of Day report")}
             </p>
 
             <div className="eod-modal-quick-select">
-              <span className="eod-quick-label">Quick Selection:</span>
+              <span className="eod-quick-label">{t("Quick Selection:")}</span>
               <div className="eod-quick-actions">
                 <button
                   type="button"
                   className="secondary-button compact-btn"
                   onClick={() => handleSelectAll(true)}
                 >
-                  Select All
+                  {t("Select All")}
                 </button>
                 <button
                   type="button"
                   className="secondary-button compact-btn"
                   onClick={() => handleSelectAll(false)}
                 >
-                  Deselect All
+                  {t("Deselect All")}
                 </button>
               </div>
             </div>
@@ -407,12 +407,12 @@ export default function EndOfDayReport({ report }) {
                         onChange={() => handleToggleOption(item.key)}
                       />
                       <div className="eod-item-labels">
-                        <span className="eod-item-title">{item.label}</span>
-                        <span className="eod-item-desc">{item.desc}</span>
+                        <span className="eod-item-title">{t(item.label)}</span>
+                        <span className="eod-item-desc">{t(item.desc)}</span>
                       </div>
                     </div>
                     <span className={`eod-item-badge ${isChecked ? "included" : "excluded"}`}>
-                      {isChecked ? "Included" : "Excluded"}
+                      {isChecked ? t("Included") : t("Excluded")}
                     </span>
                   </label>
                 );
@@ -425,28 +425,28 @@ export default function EndOfDayReport({ report }) {
                 className="secondary-button"
                 onClick={() => setShowModal(false)}
               >
-                Cancel
+                {t("Cancel")}
               </button>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={handleSaveOptions}
               >
-                Save
+                {t("Save")}
               </button>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={handleSaveAndExport}
               >
-                <Download size={16} /> Save & Export
+                <Download size={16} /> {t("Save & Export")}
               </button>
               <button
                 type="button"
                 className="primary-button"
                 onClick={handleSaveAndPrint}
               >
-                <Printer size={16} /> Save & Print
+                <Printer size={16} /> {t("Save & Print")}
               </button>
             </div>
           </div>
