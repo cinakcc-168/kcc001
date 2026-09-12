@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { KeyRound } from "lucide-react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function PasswordResetModal({
   member,
@@ -8,6 +9,7 @@ export default function PasswordResetModal({
   onClose,
   onReset
 }) {
+  const { t } = useLanguage();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,12 +27,12 @@ export default function PasswordResetModal({
     setError("");
 
     if (password.length < 8) {
-      setError("The new password must contain at least 8 characters.");
+      setError(t("The new password must contain at least 8 characters."));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("The password confirmation does not match.");
+      setError(t("The password confirmation does not match."));
       return;
     }
 
@@ -38,35 +40,35 @@ export default function PasswordResetModal({
   }
 
   return (
-    <Modal title={`Reset password · ${member.full_name}`} onClose={onClose}>
+    <Modal title={`${t("Reset password")} · ${member.full_name}`} onClose={onClose}>
       <form className="password-reset-form" onSubmit={submit}>
         <p className="muted">
-          Enter a temporary password and share it privately with this staff member.
+          {t("Enter a temporary password and share it privately with this staff member.")}
         </p>
 
         <label>
-          <span>New temporary password</span>
+          <span>{t("New temporary password")}</span>
           <input
             type="password"
             autoComplete="new-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="At least 8 characters"
+            placeholder={t("At least 8 characters")}
           />
         </label>
 
         <label>
-          <span>Confirm password</span>
+          <span>{t("Confirm password")}</span>
           <input
             type="password"
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
-            placeholder="Repeat the password"
+            placeholder={t("Repeat the password")}
           />
         </label>
 
-        {error && <div className="notice error">{error}</div>}
+        {error && <div className="notice error">{t(error)}</div>}
 
         <div className="modal-actions">
           <button
@@ -75,11 +77,11 @@ export default function PasswordResetModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button type="submit" className="primary-button" disabled={busy}>
             <KeyRound size={18} />
-            {busy ? "Resetting..." : "Reset password"}
+            {busy ? t("Resetting...") : t("Reset password")}
           </button>
         </div>
       </form>
