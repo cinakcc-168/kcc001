@@ -3,6 +3,7 @@ import {
   useMemo,
   useState
 } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import {
   HandCoins,
   RotateCcw,
@@ -26,6 +27,7 @@ export default function RefundModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [items, setItems] = useState([]);
   const [refundMethod, setRefundMethod] =
     useState("cash");
@@ -53,6 +55,11 @@ export default function RefundModal({
           ]
         : normalPaymentMethods,
     [isCreditInvoice, creditOutstanding]
+  );
+
+  const localizedPaymentMethods = useMemo(
+    () => paymentMethods.map(([value, label]) => [value, t(label)]),
+    [paymentMethods, t]
   );
 
   useEffect(() => {
@@ -147,7 +154,7 @@ export default function RefundModal({
 
     if (selectedItems.length === 0) {
       setError(
-        "Choose at least one item and quantity to refund."
+        t("Choose at least one item and quantity to refund.")
       );
       return;
     }
@@ -165,14 +172,14 @@ export default function RefundModal({
         || selected.quantity > source.available
       ) {
         setError(
-          `Refund quantity for ${source.product_name} is not valid.`
+          t("Refund quantity for {name} is not valid.", { name: source.product_name })
         );
         return;
       }
     }
 
     if (reason.trim().length < 3) {
-      setError("Enter a refund reason.");
+      setError(t("Enter a refund reason."));
       return;
     }
 
@@ -181,10 +188,9 @@ export default function RefundModal({
       && estimate.totalRefund > creditOutstanding
     ) {
       setError(
-        `Credit Account refund cannot exceed the unpaid invoice balance of ${money(
-          creditOutstanding,
-          sale.currency
-        )}. Reduce the refund quantity or use another method after the invoice is paid.`
+        t("Credit Account refund cannot exceed the unpaid invoice balance of {balance}.", {
+          balance: money(creditOutstanding, sale.currency)
+        })
       );
       return;
     }
@@ -195,7 +201,7 @@ export default function RefundModal({
       && refundMethod !== "credit"
     ) {
       setError(
-        "This invoice still has an unpaid credit balance. Use Credit Account as the refund method."
+        t("This invoice still has an unpaid credit balance. Use Credit Account as the refund method.")
       );
       return;
     }
@@ -215,7 +221,7 @@ export default function RefundModal({
 
   return (
     <Modal
-      title={`Refund ${sale.invoice_number}`}
+      title={`${t("Refund")} ${sale.invoice_number}`}
       onClose={onClose}
       wide
     >
@@ -225,13 +231,13 @@ export default function RefundModal({
       >
         <div className="refund-sale-summary">
           <div>
-            <span>Customer</span>
+            <span>{t("Customer")}</span>
             <strong>
-              {sale.customers?.name || "Walk-in"}
+              {sale.customers?.name || t("Walk-in")}
             </strong>
           </div>
           <div>
-            <span>Sale total</span>
+            <span>{t("Sale total")}</span>
             <strong>
               {money(
                 sale.total_amount,
@@ -240,7 +246,7 @@ export default function RefundModal({
             </strong>
           </div>
           <div>
-            <span>Already refunded</span>
+            <span>{t("Already refunded")}</span>
             <strong>
               {money(
                 sale.refunded_amount,
@@ -249,12 +255,12 @@ export default function RefundModal({
             </strong>
           </div>
           <div>
-            <span>Status</span>
+            <span>{t("Status")}</span>
             <strong>
-              {String(sale.status).replaceAll(
+              {t(String(sale.status).replaceAll(
                 "_",
                 " "
-              )}
+              ))}
             </strong>
           </div>
         </div>
@@ -263,9 +269,9 @@ export default function RefundModal({
           <section className="credit-refund-summary">
             <HandCoins size={22} />
             <div>
-              <strong>Credit invoice</strong>
+              <strong>{t("Credit invoice")}</strong>
               <span>
-                Unpaid credit balance: {money(
+                {t("Unpaid credit balance")}: {money(
                   creditOutstanding,
                   sale.currency
                 )}
@@ -276,7 +282,7 @@ export default function RefundModal({
 
         <div className="refund-toolbar">
           <p className="muted">
-            Enter only the quantity being returned now.
+            {t("Enter only the quantity being returned now.")}
           </p>
           <div>
             <button
@@ -284,7 +290,7 @@ export default function RefundModal({
               className="secondary-button"
               onClick={clearAll}
             >
-              Clear
+              {t("Clear")}
             </button>
             <button
               type="button"
@@ -292,7 +298,7 @@ export default function RefundModal({
               onClick={selectAll}
             >
               <Undo2 size={17} />
-              Select all remaining
+              {t("Select all remaining")}
             </button>
           </div>
         </div>
@@ -322,23 +328,23 @@ export default function RefundModal({
                       {saleItem.product_name}
                     </strong>
                     <span>
-                      Sold {stockNumber(
+                      {t("Sold")} {stockNumber(
                         saleItem.quantity
                       )}{" "}
-                      {saleItem.sale_unit_name || "pcs"}
+                      {t(saleItem.sale_unit_name || "pcs")}
                       {" · "}
-                      Returned {stockNumber(
+                      {t("Returned")} {stockNumber(
                         saleItem.returned_quantity
                       )}{" "}
-                      {saleItem.sale_unit_name || "pcs"}
+                      {t(saleItem.sale_unit_name || "pcs")}
                       {" · "}
-                      Available {stockNumber(available)}{" "}
-                      {saleItem.sale_unit_name || "pcs"}
+                      {t("Available")} {stockNumber(available)}{" "}
+                      {t(saleItem.sale_unit_name || "pcs")}
                     </span>
                   </div>
 
                   <label>
-                    <span>Refund quantity</span>
+                    <span>{t("Refund quantity")}</span>
                     <input
                       type="number"
                       min="0"
@@ -361,7 +367,7 @@ export default function RefundModal({
                   </label>
 
                   <label className="refund-restock">
-                    <span>Return to stock</span>
+                    <span>{t("Return to stock")}</span>
                     <input
                       type="checkbox"
                       disabled={
@@ -384,7 +390,7 @@ export default function RefundModal({
                   </label>
 
                   <div className="refund-line-value">
-                    <span>Original line</span>
+                    <span>{t("Original line")}</span>
                     <strong>
                       {money(
                         saleItem.line_total,
@@ -400,14 +406,14 @@ export default function RefundModal({
 
         <div className="refund-details-grid">
           <label>
-            <span>Refund method</span>
+            <span>{t("Refund method")}</span>
             <select
               value={refundMethod}
               onChange={(event) =>
                 setRefundMethod(event.target.value)
               }
             >
-              {paymentMethods.map(
+              {localizedPaymentMethods.map(
                 ([value, label]) => (
                   <option
                     value={value}
@@ -421,7 +427,7 @@ export default function RefundModal({
           </label>
 
           <label>
-            <span>Reference number</span>
+            <span>{t("Reference number")}</span>
             <input
               value={refundReference}
               onChange={(event) =>
@@ -429,27 +435,27 @@ export default function RefundModal({
                   event.target.value
                 )
               }
-              placeholder="Optional bank or payment reference"
+              placeholder={t("Optional bank or payment reference")}
               disabled={refundMethod === "credit"}
             />
           </label>
 
           <label className="refund-reason-field">
-            <span>Reason</span>
+            <span>{t("Reason")}</span>
             <textarea
               rows="3"
               value={reason}
               onChange={(event) =>
                 setReason(event.target.value)
               }
-              placeholder="Why is the customer returning these items?"
+              placeholder={t("Why is the customer returning these items?")}
             />
           </label>
         </div>
 
         <div className="refund-estimate">
           <div>
-            <span>Net merchandise refund</span>
+            <span>{t("Net merchandise refund")}</span>
             <strong>
               {money(
                 estimate.netRefund,
@@ -458,7 +464,7 @@ export default function RefundModal({
             </strong>
           </div>
           <div>
-            <span>Tax refund</span>
+            <span>{t("Tax refund")}</span>
             <strong>
               {money(
                 estimate.taxRefund,
@@ -469,8 +475,8 @@ export default function RefundModal({
           <div className="refund-estimate-total">
             <span>
               {refundMethod === "credit"
-                ? "Credit balance reduction"
-                : "Estimated refund"}
+                ? t("Credit balance reduction")
+                : t("Estimated refund")}
             </span>
             <strong>
               {money(
@@ -494,7 +500,7 @@ export default function RefundModal({
             onClick={onClose}
             disabled={busy}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="submit"
@@ -505,10 +511,10 @@ export default function RefundModal({
           >
             <RotateCcw size={18} />
             {busy
-              ? "Processing refund..."
+              ? t("Processing refund...")
               : refundMethod === "credit"
-                ? "Reduce credit balance"
-                : "Process refund"}
+                ? t("Reduce credit balance")
+                : t("Process refund")}
           </button>
         </div>
       </form>
