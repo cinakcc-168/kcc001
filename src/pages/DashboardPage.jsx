@@ -86,7 +86,7 @@ function RegisterBanner({ register }) {
       >
         <div>
           <Banknote size={23} />
-          <span>Cash register open</span>
+          <span>{t("Cash register open")}</span>
         </div>
 
         <strong>
@@ -99,7 +99,7 @@ function RegisterBanner({ register }) {
           {hours > 0 ? `${hours}h ` : ""}
           {minutes}m
           {" · "}
-          {register.opened_by || "POS Staff"}
+          {register.opened_by || t("POS Staff")}
         </span>
       </Link>
     );
@@ -112,7 +112,7 @@ function RegisterBanner({ register }) {
     >
       <div>
         <Clock3 size={23} />
-        <span>Cash register closed</span>
+        <span>{t("Cash register closed")}</span>
       </div>
 
       <strong>{t("Cash payments unavailable")}</strong>
