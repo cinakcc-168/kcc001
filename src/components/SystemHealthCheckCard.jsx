@@ -5,8 +5,10 @@ import {
   ExternalLink
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function SystemHealthCheckCard({ check }) {
+  const { t } = useLanguage();
   const failed = check.status === "fail";
   const critical = failed && check.severity === "critical";
   const Icon = !failed
@@ -23,12 +25,12 @@ export default function SystemHealthCheckCard({ check }) {
     >
       <Icon size={22} />
       <div>
-        <strong>{check.label}</strong>
-        <span>{check.detail}</span>
+        <strong>{t(check.label)}</strong>
+        <span>{t(check.detail)}</span>
       </div>
       <b>{Number(check.count || 0)}</b>
       {failed && check.path && (
-        <Link to={check.path} title="Open related page">
+        <Link to={check.path} title={t("Open related page")}>
           <ExternalLink size={17} />
         </Link>
       )}
