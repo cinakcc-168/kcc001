@@ -2,24 +2,16 @@ import { printElementDocument } from "../lib/listDocuments";
 import { Printer } from "lucide-react";
 import Modal from "./Modal";
 import { money } from "../lib/catalog";
+import { useLanguage } from "../context/LanguageContext";
 
-function dateTime(value) {
+function dateTime(value, language = "en") {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(language === "km" ? "km-KH" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 }
-
-const rows = [
-  ["Opening cash", "opening", 1],
-  ["Cash sales", "cash_sales", 1],
-  ["Cash refunds", "cash_refunds", -1],
-  ["Other cash in", "cash_income", 1],
-  ["Cash expenses", "cash_expenses", -1],
-  ["Supplier payments", "supplier_payments", -1]
-];
 
 const registerPrintStyles = `
 .tiny-pos-print-frame-content{padding:0!important;font-family:"Noto Sans Khmer",Arial,sans-serif!important;color:#111!important;font-size:10px!important}
@@ -54,12 +46,21 @@ function signedMoney(value, currency, sign) {
   return `${sign < 0 ? "−" : ""}${money(numeric, currency)}`;
 }
 
-function CurrencyReport({ currency, totals, closed }) {
+function CurrencyReport({ currency, totals, closed, t }) {
   const values = totals?.[currency] || {};
+
+  const rows = [
+    [t("Opening cash"), "opening", 1],
+    [t("Cash sales"), "cash_sales", 1],
+    [t("Cash refunds"), "cash_refunds", -1],
+    [t("Other cash in"), "cash_income", 1],
+    [t("Cash expenses"), "cash_expenses", -1],
+    [t("Supplier payments"), "supplier_payments", -1]
+  ];
 
   return (
     <section className="register-report-currency">
-      <h3>{currency} drawer</h3>
+      <h3>{t(`${currency} drawer`)}</h3>
 
       <table className="register-report-table">
         <tbody>
@@ -71,18 +72,18 @@ function CurrencyReport({ currency, totals, closed }) {
           ))}
 
           <tr className="register-report-total">
-            <th scope="row">Expected cash</th>
+            <th scope="row">{t("Expected cash")}</th>
             <td>{money(values.expected || 0, currency)}</td>
           </tr>
 
           {closed && (
             <>
               <tr>
-                <th scope="row">Counted cash</th>
+                <th scope="row">{t("Counted cash")}</th>
                 <td>{money(values.counted || 0, currency)}</td>
               </tr>
               <tr className="register-report-variance">
-                <th scope="row">Variance</th>
+                <th scope="row">{t("Variance")}</th>
                 <td>{money(values.variance || 0, currency)}</td>
               </tr>
             </>
@@ -98,6 +99,8 @@ export default function CashRegisterReportModal({
   shop,
   onClose
 }) {
+  const { t, language } = useLanguage();
+
   if (!report) return null;
 
   const session = report.session;
@@ -105,7 +108,7 @@ export default function CashRegisterReportModal({
 
   return (
     <Modal
-      title={closed ? "Cash register closing report" : "Cash register report"}
+      title={closed ? t("Cash register closing report") : t("Cash register report")}
       onClose={onClose}
       wide
     >
@@ -120,31 +123,31 @@ export default function CashRegisterReportModal({
             <h2>{shop?.shop_name || "Tiny POS"}</h2>
             <strong>
               {closed
-                ? "CASH REGISTER CLOSING REPORT"
-                : "OPEN CASH REGISTER REPORT"}
+                ? t("CASH REGISTER CLOSING REPORT")
+                : t("OPEN CASH REGISTER REPORT")}
             </strong>
           </header>
 
           <div className="register-report-meta">
             <div>
-              <span>Session</span>
+              <span>{t("Session")}</span>
               <strong>{session.session_number}</strong>
             </div>
             <div>
-              <span>Register</span>
+              <span>{t("Register")}</span>
               <strong>{session.register_name}</strong>
             </div>
             <div>
-              <span>Opened</span>
-              <strong>{dateTime(session.opened_at)}</strong>
+              <span>{t("Opened")}</span>
+              <strong>{dateTime(session.opened_at, language)}</strong>
             </div>
             <div>
-              <span>Closed</span>
-              <strong>{dateTime(session.closed_at)}</strong>
+              <span>{t("Closed")}</span>
+              <strong>{dateTime(session.closed_at, language)}</strong>
             </div>
             <div>
-              <span>Status</span>
-              <strong>{session.status.toUpperCase()}</strong>
+              <span>{t("Status")}</span>
+              <strong>{t(session.status).toUpperCase()}</strong>
             </div>
           </div>
 
@@ -153,11 +156,13 @@ export default function CashRegisterReportModal({
               currency="USD"
               totals={report.totals}
               closed={closed}
+              t={t}
             />
             <CurrencyReport
               currency="KHR"
               totals={report.totals}
               closed={closed}
+              t={t}
             />
           </div>
 
@@ -165,13 +170,13 @@ export default function CashRegisterReportModal({
             <div className="register-report-notes">
               {session.opening_note && (
                 <div>
-                  <strong>Opening note</strong>
+                  <strong>{t("Opening note")}</strong>
                   <p>{session.opening_note}</p>
                 </div>
               )}
               {session.closing_note && (
                 <div>
-                  <strong>Closing note</strong>
+                  <strong>{t("Closing note")}</strong>
                   <p>{session.closing_note}</p>
                 </div>
               )}
@@ -179,7 +184,7 @@ export default function CashRegisterReportModal({
           )}
 
           <footer>
-            Generated by Tiny POS
+            {t("Generated by Tiny POS")}
           </footer>
         </article>
 
@@ -189,13 +194,13 @@ export default function CashRegisterReportModal({
             className="secondary-button"
             onClick={onClose}
           >
-            Close
+            {t("Close")}
           </button>
           <button
             type="button"
             className="primary-button"
             onClick={() => printElementDocument({
-              title: "Cash Register Report",
+              title: t("Cash register report"),
               selector: ".register-report-document",
               styles: registerPrintStyles,
               page: "A4 landscape",
@@ -203,7 +208,7 @@ export default function CashRegisterReportModal({
             })}
           >
             <Printer size={18} />
-            Print report
+            {t("Print report")}
           </button>
         </div>
       </div>
