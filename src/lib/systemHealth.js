@@ -178,9 +178,10 @@ export function downloadDiagnostics(document) {
   URL.revokeObjectURL(url);
 }
 
-export function healthDateTime(value) {
+export function healthDateTime(value, language = "en") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-US", {
+  const locale = language === "km" ? "km-KH" : "en-US";
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
