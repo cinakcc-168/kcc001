@@ -259,35 +259,35 @@ export async function loadDashboardActionCenter(
   };
 }
 
-export function dashboardDateTime(value) {
+export function dashboardDateTime(value, language = "en") {
   if (!value) return "—";
-
-  return new Intl.DateTimeFormat("en-US", {
+  const locale = language === "km" ? "km-KH" : "en-US";
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 }
 
-export function dashboardDay(value) {
+export function dashboardDay(value, language = "en") {
   if (!value) return "—";
-
-  return new Intl.DateTimeFormat("en-US", {
+  const locale = language === "km" ? "km-KH" : "en-US";
+  return new Intl.DateTimeFormat(locale, {
     weekday: "short"
   }).format(new Date(`${value}T00:00:00`));
 }
 
-export function dashboardPercent(value) {
+export function dashboardPercent(value, t = (s) => s) {
   const number = Number(value);
 
   if (!Number.isFinite(number)) {
-    return "No previous-month comparison";
+    return t("No previous-month comparison");
   }
 
   const sign = number > 0 ? "+" : "";
 
   return `${sign}${number.toLocaleString("en-US", {
     maximumFractionDigits: 1
-  })}% vs previous month`;
+  })}% ${t("vs previous month")}`;
 }
 
 export function paymentMethodLabel(method) {
