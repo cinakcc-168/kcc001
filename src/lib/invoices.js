@@ -10,19 +10,25 @@ export function defaultInvoiceDateRange() {
   };
 }
 
-export function invoiceDateTime(value) {
+export function invoiceDateTime(value, language) {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  const lang = language || (typeof document !== "undefined" ? (document.documentElement.dataset.language || document.documentElement.lang || "en") : "en");
+  const locale = lang === "km" ? "km-KH" : "en-US";
+
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 }
 
-export function invoiceDate(value) {
+export function invoiceDate(value, language) {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  const lang = language || (typeof document !== "undefined" ? (document.documentElement.dataset.language || document.documentElement.lang || "en") : "en");
+  const locale = lang === "km" ? "km-KH" : "en-US";
+
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium"
   }).format(
     new Date(`${String(value).slice(0, 10)}T00:00:00`)
