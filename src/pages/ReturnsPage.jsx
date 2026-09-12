@@ -32,10 +32,13 @@ import {
   returnApprovalPayload
 } from "../lib/permissions";
 
-function dateTime(value) {
+function dateTime(value, language) {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  const lang = language || (typeof document !== "undefined" ? (document.documentElement.dataset.language || document.documentElement.lang || "en") : "en");
+  const locale = lang === "km" ? "km-KH" : "en-US";
+
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
@@ -75,7 +78,7 @@ function searchableReturn(refund) {
 }
 
 export default function ReturnsPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const {
     supabase,
     profile,
@@ -190,33 +193,33 @@ export default function ReturnsPage() {
   const pagedReturns = filteredReturns.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const returnableColumns = [
-    { label: "Invoice", value: (row) => row.invoice_number },
-    { label: "Date", value: (row) => dateTime(row.completed_at || row.created_at) },
-    { label: "Customer", value: (row) => row.customers?.name || "Walk-in" },
-    { label: "Phone", value: (row) => row.customers?.phone || "—" },
-    { label: "Cashier", value: (row) => row.cashier_name || "POS Staff" },
-    { label: "Status", value: (row) => String(row.status || "").replaceAll("_", " ") },
-    { label: "Total", value: (row) => money(row.total_amount, row.currency) },
-    { label: "Refunded", value: (row) => money(row.refunded_amount, row.currency) },
-    { label: "Returnable lines", value: (row) => (row.sale_items || []).filter((item) => Number(item.returnable_quantity || 0) > 0).length }
+    { label: t("Invoice"), value: (row) => row.invoice_number },
+    { label: t("Date"), value: (row) => dateTime(row.completed_at || row.created_at, language) },
+    { label: t("Customer"), value: (row) => row.customers?.name || t("Walk-in") },
+    { label: t("Phone"), value: (row) => row.customers?.phone || "—" },
+    { label: t("Cashier"), value: (row) => row.cashier_name || t("POS Staff") },
+    { label: t("Status"), value: (row) => t(String(row.status || "").replaceAll("_", " ")) },
+    { label: t("Total"), value: (row) => money(row.total_amount, row.currency) },
+    { label: t("Refunded"), value: (row) => money(row.refunded_amount, row.currency) },
+    { label: t("Returnable lines"), value: (row) => (row.sale_items || []).filter((item) => Number(item.returnable_quantity || 0) > 0).length }
   ];
 
   const refundHistoryColumns = [
-    { label: "Return", value: (row) => row.return_number },
-    { label: "Original invoice", value: (row) => row.sales?.invoice_number || "—" },
-    { label: "Customer", value: (row) => row.sales?.customers?.name || "Walk-in" },
-    { label: "Date", value: (row) => dateTime(row.processed_at) },
-    { label: "Method", value: (row) => String(row.refund_method || "").toUpperCase() },
-    { label: "Amount", value: (row) => money(row.refund_amount, row.currency) },
-    { label: "Reason", value: (row) => row.reason || "—" }
+    { label: t("Return"), value: (row) => row.return_number },
+    { label: t("Original invoice"), value: (row) => row.sales?.invoice_number || "—" },
+    { label: t("Customer"), value: (row) => row.sales?.customers?.name || t("Walk-in") },
+    { label: t("Date"), value: (row) => dateTime(row.processed_at, language) },
+    { label: t("Method"), value: (row) => t(String(row.refund_method || "").toUpperCase()) },
+    { label: t("Amount"), value: (row) => money(row.refund_amount, row.currency) },
+    { label: t("Reason"), value: (row) => row.reason || "—" }
   ];
 
   function printActiveList() {
     const isSales = tab === "sales";
     printListDocument({
-      title: isSales ? "Returnable Sales" : "Refund History",
+      title: isSales ? t("Returnable Sales") : t("Refund History"),
       subtitle: `${filters.from} to ${filters.to} · ${activeTotal} record(s)`,
-      summary: [{ label: "Search", value: search || "All records" }],
+      summary: [{ label: t("Search"), value: search || t("All records") }],
       columns: isSales ? returnableColumns : refundHistoryColumns,
       rows: isSales ? filteredSales : filteredReturns
     });
@@ -529,7 +532,7 @@ export default function ReturnsPage() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search invoice, customer, phone, product or barcode"
+            placeholder={t("Search invoice, customer, phone, product or barcode")}
           />
         </div>
 
@@ -603,18 +606,18 @@ export default function ReturnsPage() {
                   const refundDisabled = fullyRefunded || !refundAllowed;
                   return (
                     <article className="list-record-card return-sale-card compact-return-card" key={sale.id}>
-                      <header><div><strong>{sale.invoice_number}</strong><small>{dateTime(sale.completed_at || sale.created_at)}</small></div><span className={`status-pill ${fullyRefunded ? "inactive" : "active"}`}>{String(sale.status).replaceAll("_", " ")}</span></header>
+                      <header><div><strong>{sale.invoice_number}</strong><small>{dateTime(sale.completed_at || sale.created_at, language)}</small></div><span className={`status-pill ${fullyRefunded ? "inactive" : "active"}`}>{t(String(sale.status).replaceAll("_", " "))}</span></header>
                       <div className="list-card-fields">
-                        <div><span>Customer</span><strong>{sale.customers?.name || "Walk-in"}</strong></div>
-                        <div><span>Cashier</span><strong>{sale.cashier_name || "POS Staff"}</strong></div>
-                        <div><span>Total</span><strong>{money(sale.total_amount, sale.currency)}</strong></div>
-                        <div><span>Refunded</span><strong>{money(sale.refunded_amount, sale.currency)}</strong></div>
-                        <div><span>Returnable lines</span><strong>{remainingItems.length}</strong></div>
+                        <div><span>{t("Customer")}</span><strong>{sale.customers?.name || t("Walk-in")}</strong></div>
+                        <div><span>{t("Cashier")}</span><strong>{sale.cashier_name || t("POS Staff")}</strong></div>
+                        <div><span>{t("Total")}</span><strong>{money(sale.total_amount, sale.currency)}</strong></div>
+                        <div><span>{t("Refunded")}</span><strong>{money(sale.refunded_amount, sale.currency)}</strong></div>
+                        <div><span>{t("Returnable lines")}</span><strong>{remainingItems.length}</strong></div>
                       </div>
                       <div className="list-card-actions return-sale-actions">
-                        <button type="button" className="secondary-button compact-button" onClick={() => selectInvoice(sale)}><Eye size={17} /> View details</button>
-                        <button type="button" className="secondary-button compact-button" onClick={() => openSaleReceipt(sale)}><Printer size={17} /> Print receipt / invoice</button>
-                        <button type="button" className="danger-button compact-button" disabled={refundDisabled} title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} onClick={() => openReturnRefund(sale)}><RotateCcw size={17} /> {fullyRefunded ? "Fully refunded" : !refundAllowed ? "Outside refund window" : "Refund items"}</button>
+                        <button type="button" className="secondary-button compact-button" onClick={() => selectInvoice(sale)}><Eye size={17} /> {t("View details")}</button>
+                        <button type="button" className="secondary-button compact-button" onClick={() => openSaleReceipt(sale)}><Printer size={17} /> {t("Print receipt / invoice")}</button>
+                        <button type="button" className="danger-button compact-button" disabled={refundDisabled} title={!refundAllowed ? (t(sale.refund_block_reason) || t("Outside your refund date permission")) : t("Refund items")} onClick={() => openReturnRefund(sale)}><RotateCcw size={17} /> {fullyRefunded ? t("Fully refunded") : !refundAllowed ? t("Outside refund window") : t("Refund items")}</button>
                       </div>
                     </article>
                   );
@@ -623,7 +626,7 @@ export default function ReturnsPage() {
             ) : (
               <div className="wide-list-scroll returnable-sales-table-wrap">
                 <table className="return-history-table returnable-sales-table">
-                  <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Cashier</th><th>Status</th><th>Total</th><th>Refunded</th><th>Returnable lines</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>{t("Invoice")}</th><th>{t("Date")}</th><th>{t("Customer")}</th><th>{t("Cashier")}</th><th>{t("Status")}</th><th>{t("Total")}</th><th>{t("Refunded")}</th><th>{t("Returnable lines")}</th><th>{t("Actions")}</th></tr></thead>
                   <tbody>{pagedSales.map((sale) => {
                     const remainingItems = (sale.sale_items || []).filter((item) => Number(item.returnable_quantity || 0) > 0);
                     const fullyRefunded = remainingItems.length === 0;
@@ -631,18 +634,18 @@ export default function ReturnsPage() {
                     const refundDisabled = fullyRefunded || !refundAllowed;
                     return <tr key={sale.id}>
                       <td><strong>{sale.invoice_number}</strong></td>
-                      <td>{dateTime(sale.completed_at || sale.created_at)}</td>
-                      <td>{sale.customers?.name || "Walk-in"}</td>
-                      <td>{sale.cashier_name || "POS Staff"}</td>
-                      <td><span className={`status-pill ${fullyRefunded ? "inactive" : "active"}`}>{String(sale.status).replaceAll("_", " ")}</span></td>
+                      <td>{dateTime(sale.completed_at || sale.created_at, language)}</td>
+                      <td>{sale.customers?.name || t("Walk-in")}</td>
+                      <td>{sale.cashier_name || t("POS Staff")}</td>
+                      <td><span className={`status-pill ${fullyRefunded ? "inactive" : "active"}`}>{t(String(sale.status).replaceAll("_", " "))}</span></td>
                       <td>{money(sale.total_amount, sale.currency)}</td>
                       <td>{money(sale.refunded_amount, sale.currency)}</td>
                       <td>{remainingItems.length}</td>
                       <td>
                         <div className="table-actions">
-                          <button type="button" className="icon-button" title="View invoice details" onClick={() => selectInvoice(sale)}><Eye size={18} /></button>
-                          <button type="button" className="icon-button" title="Print receipt / invoice" onClick={() => openSaleReceipt(sale)}><Printer size={18} /></button>
-                          <button type="button" className="icon-button" title={!refundAllowed ? (sale.refund_block_reason || "Outside your refund date permission") : "Refund items"} disabled={refundDisabled} onClick={() => openReturnRefund(sale)}><RotateCcw size={18} /></button>
+                          <button type="button" className="icon-button" title={t("View invoice details")} onClick={() => selectInvoice(sale)}><Eye size={18} /></button>
+                          <button type="button" className="icon-button" title={t("Print receipt / invoice")} onClick={() => openSaleReceipt(sale)}><Printer size={18} /></button>
+                          <button type="button" className="icon-button" title={!refundAllowed ? (t(sale.refund_block_reason) || t("Outside your refund date permission")) : t("Refund items")} disabled={refundDisabled} onClick={() => openReturnRefund(sale)}><RotateCcw size={18} /></button>
                         </div>
                       </td>
                     </tr>;
@@ -670,31 +673,31 @@ export default function ReturnsPage() {
               <div className="list-card-grid refund-history-card-grid">
                 {pagedReturns.map((refund) => (
                   <article className="list-record-card" key={refund.id}>
-                    <header><div><strong>{refund.return_number}</strong><small>{dateTime(refund.processed_at)}</small></div><span className="status-pill active">{String(refund.refund_method).toUpperCase()}</span></header>
+                    <header><div><strong>{refund.return_number}</strong><small>{dateTime(refund.processed_at, language)}</small></div><span className="status-pill active">{t(String(refund.refund_method).toUpperCase())}</span></header>
                     <div className="list-card-fields">
-                      <div><span>Original invoice</span><strong>{refund.sales?.invoice_number || "—"}</strong></div>
-                      <div><span>Customer</span><strong>{refund.sales?.customers?.name || "Walk-in"}</strong></div>
-                      <div><span>Amount</span><strong>{money(refund.refund_amount, refund.currency)}</strong></div>
-                      <div><span>Reason</span><strong>{refund.reason || "—"}</strong></div>
+                      <div><span>{t("Original invoice")}</span><strong>{refund.sales?.invoice_number || "—"}</strong></div>
+                      <div><span>{t("Customer")}</span><strong>{refund.sales?.customers?.name || t("Walk-in")}</strong></div>
+                      <div><span>{t("Amount")}</span><strong>{money(refund.refund_amount, refund.currency)}</strong></div>
+                      <div><span>{t("Reason")}</span><strong>{refund.reason || "—"}</strong></div>
                     </div>
-                    <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => openHistoryReceipt(refund)}><Eye size={17} /> View receipt</button></div>
+                    <div className="list-card-actions"><button type="button" className="secondary-button compact-button" onClick={() => openHistoryReceipt(refund)}><Eye size={17} /> {t("View receipt")}</button></div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="return-history-table-wrap wide-list-scroll">
                 <table className="return-history-table">
-                  <thead><tr><th>Return</th><th>Original invoice</th><th>Customer</th><th>Date</th><th>Method</th><th>Amount</th><th>Reason</th><th /></tr></thead>
+                  <thead><tr><th>{t("Return")}</th><th>{t("Original invoice")}</th><th>{t("Customer")}</th><th>{t("Date")}</th><th>{t("Method")}</th><th>{t("Amount")}</th><th>{t("Reason")}</th><th /></tr></thead>
                   <tbody>{pagedReturns.map((refund) => (
                     <tr key={refund.id}>
-                      <td data-label="Return"><strong>{refund.return_number}</strong></td>
-                      <td data-label="Original invoice">{refund.sales?.invoice_number || "—"}</td>
-                      <td data-label="Customer">{refund.sales?.customers?.name || "Walk-in"}</td>
-                      <td data-label="Date">{dateTime(refund.processed_at)}</td>
-                      <td data-label="Method">{String(refund.refund_method).toUpperCase()}</td>
-                      <td data-label="Amount"><strong>{money(refund.refund_amount, refund.currency)}</strong></td>
-                      <td data-label="Reason">{refund.reason || "—"}</td>
-                      <td data-label="Receipt"><button type="button" className="icon-button" title="View refund receipt" onClick={() => openHistoryReceipt(refund)}><Eye size={18} /></button></td>
+                      <td data-label={t("Return")}><strong>{refund.return_number}</strong></td>
+                      <td data-label={t("Original invoice")}>{refund.sales?.invoice_number || "—"}</td>
+                      <td data-label={t("Customer")}>{refund.sales?.customers?.name || t("Walk-in")}</td>
+                      <td data-label={t("Date")}>{dateTime(refund.processed_at, language)}</td>
+                      <td data-label={t("Method")}>{t(String(refund.refund_method).toUpperCase())}</td>
+                      <td data-label={t("Amount")}><strong>{money(refund.refund_amount, refund.currency)}</strong></td>
+                      <td data-label={t("Reason")}>{refund.reason || "—"}</td>
+                      <td data-label={t("Receipt")}><button type="button" className="icon-button" title={t("View refund receipt")} onClick={() => openHistoryReceipt(refund)}><Eye size={18} /></button></td>
                     </tr>
                   ))}</tbody>
                 </table>
