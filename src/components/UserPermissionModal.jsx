@@ -10,6 +10,7 @@ import {
   useState
 } from "react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 
 function fieldValue(value) {
   return value === null
@@ -25,6 +26,7 @@ export default function UserPermissionModal({
   onClose,
   onSubmit
 }) {
+  const { t } = useLanguage();
   const [states, setStates] = useState({});
   const [limits, setLimits] = useState({});
   const [filter, setFilter] = useState("");
@@ -160,7 +162,7 @@ export default function UserPermissionModal({
 
     if (ownerProtected) {
       setError(
-        "Owner access is always unrestricted."
+        t("Owner access is always unrestricted.")
       );
       return;
     }
@@ -184,7 +186,7 @@ export default function UserPermissionModal({
         )
       ) {
         setError(
-          "Approval limits must be zero, positive, or blank for unlimited."
+          t("Approval limits must be zero, positive, or blank for unlimited.")
         );
         return;
       }
@@ -197,7 +199,7 @@ export default function UserPermissionModal({
       ) > 100
     ) {
       setError(
-        "Discount percentage cannot exceed 100."
+        t("Discount percentage cannot exceed 100.")
       );
       return;
     }
@@ -234,7 +236,7 @@ export default function UserPermissionModal({
 
   return (
     <Modal
-      title={`Permissions · ${member.full_name}`}
+      title={`${t("Permissions")} · ${member.full_name}`}
       onClose={() =>
         !busy && onClose()
       }
@@ -250,18 +252,17 @@ export default function UserPermissionModal({
             <span>
               {member.email}
               {" · "}
-              {member.role}
+              {t(member.role)}
               {" · "}
               {member.branch_name
-                || "No branch"}
+                ? member.branch_name
+                : t("No branch")}
             </span>
           </div>
 
           {ownerProtected && (
             <div className="notice info">
-              The owner always has every
-              permission and unlimited approval
-              limits.
+              {t("The owner always has every permission and unlimited approval limits.")}
             </div>
           )}
         </section>
@@ -270,22 +271,20 @@ export default function UserPermissionModal({
           <div className="panel-title-row">
             <div>
               <p className="eyebrow">
-                APPROVAL LIMITS
+                {t("APPROVAL LIMITS")}
               </p>
               <h3>
-                Discount and refund limits
+                {t("Discount and refund limits")}
               </h3>
               <span className="muted">
-                Leave a field blank for unlimited.
-                Enter zero to require approval for
-                every positive amount.
+                {t("Leave a field blank for unlimited. Enter zero to require approval for every positive amount.")}
               </span>
             </div>
           </div>
 
           <div className="form-grid permission-limit-grid">
             <label>
-              <span>Maximum discount %</span>
+              <span>{t("Maximum discount %")}</span>
               <input
                 type="number"
                 min="0"
@@ -302,12 +301,12 @@ export default function UserPermissionModal({
                   )
                 }
                 disabled={ownerProtected}
-                placeholder="Unlimited"
+                placeholder={t("Unlimited")}
               />
             </label>
 
             <label>
-              <span>Discount amount USD</span>
+              <span>{t("Discount amount USD")}</span>
               <input
                 type="number"
                 min="0"
@@ -324,12 +323,12 @@ export default function UserPermissionModal({
                   )
                 }
                 disabled={ownerProtected}
-                placeholder="Unlimited"
+                placeholder={t("Unlimited")}
               />
             </label>
 
             <label>
-              <span>Discount amount KHR</span>
+              <span>{t("Discount amount KHR")}</span>
               <input
                 type="number"
                 min="0"
@@ -346,12 +345,12 @@ export default function UserPermissionModal({
                   )
                 }
                 disabled={ownerProtected}
-                placeholder="Unlimited"
+                placeholder={t("Unlimited")}
               />
             </label>
 
             <label>
-              <span>Refund amount USD</span>
+              <span>{t("Refund amount USD")}</span>
               <input
                 type="number"
                 min="0"
@@ -368,12 +367,12 @@ export default function UserPermissionModal({
                   )
                 }
                 disabled={ownerProtected}
-                placeholder="Unlimited"
+                placeholder={t("Unlimited")}
               />
             </label>
 
             <label>
-              <span>Refund amount KHR</span>
+              <span>{t("Refund amount KHR")}</span>
               <input
                 type="number"
                 min="0"
@@ -390,7 +389,7 @@ export default function UserPermissionModal({
                   )
                 }
                 disabled={ownerProtected}
-                placeholder="Unlimited"
+                placeholder={t("Unlimited")}
               />
             </label>
           </div>
@@ -406,7 +405,7 @@ export default function UserPermissionModal({
                     event.target.value
                   )
                 }
-                placeholder="Search permissions"
+                placeholder={t("Search permissions")}
               />
             </label>
 
@@ -417,7 +416,7 @@ export default function UserPermissionModal({
               disabled={ownerProtected}
             >
               <RotateCcw size={17} />
-              Use role defaults
+              {t("Use role defaults")}
             </button>
           </div>
 
@@ -428,7 +427,7 @@ export default function UserPermissionModal({
                   key={moduleKey}
                   className="permission-group"
                 >
-                  <h3>{moduleKey}</h3>
+                  <h3>{t(moduleKey)}</h3>
 
                   {rows.map((definition) => {
                     const state =
@@ -469,12 +468,12 @@ export default function UserPermissionModal({
 
                         <div>
                           <strong>
-                            {definition.label}
+                            {t(definition.label)}
                           </strong>
                           <span>
                             {
-                              definition
-                                .description
+                              t(definition
+                                .description)
                             }
                           </span>
                           <small>
@@ -482,10 +481,12 @@ export default function UserPermissionModal({
                               definition
                                 .permission_key
                             }
-                            {" · Role default: "}
+                            {" · "}
+                            {t("Role default")}
+                            {": "}
                             {defaultAllowed
-                              ? "Allowed"
-                              : "Denied"}
+                              ? t("Allowed")
+                              : t("Denied")}
                           </small>
                         </div>
 
@@ -507,13 +508,13 @@ export default function UserPermissionModal({
                           disabled={ownerProtected}
                         >
                           <option value="default">
-                            Role default
+                            {t("Role default")}
                           </option>
                           <option value="allow">
-                            Allow
+                            {t("Allow")}
                           </option>
                           <option value="deny">
-                            Deny
+                            {t("Deny")}
                           </option>
                         </select>
                       </div>
@@ -527,7 +528,7 @@ export default function UserPermissionModal({
 
         {error && (
           <div className="notice error">
-            {error}
+            {t(error)}
           </div>
         )}
 
@@ -538,7 +539,7 @@ export default function UserPermissionModal({
             onClick={onClose}
             disabled={busy}
           >
-            Close
+            {t("Close")}
           </button>
 
           {!ownerProtected && (
@@ -549,8 +550,8 @@ export default function UserPermissionModal({
             >
               <Save size={18} />
               {busy
-                ? "Saving access..."
-                : "Save user access"}
+                ? t("Saving access...")
+                : t("Save user access")}
             </button>
           )}
         </div>
