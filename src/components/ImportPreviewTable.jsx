@@ -1,4 +1,9 @@
+import { useLanguage } from "../context/LanguageContext";
+
 export default function ImportPreviewTable({ headers, rows }) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === "km" ? "km-KH" : "en-US";
+
   if (!rows.length) return null;
 
   return (
@@ -6,7 +11,7 @@ export default function ImportPreviewTable({ headers, rows }) {
       <table className="import-preview-table">
         <thead>
           <tr>
-            <th>CSV row</th>
+            <th>{t("CSV row")}</th>
             {headers.map((header) => (
               <th key={header}>{header.replaceAll("_", " ")}</th>
             ))}
@@ -27,7 +32,9 @@ export default function ImportPreviewTable({ headers, rows }) {
       </table>
       {rows.length > 20 && (
         <p className="import-preview-more">
-          Showing 20 of {rows.length.toLocaleString("en-US")} data rows.
+          {language === "km"
+            ? `បង្ហាញ ២០ នៃ ${rows.length.toLocaleString(dateLocale)} ជួរទិន្នន័យ។`
+            : `Showing 20 of ${rows.length.toLocaleString(dateLocale)} data rows.`}
         </p>
       )}
     </div>
