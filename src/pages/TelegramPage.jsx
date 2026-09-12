@@ -19,6 +19,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import {
   createTelegramLinkCode,
   disconnectTelegram,
@@ -59,6 +60,7 @@ export default function TelegramPage() {
     profile,
     can
   } = useAuth();
+  const { t, language } = useLanguage();
 
   const [status, setStatus] = useState(null);
   const [preferences, setPreferences] = useState(null);
@@ -149,7 +151,7 @@ export default function TelegramPage() {
     if (!app?.initData) {
       announce(
         "error",
-        "Open Tiny POS from the Telegram bot before using one-click connection."
+        t("Open Tiny POS from the Telegram bot before using one-click connection.")
       );
       return;
     }
@@ -163,7 +165,7 @@ export default function TelegramPage() {
       );
       announce(
         "success",
-        "This Telegram account is now connected to your POS user."
+        t("This Telegram account is now connected to your POS user.")
       );
       await refresh();
     } catch (error) {
@@ -180,7 +182,7 @@ export default function TelegramPage() {
       setLinkCode(result);
       announce(
         "success",
-        "A one-time Telegram link code was created. It expires in 10 minutes."
+        t("A one-time Telegram link code was created. It expires in 10 minutes.")
       );
     } catch (error) {
       announce("error", error.message);
@@ -199,7 +201,7 @@ export default function TelegramPage() {
       setPreferences(result);
       announce(
         "success",
-        "Telegram notification settings saved."
+        t("Telegram notification settings saved.")
       );
     } catch (error) {
       announce("error", error.message);
@@ -210,7 +212,7 @@ export default function TelegramPage() {
 
   async function disconnect() {
     const confirmed = window.confirm(
-      "Disconnect Telegram notifications from this POS user?"
+      t("Disconnect Telegram notifications from this POS user?")
     );
     if (!confirmed) return;
 
@@ -220,7 +222,7 @@ export default function TelegramPage() {
       setLinkCode(null);
       announce(
         "success",
-        "Telegram disconnected. You may reconnect at any time."
+        t("Telegram disconnected. You may reconnect at any time.")
       );
       await refresh();
     } catch (error) {
@@ -236,7 +238,7 @@ export default function TelegramPage() {
       await telegramAdminRequest(session, "setup");
       announce(
         "success",
-        "Telegram webhook, Mini App menu button, and bot commands are configured."
+        t("Telegram webhook, Mini App menu button, and bot commands are configured.")
       );
       await refresh();
     } catch (error) {
@@ -252,7 +254,7 @@ export default function TelegramPage() {
       await telegramAdminRequest(session, "test");
       announce(
         "success",
-        "Test message sent to your Telegram account."
+        t("Test message sent to your Telegram account.")
       );
       await refresh();
     } catch (error) {
@@ -275,10 +277,10 @@ export default function TelegramPage() {
     <div className="page-stack telegram-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CONNECTED POS</p>
-          <h1>Telegram Mini App</h1>
+          <p className="eyebrow">{t("CONNECTED POS")}</p>
+          <h1>{t("Telegram Mini App")}</h1>
           <p className="muted">
-            Open Tiny POS inside Telegram and route operational messages to the relevant branch users.
+            {t("Open Tiny POS inside Telegram and route operational messages to the relevant branch users.")}
           </p>
         </div>
 
@@ -292,7 +294,7 @@ export default function TelegramPage() {
               )}
             >
               <MessageCircle size={18} />
-              Open @{status.bot.username}
+              {t("Open")} @{status.bot.username}
             </button>
           )}
 
@@ -306,7 +308,7 @@ export default function TelegramPage() {
               size={18}
               className={loading ? "spin" : ""}
             />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -323,53 +325,53 @@ export default function TelegramPage() {
       <div className="telegram-status-grid">
         <article>
           <Bot size={22} />
-          <span>Bot</span>
+          <span>{t("Bot")}</span>
           <strong>
             {status?.bot?.username
               ? `@${status.bot.username}`
-              : "Not configured"}
+              : t("Not configured")}
           </strong>
           <small>
             {status?.webhook?.configured
-              ? "Webhook connected"
-              : "Webhook not connected"}
+              ? t("Webhook connected")
+              : t("Webhook not connected")}
           </small>
         </article>
 
         <article>
           <Smartphone size={22} />
-          <span>Current app</span>
+          <span>{t("Current app")}</span>
           <strong>
             {insideTelegram
-              ? "Telegram Mini App"
-              : "Web browser / PWA"}
+              ? t("Telegram Mini App")
+              : t("Web browser / PWA")}
           </strong>
           <small>
             {insideTelegram && unsafeTelegramUser
-              ? `${unsafeTelegramUser.first_name || "Telegram user"}${unsafeTelegramUser.username ? ` · @${unsafeTelegramUser.username}` : ""}`
-              : "Both access methods are supported"}
+              ? `${unsafeTelegramUser.first_name || t("Telegram user")}${unsafeTelegramUser.username ? ` · @${unsafeTelegramUser.username}` : ""}`
+              : t("Both access methods are supported")}
           </small>
         </article>
 
         <article>
           <Link2 size={22} />
-          <span>Your connection</span>
+          <span>{t("Your connection")}</span>
           <strong>
-            {linked ? "Connected" : "Not connected"}
+            {linked ? t("Connected") : t("Not connected")}
           </strong>
           <small>
             {linked
-              ? `Linked ${telegramDateTime(status.link.linked_at)}`
-              : "Connect to receive personal alerts"}
+              ? `${t("Linked")} ${telegramDateTime(status.link.linked_at, language === "km" ? "km-KH" : "en-US")}`
+              : t("Connect to receive personal alerts")}
           </small>
         </article>
 
         <article>
           <Bell size={22} />
-          <span>Delivery schedule</span>
-          <strong>Every 15 minutes</strong>
+          <span>{t("Delivery schedule")}</span>
+          <strong>{t("Every 15 minutes")}</strong>
           <small>
-            Daily summaries follow your selected local hour
+            {t("Daily summaries follow your selected local hour")}
           </small>
         </article>
       </div>
@@ -377,8 +379,8 @@ export default function TelegramPage() {
       <section className="panel telegram-connect-panel">
         <div className="panel-title-row">
           <div>
-            <p className="eyebrow">YOUR ACCOUNT</p>
-            <h2>Connect Telegram</h2>
+            <p className="eyebrow">{t("YOUR ACCOUNT")}</p>
+            <h2>{t("Connect Telegram")}</h2>
           </div>
           {linked
             ? <CheckCircle2 size={24} />
@@ -389,13 +391,13 @@ export default function TelegramPage() {
           <div className="telegram-linked-card">
             <div>
               <strong>
-                {status.link.first_name || "Telegram user"}
+                {status.link.first_name || t("Telegram user")}
                 {status.link.username
                   ? ` · @${status.link.username}`
                   : ""}
               </strong>
               <span>
-                Last seen {telegramDateTime(status.link.last_seen_at)}
+                {t("Last seen")} {telegramDateTime(status.link.last_seen_at, language === "km" ? "km-KH" : "en-US")}
               </span>
             </div>
 
@@ -407,7 +409,7 @@ export default function TelegramPage() {
                 disabled={busy === "test"}
               >
                 <Send size={17} />
-                {busy === "test" ? "Sending..." : "Send test"}
+                {busy === "test" ? t("Sending...") : t("Send test")}
               </button>
 
               <button
@@ -417,7 +419,7 @@ export default function TelegramPage() {
                 disabled={busy === "disconnect"}
               >
                 <Unlink size={17} />
-                Disconnect
+                {t("Disconnect")}
               </button>
             </div>
           </div>
@@ -427,9 +429,9 @@ export default function TelegramPage() {
               <article>
                 <Smartphone size={25} />
                 <div>
-                  <strong>One-click Mini App connection</strong>
+                  <strong>{t("One-click Mini App connection")}</strong>
                   <span>
-                    Securely validate the Telegram account that opened this Mini App.
+                    {t("Securely validate the Telegram account that opened this Mini App.")}
                   </span>
                 </div>
                 <button
@@ -438,7 +440,7 @@ export default function TelegramPage() {
                   onClick={connectCurrentMiniApp}
                   disabled={busy === "link-mini-app"}
                 >
-                  Connect this Telegram
+                  {t("Connect this Telegram")}
                 </button>
               </article>
             )}
@@ -446,9 +448,9 @@ export default function TelegramPage() {
             <article>
               <ExternalLink size={25} />
               <div>
-                <strong>Connect from a normal browser</strong>
+                <strong>{t("Connect from a normal browser")}</strong>
                 <span>
-                  Create a one-time code, then open the bot or send /link CODE.
+                  {t("Create a one-time code, then open the bot or send /link CODE.")}
                 </span>
               </div>
               <button
@@ -457,16 +459,16 @@ export default function TelegramPage() {
                 onClick={createCode}
                 disabled={busy === "code"}
               >
-                Create link code
+                {t("Create link code")}
               </button>
             </article>
 
             {linkCode && (
               <div className="telegram-code-card">
-                <span>One-time code</span>
+                <span>{t("One-time code")}</span>
                 <strong>{linkCode.code}</strong>
                 <small>
-                  Expires {telegramDateTime(linkCode.expires_at)}
+                  {t("Expires")} {telegramDateTime(linkCode.expires_at, language === "km" ? "km-KH" : "en-US")}
                 </small>
 
                 {deepLink && (
@@ -475,7 +477,7 @@ export default function TelegramPage() {
                     className="primary-button"
                     onClick={() => openTelegramUrl(deepLink)}
                   >
-                    Open bot and connect
+                    {t("Open bot and connect")}
                   </button>
                 )}
 
@@ -490,10 +492,10 @@ export default function TelegramPage() {
         <section className="panel telegram-preferences-panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">RELEVANT MESSAGES</p>
-              <h2>Notification settings</h2>
+              <p className="eyebrow">{t("RELEVANT MESSAGES")}</p>
+              <h2>{t("Notification settings")}</h2>
               <span className="muted">
-                Messages are filtered by your active role and branch before delivery.
+                {t("Messages are filtered by your active role and branch before delivery.")}
               </span>
             </div>
             <Bell size={23} />
@@ -511,8 +513,8 @@ export default function TelegramPage() {
                   }
                 />
                 <span className="form-check-label">
-                  <strong>{label}</strong>
-                  <small>{description}</small>
+                  <strong>{t(label)}</strong>
+                  <small>{t(description)}</small>
                 </span>
               </label>
             ))}
@@ -520,7 +522,7 @@ export default function TelegramPage() {
 
           <div className="form-grid three telegram-time-settings">
             <label>
-              <span>Daily summary hour</span>
+              <span>{t("Daily summary hour")}</span>
               <select
                 value={preferences.daily_summary_hour}
                 onChange={(event) =>
@@ -539,7 +541,7 @@ export default function TelegramPage() {
             </label>
 
             <label>
-              <span>Quiet hours start</span>
+              <span>{t("Quiet hours start")}</span>
               <select
                 value={preferences.quiet_start_hour ?? ""}
                 onChange={(event) =>
@@ -551,7 +553,7 @@ export default function TelegramPage() {
                   )
                 }
               >
-                <option value="">Disabled</option>
+                <option value="">{t("Disabled")}</option>
                 {Array.from({ length: 24 }, (_, hour) => (
                   <option value={hour} key={hour}>
                     {String(hour).padStart(2, "0")}:00
@@ -561,7 +563,7 @@ export default function TelegramPage() {
             </label>
 
             <label>
-              <span>Quiet hours end</span>
+              <span>{t("Quiet hours end")}</span>
               <select
                 value={preferences.quiet_end_hour ?? ""}
                 onChange={(event) =>
@@ -573,7 +575,7 @@ export default function TelegramPage() {
                   )
                 }
               >
-                <option value="">Disabled</option>
+                <option value="">{t("Disabled")}</option>
                 {Array.from({ length: 24 }, (_, hour) => (
                   <option value={hour} key={hour}>
                     {String(hour).padStart(2, "0")}:00
@@ -594,9 +596,9 @@ export default function TelegramPage() {
                 }
               />
               <span className="form-check-label">
-                <strong>Receive alerts for all branches</strong>
+                <strong>{t("Receive alerts for all branches")}</strong>
                 <small>
-                  Owner/admin only. Disabled means current assigned branch.
+                  {t("Owner/admin only. Disabled means current assigned branch.")}
                 </small>
               </span>
             </label>
@@ -609,7 +611,7 @@ export default function TelegramPage() {
               onClick={savePreferences}
               disabled={busy === "preferences"}
             >
-              Save notification settings
+              {t("Save notification settings")}
             </button>
           </div>
         </section>
@@ -619,14 +621,14 @@ export default function TelegramPage() {
         <section className="panel telegram-admin-panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">OWNER / ADMIN</p>
-              <h2>Bot setup</h2>
+              <p className="eyebrow">{t("OWNER / ADMIN")}</p>
+              <h2>{t("Bot setup")}</h2>
             </div>
             <ShieldCheck size={23} />
           </div>
 
           <p className="muted">
-            Setup connects the secure webhook, creates the default Open Tiny POS menu button, and registers bot commands.
+            {t("Setup connects the secure webhook, creates the default Open Tiny POS menu button, and registers bot commands.")}
           </p>
 
           <div className="telegram-admin-actions">
@@ -637,23 +639,23 @@ export default function TelegramPage() {
               disabled={busy === "setup"}
             >
               <Bot size={18} />
-              {busy === "setup" ? "Configuring..." : "Configure Telegram bot"}
+              {busy === "setup" ? t("Configuring...") : t("Configure Telegram bot")}
             </button>
 
             <span>
-              Webhook: {status?.webhook?.configured ? "Connected" : "Not connected"}
+              {t("Webhook")}: {status?.webhook?.configured ? t("Connected") : t("Not connected")}
             </span>
           </div>
 
           {!status?.webhook?.configured && status?.webhook?.url && (
             <div className="notice error">
-              Telegram is using a different webhook URL: {status.webhook.url}. Press Configure Telegram bot to replace it with {status.webhook.expected_url}.
+              {t("Telegram is using a different webhook URL:")} {status.webhook.url}. {t("Press Configure Telegram bot to replace it with")} {status.webhook.expected_url}.
             </div>
           )}
 
           {status?.webhook?.last_error_message && (
             <div className="notice error">
-              Telegram webhook error: {status.webhook.last_error_message}
+              {t("Telegram webhook error:")} {status.webhook.last_error_message}
             </div>
           )}
         </section>
@@ -662,27 +664,27 @@ export default function TelegramPage() {
       <section className="panel telegram-history-panel">
         <div className="panel-title-row">
           <div>
-            <p className="eyebrow">DELIVERY HISTORY</p>
-            <h2>Your recent Telegram messages</h2>
+            <p className="eyebrow">{t("DELIVERY HISTORY")}</p>
+            <h2>{t("Your recent Telegram messages")}</h2>
           </div>
           <Send size={22} />
         </div>
 
         {deliveries.length === 0 ? (
-          <p className="muted">No notification delivery history yet.</p>
+          <p className="muted">{t("No notification delivery history yet.")}</p>
         ) : (
           <div className="telegram-delivery-list">
             {deliveries.map((delivery) => (
               <article key={delivery.id}>
                 <span className={`status-pill ${delivery.status === "sent" ? "active" : "inactive"}`}>
-                  {delivery.status}
+                  {t(delivery.status)}
                 </span>
                 <div>
-                  <strong>{delivery.event_type.replaceAll("_", " ")}</strong>
+                  <strong>{t(delivery.event_type.replaceAll("_", " ")) || delivery.event_type.replaceAll("_", " ")}</strong>
                   <span>{delivery.message_text.replace(/<[^>]+>/g, "").split("\n")[0]}</span>
                 </div>
                 <small>
-                  {telegramDateTime(delivery.sent_at || delivery.created_at)}
+                  {telegramDateTime(delivery.sent_at || delivery.created_at, language === "km" ? "km-KH" : "en-US")}
                 </small>
               </article>
             ))}
@@ -694,14 +696,14 @@ export default function TelegramPage() {
         <section className="panel telegram-staff-panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">LINKED STAFF</p>
-              <h2>Telegram connections</h2>
+              <p className="eyebrow">{t("LINKED STAFF")}</p>
+              <h2>{t("Telegram connections")}</h2>
             </div>
             <UsersRound size={23} />
           </div>
 
           {staffLinks.length === 0 ? (
-            <p className="muted">No staff Telegram accounts connected.</p>
+            <p className="muted">{t("No staff Telegram accounts connected.")}</p>
           ) : (
             <div className="telegram-staff-list">
               {staffLinks.map((link) => (
@@ -709,19 +711,19 @@ export default function TelegramPage() {
                   <div>
                     <strong>{link.profiles?.full_name}</strong>
                     <span>
-                      {link.profiles?.role} · {link.profiles?.branches?.name || "No branch"}
+                      {(link.profiles?.role ? t(link.profiles.role) : "")} · {link.profiles?.branches?.name || t("No branch")}
                     </span>
                   </div>
                   <div>
                     <strong>
-                      {link.username ? `@${link.username}` : link.first_name || "Telegram user"}
+                      {link.username ? `@${link.username}` : link.first_name || t("Telegram user")}
                     </strong>
                     <span>
-                      Last seen {telegramDateTime(link.last_seen_at)}
+                      {t("Last seen")} {telegramDateTime(link.last_seen_at, language === "km" ? "km-KH" : "en-US")}
                     </span>
                   </div>
                   <span className={`status-pill ${link.is_active ? "active" : "inactive"}`}>
-                    {link.is_active ? "active" : "inactive"}
+                    {link.is_active ? t("active") : t("inactive")}
                   </span>
                 </article>
               ))}
