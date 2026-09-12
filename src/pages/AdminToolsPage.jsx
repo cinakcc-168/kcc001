@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   ArchiveRestore,
-  CheckCircle2,
   Cloud,
   DatabaseBackup,
   Download,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import AuditDetailModal from "../components/AuditDetailModal";
 import DateRangePresetFields from "../components/DateRangePresetFields";
 import {
@@ -32,10 +32,10 @@ import {
   validateBusinessBackup
 } from "../lib/adminTools";
 
-function dateTime(value) {
+function dateTime(value, locale = "en-US") {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
@@ -56,6 +56,8 @@ function readable(value) {
 
 export default function AdminToolsPage() {
   const { supabase, session, profile, can } = useAuth();
+  const { t, language } = useLanguage();
+  const dateLocale = language === "km" ? "km-KH" : "en-US";
   const isOwner = profile?.role === "owner";
   const canUse = can("audit_backup.manage");
 
@@ -324,10 +326,9 @@ export default function AdminToolsPage() {
     return (
       <section className="panel empty-state">
         <ShieldCheck size={46} />
-        <h2>Administrator access required</h2>
+        <h2>{t("Administrator access required")}</h2>
         <p>
-          Only the owner or an admin can view the audit trail
-          and create backups.
+          {t("Only the owner or an admin can view the audit trail and create backups.")}
         </p>
       </section>
     );
@@ -337,10 +338,10 @@ export default function AdminToolsPage() {
     <div className="page-stack admin-tools-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">SYSTEM CONTROL</p>
-          <h1>Audit & Backup</h1>
+          <p className="eyebrow">{t("SYSTEM CONTROL")}</p>
+          <h1>{t("Audit & Backup")}</h1>
           <p className="muted">
-            Review staff activity and protect the new Tiny POS data.
+            {t("Review staff activity and protect the new Tiny POS data.")}
           </p>
         </div>
 
@@ -354,13 +355,13 @@ export default function AdminToolsPage() {
             size={18}
             className={loading ? "spin" : ""}
           />
-          Refresh
+          {t("Refresh")}
         </button>
       </div>
 
       {message && (
         <div className={`notice ${messageType}`}>
-          {message}
+          {t(message)}
         </div>
       )}
 
@@ -371,7 +372,7 @@ export default function AdminToolsPage() {
           onClick={() => setTab("audit")}
         >
           <ShieldCheck size={18} />
-          Audit trail
+          {t("Audit trail")}
         </button>
         <button
           type="button"
@@ -379,7 +380,7 @@ export default function AdminToolsPage() {
           onClick={() => setTab("backup")}
         >
           <DatabaseBackup size={18} />
-          Backup center
+          {t("Backup center")}
         </button>
       </div>
 
@@ -391,7 +392,7 @@ export default function AdminToolsPage() {
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search action, user, record or details"
+                placeholder={t("Search action, user, record or details")}
               />
             </div>
 
@@ -408,7 +409,7 @@ export default function AdminToolsPage() {
             />
 
             <label>
-              <span>Branch</span>
+              <span>{t("Branch")}</span>
               <select
                 value={filters.branch_id}
                 onChange={(event) =>
@@ -418,7 +419,7 @@ export default function AdminToolsPage() {
                   }))
                 }
               >
-                <option value="">All branches</option>
+                <option value="">{t("All branches")}</option>
                 {branches.map((branch) => (
                   <option value={branch.id} key={branch.id}>
                     {branch.name}
@@ -428,7 +429,7 @@ export default function AdminToolsPage() {
             </label>
 
             <label>
-              <span>User</span>
+              <span>{t("User")}</span>
               <select
                 value={filters.user_id}
                 onChange={(event) =>
@@ -438,7 +439,7 @@ export default function AdminToolsPage() {
                   }))
                 }
               >
-                <option value="">All users</option>
+                <option value="">{t("All users")}</option>
                 {profiles.map((member) => (
                   <option value={member.id} key={member.id}>
                     {member.full_name}
@@ -448,7 +449,7 @@ export default function AdminToolsPage() {
             </label>
 
             <label>
-              <span>Action</span>
+              <span>{t("Action")}</span>
               <select
                 value={filters.action}
                 onChange={(event) =>
@@ -458,17 +459,17 @@ export default function AdminToolsPage() {
                   }))
                 }
               >
-                <option value="">All actions</option>
+                <option value="">{t("All actions")}</option>
                 {actions.map((action) => (
                   <option value={action} key={action}>
-                    {readable(action)}
+                    {t(readable(action))}
                   </option>
                 ))}
               </select>
             </label>
 
             <label>
-              <span>Record type</span>
+              <span>{t("Record type")}</span>
               <select
                 value={filters.entity_type}
                 onChange={(event) =>
@@ -478,10 +479,10 @@ export default function AdminToolsPage() {
                   }))
                 }
               >
-                <option value="">All record types</option>
+                <option value="">{t("All record types")}</option>
                 {entityTypes.map((type) => (
                   <option value={type} key={type}>
-                    {readable(type)}
+                    {t(readable(type))}
                   </option>
                 ))}
               </select>
@@ -491,8 +492,12 @@ export default function AdminToolsPage() {
           <section className="panel audit-list-panel">
             <div className="panel-title-row">
               <div>
-                <p className="eyebrow">ACTIVITY</p>
-                <h2>{filteredAudit.length} audit entries</h2>
+                <p className="eyebrow">{t("ACTIVITY")}</p>
+                <h2>
+                  {language === "km"
+                    ? `${filteredAudit.length.toLocaleString(dateLocale)} ${t("audit entries")}`
+                    : `${filteredAudit.length} ${t("audit entries")}`}
+                </h2>
               </div>
               <Filter size={21} />
             </div>
@@ -500,59 +505,59 @@ export default function AdminToolsPage() {
             {loading ? (
               <div className="empty-state">
                 <RefreshCw className="spin" />
-                <p>Loading audit history...</p>
+                <p>{t("Loading audit history...")}</p>
               </div>
             ) : filteredAudit.length === 0 ? (
               <div className="empty-state">
                 <ShieldCheck size={44} />
-                <h2>No activity found</h2>
-                <p>Change the date range or filters.</p>
+                <h2>{t("No activity found")}</h2>
+                <p>{t("Change the date range or filters.")}</p>
               </div>
             ) : (
               <div className="audit-table-wrap">
                 <table className="audit-table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>User</th>
-                      <th>Branch</th>
-                      <th>Action</th>
-                      <th>Record</th>
+                      <th>{t("Date")}</th>
+                      <th>{t("User")}</th>
+                      <th>{t("Branch")}</th>
+                      <th>{t("Action")}</th>
+                      <th>{t("Record")}</th>
                       <th />
                     </tr>
                   </thead>
                   <tbody>
                     {filteredAudit.map((entry) => (
                       <tr key={entry.id}>
-                        <td data-label="Date">
-                          {dateTime(entry.created_at)}
+                        <td data-label={t("Date")}>
+                          {dateTime(entry.created_at, dateLocale)}
                         </td>
-                        <td data-label="User">
+                        <td data-label={t("User")}>
                           <strong>
-                            {entry.profiles?.full_name || "System"}
+                            {entry.profiles?.full_name || t("System")}
                           </strong>
                           <small>
-                            {entry.profiles?.role || "system"}
+                            {t(entry.profiles?.role || "system")}
                           </small>
                         </td>
-                        <td data-label="Branch">
+                        <td data-label={t("Branch")}>
                           {entry.branches?.name || "—"}
                         </td>
-                        <td data-label="Action">
+                        <td data-label={t("Action")}>
                           <span className="audit-action-pill">
-                            {readable(entry.action)}
+                            {t(readable(entry.action))}
                           </span>
                         </td>
-                        <td data-label="Record">
-                          <strong>{readable(entry.entity_type)}</strong>
+                        <td data-label={t("Record")}>
+                          <strong>{t(readable(entry.entity_type))}</strong>
                           <small>{entry.entity_id || "—"}</small>
                         </td>
-                        <td data-label="Details">
+                        <td data-label={t("Details")}>
                           <button
                             type="button"
                             className="icon-button"
                             onClick={() => setSelectedAudit(entry)}
-                            title="View details"
+                            title={t("View details")}
                           >
                             <Eye size={18} />
                           </button>
@@ -571,8 +576,8 @@ export default function AdminToolsPage() {
             <section className="panel backup-progress-card">
               <LoaderCircle className="spin" size={26} />
               <div>
-                <strong>Backup in progress</strong>
-                <span>{backupProgress}</span>
+                <strong>{t("Backup in progress")}</strong>
+                <span>{t(backupProgress)}</span>
               </div>
             </section>
           )}
@@ -582,17 +587,15 @@ export default function AdminToolsPage() {
               <DatabaseBackup size={27} />
             </div>
             <div>
-              <p className="eyebrow">ONE BACKUP FILE</p>
-              <h2>Create Tiny POS backup</h2>
+              <p className="eyebrow">{t("ONE BACKUP FILE")}</p>
+              <h2>{t("Create Tiny POS backup")}</h2>
               <p className="muted">
-                Creates one ZIP package containing the Tiny POS business backup,
-                manifest and Cloudinary asset-link list.
+                {t("Creates one ZIP package containing the Tiny POS business backup, manifest and Cloudinary asset-link list.")}
               </p>
             </div>
             <div className="backup-warning">
               <AlertTriangle size={19} />
-              Login passwords, Netlify/API secrets and the actual Cloudinary image
-              binaries are intentionally not copied into the ZIP.
+              {t("Login passwords, Netlify/API secrets and the actual Cloudinary image binaries are intentionally not copied into the ZIP.")}
             </div>
             <div className="backup-primary-actions">
               <button
@@ -602,7 +605,7 @@ export default function AdminToolsPage() {
                 disabled={Boolean(busy)}
               >
                 <Download size={19} />
-                {busy === "download" ? "Creating…" : "Create & Download ZIP"}
+                {busy === "download" ? t("Creating…") : t("Create & Download ZIP")}
               </button>
               <button
                 type="button"
@@ -611,7 +614,7 @@ export default function AdminToolsPage() {
                 disabled={Boolean(busy)}
               >
                 <DatabaseBackup size={19} />
-                {busy === "storage-backup" ? "Saving…" : "Backup now to secure storage"}
+                {busy === "storage-backup" ? t("Saving…") : t("Backup now to secure storage")}
               </button>
             </div>
           </section>
@@ -622,29 +625,30 @@ export default function AdminToolsPage() {
             </div>
             <div className="backup-card-heading-row">
               <div>
-                <p className="eyebrow">BACKUP LOCATION</p>
-                <h2>Tiny POS Secure Storage</h2>
+                <p className="eyebrow">{t("BACKUP LOCATION")}</p>
+                <h2>{t("Tiny POS Secure Storage")}</h2>
               </div>
-              <span className="status-pill active">Ready</span>
+              <span className="status-pill active">{t("Ready")}</span>
             </div>
             <p className="muted">
-              Automatic backups are stored inside the connected Tiny POS Supabase
-              project in a private backup bucket. No Google Cloud project, OAuth,
-              billing setup, or third-party drive connection is required.
+              {t("Automatic backups are stored inside the connected Tiny POS Supabase project in a private backup bucket. No Google Cloud project, OAuth, billing setup, or third-party drive connection is required.")}
             </p>
             <div className="backup-warning">
               <ShieldCheck size={19} />
-              Only authorized Owner/Admin users can create or download stored backups.
-              The storage bucket is private.
+              {t("Only authorized Owner/Admin users can create or download stored backups. The storage bucket is private.")}
             </div>
             <div className="backup-schedule-status">
               <div>
-                <span>Stored backups</span>
-                <strong>{backupCenter?.storage?.files?.length || 0}</strong>
+                <span>{t("Stored backups")}</span>
+                <strong>
+                  {backupCenter?.storage?.files?.length
+                    ? backupCenter.storage.files.length.toLocaleString(dateLocale)
+                    : 0}
+                </strong>
               </div>
               <div>
-                <span>Last backup</span>
-                <strong>{dateTime(backupCenter?.schedule?.last_backup_at)}</strong>
+                <span>{t("Last backup")}</span>
+                <strong>{dateTime(backupCenter?.schedule?.last_backup_at, dateLocale)}</strong>
               </div>
             </div>
             {backupCenter?.storage?.files?.length ? (
@@ -653,14 +657,14 @@ export default function AdminToolsPage() {
                   <div className="backup-file-row" key={file.id}>
                     <div>
                       <strong>{file.filename}</strong>
-                      <span>{readable(file.trigger)} · {dateTime(file.created_at)}</span>
+                      <span>{t(readable(file.trigger))} · {dateTime(file.created_at, dateLocale)}</span>
                     </div>
                     <button
                       type="button"
                       className="icon-button"
                       onClick={() => handleStoredDownload(file.id)}
                       disabled={Boolean(busy)}
-                      title="Download backup"
+                      title={t("Download backup")}
                     >
                       <Download size={18} />
                     </button>
@@ -668,7 +672,7 @@ export default function AdminToolsPage() {
                 ))}
               </div>
             ) : (
-              <p className="muted">No stored backup yet.</p>
+              <p className="muted">{t("No stored backup yet.")}</p>
             )}
           </section>
 
@@ -677,10 +681,10 @@ export default function AdminToolsPage() {
               <TimerReset size={27} />
             </div>
             <div>
-              <p className="eyebrow">AUTOMATIC BACKUP</p>
-              <h2>Backup schedule</h2>
+              <p className="eyebrow">{t("AUTOMATIC BACKUP")}</p>
+              <h2>{t("Backup schedule")}</h2>
               <p className="muted">
-                Automatic backups are saved to Tiny POS Secure Storage. The POS does not need to stay open.
+                {t("Automatic backups are saved to Tiny POS Secure Storage. The POS does not need to stay open.")}
               </p>
             </div>
 
@@ -695,14 +699,14 @@ export default function AdminToolsPage() {
                 disabled={Boolean(busy)}
               />
               <span>
-                <strong>Auto backup</strong>
-                <small>{scheduleForm.is_enabled ? "Enabled" : "Off"}</small>
+                <strong>{t("Auto backup")}</strong>
+                <small>{scheduleForm.is_enabled ? t("Enabled") : t("Off")}</small>
               </span>
             </label>
 
             <div className="backup-schedule-grid">
               <label>
-                <span>Frequency</span>
+                <span>{t("Frequency")}</span>
                 <select
                   value={frequencyPreset}
                   onChange={(event) => {
@@ -716,16 +720,16 @@ export default function AdminToolsPage() {
                   }}
                   disabled={Boolean(busy)}
                 >
-                  <option value="1">Every day</option>
-                  <option value="3">Every 3 days</option>
-                  <option value="7">Every week</option>
-                  <option value="custom">Custom days</option>
+                  <option value="1">{t("Every day")}</option>
+                  <option value="3">{t("Every 3 days")}</option>
+                  <option value="7">{t("Every week")}</option>
+                  <option value="custom">{t("Custom days")}</option>
                 </select>
               </label>
 
               {frequencyPreset === "custom" && (
                 <label>
-                  <span>Every</span>
+                  <span>{t("Every")}</span>
                   <div className="backup-days-input">
                     <input
                       type="number"
@@ -737,13 +741,13 @@ export default function AdminToolsPage() {
                         frequency_days: Math.max(2, Math.min(90, Number(event.target.value || 2)))
                       }))}
                     />
-                    <span>days</span>
+                    <span>{t("days")}</span>
                   </div>
                 </label>
               )}
 
               <label>
-                <span>Backup time</span>
+                <span>{t("Backup time")}</span>
                 <input
                   type="time"
                   value={scheduleForm.backup_time}
@@ -758,21 +762,21 @@ export default function AdminToolsPage() {
 
             <div className="backup-schedule-status">
               <div>
-                <span>Timezone</span>
+                <span>{t("Timezone")}</span>
                 <strong>{backupCenter?.schedule?.timezone || scheduleForm.timezone}</strong>
               </div>
               <div>
-                <span>Last backup</span>
-                <strong>{dateTime(backupCenter?.schedule?.last_backup_at)}</strong>
+                <span>{t("Last backup")}</span>
+                <strong>{dateTime(backupCenter?.schedule?.last_backup_at, dateLocale)}</strong>
               </div>
               <div>
-                <span>Next backup</span>
-                <strong>{scheduleForm.is_enabled ? dateTime(backupCenter?.schedule?.next_backup_at) : "Off"}</strong>
+                <span>{t("Next backup")}</span>
+                <strong>{scheduleForm.is_enabled ? dateTime(backupCenter?.schedule?.next_backup_at, dateLocale) : t("Off")}</strong>
               </div>
             </div>
 
             {backupCenter?.schedule?.last_status === "failed" && backupCenter?.schedule?.last_error && (
-              <div className="notice error">{backupCenter.schedule.last_error}</div>
+              <div className="notice error">{t(backupCenter.schedule.last_error)}</div>
             )}
 
             <button
@@ -782,7 +786,7 @@ export default function AdminToolsPage() {
               disabled={Boolean(busy)}
             >
               <Save size={18} />
-              {busy === "schedule" ? "Saving…" : "Save backup settings"}
+              {busy === "schedule" ? t("Saving…") : t("Save backup settings")}
             </button>
           </section>
 
@@ -791,37 +795,36 @@ export default function AdminToolsPage() {
               <FileCheck2 size={27} />
             </div>
             <div>
-              <p className="eyebrow">VALIDATE</p>
-              <h2>Check a backup file</h2>
+              <p className="eyebrow">{t("VALIDATE")}</p>
+              <h2>{t("Check a backup file")}</h2>
               <p className="muted">
-                Tiny POS accepts the new ZIP backup and older JSON backups.
-                Validation does not change database records.
+                {t("Tiny POS accepts the new ZIP backup and older JSON backups. Validation does not change database records.")}
               </p>
             </div>
 
             <label className="backup-file-input">
-              <span>Choose backup ZIP or JSON</span>
+              <span>{t("Choose backup ZIP or JSON")}</span>
               <input
                 type="file"
                 accept="application/zip,.zip,application/json,.json"
                 onChange={handleFile}
                 disabled={Boolean(busy)}
               />
-              <strong>{backupFile?.name || "No file selected"}</strong>
+              <strong>{backupFile?.name || t("No file selected")}</strong>
             </label>
 
             {validation && (
               <div className={`backup-validation ${validation.valid ? "valid" : "invalid"}`}>
-                <strong>{validation.valid ? "Valid Tiny POS backup" : "Backup is not valid"}</strong>
+                <strong>{validation.valid ? t("Valid Tiny POS backup") : t("Backup is not valid")}</strong>
                 {validation.valid ? (
                   <>
-                    <span>Source: {validation.source_organization || "Tiny POS"}</span>
-                    <span>Created: {dateTime(validation.created_at)}</span>
-                    <span>Rows: {totalRows(validation.row_counts)}</span>
-                    <span>Version: {validation.version}</span>
+                    <span>{t("Source")}: {validation.source_organization || "Tiny POS"}</span>
+                    <span>{t("Created")}: {dateTime(validation.created_at, dateLocale)}</span>
+                    <span>{t("Rows")}: {totalRows(validation.row_counts).toLocaleString(dateLocale)}</span>
+                    <span>{t("Version")}: {validation.version}</span>
                   </>
                 ) : (
-                  <ul>{(validation.problems || []).map((problem) => <li key={problem}>{problem}</li>)}</ul>
+                  <ul>{(validation.problems || []).map((problem) => <li key={problem}>{t(problem)}</li>)}</ul>
                 )}
               </div>
             )}
@@ -832,16 +835,15 @@ export default function AdminToolsPage() {
               <ArchiveRestore size={27} />
             </div>
             <div>
-              <p className="eyebrow">OWNER ONLY</p>
-              <h2>Restore business data</h2>
+              <p className="eyebrow">{t("OWNER ONLY")}</p>
+              <h2>{t("Restore business data")}</h2>
               <p className="muted">
-                Restore replaces the current organization’s business records
-                with the selected backup. Existing Supabase login accounts are retained.
+                {t("Restore replaces the current organization’s business records with the selected backup. Existing Supabase login accounts are retained.")}
               </p>
             </div>
 
             {!isOwner ? (
-              <div className="notice error">Only the owner account can run a restore.</div>
+              <div className="notice error">{t("Only the owner account can run a restore.")}</div>
             ) : (
               <>
                 <label className="restore-check">
@@ -850,11 +852,11 @@ export default function AdminToolsPage() {
                     checked={safetyBackupDownloaded}
                     onChange={(event) => setSafetyBackupDownloaded(event.target.checked)}
                   />
-                  <span>I downloaded a current safety backup before restoring.</span>
+                  <span>{t("I downloaded a current safety backup before restoring.")}</span>
                 </label>
 
                 <label>
-                  <span>Type exactly: <b>RESTORE TINY POS</b></span>
+                  <span>{t("Type exactly:")} <b>RESTORE TINY POS</b></span>
                   <input
                     value={confirmation}
                     onChange={(event) => setConfirmation(event.target.value)}
@@ -869,7 +871,7 @@ export default function AdminToolsPage() {
                   disabled={Boolean(busy) || !validation?.valid || confirmation !== "RESTORE TINY POS" || !safetyBackupDownloaded}
                 >
                   <ArchiveRestore size={19} />
-                  {busy === "restore" ? "Restoring…" : "Restore selected backup"}
+                  {busy === "restore" ? t("Restoring…") : t("Restore selected backup")}
                 </button>
               </>
             )}
@@ -878,33 +880,33 @@ export default function AdminToolsPage() {
           <section className="panel backup-history-card">
             <div className="panel-title-row">
               <div>
-                <p className="eyebrow">HISTORY</p>
-                <h2>Backup operations</h2>
+                <p className="eyebrow">{t("HISTORY")}</p>
+                <h2>{t("Backup operations")}</h2>
               </div>
               <DatabaseBackup size={21} />
             </div>
 
             {backupLogs.length === 0 ? (
-              <p className="muted">No backup activity yet.</p>
+              <p className="muted">{t("No backup activity yet.")}</p>
             ) : (
               <div className="backup-log-list">
                 {backupLogs.map((entry) => (
                   <article key={entry.id}>
                     <div>
-                      <strong>{entry.filename || readable(entry.action)}</strong>
+                      <strong>{entry.filename || t(readable(entry.action))}</strong>
                       <span>
-                        {entry.profiles?.full_name || "System"} · {dateTime(entry.created_at)}
+                        {entry.profiles?.full_name || t("System")} · {dateTime(entry.created_at, dateLocale)}
                       </span>
                       <small>
-                        {entry.details?.trigger === "scheduled" ? "Automatic" : "Manual"}
-                        {entry.details?.destination === "supabase_storage" ? " · Secure storage" : " · Download / validation"}
+                        {entry.details?.trigger === "scheduled" ? t("Automatic") : t("Manual")}
+                        {entry.details?.destination === "supabase_storage" ? ` · ${t("Secure storage")}` : ` · ${t("Download / validation")}`}
                       </small>
                     </div>
                     <div>
                       <span className={`status-pill ${entry.status === "completed" ? "active" : "inactive"}`}>
-                        {entry.status}
+                        {t(entry.status)}
                       </span>
-                      <small>{totalRows(entry.row_counts)} rows</small>
+                      <small>{totalRows(entry.row_counts).toLocaleString(dateLocale)} {t("rows")}</small>
                     </div>
                   </article>
                 ))}
