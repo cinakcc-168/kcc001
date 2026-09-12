@@ -1,7 +1,10 @@
 import { FileSpreadsheet, UploadCloud } from "lucide-react";
 import { useRef, useState } from "react";
+import { useLanguage } from "../context/LanguageContext";
 
 export default function ImportDropzone({ file, disabled, onFile }) {
+  const { t, language } = useLanguage();
+  const dateLocale = language === "km" ? "km-KH" : "en-US";
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -41,13 +44,13 @@ export default function ImportDropzone({ file, disabled, onFile }) {
       {file ? <FileSpreadsheet size={42} /> : <UploadCloud size={46} />}
 
       <div>
-        <h3>{file ? file.name : "Drop a CSV file here"}</h3>
+        <h3>{file ? file.name : t("Drop a CSV file here")}</h3>
         <p>
           {file
-            ? `${(file.size / 1024).toLocaleString("en-US", {
+            ? `${(file.size / 1024).toLocaleString(dateLocale, {
                 maximumFractionDigits: 1
               })} KB`
-            : "Use the matching Tiny POS template for the selected import type."}
+            : t("Use the matching Tiny POS template for the selected import type.")}
         </p>
       </div>
 
@@ -57,7 +60,7 @@ export default function ImportDropzone({ file, disabled, onFile }) {
         onClick={() => inputRef.current?.click()}
         disabled={disabled}
       >
-        {file ? "Choose another CSV" : "Choose CSV file"}
+        {file ? t("Choose another CSV") : t("Choose CSV file")}
       </button>
     </section>
   );
