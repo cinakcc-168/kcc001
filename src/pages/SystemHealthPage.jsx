@@ -18,6 +18,7 @@ import {
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import SystemHealthCheckCard from "../components/SystemHealthCheckCard";
 import {
   clearAllSystemErrors,
@@ -36,12 +37,6 @@ import {
   APP_SCHEMA_STEP
 } from "../lib/release";
 
-function statusLabel(status) {
-  return String(status || "unknown")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 export default function SystemHealthPage() {
   const {
     supabase,
@@ -49,6 +44,16 @@ export default function SystemHealthPage() {
     profile,
     can
   } = useAuth();
+  const { t, language } = useLanguage();
+
+  const formatStatus = useCallback(
+    (status) => {
+      const raw = String(status || "unknown").replaceAll("_", " ");
+      const formatted = raw.replace(/\b\w/g, (letter) => letter.toUpperCase());
+      return t(formatted);
+    },
+    [t]
+  );
 
   const allowed = can("system_health.manage");
   const [runs, setRuns] = useState([]);
@@ -163,7 +168,7 @@ export default function SystemHealthPage() {
       setBusy(`resolve-${row.id}`);
       await resolveSystemError(supabase, row.id);
       setMessageType("success");
-      setMessage("Application error marked resolved.");
+      setMessage(t("Application error marked resolved."));
       await refresh();
     } catch (error) {
       setMessageType("error");
@@ -187,10 +192,10 @@ export default function SystemHealthPage() {
       }
       setErrors((prev) => prev.filter((row) => row.id !== errorId));
       setMessageType("success");
-      setMessage("Application error deleted.");
+      setMessage(t("Application error deleted."));
     } catch (error) {
       setMessageType("error");
-      setMessage(error.message || "Failed to delete error.");
+      setMessage(error.message || t("Failed to delete error."));
     } finally {
       setBusy("");
     }
@@ -205,10 +210,10 @@ export default function SystemHealthPage() {
       }
       setErrors([]);
       setMessageType("success");
-      setMessage("All captured application errors cleared.");
+      setMessage(t("All captured application errors cleared."));
     } catch (error) {
       setMessageType("error");
-      setMessage(error.message || "Failed to clear errors.");
+      setMessage(error.message || t("Failed to clear errors."));
     } finally {
       setBusy("");
     }
@@ -218,8 +223,8 @@ export default function SystemHealthPage() {
     return (
       <section className="panel empty-state">
         <ShieldCheck size={48} />
-        <h2>Owner or administrator access required</h2>
-        <p>Your account cannot open production diagnostics.</p>
+        <h2>{t("Owner or administrator access required")}</h2>
+        <p>{t("Your account cannot open production diagnostics.")}</p>
       </section>
     );
   }
@@ -231,25 +236,24 @@ export default function SystemHealthPage() {
     <div className="page-stack system-health-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">PRODUCTION CONTROL</p>
-          <h1>System Health</h1>
+          <p className="eyebrow">{t("PRODUCTION CONTROL")}</p>
+          <h1>{t("System Health")}</h1>
           <p className="muted">
-            Diagnose configuration, data integrity, frontend errors and safe
-            operational housekeeping.
+            {t("Diagnose configuration, data integrity, frontend errors and safe operational housekeeping.")}
           </p>
         </div>
 
         <div className="page-heading-actions">
           <label className="system-health-scope">
-            <span>Scope</span>
+            <span>{t("Scope")}</span>
             <select
               value={allBranches ? "all" : "current"}
               onChange={(event) =>
                 setAllBranches(event.target.value === "all")
               }
             >
-              <option value="all">All branches</option>
-              <option value="current">Current branch</option>
+              <option value="all">{t("All branches")}</option>
+              <option value="current">{t("Current branch")}</option>
             </select>
           </label>
 
@@ -260,7 +264,7 @@ export default function SystemHealthPage() {
             disabled={Boolean(busy)}
           >
             <Activity size={18} />
-            {busy === "run" ? "Checking..." : "Run full check"}
+            {busy === "run" ? t("Checking...") : t("Run full check")}
           </button>
 
           <button
@@ -270,7 +274,7 @@ export default function SystemHealthPage() {
             disabled={loading}
           >
             <RefreshCw size={18} className={loading ? "spin" : ""} />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -278,10 +282,10 @@ export default function SystemHealthPage() {
       {message && <div className={`notice ${messageType}`}>{message}</div>}
 
       <section className="system-release-strip">
-        <div><Sparkles size={19} /><span>Release</span><strong>{APP_RELEASE_LABEL}</strong></div>
-        <div><ServerCog size={19} /><span>Build</span><strong>{APP_RELEASE}</strong></div>
-        <div><ShieldCheck size={19} /><span>Schema step</span><strong>{APP_SCHEMA_STEP}</strong></div>
-        <div><Activity size={19} /><span>Last check</span><strong>{healthDateTime(currentRun?.generated_at)}</strong></div>
+        <div><Sparkles size={19} /><span>{t("Release")}</span><strong>{APP_RELEASE_LABEL}</strong></div>
+        <div><ServerCog size={19} /><span>{t("Build")}</span><strong>{APP_RELEASE}</strong></div>
+        <div><ShieldCheck size={19} /><span>{t("Schema step")}</span><strong>{APP_SCHEMA_STEP}</strong></div>
+        <div><Activity size={19} /><span>{t("Last check")}</span><strong>{healthDateTime(currentRun?.generated_at, language)}</strong></div>
       </section>
 
       <div className="system-health-metrics">
@@ -289,22 +293,22 @@ export default function SystemHealthPage() {
           {currentRun?.overall_status === "healthy"
             ? <CheckCircle2 size={24} />
             : <AlertTriangle size={24} />}
-          <span>Overall status</span>
-          <strong>{statusLabel(currentRun?.overall_status)}</strong>
+          <span>{t("Overall status")}</span>
+          <strong>{formatStatus(currentRun?.overall_status)}</strong>
         </article>
         <article>
           <Activity size={24} />
-          <span>Health score</span>
+          <span>{t("Health score")}</span>
           <strong>{currentRun ? `${currentRun.score}/100` : "—"}</strong>
         </article>
         <article>
           <XCircle size={24} />
-          <span>Critical checks</span>
+          <span>{t("Critical checks")}</span>
           <strong>{Number(currentRun?.critical_count || 0)}</strong>
         </article>
         <article>
           <AlertTriangle size={24} />
-          <span>Unresolved app errors</span>
+          <span>{t("Unresolved app errors")}</span>
           <strong>{unresolvedErrors.length}</strong>
         </article>
       </div>
@@ -313,10 +317,10 @@ export default function SystemHealthPage() {
         <section className="panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">DATA INTEGRITY</p>
-              <h2>Business-data checks</h2>
+              <p className="eyebrow">{t("DATA INTEGRITY")}</p>
+              <h2>{t("Business-data checks")}</h2>
               <span className="muted">
-                These checks are read-only and never repair quantities automatically.
+                {t("These checks are read-only and never repair quantities automatically.")}
               </span>
             </div>
             <ShieldCheck size={23} />
@@ -324,7 +328,7 @@ export default function SystemHealthPage() {
 
           {checks.length === 0 ? (
             <div className="empty-state compact">
-              <p>Run a full check to inspect production data.</p>
+              <p>{t("Run a full check to inspect production data.")}</p>
             </div>
           ) : (
             <div className="system-check-list">
@@ -338,10 +342,10 @@ export default function SystemHealthPage() {
         <section className="panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">DEPLOYMENT</p>
-              <h2>Environment checks</h2>
+              <p className="eyebrow">{t("DEPLOYMENT")}</p>
+              <h2>{t("Environment checks")}</h2>
               <span className="muted">
-                Secrets are checked by name and connectivity; secret values are never returned.
+                {t("Secrets are checked by name and connectivity; secret values are never returned.")}
               </span>
             </div>
             <ServerCog size={23} />
@@ -349,7 +353,7 @@ export default function SystemHealthPage() {
 
           {envChecks.length === 0 ? (
             <div className="empty-state compact">
-              <p>Run a full check to inspect Netlify services.</p>
+              <p>{t("Run a full check to inspect Netlify services.")}</p>
             </div>
           ) : (
             <div className="environment-check-list">
@@ -359,8 +363,8 @@ export default function SystemHealthPage() {
                     ? <CheckCircle2 size={20} />
                     : <AlertTriangle size={20} />}
                   <div>
-                    <strong>{check.label}</strong>
-                    <span>{check.detail}</span>
+                    <strong>{t(check.label)}</strong>
+                    <span>{t(check.detail)}</span>
                   </div>
                 </article>
               ))}
@@ -375,7 +379,7 @@ export default function SystemHealthPage() {
               disabled={Boolean(busy)}
             >
               <Wrench size={18} />
-              {busy === "maintenance" ? "Maintaining..." : "Run safe maintenance"}
+              {busy === "maintenance" ? t("Maintaining...") : t("Run safe maintenance")}
             </button>
 
             <button
@@ -390,7 +394,7 @@ export default function SystemHealthPage() {
               disabled={!currentRun && !environment}
             >
               <Download size={18} />
-              Export diagnostics
+              {t("Export diagnostics")}
             </button>
           </div>
         </section>
@@ -399,10 +403,10 @@ export default function SystemHealthPage() {
       <section className="panel system-error-panel">
         <div className="panel-title-row">
           <div>
-            <p className="eyebrow">ERROR RECOVERY</p>
-            <h2>Captured application errors</h2>
+            <p className="eyebrow">{t("ERROR RECOVERY")}</p>
+            <h2>{t("Captured application errors")}</h2>
             <span className="muted">
-              Repeated identical errors are grouped for ten minutes to prevent log flooding.
+              {t("Repeated identical errors are grouped for ten minutes to prevent log flooding.")}
             </span>
           </div>
           <button
@@ -410,7 +414,7 @@ export default function SystemHealthPage() {
             className="secondary-button compact danger-button"
             onClick={clearErrors}
             disabled={busy === "clear-errors" || errors.length === 0}
-            title="Clear all application errors"
+            title={t("Clear all application errors")}
             style={{
               color: "#ef4444",
               borderColor: "color-mix(in srgb, #ef4444 40%, var(--border))",
@@ -418,14 +422,14 @@ export default function SystemHealthPage() {
             }}
           >
             <XCircle size={20} style={{ color: "#ef4444" }} />
-            <span>{busy === "clear-errors" ? "Clearing..." : "Clear all errors"}</span>
+            <span>{busy === "clear-errors" ? t("Clearing...") : t("Clear all errors")}</span>
           </button>
         </div>
 
         {errors.length === 0 ? (
           <div className="empty-state compact">
             <CheckCircle2 size={40} />
-            <p>No authenticated frontend errors have been captured.</p>
+            <p>{t("No authenticated frontend errors have been captured.")}</p>
           </div>
         ) : (
           <div className="system-error-list">
@@ -433,21 +437,21 @@ export default function SystemHealthPage() {
               <article key={row.id} className={row.resolved_at ? "resolved" : row.severity}>
                 <div>
                   <span className={`system-error-severity ${row.severity}`}>
-                    {row.severity}
+                    {t(row.severity)}
                   </span>
-                  {row.resolved_at && <span className="status-pill active">Resolved</span>}
+                  {row.resolved_at && <span className="status-pill active">{t("Resolved")}</span>}
                 </div>
                 <strong>{row.message}</strong>
                 <span>
-                  {row.profiles?.full_name || "POS user"}
+                  {row.profiles?.full_name || t("POS user")}
                   {row.branches?.name ? ` · ${row.branches.name}` : ""}
                   {row.route ? ` · ${row.route}` : ""}
                 </span>
                 <small>
-                  Last seen {healthDateTime(row.last_seen_at)} · {row.occurrence_count} occurrence(s)
+                  {t("Last seen")} {healthDateTime(row.last_seen_at, language)} · {row.occurrence_count} {t("occurrence(s)")}
                   {row.release ? ` · ${row.release}` : ""}
                 </small>
-                {row.stack && <details><summary>Technical details</summary><pre>{row.stack}</pre></details>}
+                {row.stack && <details><summary>{t("Technical details")}</summary><pre>{row.stack}</pre></details>}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "4px" }}>
                   {!row.resolved_at && (
                     <button
@@ -457,7 +461,7 @@ export default function SystemHealthPage() {
                       disabled={busy === `resolve-${row.id}`}
                     >
                       <CheckCircle2 size={16} />
-                      Mark resolved
+                      {t("Mark resolved")}
                     </button>
                   )}
                   <button
@@ -472,7 +476,7 @@ export default function SystemHealthPage() {
                     }}
                   >
                     <Trash2 size={15} style={{ color: "#ef4444" }} />
-                    <span>Delete</span>
+                    <span>{t("Delete")}</span>
                   </button>
                 </div>
               </article>
@@ -483,14 +487,14 @@ export default function SystemHealthPage() {
 
       <section className="panel system-run-history">
         <div className="panel-title-row">
-          <div><p className="eyebrow">HISTORY</p><h2>Recent health runs</h2></div>
+          <div><p className="eyebrow">{t("HISTORY")}</p><h2>{t("Recent health runs")}</h2></div>
           <Activity size={22} />
         </div>
         <div className="system-run-list">
           {runs.map((run) => (
             <button type="button" key={run.id} onClick={() => setCurrentRun(run)}>
               <span className={`system-run-status ${run.overall_status}`} />
-              <div><strong>{statusLabel(run.overall_status)}</strong><small>{healthDateTime(run.generated_at)} · {run.trigger_source}</small></div>
+              <div><strong>{formatStatus(run.overall_status)}</strong><small>{healthDateTime(run.generated_at, language)} · {t(run.trigger_source || "manual")}</small></div>
               <b>{run.score}/100</b>
             </button>
           ))}
