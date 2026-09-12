@@ -17,9 +17,11 @@ import {
 } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { notifyTelegramEvent } from "../lib/telegram";
 import UserPermissionModal from "../components/UserPermissionModal";
 import { money } from "../lib/catalog";
+import { roleLabel } from "../lib/staff";
 import {
   approvalStatusLabel,
   loadAccessWorkspace,
@@ -71,10 +73,10 @@ export default function PermissionsPage() {
     supabase,
     profile,
     session,
-    can,
     canAny,
     refreshAccess
   } = useAuth();
+  const { t } = useLanguage();
 
   const [searchParams, setSearchParams] =
     useSearchParams();
@@ -317,10 +319,10 @@ export default function PermissionsPage() {
   ) {
     const note = window.prompt(
       decision === "approve"
-        ? `Approval note for ${request.requested_by_name}:`
-        : `Reason for rejecting ${request.requested_by_name}:`,
+        ? `${t("Approval note for")} ${request.requested_by_name}:`
+        : `${t("Reason for rejecting")} ${request.requested_by_name}:`,
       decision === "approve"
-        ? "Approved for this one transaction."
+        ? t("Approved for this one transaction.")
         : ""
     );
 
@@ -386,10 +388,9 @@ export default function PermissionsPage() {
     return (
       <section className="panel empty-state">
         <ShieldCheck size={48} />
-        <h2>Access control is restricted</h2>
+        <h2>{t("Access control is restricted")}</h2>
         <p>
-          Your account cannot manage permissions
-          or review approvals.
+          {t("Your account cannot manage permissions or review approvals.")}
         </p>
       </section>
     );
@@ -400,13 +401,11 @@ export default function PermissionsPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            INDIVIDUAL ACCESS CONTROL
+            {t("INDIVIDUAL ACCESS CONTROL")}
           </p>
-          <h1>Access & Approvals</h1>
+          <h1>{t("Access & Approvals")}</h1>
           <p className="muted">
-            Hide functions per user and approve
-            high-risk discounts or refunds one
-            transaction at a time.
+            {t("Hide functions per user and approve high-risk discounts or refunds one transaction at a time.")}
           </p>
         </div>
 
@@ -422,7 +421,7 @@ export default function PermissionsPage() {
               loading ? "spin" : ""
             }
           />
-          Refresh
+          {t("Refresh")}
         </button>
       </div>
 
@@ -431,7 +430,7 @@ export default function PermissionsPage() {
           className={`notice ${messageType}`}
           onClick={() => setMessage("")}
         >
-          {message}
+          {t(message)}
         </div>
       )}
 
@@ -449,7 +448,7 @@ export default function PermissionsPage() {
             }
           >
             <UserCog size={18} />
-            Staff Permissions
+            {t("Staff Permissions")}
           </button>
         )}
 
@@ -466,7 +465,7 @@ export default function PermissionsPage() {
             }
           >
             <ShieldCheck size={18} />
-            Approval Center
+            {t("Approval Center")}
             {pendingRequests.length > 0 && (
               <span>
                 {pendingRequests.length}
@@ -488,7 +487,7 @@ export default function PermissionsPage() {
             }
           >
             <CalendarRange size={18} />
-            Refund Permissions
+            {t("Refund Permissions")}
           </button>
         )}
       </div>
@@ -506,7 +505,7 @@ export default function PermissionsPage() {
                       event.target.value
                     )
                   }
-                  placeholder="Search staff, email, role or branch"
+                  placeholder={t("Search staff, email, role or branch")}
                 />
               </label>
 
@@ -519,22 +518,22 @@ export default function PermissionsPage() {
                 }
               >
                 <option value="all">
-                  All roles
+                  {t("All roles")}
                 </option>
                 <option value="owner">
-                  Owner
+                  {t("Owner")}
                 </option>
                 <option value="admin">
-                  Admin
+                  {t("Admin")}
                 </option>
                 <option value="manager">
-                  Manager
+                  {t("Manager")}
                 </option>
                 <option value="cashier">
-                  Cashier
+                  {t("Cashier")}
                 </option>
                 <option value="viewer">
-                  Viewer
+                  {t("Viewer")}
                 </option>
               </select>
             </section>
@@ -585,23 +584,24 @@ export default function PermissionsPage() {
                         }`}
                       >
                         {member.is_active
-                          ? "Active"
-                          : "Inactive"}
+                          ? t("Active")
+                          : t("Inactive")}
                       </span>
                     </div>
 
                     <div className="permission-staff-meta">
-                      <span>{member.role}</span>
+                      <span>{t(roleLabel(member.role))}</span>
                       <span>
                         {member.branch_name
-                          || "No branch"}
+                          ? member.branch_name
+                          : t("No branch")}
                       </span>
                     </div>
 
                     <div className="permission-staff-stats">
                       <div>
                         <span>
-                          Effective permissions
+                          {t("Effective permissions")}
                         </span>
                         <strong>
                           {allowedCount}
@@ -616,7 +616,7 @@ export default function PermissionsPage() {
 
                       <div>
                         <span>
-                          Individual overrides
+                          {t("Individual overrides")}
                         </span>
                         <strong>
                           {overrideCount}
@@ -626,20 +626,20 @@ export default function PermissionsPage() {
 
                     <div className="permission-limit-preview">
                       <span>
-                        Discount:{" "}
+                        {t("Discount")}:{" "}
                         {member.limits
                           ?.max_discount_percent
                           === null
-                          ? "Unlimited"
+                          ? t("Unlimited")
                           : `${member.limits?.max_discount_percent ?? 0}%`}
                       </span>
 
                       <span>
-                        Refund USD:{" "}
+                        {t("Refund USD")}:{" "}
                         {member.limits
                           ?.max_refund_amount_usd
                           === null
-                          ? "Unlimited"
+                          ? t("Unlimited")
                           : money(
                               member.limits
                                 ?.max_refund_amount_usd
@@ -661,8 +661,8 @@ export default function PermissionsPage() {
                         size={18}
                       />
                       {editable
-                        ? "Edit permissions"
-                        : "Protected account"}
+                        ? t("Edit permissions")
+                        : t("Protected account")}
                     </button>
                   </article>
                 );
@@ -676,10 +676,10 @@ export default function PermissionsPage() {
           <section className="panel refund-permission-panel">
             <div className="panel-title-row">
               <div>
-                <p className="eyebrow">REFUND DATE ACCESS</p>
-                <h2>Refund Permissions</h2>
+                <p className="eyebrow">{t("REFUND DATE ACCESS")}</p>
+                <h2>{t("Refund Permissions")}</h2>
                 <span className="muted">
-                  Control how far back each staff member can refund invoices. Amount-based approval limits still apply separately.
+                  {t("Control how far back each staff member can refund invoices. Amount-based approval limits still apply separately.")}
                 </span>
               </div>
               <CalendarRange size={23} />
@@ -691,16 +691,16 @@ export default function PermissionsPage() {
                 <input
                   value={refundSearch}
                   onChange={(event) => setRefundSearch(event.target.value)}
-                  placeholder="Search staff, email or branch"
+                  placeholder={t("Search staff, email or branch")}
                 />
               </label>
 
               <select
                 value={refundRoleFilter}
                 onChange={(event) => setRefundRoleFilter(event.target.value)}
-                aria-label="Filter refund permissions by role"
+                aria-label={t("Filter refund permissions by role")}
               >
-                <option value="all">All staff</option>
+                <option value="all">{t("All staff")}</option>
                 {Array.from(
                   new Map(
                     refundWorkspace.staff.map((member) => [
@@ -711,7 +711,7 @@ export default function PermissionsPage() {
                 )
                   .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
                   .map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
+                    <option key={value} value={value}>{t(label)}</option>
                   ))}
               </select>
             </div>
@@ -720,7 +720,7 @@ export default function PermissionsPage() {
               {filteredRefundStaff.length === 0 ? (
                 <div className="empty-state compact">
                   <CalendarRange size={40} />
-                  <p>No staff match the current filters.</p>
+                  <p>{t("No staff match the current filters.")}</p>
                 </div>
               ) : filteredRefundStaff.map((member) => {
                 const locked = Boolean(member.window_locked);
@@ -730,29 +730,29 @@ export default function PermissionsPage() {
                   <article className="refund-permission-row" key={member.id}>
                     <div className="refund-permission-person">
                       <strong>{member.full_name}</strong>
-                      <small>{member.email || member.phone || "No contact"}</small>
+                      <small>{member.email || member.phone || t("No contact")}</small>
                     </div>
 
                     <div className="refund-permission-meta">
-                      <span>{member.branch_name || "No branch"}</span>
-                      <span>{member.role_label || member.role}</span>
+                      <span>{member.branch_name ? member.branch_name : t("No branch")}</span>
+                      <span>{t(member.role_label) || t(roleLabel(member.role))}</span>
                       <span className={`status-pill ${member.is_active ? "active" : "inactive"}`}>
-                        {member.is_active ? "Active" : "Inactive"}
+                        {member.is_active ? t("Active") : t("Inactive")}
                       </span>
                     </div>
 
                     <div className="refund-permission-access">
-                      <small>{member.can_refund ? "Returns & Refunds enabled" : "Returns & Refunds hidden"}</small>
+                      <small>{member.can_refund ? t("Returns & Refunds enabled") : t("Returns & Refunds hidden")}</small>
                       <select
                         value={member.refund_window}
                         onChange={(event) => changeRefundWindow(member, event.target.value)}
                         disabled={locked || saving}
-                        aria-label={`Refund date permission for ${member.full_name}`}
-                        title={locked ? "Owner and admin always have any-date refund access" : "Choose refund date permission"}
+                        aria-label={`${t("Refund date permission for")} ${member.full_name}`}
+                        title={locked ? t("Owner and admin always have any-date refund access") : t("Choose refund date permission")}
                       >
                         {refundWorkspace.windows.map((option) => (
                           <option key={option.value} value={option.value}>
-                            {option.label}
+                            {t(option.label)}
                           </option>
                         ))}
                       </select>
@@ -770,12 +770,11 @@ export default function PermissionsPage() {
             <div className="panel-title-row">
               <div>
                 <p className="eyebrow">
-                  ONE-TIME AUTHORIZATION
+                  {t("ONE-TIME AUTHORIZATION")}
                 </p>
-                <h2>Approval requests</h2>
+                <h2>{t("Approval requests")}</h2>
                 <span className="muted">
-                  Approved requests expire after
-                  30 minutes and work once.
+                  {t("Approved requests expire after 30 minutes and work once.")}
                 </span>
               </div>
 
@@ -785,11 +784,9 @@ export default function PermissionsPage() {
             {workspace.requests.length === 0 ? (
               <div className="empty-state compact">
                 <ShieldCheck size={43} />
-                <h3>No approval requests</h3>
+                <h3>{t("No approval requests")}</h3>
                 <p>
-                  Requests appear here when a
-                  discount or refund exceeds the
-                  user’s limit.
+                  {t("Requests appear here when a discount or refund exceeds the user’s limit.")}
                 </p>
               </div>
             ) : (
@@ -822,24 +819,25 @@ export default function PermissionsPage() {
 
                       <div>
                         <strong>
-                          {request.action_summary}
+                          {t(request.action_summary)}
                         </strong>
 
                         <span>
                           {request.requested_by_name}
                           {" · "}
-                          {request.requested_by_role}
+                          {t(roleLabel(request.requested_by_role))}
                           {" · "}
                           {request.branch_name
-                            || "Current branch"}
+                            ? request.branch_name
+                            : t("Current branch")}
                         </span>
 
                         <small>
-                          Requested{" "}
+                          {t("Requested")}{" "}
                           {dateTime(
                             request.requested_at
                           )}
-                          {" · Expires "}
+                          {" · "}{t("Expires")}{" "}
                           {dateTime(
                             request.expires_at
                           )}
@@ -847,7 +845,7 @@ export default function PermissionsPage() {
 
                         {request.review_note && (
                           <small>
-                            Review note:{" "}
+                            {t("Review note")}:{" "}
                             {request.review_note}
                           </small>
                         )}
@@ -866,16 +864,16 @@ export default function PermissionsPage() {
                           )
                           : (
                             <strong>
-                              {request.action_type}
+                              {t(request.action_type)}
                             </strong>
                           )}
 
                         <span
                           className={`approval-status ${request.status}`}
                         >
-                          {approvalStatusLabel(
+                          {t(approvalStatusLabel(
                             request.status
-                          )}
+                          ))}
                         </span>
                       </div>
 
@@ -897,7 +895,7 @@ export default function PermissionsPage() {
                               }
                             >
                               <X size={17} />
-                              Reject
+                              {t("Reject")}
                             </button>
 
                             <button
@@ -915,7 +913,7 @@ export default function PermissionsPage() {
                               }
                             >
                               <Check size={17} />
-                              Approve once
+                              {t("Approve once")}
                             </button>
                           </div>
                         )}
@@ -939,3 +937,4 @@ export default function PermissionsPage() {
     </div>
   );
 }
+
