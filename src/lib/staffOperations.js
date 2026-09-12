@@ -26,28 +26,31 @@ export function monthRange(value = new Date()) {
   };
 }
 
-export function staffDateTime(value) {
+export function staffDateTime(value, language = "en") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(language === "km" ? "km-KH" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 }
 
-export function staffTime(value) {
+export function staffTime(value, language = "en") {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(language === "km" ? "km-KH" : "en-US", {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
 }
 
-export function durationLabel(minutes) {
+export function durationLabel(minutes, language = "en") {
   const total = Math.max(0, Number(minutes || 0));
   const hours = Math.floor(total / 60);
   const remainder = Math.round(total % 60);
-  if (!hours) return `${remainder} min`;
-  return `${hours} hr ${remainder} min`;
+  const isKm = language === "km";
+  const hrLabel = isKm ? "ម៉ោង" : "hr";
+  const minLabel = isKm ? "នាទី" : "min";
+  if (!hours) return `${remainder} ${minLabel}`;
+  return `${hours} ${hrLabel} ${remainder} ${minLabel}`;
 }
 
 export function commissionMoney(value, currency) {
@@ -58,7 +61,7 @@ export function commissionMoney(value, currency) {
   }).format(Number(value || 0));
 }
 
-export function attendanceStatusLabel(value) {
+export function attendanceStatusLabel(value, t = null) {
   const labels = {
     on_time: "On time",
     late: "Late",
@@ -71,17 +74,19 @@ export function attendanceStatusLabel(value) {
     leave: "Approved leave",
     scheduled: "Scheduled"
   };
-  return labels[value] || String(value || "—").replaceAll("_", " ");
+  const label = labels[value] || String(value || "—").replaceAll("_", " ");
+  return t ? t(label) : label;
 }
 
-export function leaveStatusLabel(value) {
+export function leaveStatusLabel(value, t = null) {
   const labels = {
     pending: "Pending",
     approved: "Approved",
     rejected: "Rejected",
     cancelled: "Cancelled"
   };
-  return labels[value] || String(value || "—");
+  const label = labels[value] || String(value || "—");
+  return t ? t(label) : label;
 }
 
 export async function getMyAttendanceStatus(supabase) {
@@ -380,7 +385,7 @@ export function downloadStaffExcel(filename, columns, rows, summary = [], title 
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function buildDayOffMatrix(attendanceRows, staffRows, dateFrom, dateTo) {
+export function buildDayOffMatrix(attendanceRows, staffRows, dateFrom, dateTo, t = null) {
   const dates = [];
   const first = new Date(`${dateFrom}T00:00:00Z`);
   const last = new Date(`${dateTo}T00:00:00Z`);
@@ -398,22 +403,23 @@ export function buildDayOffMatrix(attendanceRows, staffRows, dateFrom, dateTo) {
     for (const date of dates) {
       const attendance = byStaffDate.get(`${staff.id}:${date}`);
       const status = attendance?.attendance_status;
-      row[date] = status === "day_off" || status === "worked_day_off"
+      const statusText = status === "day_off" || status === "worked_day_off"
         ? "Day Off"
         : status === "leave"
           ? "Approved Leave"
           : status === "absent"
             ? "Absent"
             : "Working day";
+      row[date] = t ? t(statusText) : statusText;
     }
     return row;
   });
   return {
     columns: [
-      { label: "No", value: "number", width: 42 },
-      { label: "System ID", value: "system_id", width: 76 },
-      { label: "Employee Name", value: "full_name", width: 145 },
-      { label: "Position", value: "position", width: 105 },
+      { label: t ? t("No") : "No", value: "number", width: 42 },
+      { label: t ? t("System ID") : "System ID", value: "system_id", width: 76 },
+      { label: t ? t("Employee Name") : "Employee Name", value: "full_name", width: 145 },
+      { label: t ? t("Position") : "Position", value: "position", width: 105 },
       ...dates.map((date) => ({ label: String(Number(date.slice(8, 10))), value: date, width: 50 }))
     ],
     rows
