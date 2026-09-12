@@ -82,13 +82,20 @@ export function telegramLinkUrl(botUsername, code) {
   return `https://t.me/${botUsername}?start=link_${code}`;
 }
 
-export function telegramDateTime(value) {
+export function telegramDateTime(value, locale = "en-US") {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
+  try {
+    return new Intl.DateTimeFormat(locale || "en-US", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(new Date(value));
+  } catch {
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(new Date(value));
+  }
 }
 
 export async function notifyTelegramEvent(
