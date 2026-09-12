@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import ImportDropzone from "../components/ImportDropzone";
 import ImportPreviewTable from "../components/ImportPreviewTable";
 import {
@@ -41,6 +42,8 @@ const duplicateModes = [
 
 export default function ImportCenterPage() {
   const { supabase, profile, can } = useAuth();
+  const { t, language } = useLanguage();
+  const dateLocale = language === "km" ? "km-KH" : "en-US";
   const canImport = can("import.manage");
 
   const [type, setType] = useState("products");
@@ -94,7 +97,7 @@ export default function ImportCenterPage() {
 
     if (!nextFile.name.toLowerCase().endsWith(".csv")) {
       setParsed({ headers: [], data: [] });
-      setValidationErrors(["Choose a .csv file."]);
+      setValidationErrors([t("Choose a .csv file.")]);
       return;
     }
 
@@ -125,8 +128,8 @@ export default function ImportCenterPage() {
       setMessageType(response.job?.failed_rows > 0 ? "warning" : "success");
       setMessage(
         response.job?.failed_rows > 0
-          ? "Import finished with row errors. Review or download the error list below."
-          : "Import completed successfully."
+          ? t("Import finished with row errors. Review or download the error list below.")
+          : t("Import completed successfully.")
       );
       await refreshHistory();
     } catch (error) {
@@ -141,8 +144,8 @@ export default function ImportCenterPage() {
     return (
       <section className="panel empty-state">
         <UploadCloud size={46} />
-        <h2>Owner or admin access required</h2>
-        <p>Bulk imports can change important business records and are restricted to owner and admin accounts.</p>
+        <h2>{t("Owner or admin access required")}</h2>
+        <p>{t("Bulk imports can change important business records and are restricted to owner and admin accounts.")}</p>
       </section>
     );
   }
@@ -151,10 +154,10 @@ export default function ImportCenterPage() {
     <div className="page-stack import-center-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">DATA MIGRATION</p>
-          <h1>Import Center</h1>
+          <p className="eyebrow">{t("DATA MIGRATION")}</p>
+          <h1>{t("Import Center")}</h1>
           <p className="muted">
-            Import structured CSV files into the new Tiny POS project without changing the old POS.
+            {t("Import structured CSV files into the new Tiny POS project without changing the old POS.")}
           </p>
         </div>
         <button
@@ -164,7 +167,7 @@ export default function ImportCenterPage() {
           disabled={loadingHistory}
         >
           <RefreshCw size={18} className={loadingHistory ? "spin" : ""} />
-          Refresh history
+          {t("Refresh history")}
         </button>
       </div>
 
@@ -186,8 +189,8 @@ export default function ImportCenterPage() {
               disabled={busy}
             >
               <Icon size={23} />
-              <strong>{item.label}</strong>
-              <span>{item.description}</span>
+              <strong>{t(item.label)}</strong>
+              <span>{t(item.description)}</span>
             </button>
           );
         })}
@@ -196,9 +199,9 @@ export default function ImportCenterPage() {
       <section className="panel import-workspace-panel">
         <div className="import-workspace-heading">
           <div>
-            <p className="eyebrow">STEP 1</p>
-            <h2>Prepare the {config.label} CSV</h2>
-            <p className="muted">Download the template, preserve the header row and save the completed file as CSV UTF-8.</p>
+            <p className="eyebrow">{t("STEP 1")}</p>
+            <h2>{t(`Prepare the ${config.label} CSV`)}</h2>
+            <p className="muted">{t("Download the template, preserve the header row and save the completed file as CSV UTF-8.")}</p>
           </div>
           <button
             type="button"
@@ -206,12 +209,12 @@ export default function ImportCenterPage() {
             onClick={() => downloadImportTemplate(type)}
           >
             <FileDown size={18} />
-            Download template
+            {t("Download template")}
           </button>
         </div>
 
         <div className="import-template-fields">
-          <strong>Template columns</strong>
+          <strong>{t("Template columns")}</strong>
           <div>
             {config.headers.map((header) => (
               <span key={header}>{header}</span>
@@ -225,7 +228,7 @@ export default function ImportCenterPage() {
           <div className="import-validation-errors">
             <AlertTriangle size={21} />
             <div>
-              <strong>Fix the CSV before importing</strong>
+              <strong>{t("Fix the CSV before importing")}</strong>
               {validationErrors.slice(0, 30).map((error) => (
                 <span key={error}>{error}</span>
               ))}
@@ -237,23 +240,23 @@ export default function ImportCenterPage() {
           <>
             <div className="import-file-summary">
               <div>
-                <span>Data rows</span>
-                <strong>{parsed.data.length.toLocaleString("en-US")}</strong>
+                <span>{t("Data rows")}</span>
+                <strong>{parsed.data.length.toLocaleString(dateLocale)}</strong>
               </div>
               <div>
-                <span>Columns</span>
+                <span>{t("Columns")}</span>
                 <strong>{parsed.headers.length}</strong>
               </div>
               <div>
-                <span>Validation</span>
-                <strong>{validationErrors.length === 0 ? "Ready" : `${validationErrors.length} issue(s)`}</strong>
+                <span>{t("Validation")}</span>
+                <strong>{validationErrors.length === 0 ? t("Ready") : `${validationErrors.length} ${t("issue(s)")}`}</strong>
               </div>
             </div>
 
             <div className="import-preview-heading">
               <div>
-                <p className="eyebrow">STEP 2</p>
-                <h2>Review the CSV preview</h2>
+                <p className="eyebrow">{t("STEP 2")}</p>
+                <h2>{t("Review the CSV preview")}</h2>
               </div>
             </div>
 
@@ -261,8 +264,8 @@ export default function ImportCenterPage() {
 
             <div className="import-execution-grid">
               <section>
-                <p className="eyebrow">STEP 3</p>
-                <h2>Choose duplicate behavior</h2>
+                <p className="eyebrow">{t("STEP 3")}</p>
+                <h2>{t("Choose duplicate behavior")}</h2>
                 <div className="import-duplicate-options">
                   {duplicateModes.map(([value, label, detail]) => (
                     <label className={duplicateMode === value ? "active" : ""} key={value}>
@@ -274,8 +277,8 @@ export default function ImportCenterPage() {
                         onChange={(event) => setDuplicateMode(event.target.value)}
                       />
                       <span>
-                        <strong>{label}</strong>
-                        <small>{detail}</small>
+                        <strong>{t(label)}</strong>
+                        <small>{t(detail)}</small>
                       </span>
                     </label>
                   ))}
@@ -284,9 +287,9 @@ export default function ImportCenterPage() {
 
               <section className="import-run-panel">
                 <UploadCloud size={31} />
-                <h2>Run import</h2>
+                <h2>{t("Run import")}</h2>
                 <p>
-                  The import runs inside a secure database transaction and records every failed row separately.
+                  {t("The import runs inside a secure database transaction and records every failed row separately.")}
                 </p>
                 <button
                   type="button"
@@ -295,7 +298,7 @@ export default function ImportCenterPage() {
                   disabled={!ready || busy}
                 >
                   <UploadCloud size={18} />
-                  {busy ? "Importing rows..." : `Import ${parsed.data.length.toLocaleString("en-US")} rows`}
+                  {busy ? t("Importing rows...") : `${t("Import")} ${parsed.data.length.toLocaleString(dateLocale)} ${t("rows")}`}
                 </button>
               </section>
             </div>
@@ -307,26 +310,26 @@ export default function ImportCenterPage() {
         <section className="panel import-result-panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">LATEST RESULT</p>
-              <h2>{result.job.file_name || config.label}</h2>
+              <p className="eyebrow">{t("LATEST RESULT")}</p>
+              <h2>{result.job.file_name || t(config.label)}</h2>
             </div>
             {result.job.failed_rows > 0 ? <AlertTriangle size={23} /> : <CheckCircle2 size={23} />}
           </div>
 
           <div className="import-result-metrics">
-            <article><span>Total</span><strong>{result.job.total_rows}</strong></article>
-            <article><span>Created</span><strong>{result.job.created_rows}</strong></article>
-            <article><span>Updated</span><strong>{result.job.updated_rows}</strong></article>
-            <article><span>Skipped</span><strong>{result.job.skipped_rows}</strong></article>
-            <article className={result.job.failed_rows ? "failed" : ""}><span>Failed</span><strong>{result.job.failed_rows}</strong></article>
+            <article><span>{t("Total")}</span><strong>{result.job.total_rows}</strong></article>
+            <article><span>{t("Created")}</span><strong>{result.job.created_rows}</strong></article>
+            <article><span>{t("Updated")}</span><strong>{result.job.updated_rows}</strong></article>
+            <article><span>{t("Skipped")}</span><strong>{result.job.skipped_rows}</strong></article>
+            <article className={result.job.failed_rows ? "failed" : ""}><span>{t("Failed")}</span><strong>{result.job.failed_rows}</strong></article>
           </div>
 
           {result.errors?.length > 0 && (
             <>
               <div className="import-error-toolbar">
                 <div>
-                  <strong>Row errors</strong>
-                  <span>Correct these rows and import them again.</span>
+                  <strong>{t("Row errors")}</strong>
+                  <span>{t("Correct these rows and import them again.")}</span>
                 </div>
                 <button
                   type="button"
@@ -334,14 +337,14 @@ export default function ImportCenterPage() {
                   onClick={() => downloadImportErrors(result)}
                 >
                   <Download size={18} />
-                  Download errors CSV
+                  {t("Download errors CSV")}
                 </button>
               </div>
 
               <div className="import-error-list">
                 {result.errors.slice(0, 100).map((error) => (
                   <article key={`${error.row_number}-${error.error_message}`}>
-                    <b>CSV row {Number(error.row_number)}</b>
+                    <b>{t("CSV row")} {Number(error.row_number)}</b>
                     <span>{error.error_message}</span>
                     <code>{JSON.stringify(error.row_data)}</code>
                   </article>
@@ -355,32 +358,32 @@ export default function ImportCenterPage() {
       <section className="panel import-history-panel">
         <div className="panel-title-row">
           <div>
-            <p className="eyebrow">HISTORY</p>
-            <h2>Import jobs</h2>
+            <p className="eyebrow">{t("HISTORY")}</p>
+            <h2>{t("Import jobs")}</h2>
           </div>
           <History size={22} />
         </div>
 
         {loadingHistory ? (
-          <div className="empty-state compact"><RefreshCw className="spin" /><p>Loading import history...</p></div>
+          <div className="empty-state compact"><RefreshCw className="spin" /><p>{t("Loading import history...")}</p></div>
         ) : history.length === 0 ? (
-          <div className="empty-state compact"><FileSpreadsheet size={42} /><p>No import jobs yet.</p></div>
+          <div className="empty-state compact"><FileSpreadsheet size={42} /><p>{t("No import jobs yet.")}</p></div>
         ) : (
           <div className="import-history-list">
             {history.map((job) => (
               <article key={job.id}>
                 <div>
-                  <strong>{importTypes[job.import_type]?.label || job.import_type}</strong>
-                  <span>{job.file_name || "Unnamed CSV"} · {importDateTime(job.started_at)}</span>
+                  <strong>{t(importTypes[job.import_type]?.label || job.import_type)}</strong>
+                  <span>{job.file_name || t("Unnamed CSV")} · {importDateTime(job.started_at, dateLocale)}</span>
                 </div>
                 <span className={`status-pill ${job.failed_rows > 0 ? "inactive" : "active"}`}>
-                  {String(job.status).replaceAll("_", " ")}
+                  {t(String(job.status).replaceAll("_", " "))}
                 </span>
                 <div className="import-history-counts">
-                  <span>{job.created_rows} created</span>
-                  <span>{job.updated_rows} updated</span>
-                  <span>{job.skipped_rows} skipped</span>
-                  <span>{job.failed_rows} failed</span>
+                  <span>{job.created_rows} {t("created")}</span>
+                  <span>{job.updated_rows} {t("updated")}</span>
+                  <span>{job.skipped_rows} {t("skipped")}</span>
+                  <span>{job.failed_rows} {t("failed")}</span>
                 </div>
               </article>
             ))}
