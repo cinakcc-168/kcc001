@@ -132,7 +132,7 @@ export default function DashboardPage() {
     can,
     canAny
   } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const [allBranches, setAllBranches] =
     useState(false);
@@ -225,7 +225,7 @@ export default function DashboardPage() {
     if (can("sales.create")) {
       actions.push({
         to: "/sales",
-        label: "New Sale",
+        label: t("New Sale"),
         icon: ShoppingCart
       });
     }
@@ -238,7 +238,7 @@ export default function DashboardPage() {
     ) {
       actions.push({
         to: "/cash-register",
-        label: "Cash Register",
+        label: t("Cash Register"),
         icon: Banknote
       });
     }
@@ -246,7 +246,7 @@ export default function DashboardPage() {
     if (can("returns.process")) {
       actions.push({
         to: "/returns",
-        label: "Return / Refund",
+        label: t("Return / Refund"),
         icon: RotateCcw
       });
     }
@@ -259,7 +259,7 @@ export default function DashboardPage() {
     ) {
       actions.push({
         to: "/purchase-orders",
-        label: "Purchase Order",
+        label: t("Purchase Order"),
         icon: ClipboardList
       });
     }
@@ -267,7 +267,7 @@ export default function DashboardPage() {
     if (can("reorder.manage")) {
       actions.push({
         to: "/reorder",
-        label: "Reorder Planner",
+        label: t("Reorder Planner"),
         icon: PackageSearch
       });
     }
@@ -288,7 +288,7 @@ export default function DashboardPage() {
     if (can("reports.view")) {
       actions.push({
         to: "/reports",
-        label: "Reports",
+        label: t("Reports"),
         icon: BarChart3
       });
     }
@@ -311,7 +311,8 @@ export default function DashboardPage() {
   );
 
   const monthChange = dashboardPercent(
-    periods.month_change_percent
+    periods.month_change_percent,
+    t
   );
 
   return (
@@ -319,16 +320,16 @@ export default function DashboardPage() {
       <div className="page-heading">
         <div>
           <p className="eyebrow">
-            BUSINESS OVERVIEW
+            {t("BUSINESS OVERVIEW")}
           </p>
-          <h1>Dashboard</h1>
+          <h1>{t("Dashboard")}</h1>
           <p className="muted">
             {t("Welcome back")},{" "}
-            {profile?.full_name || "POS User"}.
+            {profile?.full_name || t("POS User")}.
             {" · "}
             {dashboard.meta?.branch_name
               || profile?.branches?.name
-              || "Current branch"}
+              || t("Current branch")}
           </p>
         </div>
 
@@ -349,10 +350,10 @@ export default function DashboardPage() {
                 }
               >
                 <option value="current">
-                  Current branch
+                  {t("Current branch")}
                 </option>
                 <option value="all">
-                  All branches
+                  {t("All branches")}
                 </option>
               </select>
             </label>
@@ -368,7 +369,7 @@ export default function DashboardPage() {
               size={18}
               className={loading ? "spin" : ""}
             />
-            Refresh
+            {t("Refresh")}
           </button>
         </div>
       </div>
@@ -381,13 +382,14 @@ export default function DashboardPage() {
 
       <div className="dashboard-updated-row">
         <span>
-          Business date:{" "}
+          {t("Business date")}:{" "}
           {dashboard.meta?.business_date || "—"}
         </span>
         <span>
-          Updated:{" "}
+          {t("Updated")}:{" "}
           {dashboardDateTime(
-            dashboard.meta?.generated_at
+            dashboard.meta?.generated_at,
+            language
           )}
         </span>
       </div>
@@ -395,21 +397,21 @@ export default function DashboardPage() {
       <div className="dashboard-metric-grid">
         <MetricCard
           icon={CircleDollarSign}
-          label="Today's net sales"
+          label={t("Today's net sales")}
           value={money(
             today.net_sales || 0,
             currency
           )}
           detail={[
-            `${Number(today.sale_count || 0)} sales`,
-            `${Number(today.refund_count || 0)} refunds`
+            `${Number(today.sale_count || 0)} ${t("sales")}`,
+            `${Number(today.refund_count || 0)} ${t("refunds")}`
           ].join(" · ")}
           tone="sales"
         />
 
         <MetricCard
           icon={ReceiptText}
-          label="Average sale"
+          label={t("Average sale")}
           value={money(
             today.average_sale || 0,
             currency
@@ -417,24 +419,24 @@ export default function DashboardPage() {
           detail={`${money(
             today.refunds || 0,
             currency
-          )} refunded today`}
+          )} ${t("refunded today")}`}
         />
 
         <MetricCard
           icon={TrendingUp}
-          label="This week"
+          label={t("This week")}
           value={money(
             periods.week_net_sales || 0,
             currency
           )}
           detail={`${Number(
             periods.week_sale_count || 0
-          )} sales`}
+          )} ${t("sales")}`}
         />
 
         <MetricCard
           icon={BarChart3}
-          label="This month"
+          label={t("This month")}
           value={money(
             periods.month_net_sales || 0,
             currency
@@ -445,7 +447,7 @@ export default function DashboardPage() {
         {canViewProfit ? (
           <MetricCard
             icon={TrendingUp}
-            label="Today's net profit"
+            label={t("Today's net profit")}
             value={money(
               today.net_profit || 0,
               currency
@@ -454,18 +456,18 @@ export default function DashboardPage() {
               `${money(
                 today.gross_profit || 0,
                 currency
-              )} gross profit`,
+              )} ${t("gross profit")}`,
               `${money(
                 today.operating_expenses || 0,
                 currency
-              )} expenses`
+              )} ${t("expenses")}`
             ].join(" · ")}
             tone="profit"
           />
         ) : (
           <MetricCard
             icon={Boxes}
-            label="Active products"
+            label={t("Active products")}
             value={Number(
               dashboard.quick_counts
                 ?.active_products || 0
@@ -473,7 +475,7 @@ export default function DashboardPage() {
             detail={`${Number(
               dashboard.quick_counts
                 ?.active_customers || 0
-            ).toLocaleString("en-US")} customers`}
+            ).toLocaleString("en-US")} ${t("customers")}`}
           />
         )}
       </div>
@@ -505,16 +507,15 @@ export default function DashboardPage() {
           <div className="panel-title-row">
             <div>
               <p className="eyebrow">
-                ACTION CENTER
+                {t("ACTION CENTER")}
               </p>
-              <h2>Needs attention</h2>
+              <h2>{t("Needs attention")}</h2>
               <span className="muted">
                 {dashboard.alerts.length}
                 {" "}
-                active alert
                 {dashboard.alerts.length === 1
-                  ? ""
-                  : "s"}
+                  ? t("active alert")
+                  : t("active alerts")}
               </span>
             </div>
             <PackageSearch size={23} />
@@ -523,10 +524,9 @@ export default function DashboardPage() {
           {dashboard.alerts.length === 0 ? (
             <div className="dashboard-all-clear">
               <span>✓</span>
-              <strong>Everything looks good</strong>
+              <strong>{t("Everything looks good")}</strong>
               <p>
-                There are no urgent operational
-                alerts for this scope.
+                {t("There are no urgent operational alerts for this scope.")}
               </p>
             </div>
           ) : (
@@ -548,9 +548,9 @@ export default function DashboardPage() {
           <div className="panel-title-row">
             <div>
               <p className="eyebrow">
-                TODAY
+                {t("TODAY")}
               </p>
-              <h2>Payment methods</h2>
+              <h2>{t("Payment methods")}</h2>
             </div>
             <WalletCards size={22} />
           </div>
@@ -558,7 +558,7 @@ export default function DashboardPage() {
           {(dashboard.payment_methods || [])
             .length === 0 ? (
             <div className="empty-state compact">
-              <p>No payments today.</p>
+              <p>{t("No payments today.")}</p>
             </div>
           ) : (
             <div className="dashboard-progress-list">
@@ -567,21 +567,20 @@ export default function DashboardPage() {
                   <article key={row.method}>
                     <div>
                       <strong>
-                        {paymentMethodLabel(
+                        {t(paymentMethodLabel(
                           row.method
-                        )}
+                        ))}
                       </strong>
                       <span>
                         {Number(
                           row.transaction_count || 0
                         )}
                         {" "}
-                        transaction
                         {Number(
                           row.transaction_count || 0
                         ) === 1
-                          ? ""
-                          : "s"}
+                          ? t("transaction")
+                          : t("transactions")}
                       </span>
                     </div>
 
@@ -623,9 +622,9 @@ export default function DashboardPage() {
           <div className="panel-title-row">
             <div>
               <p className="eyebrow">
-                LAST 7 DAYS
+                {t("LAST 7 DAYS")}
               </p>
-              <h2>Top products</h2>
+              <h2>{t("Top products")}</h2>
             </div>
             <Boxes size={22} />
           </div>
@@ -633,7 +632,7 @@ export default function DashboardPage() {
           {(dashboard.top_products || [])
             .length === 0 ? (
             <div className="empty-state compact">
-              <p>No product sales yet.</p>
+              <p>{t("No product sales yet.")}</p>
             </div>
           ) : (
             <div className="dashboard-ranked-list">
@@ -655,7 +654,8 @@ export default function DashboardPage() {
                         {stockNumber(
                           row.base_quantity || 0
                         )}
-                        {" base units sold"}
+                        {" "}
+                        {t("base units sold")}
                       </small>
                     </div>
 
@@ -675,7 +675,8 @@ export default function DashboardPage() {
                               row.profit_amount || 0,
                               currency
                             )}
-                            {" profit"}
+                            {" "}
+                            {t("profit")}
                           </small>
                         )}
                     </div>
@@ -694,9 +695,9 @@ export default function DashboardPage() {
             <div className="panel-title-row">
               <div>
                 <p className="eyebrow">
-                  TODAY
+                  {t("TODAY")}
                 </p>
-                <h2>Branch performance</h2>
+                <h2>{t("Branch performance")}</h2>
               </div>
               <Store size={22} />
             </div>
@@ -715,7 +716,8 @@ export default function DashboardPage() {
                         {Number(
                           branch.sale_count || 0
                         )}
-                        {" sales"}
+                        {" "}
+                        {t("sales")}
                       </span>
                     </div>
 
@@ -749,7 +751,8 @@ export default function DashboardPage() {
                           branch.net_profit || 0,
                           currency
                         )}
-                        {" profit"}
+                        {" "}
+                        {t("profit")}
                       </small>
                     )}
                   </article>
@@ -763,9 +766,9 @@ export default function DashboardPage() {
         <div className="panel-title-row">
           <div>
             <p className="eyebrow">
-              LATEST ACTIVITY
+              {t("LATEST ACTIVITY")}
             </p>
-            <h2>Recent sales</h2>
+            <h2>{t("Recent sales")}</h2>
           </div>
 
           <Link
@@ -780,20 +783,20 @@ export default function DashboardPage() {
         {(dashboard.recent_sales || [])
           .length === 0 ? (
           <div className="empty-state compact">
-            <p>No completed sales yet.</p>
+            <p>{t("No completed sales yet.")}</p>
           </div>
         ) : (
           <div className="dashboard-recent-table-wrap">
             <table className="dashboard-recent-table">
               <thead>
                 <tr>
-                  <th>Invoice</th>
-                  <th>Date</th>
-                  <th>Customer</th>
-                  <th>Cashier</th>
-                  {allBranches && <th>Branch</th>}
-                  <th>Status</th>
-                  <th>Net total</th>
+                  <th>{t("Invoice")}</th>
+                  <th>{t("Date")}</th>
+                  <th>{t("Customer")}</th>
+                  <th>{t("Cashier")}</th>
+                  {allBranches && <th>{t("Branch")}</th>}
+                  <th>{t("Status")}</th>
+                  <th>{t("Net total")}</th>
                 </tr>
               </thead>
 
@@ -801,33 +804,34 @@ export default function DashboardPage() {
                 {dashboard.recent_sales.map(
                   (sale) => (
                     <tr key={sale.id}>
-                      <td data-label="Invoice">
+                      <td data-label={t("Invoice")}>
                         <strong>
                           {sale.invoice_number}
                         </strong>
                       </td>
 
-                      <td data-label="Date">
+                      <td data-label={t("Date")}>
                         {dashboardDateTime(
-                          sale.completed_at
+                          sale.completed_at,
+                          language
                         )}
                       </td>
 
-                      <td data-label="Customer">
+                      <td data-label={t("Customer")}>
                         {sale.customer_name}
                       </td>
 
-                      <td data-label="Cashier">
+                      <td data-label={t("Cashier")}>
                         {sale.cashier_name}
                       </td>
 
                       {allBranches && (
-                        <td data-label="Branch">
+                        <td data-label={t("Branch")}>
                           {sale.branch_name}
                         </td>
                       )}
 
-                      <td data-label="Status">
+                      <td data-label={t("Status")}>
                         <span
                           className={`status-pill ${
                             sale.status === "completed"
@@ -835,13 +839,13 @@ export default function DashboardPage() {
                               : "inactive"
                           }`}
                         >
-                          {String(
+                          {t(String(
                             sale.status || ""
-                          ).replaceAll("_", " ")}
+                          ).replaceAll("_", " "))}
                         </span>
                       </td>
 
-                      <td data-label="Net total">
+                      <td data-label={t("Net total")}>
                         <strong>
                           {money(
                             sale.net_total || 0,
@@ -857,7 +861,8 @@ export default function DashboardPage() {
                               sale.refund_total,
                               currency
                             )}
-                            {" refunded"}
+                            {" "}
+                            {t("refunded")}
                           </small>
                         )}
                       </td>
@@ -873,7 +878,7 @@ export default function DashboardPage() {
       <section className="dashboard-count-strip">
         <article>
           <Boxes size={19} />
-          <span>Products</span>
+          <span>{t("Products")}</span>
           <strong>
             {Number(
               dashboard.quick_counts
@@ -884,7 +889,7 @@ export default function DashboardPage() {
 
         <article>
           <UsersRound size={19} />
-          <span>Customers</span>
+          <span>{t("Customers")}</span>
           <strong>
             {Number(
               dashboard.quick_counts
@@ -895,7 +900,7 @@ export default function DashboardPage() {
 
         <article>
           <Store size={19} />
-          <span>Branches</span>
+          <span>{t("Branches")}</span>
           <strong>
             {Number(
               dashboard.quick_counts
@@ -906,7 +911,7 @@ export default function DashboardPage() {
 
         <article>
           <ArrowLeftRight size={19} />
-          <span>Staff</span>
+          <span>{t("Staff")}</span>
           <strong>
             {Number(
               dashboard.quick_counts
