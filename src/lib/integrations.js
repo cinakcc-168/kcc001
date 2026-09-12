@@ -9,5 +9,18 @@ export const INTEGRATION_SCOPES = [
 export const INTEGRATION_EVENTS=["product.created","product.updated","inventory.changed","customer.created","customer.updated","sale.completed","sale.voided","return.completed","online_order.created","online_order.updated","sales_order.updated","purchase.received","integration.test"];
 export async function integrationAdminRequest(session,action,payload={}){const response=await fetch("/.netlify/functions/integration-admin",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session?.access_token||""}`},body:JSON.stringify({action,...payload})});const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||`Integration request failed (${response.status})`);return data;}
 export function downloadJson(filename,value){const blob=new Blob([JSON.stringify(value,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
-export function integrationDate(value){if(!value)return "—";return new Intl.DateTimeFormat("en-US",{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));}
+export function integrationDate(value, locale = "en-US") {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat(locale || "en-US", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(new Date(value));
+  } catch {
+    return new Intl.DateTimeFormat("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(new Date(value));
+  }
+}
 export function statusClass(status){return ["succeeded","active"].includes(status)?"success":["dead","failed","revoked"].includes(status)?"danger":["retry","pending","delivering"].includes(status)?"warning":"neutral";}
