@@ -11,6 +11,7 @@ import {
 } from "react";
 import Modal from "./Modal";
 import { useLanguage } from "../context/LanguageContext";
+import { roleLabel } from "../lib/staff";
 
 function fieldValue(value) {
   return value === null
@@ -252,7 +253,7 @@ export default function UserPermissionModal({
             <span>
               {member.email}
               {" · "}
-              {t(member.role)}
+              {t(roleLabel(member.role))}
               {" · "}
               {member.branch_name
                 ? member.branch_name
