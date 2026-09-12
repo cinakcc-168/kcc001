@@ -1,6 +1,5 @@
 import {
   Banknote,
-  CalendarDays,
   CircleDollarSign,
   Eye,
   LockKeyhole,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import CashRegisterCloseModal from "../components/CashRegisterCloseModal";
 import CashRegisterReportModal from "../components/CashRegisterReportModal";
 import ResponsiveDataList from "../components/ResponsiveDataList";
@@ -25,10 +25,10 @@ import {
 } from "../lib/cashRegister";
 import { notifyTelegramEvent } from "../lib/telegram";
 
-function dateTime(value) {
+function dateTime(value, language = "en") {
   if (!value) return "—";
 
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(language === "km" ? "km-KH" : "en-US", {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
@@ -38,23 +38,23 @@ function value(summary, currency, field) {
   return Number(summary?.totals?.[currency]?.[field] || 0);
 }
 
-function DrawerBreakdown({ summary, currency }) {
+function DrawerBreakdown({ summary, currency, t }) {
   const rows = [
-    ["Opening cash", "opening", "plus"],
-    ["Cash sales", "cash_sales", "plus"],
-    ["Cash refunds", "cash_refunds", "minus"],
-    ["Other cash in", "cash_income", "plus"],
-    ["Cash expenses", "cash_expenses", "minus"],
-    ["Supplier payments", "supplier_payments", "minus"]
+    [t("Opening cash"), "opening", "plus"],
+    [t("Cash sales"), "cash_sales", "plus"],
+    [t("Cash refunds"), "cash_refunds", "minus"],
+    [t("Other cash in"), "cash_income", "plus"],
+    [t("Cash expenses"), "cash_expenses", "minus"],
+    [t("Supplier payments"), "supplier_payments", "minus"]
   ];
 
   return (
     <section className="register-drawer-panel panel">
       <div className="panel-title-row">
         <div>
-          <p className="eyebrow">{currency} DRAWER</p>
+          <p className="eyebrow">{t(`${currency} DRAWER`)}</p>
           <h2>{money(value(summary, currency, "expected"), currency)}</h2>
-          <span className="muted">Expected cash now</span>
+          <span className="muted">{t("Expected cash now")}</span>
         </div>
         <Banknote size={24} />
       </div>
@@ -76,6 +76,7 @@ function DrawerBreakdown({ summary, currency }) {
 
 export default function CashRegisterPage() {
   const { supabase, session, profile, shop, canAny, can } = useAuth();
+  const { t, language } = useLanguage();
   const canOverride = can("cash_register.override");
   const canOperate = canAny([
     "cash_register.use",
@@ -156,7 +157,7 @@ export default function CashRegisterPage() {
     event.preventDefault();
 
     if (!opening.register_name.trim()) {
-      announce("error", "Register name is required.");
+      announce("error", t("Register name is required."));
       return;
     }
 
@@ -177,7 +178,7 @@ export default function CashRegisterPage() {
       });
       announce(
         "success",
-        `${result.session.session_number} opened. Cash payments are now available.`
+        `${result.session.session_number} ${t("opened. Cash payments are now available.")}`
       );
       await refresh();
     } catch (error) {
@@ -201,7 +202,7 @@ export default function CashRegisterPage() {
       setOpenSummary(null);
       announce(
         "success",
-        `${result.session.session_number} closed successfully.`
+        `${result.session.session_number} ${t("closed successfully.")}`
       );
       await refresh();
     } catch (error) {
@@ -228,7 +229,7 @@ export default function CashRegisterPage() {
 
   async function openOverrideClose(sessionId) {
     if (!canOverride) {
-      announce("error", "Cash-register override permission is required.");
+      announce("error", t("Cash-register override permission is required."));
       return;
     }
 
@@ -239,7 +240,7 @@ export default function CashRegisterPage() {
         sessionId
       );
       if (!result?.session || result.session.status !== "open") {
-        announce("error", "That register session is no longer open.");
+        announce("error", t("That register session is no longer open."));
         await refresh();
         return;
       }
@@ -256,10 +257,9 @@ export default function CashRegisterPage() {
     return (
       <section className="panel empty-state">
         <WalletCards size={46} />
-        <h2>Cash register access is restricted</h2>
+        <h2>{t("Cash register access is restricted")}</h2>
         <p>
-          Only an owner, admin, manager or cashier can operate a
-          register.
+          {t("Only an owner, admin, manager or cashier can operate a register.")}
         </p>
       </section>
     );
@@ -269,11 +269,10 @@ export default function CashRegisterPage() {
     <div className="page-stack cash-register-page">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">CASH CONTROL</p>
-          <h1>Cash Register</h1>
+          <p className="eyebrow">{t("CASH CONTROL")}</p>
+          <h1>{t("Cash Register")}</h1>
           <p className="muted">
-            Open the drawer, track expected cash and close the shift
-            with a counted balance.
+            {t("Open the drawer, track expected cash and close the shift with a counted balance.")}
           </p>
         </div>
 
@@ -287,7 +286,7 @@ export default function CashRegisterPage() {
             size={18}
             className={loading ? "spin" : ""}
           />
-          Refresh
+          {t("Refresh")}
         </button>
       </div>
 
@@ -304,12 +303,14 @@ export default function CashRegisterPage() {
               <UnlockKeyhole size={26} />
             </div>
             <div>
-              <p className="eyebrow">REGISTER OPEN</p>
+              <p className="eyebrow">{t("REGISTER OPEN")}</p>
               <h2>{activeSession.session_number}</h2>
               <span>
                 {activeSession.register_name}
-                {" · Opened "}
-                {dateTime(activeSession.opened_at)}
+                {" · "}
+                {t("Opened")}
+                {" "}
+                {dateTime(activeSession.opened_at, language)}
               </span>
             </div>
 
@@ -320,7 +321,7 @@ export default function CashRegisterPage() {
                 onClick={() => setReport(openSummary)}
               >
                 <Eye size={18} />
-                View report
+                {t("View report")}
               </button>
               <button
                 type="button"
@@ -328,7 +329,7 @@ export default function CashRegisterPage() {
                 onClick={() => setCloseOpen(true)}
               >
                 <LockKeyhole size={18} />
-                Close register
+                {t("Close register")}
               </button>
             </div>
           </section>
@@ -336,7 +337,7 @@ export default function CashRegisterPage() {
           <div className="register-metrics">
             <article>
               <CircleDollarSign size={22} />
-              <span>Cash sales</span>
+              <span>{t("Cash sales")}</span>
               <strong>
                 {money(value(openSummary, "USD", "cash_sales"), "USD")}
               </strong>
@@ -346,7 +347,7 @@ export default function CashRegisterPage() {
             </article>
             <article>
               <Scale size={22} />
-              <span>Cash refunds</span>
+              <span>{t("Cash refunds")}</span>
               <strong>
                 {money(value(openSummary, "USD", "cash_refunds"), "USD")}
               </strong>
@@ -356,7 +357,7 @@ export default function CashRegisterPage() {
             </article>
             <article>
               <WalletCards size={22} />
-              <span>Cash expenses</span>
+              <span>{t("Cash expenses")}</span>
               <strong>
                 {money(value(openSummary, "USD", "cash_expenses"), "USD")}
               </strong>
@@ -366,7 +367,7 @@ export default function CashRegisterPage() {
             </article>
             <article>
               <Banknote size={22} />
-              <span>Expected drawers</span>
+              <span>{t("Expected drawers")}</span>
               <strong>
                 {money(value(openSummary, "USD", "expected"), "USD")}
               </strong>
@@ -380,10 +381,12 @@ export default function CashRegisterPage() {
             <DrawerBreakdown
               summary={openSummary}
               currency="USD"
+              t={t}
             />
             <DrawerBreakdown
               summary={openSummary}
               currency="KHR"
+              t={t}
             />
           </div>
         </>
@@ -394,18 +397,17 @@ export default function CashRegisterPage() {
               <LockKeyhole size={26} />
             </div>
             <div>
-              <p className="eyebrow">REGISTER CLOSED</p>
-              <h2>Open a cash register</h2>
+              <p className="eyebrow">{t("REGISTER CLOSED")}</p>
+              <h2>{t("Open a cash register")}</h2>
               <p className="muted">
-                Cash payments are disabled until a register is open.
-                Bank, KHQR, card and other payment methods still work.
+                {t("Cash payments are disabled until a register is open. Bank, KHQR, card and other payment methods still work.")}
               </p>
             </div>
           </div>
 
           <form className="register-open-form" onSubmit={handleOpen}>
             <label>
-              <span>Register name</span>
+              <span>{t("Register name")}</span>
               <input
                 value={opening.register_name}
                 onChange={(event) =>
@@ -419,7 +421,7 @@ export default function CashRegisterPage() {
             </label>
 
             <label>
-              <span>Opening USD cash</span>
+              <span>{t("Opening USD cash")}</span>
               <input
                 type="number"
                 min="0"
@@ -435,7 +437,7 @@ export default function CashRegisterPage() {
             </label>
 
             <label>
-              <span>Opening KHR cash</span>
+              <span>{t("Opening KHR cash")}</span>
               <input
                 type="number"
                 min="0"
@@ -451,7 +453,7 @@ export default function CashRegisterPage() {
             </label>
 
             <label className="register-opening-note">
-              <span>Opening note</span>
+              <span>{t("Opening note")}</span>
               <textarea
                 rows="3"
                 value={opening.opening_note}
@@ -461,7 +463,7 @@ export default function CashRegisterPage() {
                     opening_note: event.target.value
                   }))
                 }
-                placeholder="Optional handover or drawer note"
+                placeholder={t("Optional handover or drawer note")}
               />
             </label>
 
@@ -472,8 +474,8 @@ export default function CashRegisterPage() {
             >
               <UnlockKeyhole size={18} />
               {busy === "open"
-                ? "Opening register..."
-                : "Open register"}
+                ? t("Opening register...")
+                : t("Open register")}
             </button>
           </form>
         </section>
@@ -481,9 +483,9 @@ export default function CashRegisterPage() {
 
       <section className="panel register-history-filters-panel">
         <div className="register-history-summary">
-          <div><span>Closed sessions</span><strong>{historyTotals.sessions}</strong></div>
-          <div><span>Total USD variance</span><strong>{money(historyTotals.varianceUsd, "USD")}</strong></div>
-          <div><span>Total KHR variance</span><strong>{money(historyTotals.varianceKhr, "KHR")}</strong></div>
+          <div><span>{t("Closed sessions")}</span><strong>{historyTotals.sessions}</strong></div>
+          <div><span>{t("Total USD variance")}</span><strong>{money(historyTotals.varianceUsd, "USD")}</strong></div>
+          <div><span>{t("Total KHR variance")}</span><strong>{money(historyTotals.varianceKhr, "KHR")}</strong></div>
         </div>
         <div className="register-history-filters">
           <DateRangePresetFields
@@ -502,37 +504,37 @@ export default function CashRegisterPage() {
 
       <ResponsiveDataList
         storageKey="cash-register-sessions"
-        title="Cash register sessions"
-        subtitle={`${filters.from} to ${filters.to} · ${profile?.branches?.name || "Current branch"}`}
+        title={t("Cash register sessions")}
+        subtitle={`${filters.from} to ${filters.to} · ${profile?.branches?.name || t("Current branch")}`}
         rows={sessions}
         filename={`tiny-pos-cash-register-${filters.from}-to-${filters.to}.xls`}
         summary={[
-          { label: "Closed sessions", value: historyTotals.sessions },
-          { label: "Total USD variance", value: money(historyTotals.varianceUsd, "USD") },
-          { label: "Total KHR variance", value: money(historyTotals.varianceKhr, "KHR") }
+          { label: t("Closed sessions"), value: historyTotals.sessions },
+          { label: t("Total USD variance"), value: money(historyTotals.varianceUsd, "USD") },
+          { label: t("Total KHR variance"), value: money(historyTotals.varianceKhr, "KHR") }
         ]}
-        emptyTitle={loading ? "Loading register history..." : "No register sessions"}
-        emptyText="Open the first cash register to begin shift tracking."
+        emptyTitle={loading ? t("Loading register history...") : t("No register sessions")}
+        emptyText={t("Open the first cash register to begin shift tracking.")}
         columns={[
-          { label: "Session", width: 170, documentValue: (row) => row.session_number, render: (row) => <><strong>{row.session_number}</strong><small>{row.register_name}</small></> },
-          { label: "Opened", width: 150, documentValue: (row) => dateTime(row.opened_at), render: (row) => dateTime(row.opened_at) },
-          { label: "Closed", width: 150, documentValue: (row) => dateTime(row.closed_at), render: (row) => dateTime(row.closed_at) },
-          { label: "Opened by", width: 150, value: (row) => row.opened_by_profile?.full_name || "POS Staff" },
-          { label: "Status", width: 90, documentValue: (row) => row.status, render: (row) => <span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{row.status}</span> },
-          { label: "Expected USD", width: 110, documentValue: (row) => money(row.expected_cash_usd || 0, "USD"), render: (row) => money(row.expected_cash_usd || 0, "USD") },
-          { label: "Expected KHR", width: 120, documentValue: (row) => money(row.expected_cash_khr || 0, "KHR"), render: (row) => money(row.expected_cash_khr || 0, "KHR") },
-          { label: "Variance USD", width: 110, documentValue: (row) => row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—", render: (row) => <strong className={Number(row.variance_usd || 0) === 0 ? "variance-balanced" : Number(row.variance_usd || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong> },
-          { label: "Variance KHR", width: 120, documentValue: (row) => row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—", render: (row) => <strong className={Number(row.variance_khr || 0) === 0 ? "variance-balanced" : Number(row.variance_khr || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</strong> },
-          { label: "Report", actionsOnly: true, excludeDocument: true, render: (row) => (
+          { label: t("Session"), width: 170, documentValue: (row) => row.session_number, render: (row) => <><strong>{row.session_number}</strong><small>{row.register_name}</small></> },
+          { label: t("Opened"), width: 150, documentValue: (row) => dateTime(row.opened_at, language), render: (row) => dateTime(row.opened_at, language) },
+          { label: t("Closed"), width: 150, documentValue: (row) => dateTime(row.closed_at, language), render: (row) => dateTime(row.closed_at, language) },
+          { label: t("Opened by"), width: 150, value: (row) => row.opened_by_profile?.full_name || t("POS Staff") },
+          { label: t("Status"), width: 90, documentValue: (row) => t(row.status), render: (row) => <span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{t(row.status)}</span> },
+          { label: t("Expected USD"), width: 110, documentValue: (row) => money(row.expected_cash_usd || 0, "USD"), render: (row) => money(row.expected_cash_usd || 0, "USD") },
+          { label: t("Expected KHR"), width: 120, documentValue: (row) => money(row.expected_cash_khr || 0, "KHR"), render: (row) => money(row.expected_cash_khr || 0, "KHR") },
+          { label: t("Variance USD"), width: 110, documentValue: (row) => row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—", render: (row) => <strong className={Number(row.variance_usd || 0) === 0 ? "variance-balanced" : Number(row.variance_usd || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong> },
+          { label: t("Variance KHR"), width: 120, documentValue: (row) => row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—", render: (row) => <strong className={Number(row.variance_khr || 0) === 0 ? "variance-balanced" : Number(row.variance_khr || 0) > 0 ? "variance-over" : "variance-short"}>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</strong> },
+          { label: t("Report"), actionsOnly: true, excludeDocument: true, render: (row) => (
             <div className="register-session-row-actions">
-              <button type="button" className="icon-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`} title="View report"><Eye size={18} /></button>
+              <button type="button" className="icon-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`} title={t("View report")}><Eye size={18} /></button>
               {canOverride && row.status === "open" && (
-                <button type="button" className="icon-button danger-text" onClick={() => openOverrideClose(row.id)} disabled={busy === `prepare-close-${row.id}`} title="Override close register"><LockKeyhole size={18} /></button>
+                <button type="button" className="icon-button danger-text" onClick={() => openOverrideClose(row.id)} disabled={busy === `prepare-close-${row.id}`} title={t("Override close register")}><LockKeyhole size={18} /></button>
               )}
             </div>
           ) }
         ]}
-        renderCard={(row) => <article className="responsive-data-card register-session-card"><header><div><strong>{row.session_number}</strong><small>{row.register_name}</small></div><span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{row.status}</span></header><div><span>Opened</span><strong>{dateTime(row.opened_at)}</strong></div><div><span>Closed</span><strong>{dateTime(row.closed_at)}</strong></div><div><span>Opened by</span><strong>{row.opened_by_profile?.full_name || "POS Staff"}</strong></div><div><span>Expected</span><strong>{money(row.expected_cash_usd || 0, "USD")}</strong><small>{money(row.expected_cash_khr || 0, "KHR")}</small></div><div><span>Variance</span><strong>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong><small>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</small></div><footer><button type="button" className="secondary-button compact-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`}><Eye size={18} />View report</button>{canOverride && row.status === "open" && <button type="button" className="danger-button compact-button" onClick={() => openOverrideClose(row.id)} disabled={busy === `prepare-close-${row.id}`}><LockKeyhole size={17} />Override close</button>}</footer></article>}
+        renderCard={(row) => <article className="responsive-data-card register-session-card"><header><div><strong>{row.session_number}</strong><small>{row.register_name}</small></div><span className={`status-pill ${row.status === "open" ? "active" : "inactive"}`}>{t(row.status)}</span></header><div><span>{t("Opened")}</span><strong>{dateTime(row.opened_at, language)}</strong></div><div><span>{t("Closed")}</span><strong>{dateTime(row.closed_at, language)}</strong></div><div><span>{t("Opened by")}</span><strong>{row.opened_by_profile?.full_name || t("POS Staff")}</strong></div><div><span>{t("Expected")}</span><strong>{money(row.expected_cash_usd || 0, "USD")}</strong><small>{money(row.expected_cash_khr || 0, "KHR")}</small></div><div><span>{t("Variance")}</span><strong>{row.status === "closed" ? money(row.variance_usd || 0, "USD") : "—"}</strong><small>{row.status === "closed" ? money(row.variance_khr || 0, "KHR") : "—"}</small></div><footer><button type="button" className="secondary-button compact-button" onClick={() => viewSession(row.id)} disabled={busy === `view-${row.id}`}><Eye size={18} />{t("View report")}</button>{canOverride && row.status === "open" && <button type="button" className="danger-button compact-button" onClick={() => openOverrideClose(row.id)} disabled={busy === `prepare-close-${row.id}`}><LockKeyhole size={17} />{t("Override close")}</button>}</footer></article>}
       />
 
       <CashRegisterCloseModal
