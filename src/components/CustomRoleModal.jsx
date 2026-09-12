@@ -1,6 +1,7 @@
 import { ChevronDown, Save, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
+import { useLanguage } from "../context/LanguageContext";
 import { roleLabel } from "../lib/staff";
 
 const baseRoles = ["admin", "manager", "cashier", "viewer"];
@@ -26,6 +27,7 @@ export default function CustomRoleModal({
   onClose,
   onSave
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [baseRole, setBaseRole] = useState("viewer");
@@ -122,12 +124,12 @@ export default function CustomRoleModal({
     setError("");
 
     if (name.trim().length < 2) {
-      setError("Role name must contain at least 2 characters.");
+      setError(t("Role name must contain at least 2 characters."));
       return;
     }
 
     if (!allowedBaseRoles.includes(baseRole)) {
-      setError("You cannot use that base role.");
+      setError(t("You cannot use that base role."));
       return;
     }
 
@@ -141,13 +143,13 @@ export default function CustomRoleModal({
         is_active: isActive
       });
     } catch (saveError) {
-      setError(saveError?.message || "The custom role could not be saved.");
+      setError(saveError?.message || t("The custom role could not be saved."));
     }
   }
 
   return (
     <Modal
-      title={role?.id ? `Edit ${role.name}` : "Add custom staff role"}
+      title={role?.id ? `${t("Edit")} ${role.name}` : t("Add custom staff role")}
       onClose={() => !busy && onClose()}
       wide
       className="custom-role-modal"
@@ -157,26 +159,26 @@ export default function CustomRoleModal({
       <form className="custom-role-form custom-role-form-recovered" onSubmit={submit}>
         <div className="form-grid two custom-role-basic-grid">
           <label>
-            <span>Role name *</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Example: Stock Controller" autoFocus />
+            <span>{t("Role name *")}</span>
+            <input value={name} onChange={(event) => setName(event.target.value)} placeholder={t("Example: Stock Controller")} autoFocus />
           </label>
           <label>
-            <span>Base role *</span>
+            <span>{t("Base role *")}</span>
             <select value={baseRole} onChange={(event) => changeBaseRole(event.target.value)}>
-              {allowedBaseRoles.map((item) => <option value={item} key={item}>{roleLabel(item)}</option>)}
+              {allowedBaseRoles.map((item) => <option value={item} key={item}>{t(roleLabel(item))}</option>)}
             </select>
           </label>
         </div>
 
         <label>
-          <span>Description</span>
-          <textarea rows="3" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What this role is responsible for" />
+          <span>{t("Description")}</span>
+          <textarea rows="3" value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("What this role is responsible for")} />
         </label>
 
         <label className="custom-role-active recovered">
           <span>
-            <strong>Active role</strong>
-            <small>Inactive roles stay on existing users but cannot be newly assigned.</small>
+            <strong>{t("Active role")}</strong>
+            <small>{t("Inactive roles stay on existing users but cannot be newly assigned.")}</small>
           </span>
           <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
         </label>
@@ -186,13 +188,13 @@ export default function CustomRoleModal({
             <div className="custom-role-permission-summary">
               <ShieldCheck size={21} />
               <span>
-                <strong>Permissions</strong>
-                <small>{permissionKeys.length} selected</small>
+                <strong>{t("Permissions")}</strong>
+                <small>{permissionKeys.length} {t("selected")}</small>
               </span>
             </div>
             <label className="custom-role-search">
               <Search size={18} />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search permission name, module or key" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search permission name, module or key")} />
             </label>
           </div>
 
@@ -212,8 +214,8 @@ export default function CustomRoleModal({
                         onChange={(event) => toggleGroup(rows, event.target.checked)}
                       />
                       <span className="custom-role-group-title">
-                        <strong className="custom-role-group-name">{readableModule(moduleKey)}</strong>
-                        <small className="custom-role-group-count">{selectedCount} of {rows.length} selected</small>
+                        <strong className="custom-role-group-name">{t(readableModule(moduleKey))}</strong>
+                        <small className="custom-role-group-count">{selectedCount} {t("of")} {rows.length} {t("selected")}</small>
                       </span>
                     </label>
                     <button
@@ -237,8 +239,8 @@ export default function CustomRoleModal({
                             onChange={() => togglePermission(definition.permission_key)}
                           />
                           <span className="custom-role-permission-copy">
-                            <strong>{definition.label}</strong>
-                            <small>{definition.description}</small>
+                            <strong>{t(definition.label)}</strong>
+                            <small>{t(definition.description)}</small>
                             <code>{definition.permission_key}</code>
                           </span>
                         </label>
@@ -248,15 +250,15 @@ export default function CustomRoleModal({
                 </section>
               );
             })}
-            {!groups.length && <div className="empty-state compact"><p>No matching permissions.</p></div>}
+            {!groups.length && <div className="empty-state compact"><p>{t("No matching permissions.")}</p></div>}
           </div>
         </section>
 
-        {error && <div className="notice error">{error}</div>}
+        {error && <div className="notice error">{t(error)}</div>}
 
         <div className="modal-actions custom-role-actions">
-          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="primary-button" disabled={busy}><Save size={18} />{busy ? "Saving..." : "Save custom role"}</button>
+          <button type="button" className="secondary-button" onClick={onClose} disabled={busy}>{t("Cancel")}</button>
+          <button type="submit" className="primary-button" disabled={busy}><Save size={18} />{busy ? t("Saving...") : t("Save custom role")}</button>
         </div>
       </form>
     </Modal>
