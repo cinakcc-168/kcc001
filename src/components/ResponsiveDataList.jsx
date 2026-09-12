@@ -1,6 +1,7 @@
 import ListViewControls from "./ListViewControls";
 import { exportListExcel, printListDocument } from "../lib/listDocuments";
 import { useListViewState } from "../lib/listViewState";
+import { useLanguage } from "../context/LanguageContext";
 
 function valueFor(column, row) {
   if (typeof column.documentValue === "function") return column.documentValue(row);
@@ -19,7 +20,7 @@ function CardValue({ column, row }) {
   );
 }
 
-function GenericCard({ row, columns }) {
+function GenericCard({ row, columns, t }) {
   const visible = columns.filter((column) => !column.actionsOnly);
   const [primary, ...details] = visible;
 
@@ -28,7 +29,7 @@ function GenericCard({ row, columns }) {
       {primary && (
         <header className="responsive-generic-card-header">
           <div>
-            <span className="responsive-card-label">{primary.label}</span>
+            <span className="responsive-card-label">{t ? t(primary.label) : primary.label}</span>
             <CardValue column={primary} row={row} />
           </div>
         </header>
@@ -37,7 +38,7 @@ function GenericCard({ row, columns }) {
       <div className="responsive-card-field-list">
         {details.map((column) => (
           <div className="responsive-card-field" key={column.label}>
-            <span className="responsive-card-label">{column.label}</span>
+            <span className="responsive-card-label">{t ? t(column.label) : column.label}</span>
             <CardValue column={column} row={row} />
           </div>
         ))}
@@ -66,11 +67,12 @@ export default function ResponsiveDataList({
   headingExtra = null,
   exporting = false
 }) {
+  const { t } = useLanguage();
   const state = useListViewState(rows, storageKey, initialPageSize);
   const documentColumns = columns
     .filter((column) => !column.excludeDocument && !column.actionsOnly)
     .map((column) => ({
-      label: column.label,
+      label: t(column.label),
       width: column.width,
       value: (row) => valueFor(column, row)
     }));
@@ -101,11 +103,11 @@ export default function ResponsiveDataList({
     <section className={`panel responsive-data-list ${className}`.trim()}>
       <div className="responsive-data-list-heading">
         <div>
-          <h2>{title}</h2>
+          <h2>{t(title)}</h2>
           {subtitle && <p>{subtitle}</p>}
         </div>
         <div className="responsive-data-list-heading-right">
-          <span>{rows.length} rows</span>
+          <span>{rows.length} {t("rows")}</span>
           {headingExtra}
         </div>
       </div>
@@ -126,8 +128,8 @@ export default function ResponsiveDataList({
 
       {rows.length === 0 ? (
         <div className="empty-state compact-empty-state">
-          <h3>{emptyTitle}</h3>
-          <p>{emptyText}</p>
+          <h3>{t(emptyTitle)}</h3>
+          <p>{t(emptyText)}</p>
         </div>
       ) : state.viewMode === "table" ? (
         <div className="responsive-wide-table-wrap">
@@ -135,7 +137,7 @@ export default function ResponsiveDataList({
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column.label} style={column.width ? { width: column.width } : undefined}>{column.label}</th>
+                  <th key={column.label} style={column.width ? { width: column.width } : undefined}>{t(column.label)}</th>
                 ))}
               </tr>
             </thead>
@@ -143,7 +145,7 @@ export default function ResponsiveDataList({
               {state.pageRows.map((row, index) => (
                 <tr key={rowKey(row, index)}>
                   {columns.map((column) => (
-                    <td key={column.label} data-label={column.label} className={column.className || ""}>
+                    <td key={column.label} data-label={t(column.label)} className={column.className || ""}>
                       {column.render ? column.render(row) : String(valueFor(column, row) ?? "—")}
                     </td>
                   ))}
@@ -157,7 +159,7 @@ export default function ResponsiveDataList({
           {state.pageRows.map((row, index) => (
             renderCard
               ? <div className="responsive-card-grid-item" key={rowKey(row, index)}>{renderCard(row, index)}</div>
-              : <GenericCard key={rowKey(row, index)} row={row} columns={columns} />
+              : <GenericCard key={rowKey(row, index)} row={row} columns={columns} t={t} />
           ))}
         </div>
       )}
